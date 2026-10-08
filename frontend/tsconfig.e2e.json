@@ -1,0 +1,28 @@
+{
+  /* The Playwright specs, apart from the Node-side build config in tsconfig.node.json: a spec
+     hands callbacks to page.evaluate that run in the browser, so this is the one Node project
+     that also needs the DOM lib. Kept separate rather than widening that one, so a build
+     config still cannot reach for `document` and typecheck. */
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.e2e.tsbuildinfo",
+    "target": "es2023",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "esnext",
+    "types": ["node"],
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+
+    /* Linting */
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["e2e/**/*.ts"]
+}

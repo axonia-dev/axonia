@@ -1,0 +1,22 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": [
+    "src/**/*.test.{ts,tsx}",
+    "!src/cloud/**",
+    "src/selfhosted/main.tsx",
+    "src/test/setup.ts",
+    "vite.shared.ts"
+  ],
+  "project": ["src/**/*.{ts,tsx}", "!src/cloud/**"],
+  "ignoreDependencies": ["tailwindcss", "lint-staged", "@paddle/paddle-js"],
+  "vite": false,
+  "vitest": false,
+  "rules": {
+    "exports": "off",
+    "nsExports": "off",
+    "types": "off",
+    "nsTypes": "off",
+    "enumMembers": "off",
+    "namespaceMembers": "off"
+  }
+}

@@ -1,0 +1,21 @@
+target/
+node_modules/
+dist/
+dist-ssr/
+dist-selfhosted/
+coverage/
+playwright-report/
+test-results/
+.vite/
+.vitest/
+*.local
+# Every mode reads frontend/.env and none needs it: each mode's settings live in its own file.
+frontend/.env
+
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+.DS_Store
+__pycache__/

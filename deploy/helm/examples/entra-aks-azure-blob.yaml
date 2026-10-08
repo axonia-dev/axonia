@@ -1,0 +1,43 @@
+# Microsoft Entra ID, images in an Azure Blob Storage container reached with AKS Workload Identity, Graph reads on, and
+# sign-in rate-limited at an NGINX ingress controller. docs/selfhosted/entra.md and docs/selfhosted/storage.md.
+publicUrl: https://axonia.intranet.example.com
+organization:
+  id: example
+  name: Example
+ownerGroup: 6f1c2d3e-0000-4000-8000-000000000001
+oidc:
+  issuer: https://login.microsoftonline.com/11111111-2222-4333-8444-555555555555/v2.0
+  clientId: 99999999-8888-4777-8666-555555555555
+  scopes: openid profile email offline_access api://99999999-8888-4777-8666-555555555555/axonia
+  sessionMaxAgeSeconds: 7776000
+  subjectClaim: oid
+database:
+  url: jdbc:postgresql://example.postgres.database.azure.com:5432/axonia?sslmode=require
+  ownerUsername: axonia_owner
+existingSecret: axonia
+media:
+  type: azure-blob
+  azureBlob:
+    endpoint: https://exampleaxonia.blob.core.windows.net
+    container: axonia-media
+entraGraph:
+  clientId: 99999999-8888-4777-8666-555555555555
+  clientSecret:
+    existingSecret: axonia
+    key: AXONIA_ENTRA_CLIENT_SECRET
+backend:
+  serviceAccount:
+    annotations:
+      azure.workload.identity/client-id: 77777777-6666-4555-8444-333333333333
+  podLabels:
+    azure.workload.identity/use: "true"
+ingress:
+  className: webapprouting.kubernetes.azure.com
+  tlsSecretName: axonia-tls
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: 6m
+  # Counted per client address the controller sees: two requests per sign-in, sized for a few hundred members signing in
+  # at once behind one office address (docs/selfhosted/configuration.md).
+  authAnnotations:
+    nginx.ingress.kubernetes.io/limit-rpm: "120"
+    nginx.ingress.kubernetes.io/limit-burst-multiplier: "5"

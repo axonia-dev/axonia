@@ -1,0 +1,15 @@
+{
+  /* The open edition alone. `exclude` leaves src/cloud out of the root files, but TypeScript still
+     compiles any file an import reaches; mapping @/cloud/* to a directory that does not exist is
+     what turns every open import of the Cloud into TS2307. The longer prefix wins over @/*. */
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.selfhosted.tsbuildinfo",
+    "paths": {
+      "@/cloud/*": ["./src/cloud-is-not-part-of-this-edition/*"],
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src"],
+  "exclude": ["src/cloud"]
+}

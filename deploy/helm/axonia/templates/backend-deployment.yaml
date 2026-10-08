@@ -1,0 +1,214 @@
+{{- include "axonia.validate" . -}}
+{{- $secret := required "existingSecret is required: the Secret holding the installation's secrets" .Values.existingSecret -}}
+{{- $settingsKey := include "axonia.settingsKeySecretName" . -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "axonia.backendName" . }}
+  labels:
+    {{- include "axonia.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+spec:
+  replicas: {{ .Values.backend.replicas }}
+  {{- if eq .Values.media.type "local" }}
+  # A volume that mounts on one node at a time cannot be handed from the old pod to the new one while both run.
+  strategy:
+    type: Recreate
+  {{- else }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "axonia.selectorLabels" (dict "context" . "component" "backend") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "axonia.selectorLabels" (dict "context" . "component" "backend") | nindent 8 }}
+        {{- with .Values.backend.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.backend.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "axonia.backendName" . }}
+      automountServiceAccountToken: false
+      # A Service named like a setting would otherwise inject one: a Service axonia-mail sets AXONIA_MAIL_PORT.
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        {{- include "axonia.podSecurityContext" . | nindent 8 }}
+      {{- with .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: backend
+          image: {{ include "axonia.image" (dict "context" . "component" "backend" "image" .Values.backend.image) }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- include "axonia.containerSecurityContext" . | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: JAVA_TOOL_OPTIONS
+              value: {{ .Values.backend.javaToolOptions | quote }}
+            - name: DATABASE_URL
+              value: {{ required "database.url is required" .Values.database.url | quote }}
+            - name: DATABASE_OWNER_USERNAME
+              value: {{ required "database.ownerUsername is required" .Values.database.ownerUsername | quote }}
+            {{- include "axonia.secretEnv" (dict "name" "DATABASE_OWNER_PASSWORD" "secret" $secret) | nindent 12 }}
+            {{- include "axonia.secretEnv" (dict "name" "DATABASE_PASSWORD" "secret" $secret) | nindent 12 }}
+            {{- include "axonia.secretEnv" (dict "name" "DATABASE_COMMUNICATION_READ_PASSWORD" "secret" $secret) | nindent 12 }}
+            {{- include "axonia.secretEnv" (dict "name" "AXONIA_UNSUBSCRIBE_SECRET" "secret" $secret) | nindent 12 }}
+            {{- include "axonia.secretEnv" (dict "name" "AXONIA_EDGE_SHARED_SECRETS" "secret" $secret) | nindent 12 }}
+            {{- include "axonia.secretEnv" (dict "name" "AXONIA_SETTINGS_KEY" "secret" $settingsKey) | nindent 12 }}
+            {{- include "axonia.secretEnv" (dict "name" "AXONIA_SETTINGS_PREVIOUS_KEYS" "secret" $settingsKey "optional" true) | nindent 12 }}
+            - name: AXONIA_PUBLIC_BASE_URL
+              value: {{ required "publicUrl is required" .Values.publicUrl | quote }}
+            - name: AXONIA_SELFHOSTED_ORGANIZATION_ID
+              value: {{ required "organization.id is required" .Values.organization.id | quote }}
+            - name: AXONIA_SELFHOSTED_ORGANIZATION_NAME
+              value: {{ required "organization.name is required" .Values.organization.name | quote }}
+            - name: AXONIA_SELFHOSTED_OWNER_GROUP
+              value: {{ required "ownerGroup is required" .Values.ownerGroup | quote }}
+            - name: AXONIA_SELFHOSTED_OIDC_ISSUER_URI
+              value: {{ required "oidc.issuer is required" .Values.oidc.issuer | quote }}
+            - name: AXONIA_SELFHOSTED_OIDC_AUDIENCE
+              value: {{ required "oidc.clientId or oidc.audience is required" (include "axonia.audience" .) | quote }}
+            - name: AXONIA_SELFHOSTED_OIDC_SUBJECT_CLAIM
+              value: {{ .Values.oidc.subjectClaim | quote }}
+            - name: AXONIA_SELFHOSTED_OIDC_GROUPS_CLAIM
+              value: {{ .Values.oidc.groupsClaim | quote }}
+            - name: AXONIA_SELFHOSTED_OIDC_EMAIL_CLAIMS
+              value: {{ join "," .Values.oidc.emailClaims | quote }}
+            - name: AXONIA_SELFHOSTED_OIDC_NAME_CLAIM
+              value: {{ .Values.oidc.nameClaim | quote }}
+            - name: AXONIA_RATE_LIMIT_STORE
+              value: {{ .Values.rateLimit.store | quote }}
+            {{- if eq .Values.rateLimit.store "redis" }}
+            {{- include "axonia.secretEnv" (dict "name" "SPRING_DATA_REDIS_URL" "secret" .Values.rateLimit.redis.existingSecret "key" .Values.rateLimit.redis.key) | nindent 12 }}
+            - name: MANAGEMENT_HEALTH_REDIS_ENABLED
+              value: "true"
+            {{- end }}
+            - name: APP_MEDIA_TYPE
+              value: {{ .Values.media.type | quote }}
+            {{- if eq .Values.media.type "local" }}
+            - name: MEDIA_LOCAL_PATH
+              value: /var/lib/axonia/media
+            {{- else if eq .Values.media.type "s3" }}
+            - name: APP_MEDIA_S3_BUCKET
+              value: {{ .Values.media.s3.bucket | quote }}
+            {{- with .Values.media.s3.region }}
+            - name: APP_MEDIA_S3_REGION
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.media.s3.endpoint }}
+            - name: APP_MEDIA_S3_ENDPOINT
+              value: {{ . | quote }}
+            {{- end }}
+            - name: APP_MEDIA_S3_PATH_STYLE
+              value: {{ .Values.media.s3.pathStyle | quote }}
+            {{- with .Values.media.s3.existingSecret }}
+            {{- include "axonia.secretEnv" (dict "name" "APP_MEDIA_S3_ACCESS_KEY" "secret" .) | nindent 12 }}
+            {{- include "axonia.secretEnv" (dict "name" "APP_MEDIA_S3_SECRET_KEY" "secret" .) | nindent 12 }}
+            {{- end }}
+            {{- else }}
+            - name: APP_MEDIA_AZURE_BLOB_ENDPOINT
+              value: {{ .Values.media.azureBlob.endpoint | quote }}
+            - name: APP_MEDIA_AZURE_BLOB_CONTAINER
+              value: {{ .Values.media.azureBlob.container | quote }}
+            # The platform's identity or a service principal the environment names, never a developer tool's sign-in.
+            - name: AZURE_TOKEN_CREDENTIALS
+              value: prod
+            {{- end }}
+            {{- with .Values.entraGraph.clientId }}
+            - name: AXONIA_ENTRA_CLIENT_ID
+              value: {{ . | quote }}
+            {{- include "axonia.secretEnv" (dict "name" "AXONIA_ENTRA_CLIENT_SECRET" "secret" $.Values.entraGraph.clientSecret.existingSecret "key" $.Values.entraGraph.clientSecret.key) | nindent 12 }}
+            {{- end }}
+            {{- with .Values.mail.host }}
+            - name: AXONIA_MAIL_HOST
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.mail.port }}
+            - name: AXONIA_MAIL_PORT
+              value: {{ . | int64 | toString | quote }}
+            {{- end }}
+            {{- with .Values.mail.security }}
+            - name: AXONIA_MAIL_SECURITY
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.mail.username }}
+            - name: AXONIA_MAIL_USERNAME
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.mail.password.existingSecret }}
+            {{- include "axonia.secretEnv" (dict "name" "AXONIA_MAIL_PASSWORD" "secret" . "key" $.Values.mail.password.key) | nindent 12 }}
+            {{- end }}
+            {{- with .Values.mail.fromAddress }}
+            - name: AXONIA_MAIL_FROM_ADDRESS
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.mail.fromName }}
+            - name: AXONIA_MAIL_FROM_NAME
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.backend.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          # Migrations run before the server listens, so the first start of a large database gets ten minutes.
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 10
+            failureThreshold: 60
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 10
+            failureThreshold: 3
+          # Ready only once the Organization is founded, so no request reaches an installation before it exists.
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            periodSeconds: 5
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.backend.resources | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            {{- if eq .Values.media.type "local" }}
+            - name: media
+              mountPath: /var/lib/axonia/media
+            {{- end }}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        {{- if eq .Values.media.type "local" }}
+        - name: media
+          persistentVolumeClaim:
+            claimName: {{ include "axonia.mediaClaimName" . }}
+        {{- end }}
+      {{- with .Values.backend.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.backend.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.backend.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

@@ -1,0 +1,3 @@
+# An installation's own settings and overrides (docs/selfhosted/install.md), kept out of every commit.
+.env
+compose.override.yaml

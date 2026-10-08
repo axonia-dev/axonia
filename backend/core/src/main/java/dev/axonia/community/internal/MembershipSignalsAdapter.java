@@ -1,0 +1,66 @@
+package dev.axonia.community.internal;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import dev.axonia.community.CommunityCapabilities;
+import dev.axonia.community.CommunityService;
+import dev.axonia.community.OrganizationContext;
+import dev.axonia.health.Buckets;
+import dev.axonia.health.MembershipSignals;
+import lombok.RequiredArgsConstructor;
+
+/** Community's implementation of the community-health signal port. */
+@Component
+@RequiredArgsConstructor
+class MembershipSignalsAdapter implements MembershipSignals {
+
+    private final CommunityService communityService;
+    private final CommunityCapabilities communityCapabilities;
+    private final MembershipRepository membershipRepository;
+    private final OrganizationContext organizationContext;
+
+    @Override
+    @Transactional(readOnly = true)
+    public long communityIdForSlug(String slug) {
+
+        return communityService.getBySlug(slug).id();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long memberCount(long communityId) {
+
+        return membershipRepository.countByOrganizationIdAndCommunityId(organizationContext.organizationId(),
+                communityId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long joins(long communityId, Instant from, Instant to) {
+
+        return membershipRepository.countJoins(organizationContext.organizationId(), communityId, from, to);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Long> joinsPerBucket(long communityId, Instant from, Instant to, int buckets) {
+
+        var query = JoinsPerBucketQuery.builder().organizationId(organizationContext.organizationId())
+                .communityId(communityId).bucketSeconds(Buckets.secondsPerBucket(from, to, buckets))
+                .lastBucket(buckets - 1).build();
+        var rows = membershipRepository.countJoinsPerBucket(query, from, to);
+        return Buckets.zeroFill(rows.stream().collect(Collectors.toMap(BucketCount::bucket, BucketCount::n)), buckets);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean canViewHealth(long communityId, String userId) {
+
+        return communityCapabilities.canViewHealth(communityId, userId);
+    }
+}

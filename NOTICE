@@ -1,0 +1,12 @@
+axonia
+Copyright 2026 Gabriel Dinant
+
+This software is licensed under the Functional Source License, Version 1.1, ALv2 Future License, in the file LICENSE.
+Each release becomes available under the Apache License, Version 2.0, on the second anniversary of its release; its
+release notes give the date.
+
+It includes and depends on third-party software, each under its own license, as declared by backend/pom.xml,
+frontend/package.json and selfhosted-edge/package.json, and recorded in the software bill of materials attached to each
+published image.
+
+"axonia" and the axonia logo are trademarks of Gabriel Dinant; TRADEMARKS.md says how they may be used.

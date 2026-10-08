@@ -1,0 +1,14 @@
+axonia is starting at {{ .Values.publicUrl }}.
+
+The backend is ready once its Organization is founded; the first start also migrates the database, which can take
+some minutes:
+
+  kubectl --namespace {{ .Release.Namespace }} rollout status deployment/{{ include "axonia.backendName" . }}
+
+{{- if not .Values.settingsKey.existingSecret }}
+
+The settings key that encrypts stored integration secrets is in the Secret {{ include "axonia.settingsKeySecretName" . }}.
+Back it up, kept apart from the database backups: a restore without it leaves the mail server's password unreadable.
+
+  kubectl --namespace {{ .Release.Namespace }} get secret {{ include "axonia.settingsKeySecretName" . }} -o jsonpath='{.data.AXONIA_SETTINGS_KEY}' | base64 --decode
+{{- end }}

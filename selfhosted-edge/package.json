@@ -1,0 +1,29 @@
+{
+  "name": "axonia-selfhosted-edge",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.18.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node src/main.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint --type-aware",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run --coverage",
+    "knip": "knip",
+    "verify": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run test && pnpm run knip"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.1",
+    "@vitest/coverage-v8": "^5.0.2",
+    "knip": "6.39.0",
+    "oxlint": "^1.85.0",
+    "oxlint-tsgolint": "^7.0.2003",
+    "prettier": "^3.9.9",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.2"
+  }
+}

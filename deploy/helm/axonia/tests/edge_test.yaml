@@ -1,0 +1,127 @@
+suite: the edge
+templates:
+  - edge-deployment.yaml
+  - ingress.yaml
+release:
+  name: axonia
+  namespace: axonia
+values:
+  - values.yaml
+tests:
+  - it: writes a session lifetime of ninety days as a whole number, never in exponent form
+    template: edge-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SESSION_MAX_AGE_SECONDS
+            value: "7776000"
+
+  - it: forwards to the backend's Service in its own namespace and trusts the one ingress in front
+    template: edge-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: BACKEND_ORIGIN
+            value: http://axonia-backend.axonia.svc:8080
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: TRUSTED_PROXY_HOPS
+            value: "1"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: EDGE_SHARED_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: axonia
+                key: EDGE_SHARED_SECRET
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: /healthz
+
+  - it: routes the public host to the edge alone
+    template: ingress.yaml
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.rules[0].host
+          value: axonia.example.com
+      - equal:
+          path: spec.rules[0].http.paths[0].backend.service.name
+          value: axonia-edge
+
+  - it: gives sign-in, and not renewal or sign-out, an Ingress of its own when it carries annotations, keeping the shared ones under its own
+    template: ingress.yaml
+    set:
+      ingress:
+        className: nginx
+        annotations:
+          nginx.ingress.kubernetes.io/proxy-body-size: 6m
+        authAnnotations:
+          nginx.ingress.kubernetes.io/limit-rpm: "30"
+    asserts:
+      - hasDocuments:
+          count: 2
+      - documentIndex: 1
+        equal:
+          path: metadata.name
+          value: axonia-edge-auth
+      - documentIndex: 1
+        equal:
+          path: spec.rules[0].http.paths
+          value:
+            - path: /auth/login
+              pathType: Exact
+              backend:
+                service:
+                  name: axonia-edge
+                  port:
+                    name: http
+            - path: /auth/callback
+              pathType: Exact
+              backend:
+                service:
+                  name: axonia-edge
+                  port:
+                    name: http
+      - documentIndex: 0
+        equal:
+          path: spec.rules[0].http.paths
+          value:
+            - path: /
+              pathType: Prefix
+              backend:
+                service:
+                  name: axonia-edge
+                  port:
+                    name: http
+      - documentIndex: 1
+        equal:
+          path: metadata.annotations["nginx.ingress.kubernetes.io/limit-rpm"]
+          value: "30"
+      - documentIndex: 1
+        equal:
+          path: metadata.annotations["nginx.ingress.kubernetes.io/proxy-body-size"]
+          value: 6m
+      - documentIndex: 0
+        notExists:
+          path: metadata.annotations["nginx.ingress.kubernetes.io/limit-rpm"]
+
+  - it: renders no Ingress when the operator routes to the edge's Service another way
+    template: ingress.yaml
+    set:
+      ingress.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: runs the published edge image at the chart's appVersion unless a mirror is given
+    template: edge-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: ghcr.io/axonia-dev/axonia-edge:0.1.0

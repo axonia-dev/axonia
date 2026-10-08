@@ -1,0 +1,183 @@
+suite: what the chart refuses to render
+templates:
+  - backend-deployment.yaml
+release:
+  name: axonia
+  namespace: axonia
+values:
+  - values.yaml
+tests:
+  - it: refuses several backend instances keeping their rate limits apart
+    set:
+      backend.replicas: 2
+    asserts:
+      - failedTemplate:
+          errorPattern: backend.replicas above 1 needs rateLimit.store=redis
+
+  - it: refuses several backend instances on a volume that mounts on one node
+    set:
+      backend.replicas: 2
+      rateLimit:
+        store: redis
+        redis:
+          existingSecret: axonia-redis
+          key: url
+    asserts:
+      - failedTemplate:
+          errorPattern: needs media.local.accessModes to include ReadWriteMany
+
+  - it: refuses Redis without the Secret holding its address
+    set:
+      rateLimit.store: redis
+    asserts:
+      - failedTemplate:
+          errorPattern: needs rateLimit.redis.existingSecret
+
+  - it: refuses an S3 store without a bucket
+    set:
+      media:
+        type: s3
+        s3:
+          region: eu-central-1
+    asserts:
+      - failedTemplate:
+          errorPattern: "media.type=s3 needs media.s3.bucket\\."
+
+  - it: refuses an S3 store with neither a region nor an endpoint
+    set:
+      media:
+        type: s3
+        s3:
+          bucket: axonia-media
+    asserts:
+      - failedTemplate:
+          errorPattern: needs media.s3.region for AWS S3, or media.s3.endpoint
+
+  - it: refuses an Azure Blob store without an endpoint
+    set:
+      media:
+        type: azure-blob
+        azureBlob:
+          container: axonia-media
+    asserts:
+      - failedTemplate:
+          errorPattern: needs media.azureBlob.endpoint and media.azureBlob.container
+
+  - it: refuses an Azure Blob store without a container
+    set:
+      media:
+        type: azure-blob
+        azureBlob:
+          endpoint: https://exampleaxonia.blob.core.windows.net
+    asserts:
+      - failedTemplate:
+          errorPattern: needs media.azureBlob.endpoint and media.azureBlob.container
+
+  - it: refuses an installation without the Secret holding its secrets
+    set:
+      existingSecret: ""
+    asserts:
+      - failedTemplate:
+          errorPattern: /existingSecret
+
+  - it: refuses an Organization name longer than the application stores
+    set:
+      organization.name: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    asserts:
+      - failedTemplate:
+          errorPattern: /organization/name
+
+  - it: accepts an Organization name of exactly the length the application stores
+    set:
+      organization.name: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    asserts:
+      - notFailedTemplate: {}
+
+  - it: refuses Graph reads without the Secret holding their client secret
+    set:
+      entraGraph.clientId: 99999999-8888-4777-8666-555555555555
+    asserts:
+      - failedTemplate:
+          errorPattern: needs entraGraph.clientSecret.existingSecret
+
+  # Helm logs "cannot overwrite table with non table for axonia.mail.password" here, as it does for an operator making
+  # this mistake: the scalar has to replace the table for the schema to refuse it.
+  - it: refuses a mail password given as a value rather than a Secret
+    set:
+      mail.password: hunter2
+    asserts:
+      - failedTemplate:
+          errorPattern: "/mail/password.*want object"
+
+  - it: refuses a mail security the application does not know
+    set:
+      mail.security: SSL
+    asserts:
+      - failedTemplate:
+          errorPattern: /mail/security
+
+  - it: refuses a public address that is not https
+    set:
+      publicUrl: http://axonia.example.com
+    asserts:
+      - failedTemplate:
+          errorPattern: /publicUrl
+
+  - it: refuses an upgrade that changes fullnameOverride, which would start on a new settings key, volume and account
+    release:
+      name: prod
+      upgrade: true
+    set:
+      fullnameOverride: communities
+    kubernetesProvider: &installed
+      scheme:
+        "apps/v1/Deployment":
+          gvr:
+            group: apps
+            version: v1
+            resource: deployments
+          namespaced: true
+      objects:
+        - apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: prod-backend
+            namespace: axonia
+            labels:
+              app.kubernetes.io/name: axonia
+              app.kubernetes.io/instance: prod
+              app.kubernetes.io/component: backend
+        # The release's edge carries the same name and instance labels under another name: only the backend is compared.
+        - apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: prod-edge
+            namespace: axonia
+            labels:
+              app.kubernetes.io/name: axonia
+              app.kubernetes.io/instance: prod
+              app.kubernetes.io/component: edge
+        # Another release's backend in the same namespace is none of this release's business.
+        - apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: staging-backend
+            namespace: axonia
+            labels:
+              app.kubernetes.io/name: axonia
+              app.kubernetes.io/instance: staging
+              app.kubernetes.io/component: backend
+    asserts:
+      - failedTemplate:
+          errorPattern: "fullnameOverride changed since the install: this release's backend is prod-backend, and the chart would now create communities-backend"
+
+  - it: upgrades a release whose names are the ones it was installed with
+    release:
+      name: prod
+      upgrade: true
+    kubernetesProvider: *installed
+    asserts:
+      - notFailedTemplate: {}
+      - equal:
+          path: metadata.name
+          value: prod-backend

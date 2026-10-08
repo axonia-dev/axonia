@@ -1,0 +1,14 @@
+publicUrl: https://axonia.example.com
+organization:
+  id: example
+  name: Example
+ownerGroup: axonia-owners
+oidc:
+  issuer: https://login.example.com/realms/example
+  clientId: axonia
+  scopes: openid profile email offline_access
+  sessionMaxAgeSeconds: 7776000
+database:
+  url: jdbc:postgresql://postgres.example.com:5432/axonia
+  ownerUsername: axonia_owner
+existingSecret: axonia

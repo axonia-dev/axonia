@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<!--
+This file is never rendered on its own - MailRenderer only ever processes a `session-*.html` file by name. It exists
+purely as a library of Thymeleaf fragments the six message templates compose: the envelope (outer table, card, header,
+footer) plus the reusable inner pieces (stat strip, section heading, talk block, chip, resource link, action-point row,
+note block, primary button). Every hex literal in the mail feature lives here. A message template supplies content,
+never colour.
+-->
+<head>
+<meta charset="UTF-8">
+<title>axonia mail shell</title>
+</head>
+<body>
+
+<!--
+The envelope: outer background table, the white card (header plus the caller's own body rows), and the axonia/
+unsubscribe footer below it. `body` is a fragment expression - each message template passes its own content rows as
+`~{::content}`, the standard Thymeleaf way to project markup into a shared layout without a layout dialect. The header
+leads with the SENDER's own monogram and name (the `sender` fact - null when there is none, never an empty map), then
+the series, then the headline and its `when`-prefixed date; the axonia wordmark no longer lives up here. The sender is
+a community for a session message and the organization itself for a roundup - a roundup is about every community at
+once, so no single one of them could be behind it - which is the whole reason this fact is not called `community`:
+the shape is the same three things either way, a name, its initials and a resolved tint. axonia is deliberately never
+the sender, because nobody subscribed to axonia's mail; the wordmark stays at the foot, where the host belongs.
+
+`when` and `reason` are the two parameters every message template supplies alongside `body`: `when` is the short verb
+phrase the date line completes ('Happening', 'Held', 'Was on for', 'Covering'), and `reason` is a clause the footer
+completes into a full sentence ('You are a member of' + sender name + '.'), never a whole sentence on its own - the
+sender's name is a fact, not a literal, so composing the sentence here rather than in each template keeps every
+template's own parameter a short, static literal it can pass without knowing that name. The footer reads
+unsubscribePageUrl straight off the ambient context, same as before: every session-* template shares the exact same
+fact map shape (SessionFacts#of), so there is nothing template-specific to pass in for that one.
+
+The line under the headline has two mutually exclusive arms, because a message is about a moment or about a period. A
+session message carries `scheduledAt` and gets `scheduledAtLabel`; a roundup carries `periodLabel` ('April to June
+2026') and gets that instead. Separate paragraphs rather than one ternary: each is guarded on the other's facts being
+absent as well as on its own being present, so no two can ever both render.
+
+`scheduledAtLabel` is derived in Java, by MomentLine, and set by MailRenderer on every render - never composed here.
+The rule it applies is not one a template can state: the hour is read on the RECIPIENT's clock where one is known, the
+session's own hour is named alongside only when the two genuinely differ at that instant, and an untimed occurrence
+names its day alone on the session's clock rather than the reader's. Composing that here is how the plain-text parts
+and this one would come to say different things about the same message, which they already did once when both
+formatted in UTC and one of them got the day wrong.
+
+The card's own 28px inset - top, right, bottom, left - lives in exactly one place: the single `<td>` wrapping the
+inner content table below. No header row and no body-row fragment (statStrip, sectionHeading, talkBlock, ...) sets
+its own horizontal padding any more, and each sets only its own top padding, the gap from whatever rendered
+immediately before it. The exceptions are actionPointRow and checkedItemRow, which also carry 12px below so that
+their own border-bottom clears the badges hanging under their text; that padding is interior to the row and
+never reaches the card's edge. That is what makes the card's bottom inset always exactly 28px regardless
+of which optional block happens to be last - the closing gap is the container's, never a trailing block's own - and
+symmetric with the top inset, which is the same container padding above a header that is always first, unconditionally.
+-->
+<table th:fragment="page(body, when, reason)" role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+    style="background-color:#fbf8f6;">
+<tr>
+<td align="center" style="padding:28px 16px;">
+
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0"
+    style="max-width:600px; width:100%; background-color:#ffffff; border:1px solid #ede4e9; border-radius:16px;
+           font-family:'Inter Variable',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+<tr>
+<td style="padding:28px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+<tbody>
+<tr>
+<td style="padding:0;">
+<table th:if="${sender} != null" role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 18px 0;">
+<tr>
+<td width="36" style="padding:0 10px 0 0;">
+<div th:text="${sender.initials}"
+    th:attr="style='width:36px;height:36px;border-radius:10px;font-size:13px;font-weight:700;line-height:36px;text-align:center;background-color:' + ${sender.tintBackground} + ';color:' + ${sender.tintForeground} + ';'">AA</div>
+</td>
+<td>
+<p th:text="${sender.name}" style="margin:0; font-size:14px; font-weight:700; line-height:1.25; color:#211a26;">Community</p>
+<p th:if="not ${#strings.isEmpty(seriesTitle)}" th:text="${seriesTitle}"
+    style="margin:0; font-size:12px; line-height:1.35; color:#786a7e;">Series</p>
+</td>
+</tr>
+</table>
+<p th:if="${sender} == null and not ${#strings.isEmpty(seriesTitle)}" th:text="${seriesTitle}"
+    style="margin:0 0 6px 0; font-size:13px; font-weight:600; color:#786a7e;">Series</p>
+<h1 th:text="${sessionTitle} ?: 'This session'"
+    style="margin:0 0 8px 0; font-size:26px; line-height:1.2; letter-spacing:-0.01em; color:#211a26;
+           font-family:'Space Grotesk Variable','Inter Variable',Helvetica,Arial,sans-serif;">Session title</h1>
+<p th:if="${scheduledAtLabel} != null" th:text="${when} + ' ' + ${scheduledAtLabel}"
+    style="margin:0; font-size:13px; color:#786a7e;">a date</p>
+<p th:if="${scheduledAt} == null and not ${#strings.isEmpty(periodLabel)}" th:text="${when} + ' ' + ${periodLabel}"
+    style="margin:0; font-size:13px; color:#786a7e;">a period</p>
+</td>
+</tr>
+</tbody>
+<tbody th:insert="${body}"></tbody>
+</table>
+</td>
+</tr>
+</table>
+
+<table role="presentation" width="600" cellpadding="0"
+    cellspacing="0" border="0" style="max-width:600px; width:100%; font-family:'Inter Variable',Helvetica,Arial,sans-serif;">
+<tr>
+<td align="center" style="padding:18px 16px 26px 16px;">
+<p style="margin:0 0 6px 0; font-size:11px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:#de3b78;">axonia</p>
+<p th:if="${sender} != null and not ${#strings.isEmpty(reason)}" th:text="${reason} + ' ' + ${sender.name} + '.'"
+    style="margin:0 0 4px 0; font-size:12px; color:#786a7e;">Why you got this</p>
+<p th:if="not ${#strings.isEmpty(unsubscribePageUrl)}" style="margin:0; font-size:12px; color:#786a7e;">
+<a th:href="${unsubscribePageUrl}" style="color:#786a7e; text-decoration:underline;">Unsubscribe</a>
+</p>
+</td>
+</tr>
+</table>
+
+</td>
+</tr>
+</table>
+
+<!--
+The hidden preheader line a mail client lifts as its inbox preview. Naming who spoke (or, before a session, who is
+presenting) is far more useful than repeating the subject, which is what the div carrying this used to hold verbatim.
+Built entirely from facts already on the context - talks and actionPoints - never from a fact of its own. Falls back to
+the caller-supplied text when there are no talks to name.
+-->
+<th:block th:fragment="preheader(fallback)"
+    th:with="hasTalks=${talks} != null and not ${talks.isEmpty()}, hasActionPoints=${actionPoints} != null and not ${actionPoints.isEmpty()}">
+<th:block th:if="${hasTalks}"
+><th:block th:each="talk, talkStat : ${talks}"
+    ><th:block th:unless="${talkStat.first}">, </th:block
+    ><th:block th:with="talkTopic=(${talk.subjects} != null and not ${talk.subjects.isEmpty()}) ? ${talk.subjects[0]} : (${talk.title} ?: 'a talk'), talkPhrase=${#strings.isEmpty(talk.presenter)} ? ${talkTopic} : ${talk.presenter} + ' on ' + ${talkTopic}"
+        th:text="${talkPhrase}">talk</th:block
+    ></th:block
+><th:block th:if="${hasActionPoints}" th:with="actionPointCount=${actionPoints.size()}">, and <th:block
+        th:text="${actionPointCount} + (${actionPointCount} == 1 ? ' action point' : ' action points')">n</th:block></th:block
+></th:block
+><th:block th:unless="${hasTalks}" th:text="${fallback}">fallback</th:block>
+</th:block>
+
+<!-- The talk-count chip statStrip and nudgeStrip both need: how many talks this session carries, omitted entirely
+     when there are none. One fragment, not two near-identical cells, so the fact and its rendering never drift
+     between a wrap-up's own stats and a nudge's own chip row. The emptiness guard sits HERE, on the fragment's own
+     definition, and never on a caller's th:replace tag: a th:if beside a th:replace never runs at all (inclusion is
+     order 1, conditional evaluation order 3, and inclusion stops the host tag's remaining attributes). Every
+     self-guarding fragment in this file - statStrip, talkCountCell, nudgeStrip - carries its condition the same way. -->
+<td th:fragment="talkCountCell" th:if="${talks} != null and not ${talks.isEmpty()}" style="padding:0 8px 8px 0;">
+<span th:text="${talks.size()} + (${talks.size()} == 1 ? ' talk' : ' talks')"
+    style="display:inline-block; background:#f6f0ec; border-radius:999px; padding:6px 12px; font-size:12px; font-weight:600; color:#211a26;">talks</span>
+</td>
+
+<!-- A stat strip promoting attendance and the recording out of trailing grey lines. Renders nothing at all when
+     there is nothing to show. Attendance never needs a singular/plural branch ("1 in the room" already reads fine);
+     talk count does. -->
+<tr th:fragment="statStrip"
+    th:if="(${talks} != null and not ${talks.isEmpty()}) or (${attendeeCount} != null and ${attendeeCount} > 0) or not ${#strings.isEmpty(recordingUrl)}">
+<td style="padding:20px 0 0 0;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td th:replace="~{::talkCountCell}">talks</td>
+<td th:if="${attendeeCount} != null and ${attendeeCount} > 0" style="padding:0 8px 8px 0;">
+<span th:text="${attendeeCount} + ' in the room'"
+    style="display:inline-block; background:#f6f0ec; border-radius:999px; padding:6px 12px; font-size:12px; font-weight:600; color:#211a26;">in the room</span>
+</td>
+<td th:if="not ${#strings.isEmpty(recordingUrl)}"
+    th:with="recordingUrlIsSafe=${#strings.startsWith(recordingUrl,'https://') or #strings.startsWith(recordingUrl,'http://')}"
+    style="padding:0 8px 8px 0;">
+<a th:if="${recordingUrlIsSafe}" th:href="${recordingUrl}"
+    style="display:inline-block; background:#ffffff; border:1px solid #ede4e9; border-radius:999px; padding:5px 12px; font-size:12px; font-weight:600; color:#c32c66; text-decoration:none;">Recording available</a>
+<span th:unless="${recordingUrlIsSafe}" th:text="'Recording available: ' + ${recordingUrl}"
+    style="display:inline-block; background:#f6f0ec; border-radius:999px; padding:6px 12px; font-size:12px; font-weight:600; color:#786a7e;">Recording available</span>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+
+<!-- The nudge's own chip row: the alert chip its caller supplies, then the agenda count read straight off `talks`,
+     the same fact the upcoming notice already renders as a list. Separate from statStrip rather than a branch inside
+     it, because a nudge and a wrap-up promote different things: a wrap-up reports attendance and a recording, a nudge
+     reports how long it has been ignored and how much work is sitting behind it. Self-guarding rather than leaving its
+     condition to a caller's th:replace tag, where a th:if would never run - so the caller picks the arm's copy as a
+     value, not as a condition.
+
+     Guarded in statStrip's exact shape, and for the same reason: the row's own condition is the DISJUNCTION of its
+     cells' conditions, and each cell still guards itself. The two chips are independent facts - the arm is frozen at
+     enqueue and the count is read off `talks` - so hanging the whole row off `alert` alone drops the count with the
+     arm, and an outbox row enqueued before nudgeArm existed (this template predates it) renders no count in the HTML
+     while its .txt twin, which gates on `talks` alone, still prints one. -->
+<tr th:fragment="nudgeStrip(alert)"
+    th:if="(not ${#strings.isEmpty(alert)}) or (${talks} != null and not ${talks.isEmpty()})">
+<td style="padding:16px 0 0 0;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td th:if="not ${#strings.isEmpty(alert)}" style="padding:0 8px 8px 0;">
+<span th:text="${alert}"
+    style="display:inline-block; background:#fdeef4; border-radius:999px; padding:6px 12px; font-size:12px; font-weight:600; color:#c32c66;">Alert</span>
+</td>
+<td th:replace="~{::talkCountCell}">talks</td>
+</tr>
+</table>
+</td>
+</tr>
+
+<!-- The empty-agenda invitation. Brand-tinted rather than neutral for the same reason an open slot is: this block is
+     asking for something. It replaces the sentence "The agenda is still being put together.", which described the
+     state accurately and asked for nothing, in the one state where asking matters most. -->
+<tr th:fragment="inviteBlock(heading, text)">
+<td style="padding:12px 0 0 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#fdeef4; border-radius:11px;">
+<tr>
+<td style="padding:18px;">
+<p th:text="${heading}" style="margin:0 0 6px 0; font-size:15px; font-weight:700; color:#211a26;">Heading</p>
+<p th:text="${text}" style="margin:0; font-size:14px; line-height:1.55; color:#211a26;">Invitation</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+
+<!-- The second act a message can offer, always as a link and never as a button: a message carries ONE call to
+     action (see primaryButton), and a second pill competing with it is how that rule dies. -->
+<tr th:fragment="closingInvite(text, url, label)">
+<td align="center" style="padding:14px 0 0 0;">
+<p style="margin:0; font-size:13px; color:#786a7e;">
+<span th:text="${text} + ' '">Prompt</span><a th:href="${url}" th:text="${label}"
+    style="color:#c32c66; text-decoration:underline; font-weight:600;">Link</a>
+</p>
+</td>
+</tr>
+
+<!-- An uppercase section label - "What happened", "What we agreed to do", "From the session", "Agenda". Top padding
+     only: a fixed 24px gap from whatever precedes it, so a new section always reads as a new section - never doubled
+     up with a preceding block's own spacing, because no block below sets a bottom gap of its own to add to it. -->
+<tr th:fragment="sectionHeading(text)">
+<td style="padding:24px 0 0 0;">
+<p th:text="${text}" style="margin:0; font-size:11px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:#786a7e;">Section</p>
+</td>
+</tr>
+
+<!-- A plain body paragraph - the only furniture piece with no structure of its own, for the handful of sentences
+     that are neither a heading nor a block (an empty-state line, an explanatory sentence). -->
+<tr th:fragment="bodyText(text)">
+<td style="padding:10px 0 0 0;">
+<p th:text="${text}" style="margin:0; font-size:15px; line-height:1.55; color:#211a26;">Body text</p>
+</td>
+</tr>
+
+<!-- The same paragraph with its line breaks kept, for text somebody typed as several lines and meant as several
+     lines - a dial-in block is a number, an ID and a passcode, and collapsing them into one run is how a reader
+     ends up dialling the conference ID. Quieter than bodyText because what it carries is a detail rather than a
+     sentence. -->
+<tr th:fragment="preservedText(text)">
+<td style="padding:8px 0 0 0;">
+<p th:text="${text}" style="margin:0; font-size:13px; line-height:1.55; color:#786a7e; white-space:pre-wrap;">Details</p>
+</td>
+</tr>
+
+<!-- A wrap-up talk: presenter named at the top, the title at 17px, subjects as chips, then its own resources. The
+     title carries the same 'Untitled talk' fallback agendaItem does, and both .txt twins carry it too: a slot's title
+     is nullable, and one of four renderings quietly dropping to a blank line was the only thing distinguishing them. -->
+<tr th:fragment="talkBlock(talk)">
+<td style="padding:12px 0 0 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f6f0ec; border-radius:11px;">
+<tr>
+<td style="padding:16px 18px;">
+<table th:if="${talk.presenters} != null and not ${talk.presenters.isEmpty()}" role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 8px 0;">
+<tr>
+<th:block th:each="presenter, presenterStat : ${talk.presenters}">
+<td width="28"
+    th:with="avatarColor=(${presenterStat.index % 3 == 0} ? '#de3b78' : (${presenterStat.index % 3 == 1} ? '#6e3ceb' : '#1f9d63')), avatarCellPadding=(${presenterStat.last} ? '10px' : '8px')"
+    th:attr="style='padding:0 ' + ${avatarCellPadding} + ' 0 0;'">
+<div th:text="${presenter.initials}"
+    th:attr="style='width:28px;height:28px;border-radius:999px;color:#ffffff;font-size:11px;font-weight:700;line-height:28px;text-align:center;background-color:' + ${avatarColor} + ';'">AA</div>
+</td>
+</th:block>
+<td style="font-size:13px; color:#786a7e;" th:text="${talk.presenter}">Presenter names</td>
+</tr>
+</table>
+<th:block th:if="${talk.presenters} == null or ${talk.presenters.isEmpty()}">
+<p th:if="not ${#strings.isEmpty(talk.presenter)}" th:text="${talk.presenter}"
+    style="margin:0 0 8px 0; font-size:13px; font-weight:600; color:#786a7e;">Presenter</p>
+<p th:if="${#strings.isEmpty(talk.presenter)}"
+    style="margin:0 0 8px 0; font-size:13px; font-weight:600; color:#786a7e;">We did not catch who presented this one.</p>
+</th:block>
+<p th:text="${talk.title} ?: 'Untitled talk'" style="margin:0 0 10px 0; font-size:17px; font-weight:700; line-height:1.3; color:#211a26;">Talk title</p>
+<table th:if="${talk.subjects} != null and not ${talk.subjects.isEmpty()}" role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 12px 0;">
+<tr>
+<th:block th:each="subject : ${talk.subjects}">
+<td style="padding:0 6px 6px 0;" th:insert="~{::chip(text=${subject})}">Subject</td>
+</th:block>
+</tr>
+</table>
+<div th:if="${talk.resources} != null and not ${talk.resources.isEmpty()}">
+<th:block th:each="resource : ${talk.resources}"
+    th:with="resourceMatchesTalkTitle=(not ${#strings.isEmpty(resource.title)}) and (not ${#strings.isEmpty(talk.title)}) and (${#strings.toLowerCase(#strings.trim(resource.title))} == ${#strings.toLowerCase(#strings.trim(talk.title))})">
+<p th:replace="~{::resourceLink(resource=${resource}, forceUrlLabel=${resourceMatchesTalkTitle})}">Resource</p>
+</th:block>
+</div>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+
+<!-- An upcoming session's agenda item. Renders the same three things the wrap-up's talkBlock does - presenters as
+     initialled avatars, the title, subjects as chips - plus the one thing only a future talk has a use for, its
+     duration. It deliberately does NOT reuse talkBlock: a wrap-up names who presented and lists what they left
+     behind, an agenda names who is about to and how long they have. The presenter-less branch
+     is the only block on the card wearing the brand tint, because it is the only one asking for something. -->
+<tr th:fragment="agendaItem(talk)" th:with="talkIsOpen=${#strings.isEmpty(talk.presenter)}">
+<td style="padding:12px 0 0 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+    th:attr="style='border-radius:11px;background:' + (${talkIsOpen} ? '#fdeef4' : '#f6f0ec') + ';'">
+<tr>
+<td style="padding:16px 18px;">
+<p th:text="${talk.title} ?: 'Untitled talk'"
+    style="margin:0 0 10px 0; font-size:17px; font-weight:700; line-height:1.3; color:#211a26;">Talk title</p>
+<table th:unless="${talkIsOpen}" role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 10px 0;">
+<tr>
+<th:block th:each="presenter, presenterStat : ${talk.presenters}">
+<td width="24"
+    th:with="avatarColor=(${presenterStat.index % 3 == 0} ? '#de3b78' : (${presenterStat.index % 3 == 1} ? '#6e3ceb' : '#1f9d63')), avatarCellPadding=(${presenterStat.last} ? '10px' : '8px')"
+    th:attr="style='padding:0 ' + ${avatarCellPadding} + ' 0 0;'">
+<div th:text="${presenter.initials}"
+    th:attr="style='width:24px;height:24px;border-radius:999px;color:#ffffff;font-size:10px;font-weight:700;line-height:24px;text-align:center;background-color:' + ${avatarColor} + ';'">AA</div>
+</td>
+</th:block>
+<td style="font-size:13px; color:#786a7e;"
+    th:text="${talk.presenter} + (${talk.durationMinutes} != null ? ' · ' + ${talk.durationMinutes} + ' min' : '')">Presenters</td>
+</tr>
+</table>
+<p th:if="${talkIsOpen} and ${talk.durationMinutes} != null" th:text="${talk.durationMinutes} + ' min'"
+    style="margin:0 0 10px 0; font-size:13px; color:#786a7e;">Duration</p>
+<table th:if="${talk.subjects} != null and not ${talk.subjects.isEmpty()}" role="presentation" cellpadding="0" cellspacing="0" border="0">
+<tr>
+<th:block th:each="subject : ${talk.subjects}">
+<td style="padding:0 6px 0 0;" th:insert="~{::chip(text=${subject})}">Subject</td>
+</th:block>
+</tr>
+</table>
+<p th:if="${talkIsOpen}" style="margin:0; font-size:13px; font-weight:600; color:#c32c66;">Awaiting a presenter</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+
+<!-- A subject chip - also reused for a talk's topics. -->
+<span th:fragment="chip(text)" th:text="${text}"
+    style="display:inline-block; background:#ffffff; border:1px solid #ede4e9; border-radius:999px; padding:4px 10px; font-size:11px; font-weight:600; color:#786a7e;">Chip</span>
+
+<!-- A single resource, rendered by its title where it has one, falling back to the url - and only ever an <a> for an
+     http(s) url, text otherwise, so a resource carrying an unexpected scheme can never become a clickable link.
+     forceUrlLabel overrides the title-first default: a talk's own resources routinely carry the talk's own title
+     (AddResourceButton defaults an artifact's title to its slot's title), and reading that sentence twice - once as
+     the talk heading, once as the resource link right underneath - reads as a rendering bug rather than content.
+     talkBlock sets it when a resource's title matches its talk's; resourceRow always passes false. -->
+<p th:fragment="resourceLink(resource, forceUrlLabel)"
+    th:with="resourceIsSafe=${#strings.startsWith(resource.url,'https://') or #strings.startsWith(resource.url,'http://')}, resourceLabel=${forceUrlLabel} ? ${resource.url} : (${resource.title} ?: ${resource.url})"
+    style="margin:0 0 6px 0; font-size:14px;">
+<a th:if="${resourceIsSafe}" th:href="${resource.url}" th:text="${resourceLabel}"
+    style="color:#c32c66; text-decoration:underline; font-weight:500;">Resource</a>
+<span th:unless="${resourceIsSafe}" th:text="${resourceLabel}" style="color:#211a26;">Resource</span>
+</p>
+
+<!-- A session-level resource as its own row, for the "From the session" list (talk-level resources sit inside
+     talkBlock instead, since they belong to one talk, not the session). Never suppresses its own title, since it is
+     never rendered beneath a talk title it could duplicate. -->
+<tr th:fragment="resourceRow(resource)">
+<td style="padding:10px 0 0 0;">
+<p th:replace="~{::resourceLink(resource=${resource}, forceUrlLabel=false)}">Resource</p>
+</td>
+</tr>
+
+<!-- One action point: nothing in an email is clickable, so an empty checkbox invites a click that does nothing and
+     reads as a broken control. State is reported through typography and a label instead - an open item's title sits
+     in foreground text, a resolved one (done OR dropped) is struck through and muted, and a pill on the meta line is
+     what now distinguishes which resolution it got, the same pill shape as the due chip beside it. done and dropped
+     are two separate facts, never one collapsed boolean: a dropped item is resolved exactly like a done one, but
+     must never render identically to it, or to a still-open one - see SessionFacts#actionPoint's own javadoc. assignee
+     is already resolved to a display name or null by SessionFacts; a null reads as "Unassigned" here regardless of
+     whether it was never assigned or could not be resolved. No marker column:
+     the text lines up with the section heading above it rather than being indented past a phantom control, and the
+     divider below never runs past the card's own 28px inset because that inset now lives on the container, never on
+     this row. This is the one body row that sets bottom padding as well as top - the due and outcome badges hang
+     below their text line through their own padding, and without it they sit on the border rather than clear of it. -->
+<tr th:fragment="actionPointRow(actionPoint)">
+<td style="padding:10px 0 12px 0; border-bottom:1px solid #ede4e9;">
+<p th:if="${actionPoint.done} or ${actionPoint.dropped}" th:text="${actionPoint.title} ?: 'Untitled action point'"
+    style="margin:0 0 4px 0; font-size:14px; font-weight:600; color:#786a7e; text-decoration:line-through;">Title</p>
+<p th:unless="${actionPoint.done} or ${actionPoint.dropped}" th:text="${actionPoint.title} ?: 'Untitled action point'"
+    style="margin:0 0 4px 0; font-size:14px; font-weight:600; color:#211a26;">Title</p>
+<p style="margin:0; font-size:12px; color:#786a7e;">
+<span th:text="${actionPoint.assignee} ?: 'Unassigned'">Assignee</span>
+<span th:if="${actionPoint.done}"
+    style="display:inline-block; background-color:#f6f0ec; color:#1f9d63; border-radius:4px; padding:1px 6px; font-weight:700; margin-left:6px;">Done</span>
+<span th:if="${actionPoint.dropped}"
+    style="display:inline-block; background-color:#f6f0ec; color:#786a7e; border-radius:4px; padding:1px 6px; font-weight:700; margin-left:6px;">Dropped</span>
+<span th:if="${actionPoint.dueDate} != null" th:text="'Due ' + ${#temporals.format(actionPoint.dueDate, 'd MMM')}"
+    style="display:inline-block; background-color:#f6f0ec; color:#c32c66; border-radius:4px; padding:1px 6px; font-weight:700; margin-left:6px;">Due date</span>
+</p>
+</td>
+</tr>
+
+<!-- One checked item: a decision this session logged about something raised earlier, not necessarily at this
+     session. No strike-through branch, unlike actionPointRow - Done, Carried and Dropped are the only three legal
+     checkpoint outcomes, so every row here already reports a resolved state, never an open one. assignee is already
+     resolved to a display name or null by SessionFacts, the same drop-if-unresolved rule actionPointRow's assignee
+     follows; a null reads as "Unassigned" here for the same reason. Bottom padding matches actionPointRow's, for the
+     same reason: the outcome badge hangs below the text line through it. The badge colour keys off outcomeKey (the
+     raw CheckpointOutcome name), never off the rendered outcome label, the same th:with + th:attr style-concatenation
+     shape talkBlock's avatarColor already uses: Done keeps actionPointRow's own Done green, Carried takes this
+     template's existing still-outstanding colour (the due chip above, "Awaiting a presenter" in agendaItem) because a
+     carried item is precisely the one still owing an answer, and Dropped takes the muted grey already used for a
+     struck-through done title and the inert "Recording available" chip - nothing further will happen, without
+     claiming failure. -->
+<tr th:fragment="checkedItemRow(checkedItem)">
+<td style="padding:10px 0 12px 0; border-bottom:1px solid #ede4e9;">
+<p th:text="${checkedItem.title} ?: 'Untitled action point'"
+    style="margin:0 0 4px 0; font-size:14px; font-weight:600; color:#211a26;">Title</p>
+<p style="margin:0; font-size:12px; color:#786a7e;"
+    th:with="outcomeColor=(${checkedItem.outcomeKey} == 'DONE' ? '#1f9d63' : (${checkedItem.outcomeKey} == 'CARRIED' ? '#c32c66' : '#786a7e'))">
+<span th:text="${checkedItem.assignee} ?: 'Unassigned'">Assignee</span>
+<span th:text="${checkedItem.outcome}"
+    th:attr="style='display:inline-block; background-color:#f6f0ec; color:' + ${outcomeColor} + '; border-radius:4px; padding:1px 6px; font-weight:700; margin-left:6px;'">Outcome</span>
+</p>
+</td>
+</tr>
+
+<!-- A note block with a brand-coloured accent bar, for the organizer's own words. -->
+<tr th:fragment="noteBlock(text)">
+<td style="padding:22px 0 0 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f6f0ec; border-radius:11px;">
+<tr>
+<td width="3" style="background-color:#de3b78; border-radius:11px 0 0 11px;"></td>
+<td style="padding:14px 16px;">
+<p style="margin:0 0 4px 0; font-size:11px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:#786a7e;">From the organizer</p>
+<p th:text="${text}" style="margin:0; font-size:14px; line-height:1.55; color:#211a26; white-space:pre-wrap;">Note</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+
+<!-- The one call to action a message carries, always brand pink, never a bare link. It takes the same 28px the
+     card gives it below, on the top only: the button is the end of the message, and a tighter gap above it read as
+     attached to the paragraph before it rather than as its own closing move. -->
+<tr th:fragment="primaryButton(url, label)">
+<td align="center" style="padding:28px 0 0 0;">
+<a th:href="${url}" th:text="${label}"
+    style="display:inline-block; background-color:#de3b78; color:#ffffff; text-decoration:none; font-size:15px; font-weight:600; padding:13px 28px; border-radius:999px;">Button</a>
+</td>
+</tr>
+
+<!-- The series' next occurrence, set off by a rule above it. -->
+<tr th:fragment="nextUp(text)">
+<td style="padding:18px 0 0 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid #ede4e9;">
+<tr>
+<td style="padding-top:16px;">
+<p style="margin:0 0 3px 0; font-size:11px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:#786a7e;">Coming up next</p>
+<p th:text="${text}" style="margin:0; font-size:15px; font-weight:600; color:#211a26;">Next session</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+
+<!-- The roundup's number band: the quarter's four figures across one panel, replacing the run-on sentence that used
+     to open the letter ("2 sessions were held across 1 community, with 4 talks, and 3 people presented."). Four equal
+     columns because the reader is scanning rather than reading - sessions, talks, presenters and resources line up
+     under their own labels and the eye takes all four at once, which a sentence cannot do at any length.
+
+     Both the figures AND their labels arrive as parameters, so the caller owns the copy the way every other fragment
+     here works - and so a label can carry its own singular arm ("1 Talk", never "1 Talks"), which a label fixed in
+     this file could not. The two parallel lists are what keeps this one cell rather than four copies of it; a fifth
+     figure would be a design change, not an edit to a repeated block.
+
+     It carries no condition of its own on purpose. A band of four zeroes is not a thing this letter prints: the
+     caller chooses between this band and the "No sessions were held over the quarter." sentence before it gets here,
+     which is the same zero arm the sentence has always had, moved up one level. -->
+<tr th:fragment="statBand(a, aLabel, b, bLabel, c, cLabel, d, dLabel)"
+    th:with="bandFigures=${ {a, b, c, d} }, bandLabels=${ {aLabel, bLabel, cLabel, dLabel} }">
+<td style="padding:20px 0 0 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f6f0ec; border-radius:12px;">
+<tr>
+<td th:each="bandFigure, bandStat : ${bandFigures}" width="25%" align="center" style="padding:18px 4px;">
+<p th:text="${bandFigure}"
+    style="margin:0; font-size:26px; font-weight:700; line-height:1.15; color:#211a26;
+           font-family:'Space Grotesk Variable','Inter Variable',Helvetica,Arial,sans-serif;">0</p>
+<p th:text="${bandLabels[bandStat.index]}"
+    style="margin:3px 0 0 0; font-size:10.5px; font-weight:600; letter-spacing:0.09em; text-transform:uppercase; color:#786a7e;">Label</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+
+<!-- A brand-tinted block for the two sentences in the roundup that are not reporting: the first-timer line, which is
+     the one genuinely celebratory fact in the letter, and the ask above the button, which is the only thing a
+     quarterly can still change. Both were grey body text and neither read as anything; the tint is the shell's own
+     "this block wants something from you" signal, the same one inviteBlock and agendaItem's open arm wear.
+
+     `figure` is the leading count, rendered in brand pink so the number carries the emphasis rather than the whole
+     sentence shouting. It is optional: the ask passes none and states its count inside `text`, because the ask is a
+     request rather than a figure and a pink numeral in front of it would read as a third statistic. -->
+<tr th:fragment="highlight(figure, text)">
+<td style="padding:14px 0 0 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#fdeef4; border-radius:11px;">
+<tr>
+<td style="padding:16px 20px;">
+<p style="margin:0; font-size:15px; line-height:1.5; color:#211a26;"><span th:if="${figure} != null"
+    th:text="${figure} + ' '" style="font-weight:700; color:#c32c66;">N </span><span th:text="${text}">Sentence</span></p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+
+<!-- One word of the roundup's topic cloud, sized and coloured by the same rules the Expertise page's TagConstellation
+     uses, so the quarter reads the same in the mail as it does in the app: five size bands, three colours, the
+     heaviest tag in brand pink, the lightest muted, everything between in body ink. The weight arrives already
+     resolved as 1 to 5 - RoundupFacts owns the ratio arithmetic, this owns only the hexes and the pixels, which is
+     the division every fragment in this file keeps. -->
+<span th:fragment="topicWord(topic)"
+    th:with="topicSize=(${topic.weight} == 5 ? '26px' : (${topic.weight} == 4 ? '22px' : (${topic.weight} == 3 ? '18px' : (${topic.weight} == 2 ? '15px' : '13px')))),
+             topicColor=(${topic.weight} == 5 ? '#de3b78' : (${topic.weight} == 1 ? '#786a7e' : '#211a26'))"
+    th:text="${topic.label}"
+    th:styleappend="'font-size:' + ${topicSize} + '; color:' + ${topicColor} + ';'"
+    style="display:inline-block; margin:0 16px 8px 0; line-height:1.1; font-weight:600;
+           font-family:'Space Grotesk Variable','Inter Variable',Helvetica,Arial,sans-serif;">topic</span>
+
+<!-- One community's whole quarter: who it is, what it held, and what it does next, on one card. The past and the
+     future sit together because a reader should meet a community's name once rather than twice three hundred pixels
+     apart - folding the old flat "what is coming" list into these cards is what removed a whole section from the
+     letter without losing a fact.
+
+     Three things the header row deliberately does NOT do. It is not a link: a roundup carries ONE call to action (see
+     primaryButton), and eight community links racing it is how that rule dies quietly rather than loudly. It names no
+     presenter: the avatars answer "how many people were involved" and nothing finer, which is the decision that
+     replaced per-talk presenter lines after one member presenting five of seven talks made the letter read as a wall
+     of the same name. And it never resolves its own fallbacks from a hex - `accentColor` and `badgeUrl` arrive null
+     for a community that set neither, which is the common case, so the monogram falls back to this file's own body
+     ink and the badge simply does not render. The URL is already resolved by the time it reaches here; the http(s)
+     check below is defence in depth rather than the resolution itself, since a src that is not fetchable is a broken
+     image in every inbox and a mail client that blocks remote images has to fall back to the monogram anyway.
+
+     Every count on the card resolves its singular, plural and zero arms in the one th:with below, so no row here
+     carries a condition beside an inclusion. The meta line and each session's talks are joined HERE, with a middot,
+     rather than arriving pre-joined: the .txt half joins the same two lists with a comma, because a middot in plain
+     text is a character a reader decodes rather than reads.
+
+     An empty `presenters` is an ORDINARY state, not a defensive arm: a community whose sessions were all
+     discussion-format has nobody on any slot, so RoundupFacts hands this card an empty list and cardHasPresenters
+     omits the whole avatar cell. The header row is a two-cell table then rather than a three-cell one, which is the
+     shape it already takes at phone width, so nothing is left dangling. -->
+<tr th:fragment="communityCard(community)"
+    th:with="cardAccent=${community.accentColor} ?: '#211a26',
+             cardBadgeIsImage=(not ${#strings.isEmpty(community.badgeUrl)})
+                              and (${#strings.startsWith(community.badgeUrl,'https://')} or ${#strings.startsWith(community.badgeUrl,'http://')}),
+             cardHasPresenters=${community.presenters} != null and not ${community.presenters.isEmpty()},
+             cardPresenterRemainder='+' + ${community.morePresenterCount},
+             cardHasSessions=${community.sessions} != null and not ${community.sessions.isEmpty()},
+             cardSessionRemainder=(${community.moreSessionCount} == 1
+                                   ? 'and 1 more session was held.'
+                                   : 'and ' + ${community.moreSessionCount} + ' more sessions were held.'),
+             cardNextTitled=not ${#strings.isEmpty(community.nextTitle)},
+             cardUpcomingRemainder=(${community.moreUpcomingCount} == 0
+                                    ? ''
+                                    : ' ' + ${community.moreUpcomingCount} + ' more to come.'),
+             cardNextTail=(${cardNextTitled} ? ', ' : '') + ${community.nextLabel} + '.' + ${cardUpcomingRemainder}">
+<td style="padding:12px 0 0 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f6f0ec; border-radius:12px;">
+<tr>
+<td style="padding:18px 20px;">
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td width="34" valign="middle" style="padding:0 12px 0 0;">
+<img th:if="${cardBadgeIsImage}" th:src="${community.badgeUrl}" th:alt="${community.name}" width="34" height="34"
+    style="width:34px; height:34px; border-radius:9px; display:block;">
+<div th:unless="${cardBadgeIsImage}" th:text="${community.initials}"
+    th:attr="style='width:34px;height:34px;border-radius:9px;background-color:#ffffff;font-size:13px;font-weight:700;line-height:34px;text-align:center;color:' + ${cardAccent} + ';'">AA</div>
+</td>
+<td valign="middle">
+<p th:text="${community.name}"
+    style="margin:0; font-size:16.5px; font-weight:700; line-height:1.25; color:#211a26;
+           font-family:'Space Grotesk Variable','Inter Variable',Helvetica,Arial,sans-serif;">Community</p>
+<p th:text="${#strings.listJoin(community.summaryParts, ' · ')}"
+    style="margin:2px 0 0 0; font-size:12.5px; line-height:1.35; color:#786a7e;">2 sessions · 4 talks</p>
+</td>
+<td th:if="${cardHasPresenters}" valign="middle" align="right" style="white-space:nowrap;"
+><th:block th:each="presenter, presenterStat : ${community.presenters}"
+    ><div th:replace="~{::stackedAvatar(presenter=${presenter}, first=${presenterStat.first})}">AA</div
+></th:block
+><th:block th:if="${community.morePresenterCount} > 0"
+    ><div th:text="${cardPresenterRemainder}"
+        style="display:inline-block; width:28px; height:28px; margin-left:-9px; border:2px solid #f6f0ec; border-radius:999px;
+               background-color:#e3d8dd; color:#786a7e; font-size:10.5px; font-weight:700; line-height:28px; text-align:center;
+               vertical-align:middle;">+2</div
+></th:block
+></td>
+</tr>
+</table>
+
+<table th:if="${cardHasSessions}" role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+    style="margin:14px 0 0 0; border-top:1px solid #e3d8dd;">
+<th:block th:each="session : ${community.sessions}">
+<tr th:replace="~{::communitySessionRow(session=${session})}">Session</tr>
+</th:block>
+<tr th:if="${community.moreSessionCount} > 0">
+<td colspan="2" style="padding:10px 0 0 0;">
+<p th:text="${cardSessionRemainder}" style="margin:0; font-size:13px; color:#786a7e;">and 2 more sessions were held.</p>
+</td>
+</tr>
+</table>
+
+<table th:if="not ${#strings.isEmpty(community.nextLabel)}" role="presentation" width="100%" cellpadding="0" cellspacing="0"
+    border="0" style="margin:14px 0 0 0; border-top:1px solid #e3d8dd;">
+<tr>
+<td style="padding:12px 0 0 0;">
+<p style="margin:0; font-size:13px; line-height:1.45; color:#786a7e;"><th:block th:text="'Next up '">Next up </th:block
+><span th:if="${cardNextTitled}" th:text="${community.nextTitle}" style="font-weight:700; color:#211a26;">Title</span
+><th:block th:text="${cardNextTail}">, Tuesday 14 July. 2 more to come.</th:block></p>
+</td>
+</tr>
+</table>
+
+</td>
+</tr>
+</table>
+</td>
+</tr>
+
+<!-- One session a community held, in the fixed four-line shape that makes a card scannable: a 66px date column, then
+     the session title, its talks inline, and whatever was captured on it as links. The date column is fixed rather
+     than sized to its content precisely so that every "when" lines up down the whole letter, across cards as well as
+     within one.
+
+     A nameless session and an untitled agenda are both rendered by being ABSENT rather than by a placeholder: a row
+     reading "Untitled session" tells a reader strictly less than its own date already did, and a series occurrence
+     nobody named is the common case rather than the corner one. A resource is only ever an <a> for an http(s) url,
+     the same rule resourceLink follows, so a resource carrying an unexpected scheme can never become a clickable
+     link. It is styled here rather than delegated to resourceLink because the roundup's own scale is smaller and
+     bolder than a wrap-up's - a session row is a line in a list, not a block of its own. -->
+<tr th:fragment="communitySessionRow(session)">
+<td width="66" valign="top" style="padding:12px 8px 0 0;">
+<p th:text="${session.dateLabel}" style="margin:0; font-size:12.5px; font-weight:700; line-height:1.5; color:#786a7e;">13 May</p>
+</td>
+<td valign="top" style="padding:12px 0 0 0;">
+<p th:if="not ${#strings.isEmpty(session.title)}" th:text="${session.title}"
+    style="margin:0; font-size:15px; font-weight:700; line-height:1.3; color:#211a26;">Session title</p>
+<p th:if="${session.talkTitles} != null and not ${session.talkTitles.isEmpty()}"
+    th:text="${#strings.listJoin(session.talkTitles, ' · ')}"
+    style="margin:3px 0 0 0; font-size:13.5px; line-height:1.45; color:#3f3546;">Talk titles</p>
+<th:block th:each="resource : ${session.resources}">
+<p th:with="roundupResourceIsSafe=${#strings.startsWith(resource.url,'https://') or #strings.startsWith(resource.url,'http://')},
+            roundupResourceLabel=${resource.title} ?: ${resource.url}"
+    style="margin:4px 0 0 0; font-size:13px; line-height:1.4;">
+<a th:if="${roundupResourceIsSafe}" th:href="${resource.url}" th:text="${roundupResourceLabel}"
+    style="color:#c32c66; text-decoration:underline; font-weight:600;">Resource</a>
+<span th:unless="${roundupResourceIsSafe}" th:text="${roundupResourceLabel}" style="color:#211a26;">Resource</span>
+</p>
+</th:block>
+</td>
+</tr>
+
+<!-- One presenter's monogram in a community's avatar row: 28px, ringed in the card's own background so the circles
+     read as stacked rather than as touching, and pulled 9px left over the one before it. `first` suppresses that pull
+     rather than the caller wrapping the first avatar in a different tag, so the row is one loop with no special case.
+     The tint arrives resolved and stable per person, which is what makes somebody who presented in three communities
+     the same colour in all three cards.
+
+     No name, ever. That is the whole point of the badge row, and it is why the .txt half - which has no avatars and
+     so no way to say "three people were involved" without saying who - names everybody in full instead.
+
+     Outlook's Word engine ignores the negative margin, so the row spreads out there rather than overlapping. Nothing
+     breaks and no fallback is worth the weight. -->
+<div th:fragment="stackedAvatar(presenter, first)" th:text="${presenter.initials}"
+    th:attr="style='display:inline-block;width:28px;height:28px;border:2px solid #f6f0ec;border-radius:999px;color:#ffffff;
+                    font-size:11px;font-weight:700;line-height:28px;text-align:center;vertical-align:middle;background-color:'
+                   + ${presenter.tint} + (${first} ? '' : ';margin-left:-9px') + ';'">AA</div>
+
+</body>
+</html>

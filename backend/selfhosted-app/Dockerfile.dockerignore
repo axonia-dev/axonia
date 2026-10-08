@@ -1,0 +1,10 @@
+# The build context is backend/, and only what selfhosted-app/Dockerfile copies reaches it: never the Cloud's tree.
+*
+!.mvn/
+!mvnw
+!pom.xml
+!core/pom.xml
+!core/src/
+!selfhosted-app/pom.xml
+!selfhosted-app/src/
+**/target/

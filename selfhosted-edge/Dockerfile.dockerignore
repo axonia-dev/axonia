@@ -1,0 +1,25 @@
+# The build context is the repository root, and only what selfhosted-edge/Dockerfile copies reaches it.
+*
+!frontend/
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/dist-selfhosted/
+frontend/coverage/
+frontend/playwright-report/
+frontend/test-results/
+frontend/.vite/
+frontend/.vitest/
+# Vite compiles every VITE_ value of .env.selfhosted and of a local file beside it into the bundle. Only the one
+# committed file the selfhosted mode reads reaches the image, never one local to the machine that builds it.
+frontend/.env*
+!frontend/.env.selfhosted
+frontend/**/*.local
+!edge/src/auth.ts
+!edge/src/sealed-cookie.ts
+!edge/src/csp.ts
+!edge/src/edge-gate.ts
+!selfhosted-edge/package.json
+!selfhosted-edge/src/
+selfhosted-edge/src/**/*.test.ts
+selfhosted-edge/src/test-support.ts

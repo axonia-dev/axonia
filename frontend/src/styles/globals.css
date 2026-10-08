@@ -1,0 +1,588 @@
+@import "tailwindcss";
+
+/* ── Light is the default theme (warm-community reads best in light) ── */
+:root {
+  /* Tells the browser which palette to paint its own chrome in: scrollbars,
+     native form controls, spell-check underlines. Not a custom property, it
+     drives rendering the token overrides below cannot reach. Without the pair,
+     dark mode gets a light scrollbar track on every scroll container. */
+  color-scheme: light;
+
+  --background: #fbf8f6;
+  --surface: #ffffff;
+  --surface-sunken: #f6f0ec;
+  --muted: #f6f0ec; /* backward-compat alias for legacy bg-muted/border-muted */
+  --foreground: #211a26;
+  --muted-foreground: #786a7e;
+  --border: #ede4e9;
+  --border-strong: #e2d6de;
+
+  --primary: #de3b78;
+  --primary-strong: #c32c66;
+  --primary-foreground: #ffffff;
+  --secondary: #6e3ceb;
+  --secondary-foreground: #ffffff;
+
+  --success: #1f9d63;
+  --success-foreground: #ffffff;
+  --warning: #d9871f;
+  --warning-foreground: #211a26;
+  --danger: #d93f36;
+  --danger-foreground: #ffffff;
+
+  --focus-ring: #de3b78;
+
+  /* The head of a progress bar's fill, one step past the token the fill ramps from, so a
+     4-pixel bar still reads as having a direction and a leading edge. Deliberately not a
+     lightened `primary`/`warning`: it has to stay distinguishable at that height. */
+  --bar-tip: #ee6f9c;
+  --bar-tip-warning: #f0b355;
+
+  /* The six standing rings, each a two-stop conic gradient. Dark gets its own pair under
+     `.theme-dark` below rather than a lightened copy of these: a ring drawn in 2px has to
+     read as a distinct colour against whichever surface it sits on. */
+  --ring-gold-a: #c08a2e;
+  --ring-gold-b: #f5d98a;
+  --ring-violet-a: #7b5fc0;
+  --ring-violet-b: #a98cf0;
+  --ring-teal-a: #0f8f8f;
+  --ring-teal-b: #5bd6c4;
+  --ring-ember-a: #c2492f;
+  --ring-ember-b: #f09a5b;
+  --ring-steel-a: #3c6fd0;
+  --ring-steel-b: #8fc0f5;
+  --ring-fern-a: #2f8f5b;
+  --ring-fern-b: #87d9a5;
+  /* The expertise map's ground. WebGL reads no cascade, so `ground-palette.ts` resolves these once per layer it
+     builds. The two themes run the ramp in opposite directions: here the sea is pale, an area's coast is the
+     palest cast of its own colour and its summit the deepest, because on a near-white page a dark ocean reads as
+     a hole cut in the paper rather than as water. */
+  --map-sea-deep: #9dc0da;
+  --map-sea-mid: #97bbd6;
+  --map-sea-shallow: #6f9cc6;
+  --map-land-low: #cfc6b4;
+  --map-land-mid: #a89c88;
+  --map-land-high: #776b5c;
+  --map-shore: #e3d6c0;
+  --map-summit: #2b2135;
+  --map-muted: #a79ead;
+  --map-ring: #5b3fa0;
+  /* A name over the drawing has no background to sit on: an area's colour, a summit and open water all pass under
+     it, so it is painted in ink with a halo of the page behind rather than given a plate to sit on. */
+  --map-ink: #1b1420;
+  --map-halo: rgb(251 248 246 / 0.95);
+  /* A mark stands on its own area's ground, which carries that area's colour, so a mark given the same colour is
+     invisible. It is ink with a rim in the opposite value, the same answer the names over the drawing already use,
+     and it is ONE pair for the whole map: picked per mark or per area, it inverts between two areas standing on
+     ground the reader cannot tell apart, which reads as a fault rather than as a choice. */
+  --map-glyph: #fbf8f6;
+  --map-glyph-rim: #17121c;
+
+  /* The mark a reader chose is drawn in `--primary`, which a community overwrites with its own accent while it is
+     the page. Its rim stays the one every other mark wears, which is what keeps a glyph legible on any ground, so
+     the inside is free to carry a colour that means something. See `mark-ink.ts`. */
+
+  /* The glyph inside the ring's corner mark. One ink for all six rings and both themes: the
+     mark's disc is always the ring's own gradient, which is light in every case, so a dark
+     glyph is the readable choice on each of them. */
+  --ring-ink: #3a2607;
+
+  /* The share of foreground mixed into a monogram's hue. The bare hue read 2.5:1 on its own 18%
+     disc; this lifts all six user hues past 4.5:1. */
+  --monogram-ink: 35%;
+
+  --scrollbar-thumb: #d5c9cf;
+
+  --radius-sm: 0.5rem;
+  --radius-md: 0.6875rem;
+  --radius-lg: 1rem;
+
+  --shadow-sm: 0 1px 2px rgba(94, 23, 64, 0.08);
+  --shadow-md: 0 4px 14px rgba(94, 23, 64, 0.1);
+  --shadow-lg: 0 12px 34px rgba(94, 23, 64, 0.14);
+}
+
+/* ── Dark = a single variable-set override (zero component changes) ── */
+.theme-dark {
+  color-scheme: dark;
+
+  --background: #15101a;
+  --surface: #1e1724;
+  --surface-sunken: #271e2f;
+  --muted: #271e2f;
+  --foreground: #f6eff4;
+  --muted-foreground: #a99cb0;
+  --border: #322839;
+  --border-strong: #3d3145;
+
+  --primary: #ff5c97;
+  --primary-strong: #ff7aac;
+  --primary-foreground: #1a0e14;
+  --secondary: #9b6bff;
+  /* Dark's secondary is a light violet, same as primary's dark-theme lift, so dark ink is the
+     readable choice on it - exactly why --primary-foreground inverts above. */
+  --secondary-foreground: #1a0e14;
+
+  --success: #37b47b;
+  --success-foreground: #0e1a14;
+  --warning: #e0a33c;
+  --danger: #ef6258;
+
+  --focus-ring: #ff5c97;
+
+  /* Dark needs its own pair rather than the light one: the head has to lift off a dark
+     surface, so it brightens where the light theme's head deepens in saturation. */
+  --bar-tip: #ffa8ca;
+  --bar-tip-warning: #f6cd83;
+
+  /* Brighter and lighter than the light pairs above, not just lightened: each ring has to
+     lift off the dark surface (`#1e1724`) the same way a light ring lifts off white. */
+  --ring-gold-a: #e0a83f;
+  --ring-gold-b: #ffe9b0;
+  --ring-violet-a: #9b7ce8;
+  --ring-violet-b: #c9b3ff;
+  --ring-teal-a: #2bc4bf;
+  --ring-teal-b: #8ce9d9;
+  --ring-ember-a: #e8693f;
+  --ring-ember-b: #ffb27a;
+  --ring-steel-a: #5e94f0;
+  --ring-steel-b: #b3d6ff;
+  --ring-fern-a: #47bf80;
+  --ring-fern-b: #a8edc0;
+  /* See the light theme's note: there the ramp runs the other way up. */
+  --map-sea-deep: #121b3c;
+  --map-sea-mid: #1b2b60;
+  --map-sea-shallow: #263e84;
+  --map-land-low: #221a3a;
+  --map-land-mid: #484e68;
+  --map-land-high: #969cb0;
+  --map-shore: #221a3a;
+  --map-summit: #ffffff;
+  --map-muted: #605a74;
+  --map-ring: #9b7ce8;
+  --map-ink: #ffffff;
+  --map-halo: rgb(8 5 14 / 0.95);
+  --map-glyph: #f4f1fb;
+  --map-glyph-rim: #0b0812;
+
+  --monogram-ink: 40%;
+
+  --scrollbar-thumb: #5c5167;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 12px 34px rgba(0, 0, 0, 0.55);
+}
+
+/* Expose tokens to Tailwind utilities. `inline` keeps utilities referencing
+   var(--token) so re-assigning a variable per-theme re-themes everything. */
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-muted: var(--muted);
+  --color-foreground: var(--foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-map-ink: var(--map-ink);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-primary: var(--primary);
+  --color-primary-strong: var(--primary-strong);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-danger: var(--danger);
+  --color-danger-foreground: var(--danger-foreground);
+  --color-focus-ring: var(--focus-ring);
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+
+  --font-sans: "Inter Variable", "Inter", system-ui, sans-serif;
+  --font-display:
+    "Space Grotesk Variable", "Space Grotesk", system-ui, sans-serif;
+}
+
+/* ── Signature motion (all consumers gate via motion-safe:) ── */
+@keyframes count-pop {
+  0% {
+    transform: translateY(0.18em);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+@keyframes heart-pop {
+  0% {
+    transform: scale(1) rotate(0deg);
+  }
+  35% {
+    transform: scale(1.28) rotate(-9deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+@keyframes float-up {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 0.9;
+  }
+  100% {
+    transform: translateY(-44px) scale(0.4);
+    opacity: 0;
+  }
+}
+@keyframes burst-fly {
+  0% {
+    transform: translate(0, 0) scale(1.2);
+    opacity: 1;
+  }
+  80% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translate(var(--bx, 0), var(--by, 0)) scale(0.2);
+    opacity: 0;
+  }
+}
+@keyframes signal-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 55%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 8px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+/* The drop target of a drag-to-merge "catches" the dropped tag: it springs up
+   with a small overshoot and an accent ring ripples out of it, so the merge
+   reads as the dragged tag being soaked up rather than simply vanishing. */
+@keyframes merge-pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 50%, transparent);
+  }
+  30% {
+    transform: scale(1.06);
+    box-shadow: 0 0 0 7px color-mix(in srgb, var(--primary) 20%, transparent);
+  }
+  55% {
+    transform: scale(0.985);
+    box-shadow: 0 0 0 13px transparent;
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+/* The freshly-merged alias then lands as a new chip inside the survivor: it pops
+   in tinted in the accent colour before cooling to the normal muted chip — the
+   moment you actually watch the dragged tag become an alias. */
+@keyframes chip-land {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+    background: color-mix(in srgb, var(--primary) 24%, var(--surface));
+    color: var(--primary-strong);
+  }
+  45% {
+    transform: scale(1.12);
+    opacity: 1;
+    background: color-mix(in srgb, var(--primary) 24%, var(--surface));
+    color: var(--primary-strong);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .animate-merge-pulse {
+    animation: merge-pulse 0.56s ease-out;
+  }
+  .animate-chip-land {
+    animation: chip-land 0.52s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+}
+@keyframes slot-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes slot-collapse {
+  0% {
+    opacity: 1;
+    max-height: 12rem;
+  }
+  100% {
+    opacity: 0;
+    max-height: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-width: 0;
+  }
+}
+@keyframes avatar-pop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+@keyframes slot-spark {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0);
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--tx, 0), var(--ty, 0)) scale(1);
+  }
+}
+
+@keyframes hovercard-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes resource-in {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes resource-sweep {
+  0% {
+    background-position: 120% 0;
+  }
+  100% {
+    background-position: -40% 0;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .resource-enter {
+    background-image: linear-gradient(
+      100deg,
+      transparent 35%,
+      color-mix(in srgb, var(--primary) 18%, transparent) 50%,
+      transparent 65%
+    );
+    background-size: 200% 100%;
+    background-repeat: no-repeat;
+    animation:
+      resource-in 350ms var(--ease-standard, ease-out) both,
+      resource-sweep 1100ms var(--ease-standard, ease-out) 300ms both;
+  }
+}
+
+/* ── Schedule timeline: staggered entrance + today beacon ── */
+@keyframes timeline-row-in {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .timeline-row {
+    animation: timeline-row-in 0.45s ease-out both;
+  }
+  .timeline-row:nth-child(2) {
+    animation-delay: 80ms;
+  }
+  .timeline-row:nth-child(3) {
+    animation-delay: 160ms;
+  }
+  .timeline-row:nth-child(4) {
+    animation-delay: 240ms;
+  }
+  .timeline-row:nth-child(5) {
+    animation-delay: 320ms;
+  }
+  .timeline-row:nth-child(6) {
+    animation-delay: 400ms;
+  }
+  .timeline-row:nth-child(7) {
+    animation-delay: 480ms;
+  }
+  .timeline-row:nth-child(8) {
+    animation-delay: 560ms;
+  }
+  /* Later rows (including ones appended by Extend horizon) appear instantly:
+     no stagger replay, existing nodes keep their keys and never re-animate. */
+  .timeline-row:nth-child(n + 9) {
+    animation: none;
+  }
+  .timeline-beacon {
+    animation: signal-pulse 2.2s ease-out infinite;
+  }
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Scrollbars ──
+   Inherited from the root, so every scroll container matches: the rail, <main>,
+   docs, dialogs. The track is transparent rather than a colour, so it takes on
+   whatever surface it sits over: the rail's sunken tint and main's background
+   are different colours, and one fixed track colour would be wrong on one of
+   them. Standard properties only, since `::-webkit-scrollbar` would override
+   `scrollbar-width` and drop Firefox. */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+/* ── Topic vote animations ── */
+@keyframes vote-bounce {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  30% {
+    transform: translateY(-5px) scale(1.25);
+  }
+  65% {
+    transform: translateY(1px) scale(0.92);
+  }
+}
+
+/* Named vote-count-pop to avoid shadowing the existing count-pop used by AnimatedCount */
+@keyframes vote-count-pop {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.35);
+  }
+}
+
+.animate-vote-bounce {
+  animation: vote-bounce 0.35s ease forwards;
+}
+.animate-count-pop {
+  animation: vote-count-pop 0.28s ease forwards;
+}
+
+/* ── Community policy: glow ring that radiates from a switch as it opens ── */
+@keyframes policy-pulse {
+  0% {
+    box-shadow: 0 0 0 0
+      color-mix(
+        in srgb,
+        var(--policy-pulse-color, var(--primary)) 55%,
+        transparent
+      );
+  }
+  100% {
+    box-shadow: 0 0 0 9px transparent;
+  }
+}
+
+/* ── Rendered documentation prose ── */
+.doc-prose {
+  color: var(--foreground);
+  max-width: 48rem;
+}
+.doc-prose h1 {
+  font-family: var(--font-display);
+  font-size: 1.9rem;
+  letter-spacing: -0.01em;
+  margin: 0 0 0.5rem;
+}
+.doc-prose h2 {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  margin: 2rem 0 0.6rem;
+  scroll-margin-top: 5rem;
+}
+.doc-prose p {
+  margin: 0 0 0.75rem;
+}
+/* A paragraph that ends its container keeps no trailing margin. At page level that margin
+   only ever separated it from a sibling; inside a callout it fell within the callout's own
+   border, hanging 12px of dead space under the last line and pushing the text off centre. */
+.doc-prose p:last-child {
+  margin-bottom: 0;
+}
+.doc-prose ul,
+.doc-prose ol {
+  margin: 0 0 0.75rem;
+  padding-left: 1.25rem;
+}
+.doc-prose ul {
+  list-style: disc;
+}
+.doc-prose ol {
+  list-style: decimal;
+}
+.doc-prose li {
+  margin-bottom: 0.35rem;
+  padding-left: 0.25rem;
+}
+.doc-prose li::marker {
+  color: var(--muted-foreground);
+}
+.doc-prose a {
+  color: var(--primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+.doc-prose a:hover {
+  text-decoration: underline;
+}
+.doc-prose code {
+  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  background: var(--surface-sunken);
+  border-radius: 0.35rem;
+  padding: 0.05rem 0.35rem;
+  font-size: 0.85em;
+}

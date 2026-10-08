@@ -1,0 +1,10 @@
+dist
+dist-ssr
+dist-selfhosted
+coverage
+playwright-report
+test-results
+pnpm-lock.yaml
+# Local tool directories at the package root; no tracked directory here starts with a dot.
+/.*/
+src/features/recognition/domain/emoji-catalog.json

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title th:text="(${sessionTitle} ?: 'This session') + ': happening soon'">Happening soon</title>
+</head>
+<body style="margin:0; padding:0;">
+<div style="display:none; max-height:0; overflow:hidden; mso-hide:all;">
+<div th:replace="~{_shell.html :: preheader(fallback='Nothing on the agenda yet. This one is wide open.')}">Preheader</div>
+</div>
+<div th:replace="~{_shell.html :: page(body=~{::content}, when='Happening', reason='You are a member of')}">
+<th:block th:fragment="content"
+    th:with="hasTalks=${talks} != null and not ${talks.isEmpty()},
+             hasOpenSlots=${openSlotCount} != null and ${openSlotCount} > 0,
+             hasPlace=${location} != null or ${joinUrl} != null or ${joiningDetails} != null,
+             communityName=${sender} != null ? ${sender.name} : 'your community'">
+<tr th:replace="~{_shell.html :: sectionHeading(text='Agenda')}">Heading</tr>
+<th:block th:unless="${hasTalks}">
+<tr th:replace="~{_shell.html :: inviteBlock(heading='Nothing on the agenda yet.', text='This one is wide open. Put something on it and ' + ${communityName} + ' will hear it.')}">Invite</tr>
+</th:block>
+<th:block th:each="talk : ${talks}">
+<tr th:replace="~{_shell.html :: agendaItem(talk=${talk})}">Talk</tr>
+</th:block>
+<!-- Every guard sits on a wrapping th:block, never beside the th:replace it guards: inclusion runs at precedence 1
+     and a conditional at 3, so a th:if written on the included element never runs at all and the row renders for
+     every session - one of them offering a link to nothing. -->
+<th:block th:if="${hasPlace}">
+<tr th:replace="~{_shell.html :: sectionHeading(text='Where')}">Heading</tr>
+</th:block>
+<th:block th:if="${location} != null">
+<tr th:replace="~{_shell.html :: bodyText(text=${location})}">Location</tr>
+</th:block>
+<th:block th:if="${joinUrl} != null">
+<tr th:replace="~{_shell.html :: closingInvite(text='Meets online.', url=${joinUrl}, label='Join the session')}">Room</tr>
+</th:block>
+<th:block th:if="${joiningDetails} != null">
+<tr th:replace="~{_shell.html :: preservedText(text=${joiningDetails})}">Joining details</tr>
+</th:block>
+<th:block th:if="not ${#strings.isEmpty(sessionUrl)}"
+    th:with="ctaLabel=(not ${hasTalks}) ? 'Put a talk on the agenda' : (${hasOpenSlots} ? 'Take an open slot' : 'View the session page')">
+<tr th:replace="~{_shell.html :: primaryButton(url=${sessionUrl}, label=${ctaLabel})}">Button</tr>
+</th:block>
+<th:block th:if="${hasTalks} and not ${#strings.isEmpty(backlogUrl)}">
+<tr th:replace="~{_shell.html :: closingInvite(text='Something you want to hear about?', url=${backlogUrl}, label='Add it to the backlog')}">Backlog</tr>
+</th:block>
+</th:block>
+</div>
+<div style="display:none; max-height:0; overflow:hidden; mso-hide:all;">
+<th:block th:fragment="subject" th:text="(${sessionTitle} ?: 'This session') + ': happening soon'">Subject</th:block>
+</div>
+</body>
+</html>

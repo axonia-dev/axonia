@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title th:text="(${sessionTitle} ?: 'This session') + ': what happened'">What happened</title>
+</head>
+<body style="margin:0; padding:0;">
+<div style="display:none; max-height:0; overflow:hidden; mso-hide:all;">
+<div th:replace="~{_shell.html :: preheader(fallback='Here is what happened, whether you were in the room or not.')}">Preheader</div>
+</div>
+<div th:replace="~{_shell.html :: page(body=~{::content}, when='Held', reason='You are a member of')}">
+<th:block th:fragment="content">
+<tr th:replace="~{_shell.html :: statStrip}">Stats</tr>
+<tr th:replace="~{_shell.html :: sectionHeading(text='What happened')}">Heading</tr>
+<th:block th:if="${talks} == null or ${talks.isEmpty()}">
+<tr th:replace="~{_shell.html :: bodyText(text='No talks were recorded for this session.')}">No talks</tr>
+</th:block>
+<th:block th:each="talk : ${talks}">
+<tr th:replace="~{_shell.html :: talkBlock(talk=${talk})}">Talk</tr>
+</th:block>
+<th:block th:if="${actionPoints} != null and not ${actionPoints.isEmpty()}">
+<tr th:replace="~{_shell.html :: sectionHeading(text='What we agreed to do')}">Heading</tr>
+<th:block th:each="actionPoint : ${actionPoints}">
+<tr th:replace="~{_shell.html :: actionPointRow(actionPoint=${actionPoint})}">Action point</tr>
+</th:block>
+</th:block>
+<th:block th:if="${checkedItems} != null and not ${checkedItems.isEmpty()}">
+<tr th:replace="~{_shell.html :: sectionHeading(text='What was checked')}">Heading</tr>
+<th:block th:each="checkedItem : ${checkedItems}">
+<tr th:replace="~{_shell.html :: checkedItemRow(checkedItem=${checkedItem})}">Checked item</tr>
+</th:block>
+</th:block>
+<th:block th:if="${resources} != null and not ${resources.isEmpty()}">
+<tr th:replace="~{_shell.html :: sectionHeading(text='From the session')}">Heading</tr>
+<th:block th:each="resource : ${resources}">
+<tr th:replace="~{_shell.html :: resourceRow(resource=${resource})}">Resource</tr>
+</th:block>
+</th:block>
+<th:block th:if="not ${#strings.isEmpty(followUpNotes)}">
+<tr th:replace="~{_shell.html :: noteBlock(text=${followUpNotes})}">Note</tr>
+</th:block>
+<th:block th:if="not ${#strings.isEmpty(sessionUrl)}">
+<tr th:replace="~{_shell.html :: primaryButton(url=${sessionUrl}, label='Open the session')}">Button</tr>
+</th:block>
+<th:block th:if="not ${#strings.isEmpty(nextSession)}">
+<tr th:replace="~{_shell.html :: nextUp(text=${nextSession})}">Next up</tr>
+</th:block>
+</th:block>
+</div>
+<div style="display:none; max-height:0; overflow:hidden; mso-hide:all;">
+<th:block th:fragment="subject" th:text="(${sessionTitle} ?: 'This session') + ': what happened'">Subject</th:block>
+</div>
+</body>
+</html>

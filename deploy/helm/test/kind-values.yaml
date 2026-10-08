@@ -1,0 +1,27 @@
+publicUrl: http://localhost:18080
+organization:
+  id: kind
+  name: Kind
+ownerGroup: axonia-owners
+oidc:
+  # Never reached: the backend fetches discovery at the first signed-in request, the edge at the first sign-in.
+  issuer: http://localhost:18082/default
+  clientId: axonia
+  scopes: openid profile email offline_access
+  sessionMaxAgeSeconds: 7776000
+database:
+  url: jdbc:postgresql://postgres:5432/axonia
+  ownerUsername: axonia_owner
+existingSecret: axonia
+# kind-install.sh sets each image from AXONIA_BACKEND_IMAGE and AXONIA_EDGE_IMAGE, loaded into the cluster beforehand.
+image:
+  pullPolicy: Never
+backend:
+  resources:
+    requests:
+      cpu: 250m
+      memory: 768Mi
+    limits:
+      memory: 1Gi
+ingress:
+  enabled: false

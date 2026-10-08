@@ -1,0 +1,19 @@
+# Every gate of the Self-hosted edition, on every pull request and every push to main. The jobs live in
+# selfhosted-edition.yml, which the repository this one is exported from runs too.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  selfhosted-edition:
+    uses: ./.github/workflows/selfhosted-edition.yml

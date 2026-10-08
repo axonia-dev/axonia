@@ -1,0 +1,110 @@
+suite: the settings key
+templates:
+  - settings-key-secret.yaml
+  - backend-deployment.yaml
+release:
+  name: axonia
+  namespace: axonia
+values:
+  - values.yaml
+tests:
+  - it: is generated on the first install, 32 random bytes in base64, and outlives an uninstall
+    template: settings-key-secret.yaml
+    kubernetesProvider: &cluster
+      scheme:
+        "v1/Secret":
+          gvr:
+            version: v1
+            resource: secrets
+          namespaced: true
+      # The fake answers a list only once it holds an object; a real cluster answers one for a new or empty namespace
+      # too, which test/kind-install.sh proves with a server-side dry run before the namespace exists and again while
+      # it holds nothing.
+      objects:
+        - apiVersion: v1
+          kind: Secret
+          metadata:
+            name: unrelated
+            namespace: axonia
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: Secret
+      - equal:
+          path: metadata.name
+          value: axonia-settings-key
+      # Decoded once, the value is the key as the backend reads it: the canonical base64 of exactly 32 bytes.
+      - matchRegex:
+          path: data.AXONIA_SETTINGS_KEY
+          decodeBase64: true
+          pattern: ^[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]=$
+      - notExists:
+          path: data.AXONIA_SETTINGS_PREVIOUS_KEYS
+      - equal:
+          path: metadata.annotations["helm.sh/resource-policy"]
+          value: keep
+
+  - it: keeps the key an earlier install generated, and the previous keys an operator added for a rotation
+    template: settings-key-secret.yaml
+    kubernetesProvider:
+      scheme:
+        "v1/Secret":
+          gvr:
+            version: v1
+            resource: secrets
+          namespaced: true
+      objects:
+        - apiVersion: v1
+          kind: Secret
+          metadata:
+            name: axonia-settings-key
+            namespace: axonia
+          data:
+            AXONIA_SETTINGS_KEY: Q1VSUkVOVA==
+            AXONIA_SETTINGS_PREVIOUS_KEYS: UFJFVklPVVM=
+    asserts:
+      - equal:
+          path: data.AXONIA_SETTINGS_KEY
+          value: Q1VSUkVOVA==
+      - equal:
+          path: data.AXONIA_SETTINGS_PREVIOUS_KEYS
+          value: UFJFVklPVVM=
+
+  - it: is left out when rendered without a cluster, where a generated key would change at every render
+    template: settings-key-secret.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: is never created when the operator names their own
+    template: settings-key-secret.yaml
+    kubernetesProvider: *cluster
+    set:
+      settingsKey.existingSecret: vault-axonia-settings-key
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: reaches the backend from the operator's Secret when one is named, the previous keys only if present
+    template: backend-deployment.yaml
+    set:
+      settingsKey.existingSecret: vault-axonia-settings-key
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AXONIA_SETTINGS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: vault-axonia-settings-key
+                key: AXONIA_SETTINGS_KEY
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AXONIA_SETTINGS_PREVIOUS_KEYS
+            valueFrom:
+              secretKeyRef:
+                name: vault-axonia-settings-key
+                key: AXONIA_SETTINGS_PREVIOUS_KEYS
+                optional: true

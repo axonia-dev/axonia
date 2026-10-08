@@ -1,0 +1,12 @@
+package dev.axonia.events;
+
+import java.util.List;
+
+import jakarta.validation.constraints.NotEmpty;
+
+public record ReorderSectionsRequest(@NotEmpty List<Long> sectionIds) {
+
+    public ReorderSectionsRequest {
+        sectionIds = sectionIds == null ? List.of() : List.copyOf(sectionIds);
+    }
+}

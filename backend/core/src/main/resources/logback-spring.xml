@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+	The OpenTelemetry Logback appender is not bundled with Spring Boot and has to be declared here.
+	Declaring this file at all replaces Boot's whole default logging setup, which is why defaults.xml
+	is included below: it is what defines CONSOLE_LOG_PATTERN and friends, and turning off Boot's
+	noisiest third-party loggers.
+
+	The console appender is spelled out per profile rather than pulled in with Boot's own
+	console-appender.xml include, because Boot ships TWO of them - the plain one, and a structured
+	one honouring logging.structured.format.console - and picks between them programmatically only
+	when no logback-spring.xml exists. Including the plain one unconditionally, as is the obvious
+	thing to do, silently makes that property inert: PROD would ask for ECS JSON and keep getting
+	the human pattern. So PROD builds the structured encoder and every other profile builds the
+	pattern one, and a developer's console stays a console.
+-->
+<configuration>
+	<include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+	<springProfile name="PROD">
+		<appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+			<filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+				<level>${CONSOLE_LOG_THRESHOLD}</level>
+			</filter>
+			<encoder class="org.springframework.boot.logging.logback.StructuredLogEncoder">
+				<format>${CONSOLE_LOG_STRUCTURED_FORMAT}</format>
+				<charset>${CONSOLE_LOG_CHARSET}</charset>
+			</encoder>
+		</appender>
+		<!--
+			captureMdcAttributes is an allowlist, not a passthrough: only the keys named here ever
+			leave the process as log attributes, so an unrelated MDC key someone adds later cannot
+			ride along to a third-party backend.
+
+			The two RequestTelemetryFilter stamps are the whole list, deliberately. Trace correlation
+			is NOT in it: the appender reads the trace and span ids natively off the OpenTelemetry
+			Context and puts them on the log record itself, so naming them here adds nothing. It would
+			also have to name them the way Micrometer Tracing spells its correlation fields - traceId
+			and spanId - and the snake_case entries that used to sit here matched no MDC key at all.
+		-->
+		<appender name="OTEL" class="io.opentelemetry.instrumentation.logback.appender.v1_0.OpenTelemetryAppender">
+			<captureExperimentalAttributes>false</captureExperimentalAttributes>
+			<captureMdcAttributes>organization_id,user_id</captureMdcAttributes>
+		</appender>
+		<root level="INFO">
+			<appender-ref ref="CONSOLE"/>
+			<appender-ref ref="OTEL"/>
+		</root>
+	</springProfile>
+
+	<springProfile name="!PROD">
+		<appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+			<filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+				<level>${CONSOLE_LOG_THRESHOLD}</level>
+			</filter>
+			<encoder>
+				<pattern>${CONSOLE_LOG_PATTERN}</pattern>
+				<charset>${CONSOLE_LOG_CHARSET}</charset>
+			</encoder>
+		</appender>
+		<root level="INFO">
+			<appender-ref ref="CONSOLE"/>
+		</root>
+	</springProfile>
+</configuration>

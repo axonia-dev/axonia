@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>dev</groupId>
+		<artifactId>axonia-parent</artifactId>
+		<version>1.0-SNAPSHOT</version>
+		<relativePath>../pom.xml</relativePath>
+	</parent>
+
+	<artifactId>axonia-selfhosted</artifactId>
+
+	<properties>
+		<spring-boot.run.skip>false</spring-boot.run.skip>
+		<!-- the build's root, where build/media-selfhosted lands. -->
+		<spring-boot.run.workingDirectory>${maven.multiModuleProjectDirectory}</spring-boot.run.workingDirectory>
+	</properties>
+
+	<dependencies>
+
+		<dependency>
+			<groupId>dev</groupId>
+			<artifactId>axonia-core</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>dev</groupId>
+			<artifactId>axonia-core</artifactId>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- Starts deploy/dev/compose.yaml for a DEV run; the repackaged jar leaves it out. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-docker-compose</artifactId>
+			<scope>runtime</scope>
+			<optional>true</optional>
+		</dependency>
+
+	</dependencies>
+
+	<build>
+		<plugins>
+
+			<!-- Repackages the jar the image runs (selfhosted-app/Dockerfile) as an executable one. -->
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+				<configuration>
+					<excludes>
+						<exclude>
+							<groupId>org.projectlombok</groupId>
+							<artifactId>lombok</artifactId>
+						</exclude>
+					</excludes>
+				</configuration>
+			</plugin>
+
+			<!--
+				The DEV profile stays in target/classes, which spring-boot:run and the IDE read, and out of the jar an
+				installation runs: its passwords and secrets are public, so SPRING_PROFILES_ACTIVE=DEV must find nothing.
+				The selfhosted-edition CI job checks the built jar.
+			-->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<configuration>
+					<excludes>
+						<exclude>application-DEV.properties</exclude>
+					</excludes>
+				</configuration>
+			</plugin>
+
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>jacoco-check</id>
+						<configuration>
+							<excludes>
+								<exclude>**/AxoniaSelfHostedApplication.*</exclude>
+							</excludes>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+		</plugins>
+	</build>
+
+</project>

@@ -1,0 +1,40 @@
+[(${periodLabel})] across your communities
+[# th:if="${sender} != null"][(${sender.name})]
+[/][(${sessionTitle})]
+Covering [(${periodLabel})].
+[# th:with="scaleLine=(${sessionCount} == 0)
+                      ? 'No sessions were held over the quarter.'
+                      : (${sessionCount} + (${sessionCount} == 1 ? ' session, ' : ' sessions, ') + ${talkCount} + (${talkCount} == 1 ? ' talk, ' : ' talks, ') + ${presenterCount} + (${presenterCount} == 1 ? ' presenter, ' : ' presenters, ') + ${resourceCount} + (${resourceCount} == 1 ? ' resource.' : ' resources.')),
+            firstTimerLine=${firstTimeContributorCount} + (${firstTimeContributorCount} == 1 ? ' person presented for the first time.' : ' people presented for the first time.'),
+            askLine=(${openTalkCount} == 1 ? '1 talk still needs a presenter across the coming quarter. It could be yours.' : ${openTalkCount} + ' talks still need a presenter across the coming quarter. One could be yours.'),
+            communityRemainderLine='and ' + ${moreCommunitiesCount} + (${moreCommunitiesCount} == 1 ? ' more community was active.' : ' more communities were active.')"]
+[(${scaleLine})]
+[# th:if="${firstTimeContributorCount} != null and ${firstTimeContributorCount} > 0 and ${sessionCount} > 0"]
+[(${firstTimerLine})]
+[/]
+[# th:if="${topics} != null and not ${topics.isEmpty()}"]
+What we talked about: [# th:each="topic, topicStat : ${topics}"][# th:unless="${topicStat.first}"], [/][(${topic.label})][/]
+[/]
+[# th:if="${communities} != null and not ${communities.isEmpty()}"]
+What happened:
+[# th:each="community : ${communities}" th:with="cardSessionRemainder=(${community.moreSessionCount} == 1 ? 'and 1 more session was held.' : 'and ' + ${community.moreSessionCount} + ' more sessions were held.'), cardUpcomingRemainder=(${community.moreUpcomingCount} == 0 ? '' : ' ' + ${community.moreUpcomingCount} + ' more to come.')"]
+[(${community.name})]
+[(${#strings.listJoin(community.summaryParts, ', ')})]
+[# th:if="${community.presenters} != null and not ${community.presenters.isEmpty()}"]Presented by [# th:each="presenter, presenterStat : ${community.presenters}"][# th:unless="${presenterStat.first}"], [/][(${presenter.name})][/][# th:if="${community.morePresenterCount} > 0"], and [(${community.morePresenterCount})] more[/].
+[/][# th:each="session : ${community.sessions}"]  [(${session.dateLabel})][# th:if="not ${#strings.isEmpty(session.title)}"]: [(${session.title})][/]
+[# th:if="${session.talkTitles} != null and not ${session.talkTitles.isEmpty()}"]    Talks: [(${#strings.listJoin(session.talkTitles, ', ')})]
+[/][# th:each="resource : ${session.resources}"]    [# th:if="not ${#strings.isEmpty(resource.title)}"][(${resource.title})]: [/][(${resource.url})]
+[/][/][# th:if="${community.moreSessionCount} > 0"]  [(${cardSessionRemainder})]
+[/][# th:if="not ${#strings.isEmpty(community.nextLabel)}"]  Next up [# th:if="not ${#strings.isEmpty(community.nextTitle)}"][(${community.nextTitle})], [/][(${community.nextLabel})].[(${cardUpcomingRemainder})]
+[/][/][# th:if="${moreCommunitiesCount} != null and ${moreCommunitiesCount} > 0"]
+[(${communityRemainderLine})]
+[/][/]
+[# th:if="${openTalkCount} != null and ${openTalkCount} > 0"]
+[(${askLine})]
+[/]
+[# th:if="not ${#strings.isEmpty(communitiesUrl)}"]
+Browse the communities: [(${communitiesUrl})]
+[/][/]
+[# th:if="${sender} != null"]You are a member of [(${sender.name})].
+[/][# th:if="not ${#strings.isEmpty(unsubscribePageUrl)}"]
+Unsubscribe: [(${unsubscribePageUrl})][/]

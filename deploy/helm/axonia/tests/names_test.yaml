@@ -1,0 +1,269 @@
+suite: the names of the chart's objects
+templates:
+  - backend-deployment.yaml
+  - backend-service.yaml
+  - backend-serviceaccount.yaml
+  - edge-deployment.yaml
+  - edge-service.yaml
+  - ingress.yaml
+  - media-pvc.yaml
+  - settings-key-secret.yaml
+release:
+  namespace: axonia
+values:
+  - values.yaml
+# The docs and an operator's own objects (a federated credential, a backup script, an HTTPRoute) name these as
+# <release>-<component>, whatever the release is called.
+tests:
+  - it: names every object after a release called prod as prod-<component>
+    release:
+      name: prod
+    set:
+      ingress.authAnnotations:
+        nginx.ingress.kubernetes.io/limit-rpm: "30"
+    kubernetesProvider: &cluster
+      scheme:
+        "v1/Secret":
+          gvr:
+            version: v1
+            resource: secrets
+          namespaced: true
+      objects:
+        - apiVersion: v1
+          kind: Secret
+          metadata:
+            name: unrelated
+            namespace: axonia
+    asserts:
+      - template: backend-deployment.yaml
+        equal:
+          path: metadata.name
+          value: prod-backend
+      - template: backend-deployment.yaml
+        equal:
+          path: spec.template.spec.serviceAccountName
+          value: prod-backend
+      - template: backend-deployment.yaml
+        equal:
+          path: spec.template.spec.volumes[?(@.name == "media")].persistentVolumeClaim.claimName
+          value: prod-media
+      - template: backend-deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AXONIA_SETTINGS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: prod-settings-key
+                key: AXONIA_SETTINGS_KEY
+      - template: backend-service.yaml
+        equal:
+          path: metadata.name
+          value: prod-backend
+      - template: backend-serviceaccount.yaml
+        equal:
+          path: metadata.name
+          value: prod-backend
+      - template: edge-deployment.yaml
+        equal:
+          path: metadata.name
+          value: prod-edge
+      - template: edge-deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: BACKEND_ORIGIN
+            value: http://prod-backend.axonia.svc:8080
+      - template: edge-service.yaml
+        equal:
+          path: metadata.name
+          value: prod-edge
+      - template: ingress.yaml
+        documentIndex: 0
+        equal:
+          path: metadata.name
+          value: prod-edge
+      - template: ingress.yaml
+        documentIndex: 0
+        equal:
+          path: spec.rules[0].http.paths[0].backend.service.name
+          value: prod-edge
+      - template: ingress.yaml
+        documentIndex: 1
+        equal:
+          path: metadata.name
+          value: prod-edge-auth
+      - template: ingress.yaml
+        documentIndex: 1
+        equal:
+          path: spec.rules[0].http.paths[0].backend.service.name
+          value: prod-edge
+      - template: media-pvc.yaml
+        equal:
+          path: metadata.name
+          value: prod-media
+      - template: settings-key-secret.yaml
+        equal:
+          path: metadata.name
+          value: prod-settings-key
+
+  - it: names every object after a release called axonia as axonia-<component>, never axonia-axonia-<component>
+    release:
+      name: axonia
+    set:
+      ingress.authAnnotations:
+        nginx.ingress.kubernetes.io/limit-rpm: "30"
+    kubernetesProvider: *cluster
+    asserts:
+      - template: backend-deployment.yaml
+        equal:
+          path: metadata.name
+          value: axonia-backend
+      - template: backend-deployment.yaml
+        equal:
+          path: spec.template.spec.serviceAccountName
+          value: axonia-backend
+      - template: backend-deployment.yaml
+        equal:
+          path: spec.template.spec.volumes[?(@.name == "media")].persistentVolumeClaim.claimName
+          value: axonia-media
+      - template: backend-deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AXONIA_SETTINGS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: axonia-settings-key
+                key: AXONIA_SETTINGS_KEY
+      - template: backend-service.yaml
+        equal:
+          path: metadata.name
+          value: axonia-backend
+      - template: backend-serviceaccount.yaml
+        equal:
+          path: metadata.name
+          value: axonia-backend
+      - template: edge-deployment.yaml
+        equal:
+          path: metadata.name
+          value: axonia-edge
+      - template: edge-deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: BACKEND_ORIGIN
+            value: http://axonia-backend.axonia.svc:8080
+      - template: edge-service.yaml
+        equal:
+          path: metadata.name
+          value: axonia-edge
+      - template: ingress.yaml
+        documentIndex: 0
+        equal:
+          path: metadata.name
+          value: axonia-edge
+      - template: ingress.yaml
+        documentIndex: 0
+        equal:
+          path: spec.rules[0].http.paths[0].backend.service.name
+          value: axonia-edge
+      - template: ingress.yaml
+        documentIndex: 1
+        equal:
+          path: metadata.name
+          value: axonia-edge-auth
+      - template: ingress.yaml
+        documentIndex: 1
+        equal:
+          path: spec.rules[0].http.paths[0].backend.service.name
+          value: axonia-edge
+      - template: media-pvc.yaml
+        equal:
+          path: metadata.name
+          value: axonia-media
+      - template: settings-key-secret.yaml
+        equal:
+          path: metadata.name
+          value: axonia-settings-key
+
+  - it: names every object after fullnameOverride when one is set, whatever the release is called
+    release:
+      name: prod
+    set:
+      fullnameOverride: communities
+      ingress.authAnnotations:
+        nginx.ingress.kubernetes.io/limit-rpm: "30"
+    kubernetesProvider: *cluster
+    asserts:
+      - template: backend-deployment.yaml
+        equal:
+          path: metadata.name
+          value: communities-backend
+      - template: backend-deployment.yaml
+        equal:
+          path: spec.template.spec.serviceAccountName
+          value: communities-backend
+      - template: backend-deployment.yaml
+        equal:
+          path: spec.template.spec.volumes[?(@.name == "media")].persistentVolumeClaim.claimName
+          value: communities-media
+      - template: backend-deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AXONIA_SETTINGS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: communities-settings-key
+                key: AXONIA_SETTINGS_KEY
+      - template: backend-service.yaml
+        equal:
+          path: metadata.name
+          value: communities-backend
+      - template: backend-serviceaccount.yaml
+        equal:
+          path: metadata.name
+          value: communities-backend
+      - template: edge-deployment.yaml
+        equal:
+          path: metadata.name
+          value: communities-edge
+      - template: edge-deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: BACKEND_ORIGIN
+            value: http://communities-backend.axonia.svc:8080
+      - template: edge-service.yaml
+        equal:
+          path: metadata.name
+          value: communities-edge
+      - template: ingress.yaml
+        documentIndex: 0
+        equal:
+          path: metadata.name
+          value: communities-edge
+      - template: ingress.yaml
+        documentIndex: 0
+        equal:
+          path: spec.rules[0].http.paths[0].backend.service.name
+          value: communities-edge
+      - template: ingress.yaml
+        documentIndex: 1
+        equal:
+          path: metadata.name
+          value: communities-edge-auth
+      - template: ingress.yaml
+        documentIndex: 1
+        equal:
+          path: spec.rules[0].http.paths[0].backend.service.name
+          value: communities-edge
+      - template: media-pvc.yaml
+        equal:
+          path: metadata.name
+          value: communities-media
+      - template: settings-key-secret.yaml
+        equal:
+          path: metadata.name
+          value: communities-settings-key

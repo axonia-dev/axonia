@@ -1,0 +1,42 @@
+[(${sessionTitle} ?: 'This session')]: what happened
+[# th:if="${sender} != null"][(${sender.name})][/][# th:if="not ${#strings.isEmpty(seriesTitle)}" th:with="seriesSeparator=${sender} != null ? ' - ' : ''"][(${seriesSeparator})][(${seriesTitle})][/][# th:if="${scheduledAtLabel} != null"]
+Held [(${scheduledAtLabel})].[/]
+
+[# th:if="${talks} != null and not ${talks.isEmpty()}" th:with="talkCount=${talks.size()}"]
+[(${talkCount})] [# th:if="${talkCount} == 1"]talk[/][# th:unless="${talkCount} == 1"]talks[/].[/][# th:if="${attendeeCount} != null and ${attendeeCount} > 0"]
+[(${attendeeCount})] in the room.[/][# th:if="not ${#strings.isEmpty(recordingUrl)}"]
+Recording available: [(${recordingUrl})][/]
+
+[# th:if="${talks} == null or ${talks.isEmpty()}"]
+No talks were recorded for this session.[/][# th:each="talk : ${talks}"]
+
+----
+[(${talk.title} ?: 'Untitled talk')]
+[# th:if="not ${#strings.isEmpty(talk.presenter)}"]Presented by [(${talk.presenter})][/][# th:if="${#strings.isEmpty(talk.presenter)}"]We did not catch who presented this one.[/][# th:if="${talk.subjects} != null and not ${talk.subjects.isEmpty()}"]
+Topics: [(${#strings.listJoin(talk.subjects, ', ')})][/][# th:if="${talk.resources} != null and not ${talk.resources.isEmpty()}"]
+Resources and slides:
+[# th:each="resource : ${talk.resources}" th:with="resourceMatchesTalkTitle=(not ${#strings.isEmpty(resource.title)} and not ${#strings.isEmpty(talk.title)} and ${#strings.toLowerCase(#strings.trim(resource.title))} == ${#strings.toLowerCase(#strings.trim(talk.title))})"]  - [# th:if="not ${#strings.isEmpty(resource.title)} and not ${resourceMatchesTalkTitle}"][(${resource.title})]: [(${resource.url})][/][# th:if="${#strings.isEmpty(resource.title)} or ${resourceMatchesTalkTitle}"][(${resource.url})][/]
+[/][/][/]
+[# th:if="${actionPoints} != null and not ${actionPoints.isEmpty()}"]
+
+What we agreed to do:
+[# th:each="actionPoint : ${actionPoints}"]  [(${actionPoint.title} ?: 'Untitled action point')] - [(${actionPoint.assignee} ?: 'Unassigned')][# th:if="${actionPoint.dueDate} != null"], due [(${#temporals.format(actionPoint.dueDate, 'd MMM')})][/][# th:if="${actionPoint.done}"] (done)[/][# th:if="${actionPoint.dropped}"] (dropped)[/]
+[/][/][# th:if="${checkedItems} != null and not ${checkedItems.isEmpty()}"]
+
+What was checked:
+[# th:each="checkedItem : ${checkedItems}"]  [(${checkedItem.title} ?: 'Untitled action point')] - [(${checkedItem.assignee} ?: 'Unassigned')] ([(${checkedItem.outcome})])
+[/][/][# th:if="${resources} != null and not ${resources.isEmpty()}"]
+
+From the session:
+[# th:each="resource : ${resources}"]  - [# th:if="${resource.title} != null"][(${resource.title})]: [(${resource.url})][/][# th:if="${resource.title} == null"][(${resource.url})][/]
+[/][/][# th:if="not ${#strings.isEmpty(followUpNotes)}"]
+
+A note from the organizer:
+[(${followUpNotes})][/][# th:if="not ${#strings.isEmpty(nextSession)}"]
+
+Coming up next: [(${nextSession})][/][# th:if="not ${#strings.isEmpty(sessionUrl)}"]
+
+View this session on axonia: [(${sessionUrl})][/][# th:if="${sender} != null"]
+You are a member of [(${sender.name})].[/][# th:if="not ${#strings.isEmpty(unsubscribePageUrl)}"]
+
+Unsubscribe: [(${unsubscribePageUrl})][/]

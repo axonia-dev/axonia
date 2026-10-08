@@ -1,0 +1,278 @@
+# The Self-hosted edition's gates: the backend reactor, the frontend's open build split into jobs that run side by side,
+# the edge, both images end to end under Docker Compose and in a kind cluster, and the Helm chart. The public repository's
+# CI runs every job on every change. The private repository it is exported from calls the same file on the tree the
+# public repository receives (inputs.prune), running only the jobs a change can reach, so the two never drift apart.
+name: Self-hosted edition
+
+on:
+  workflow_call:
+    inputs:
+      prune:
+        description: Delete every file the public repository does not carry before each job, in the repository it is exported from.
+        type: boolean
+        default: false
+      backend:
+        type: boolean
+        default: true
+      frontend:
+        type: boolean
+        default: true
+      edge:
+        type: boolean
+        default: true
+      images:
+        type: boolean
+        default: true
+      chart:
+        type: boolean
+        default: true
+
+jobs:
+  backend:
+    if: inputs.backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - if: inputs.prune
+        uses: ./.github/actions/selfhosted-prune
+      - uses: actions/setup-java@v6
+        with:
+          java-version: "26"
+          distribution: temurin
+          cache: maven
+          # Its own key, over the open reactor's poms only.
+          cache-dependency-path: |
+            backend/pom.xml
+            backend/core/pom.xml
+            backend/selfhosted-app/pom.xml
+      # Testcontainers needs a Docker daemon; ubuntu-latest has one.
+      - run: ./mvnw -B verify
+        working-directory: backend
+      # The DEV profile's public passwords and secrets must never reach an installation: the jar leaves the file out,
+      # and an installation that sets SPRING_PROFILES_ACTIVE=DEV finds no profile to apply.
+      - name: The installation's jar holds no DEV profile
+        working-directory: backend/selfhosted-app/target
+        run: |
+          shopt -s nullglob
+          jars=(axonia-selfhosted-*.jar)
+          [ ${#jars[@]} -gt 0 ] || { echo "No Self-hosted jar was built." >&2; exit 1; }
+          for jar in "${jars[@]}"; do
+            jar tf "$jar" > jar-entries.txt
+            if grep -E '(^|/)application-DEV\.properties$' jar-entries.txt; then
+              echo "$jar ships application-DEV.properties." >&2
+              exit 1
+            fi
+          done
+
+  # `pnpm run verify:selfhosted` in frontend/ is the one local command for the frontend's gate; the jobs below are the
+  # same work, split so the tests run on four runners at once rather than one after another.
+  frontend-static:
+    if: inputs.frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - if: inputs.prune
+        uses: ./.github/actions/selfhosted-prune
+      - uses: ./.github/actions/frontend-setup
+      - run: pnpm run lint
+        working-directory: frontend
+      - run: pnpm run format:check
+        working-directory: frontend
+      - run: pnpm run dup:selfhosted
+        working-directory: frontend
+      - run: pnpm run knip:selfhosted
+        working-directory: frontend
+
+  frontend-compile:
+    if: inputs.frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - if: inputs.prune
+        uses: ./.github/actions/selfhosted-prune
+      - uses: ./.github/actions/frontend-setup
+      # `build:selfhosted` typechecks the app alone; this adds the Node and e2e configs.
+      - run: pnpm run typecheck:selfhosted
+        working-directory: frontend
+      - run: pnpm run build:selfhosted
+        working-directory: frontend
+      - if: inputs.prune
+        run: bash .github/scripts/check-selfhosted-bundle.sh frontend/dist-selfhosted
+
+  frontend-test:
+    if: inputs.frontend
+    runs-on: ubuntu-latest
+    strategy:
+      # Every shard reports, whichever fails first.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v7
+      - if: inputs.prune
+        uses: ./.github/actions/selfhosted-prune
+      - uses: ./.github/actions/frontend-setup
+      # Coverage is collected here but its thresholds apply only in frontend-coverage, the one job that sees every shard:
+      # a shard sees a quarter of the lines and would fail every threshold every time.
+      - name: Test (shard ${{ matrix.shard }} of 4)
+        working-directory: frontend
+        run: >
+          pnpm exec vitest run
+          --config vite.selfhosted.config.ts
+          --mode selfhosted
+          --shard=${{ matrix.shard }}/4
+          --reporter=blob
+          --reporter=default
+          --coverage.enabled
+          --coverage.thresholds.lines=0
+          --coverage.thresholds.functions=0
+          --coverage.thresholds.statements=0
+          --coverage.thresholds.branches=0
+      - uses: actions/upload-artifact@v7
+        with:
+          name: selfhosted-frontend-vitest-blob-${{ matrix.shard }}
+          path: frontend/.vitest/blob/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+
+  frontend-coverage:
+    needs: frontend-test
+    if: inputs.frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - if: inputs.prune
+        uses: ./.github/actions/selfhosted-prune
+      - uses: ./.github/actions/frontend-setup
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: selfhosted-frontend-vitest-blob-*
+          merge-multiple: true
+          path: frontend/.vitest/blob/
+      # Replays all four shards as one run and applies the coverage thresholds from vite.selfhosted.config.ts to the
+      # union of them.
+      - run: pnpm exec vitest --merge-reports --coverage --config vite.selfhosted.config.ts --mode selfhosted
+        working-directory: frontend
+
+  frontend-e2e:
+    if: inputs.frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - if: inputs.prune
+        uses: ./.github/actions/selfhosted-prune
+      - uses: ./.github/actions/frontend-setup
+      - run: pnpm exec playwright install --with-deps chromium
+        working-directory: frontend
+      # playwright.selfhosted.config.ts builds the edition and serves it itself.
+      - run: pnpm exec playwright test --config playwright.selfhosted.config.ts
+        working-directory: frontend
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: selfhosted-frontend-playwright-trace
+          path: frontend/test-results/
+          retention-days: 7
+
+  # The edge runs four modules of edge/src as they stand (selfhosted-edge/src/shared.ts).
+  edge:
+    if: inputs.edge
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - if: inputs.prune
+        uses: ./.github/actions/selfhosted-prune
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: selfhosted-edge/package.json
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: pnpm
+          cache-dependency-path: selfhosted-edge/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+        working-directory: selfhosted-edge
+      # verify = typecheck + oxlint + prettier + vitest with coverage + knip.
+      - run: pnpm run verify
+        working-directory: selfhosted-edge
+
+  # Both images built from this tree, started by deploy/compose.yaml with the stand-ins of deploy/compose.test.yaml, and
+  # driven by a browser the way an installation's first Owner and first agent use it.
+  e2e:
+    if: inputs.images
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      COMPOSE: docker compose -f deploy/compose.yaml -f deploy/compose.test.yaml --env-file deploy/test/e2e.env
+    steps:
+      - uses: actions/checkout@v7
+      - if: inputs.prune
+        uses: ./.github/actions/selfhosted-prune
+      - name: Build both images and start the stack
+        run: $COMPOSE up --build --wait --wait-timeout 300
+      - name: Both images run as 10001 on a read-only root, and the edge ships no test
+        run: |
+          for service in backend edge; do
+            uid=$($COMPOSE exec -T "$service" id -u)
+            read_only=$(docker inspect --format '{{.HostConfig.ReadonlyRootfs}}' "$($COMPOSE ps -q "$service")")
+            echo "$service runs as $uid, read-only root $read_only"
+            [ "$uid" = 10001 ]
+            [ "$read_only" = true ]
+          done
+          tests=$($COMPOSE exec -T edge find /srv/edge -name '*.test.ts')
+          [ -z "$tests" ] || { printf 'The edge image ships tests:\n%s\n' "$tests"; exit 1; }
+      - name: Each image refuses to start unconfigured, naming what is missing
+        run: |
+          out=$(docker run --rm --read-only --tmpfs /tmp axonia-e2e/axonia-backend:e2e 2>&1 || true)
+          printf '%s\n' "$out" | grep -q 'DATABASE_URL' || { printf '%s\n' "$out"; exit 1; }
+          out=$(docker run --rm --read-only axonia-e2e/axonia-edge:e2e 2>&1 || true)
+          printf '%s\n' "$out" | grep -q 'PUBLIC_URL is required.' || { printf '%s\n' "$out"; exit 1; }
+      - uses: ./.github/actions/frontend-setup
+      - run: pnpm exec playwright install --with-deps chromium
+        working-directory: frontend
+      - run: pnpm exec playwright test --config playwright.stack.config.ts
+        working-directory: frontend
+      - if: failure()
+        run: |
+          mkdir -p frontend/test-results
+          $COMPOSE logs --no-color --timestamps > frontend/test-results/stack.log 2>&1 || true
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: selfhosted-e2e-trace
+          path: frontend/test-results/
+          retention-days: 7
+      - if: always()
+        run: $COMPOSE down -v
+
+  # Lint and render every example, validate what it renders against the oldest and the newest Kubernetes the chart
+  # supports, run its unit tests (tools pinned in deploy/helm/tools.sh), and check that docs/selfhosted/configuration.md
+  # names every variable an installation can be given.
+  chart:
+    if: inputs.chart
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - if: inputs.prune
+        uses: ./.github/actions/selfhosted-prune
+      - run: bash deploy/helm/check.sh
+      - run: bash deploy/check-configuration-docs.sh
+
+  # The chart installed into a throwaway kind cluster with the two images built from this tree: what no render shows (the
+  # settings key kept across an upgrade and a reinstall, the images' user on a read-only root, the migrations on
+  # Postgres 18, the readiness after the founding) only a cluster shows.
+  helm-install:
+    if: inputs.images
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+      - if: inputs.prune
+        uses: ./.github/actions/selfhosted-prune
+      - run: docker build --file backend/selfhosted-app/Dockerfile --tag axonia-backend:kind backend
+      - run: docker build --file selfhosted-edge/Dockerfile --tag axonia-edge:kind .
+      - run: bash deploy/helm/test/kind-install.sh
+        env:
+          AXONIA_BACKEND_IMAGE: axonia-backend:kind
+          AXONIA_EDGE_IMAGE: axonia-edge:kind

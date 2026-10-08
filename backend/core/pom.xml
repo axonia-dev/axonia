@@ -1,0 +1,282 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>dev</groupId>
+		<artifactId>axonia-parent</artifactId>
+		<version>1.0-SNAPSHOT</version>
+		<relativePath>../pom.xml</relativePath>
+	</parent>
+
+	<artifactId>axonia-core</artifactId>
+
+	<dependencies>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+		</dependency>
+		<!--
+			The client-credentials tokens axonia itself calls Microsoft Graph with. The plain
+			Spring Security module, not Boot's oauth2-client starter: the registrations are built in
+			code, and nothing here may be read as a login client.
+		-->
+		<dependency>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-oauth2-client</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-webmvc</artifactId>
+		</dependency>
+		<!--
+			Outbound HTTP. Spring Boot 4 splits RestClient support out of the web starter, so without
+			this module RestClient.Builder is never auto-configured, spring.http.clients.* is inert,
+			and every outbound client falls back to a request factory with no timeout at all.
+		-->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-restclient</artifactId>
+		</dependency>
+		<!--
+			Outbound mail. The same SMTP transport in every environment, with only the endpoint
+			moving: Mailpit locally, an SMTP relay in production.
+		-->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-mail</artifactId>
+		</dependency>
+		<!--
+			Jakarta Mail's implementation at compile scope: MailFailures reads its SMTP exceptions
+			to tell a refused recipient from a refused sender. Boot declares it runtime only; the
+			version is the Boot BOM's angus-mail.version.
+		-->
+		<dependency>
+			<groupId>org.eclipse.angus</groupId>
+			<artifactId>angus-mail</artifactId>
+		</dependency>
+		<!--
+			Mail rendering. A plain org.thymeleaf:thymeleaf TemplateEngine, not the
+			spring-boot-starter-thymeleaf starter: that starter wires Thymeleaf into Spring MVC view
+			resolution, which this API-only backend has no use for. thymeleaf-spring6 is deliberately
+			NOT added: it exists to swap OGNL for SpringEL and to integrate a SpringTemplateEngine with
+			Spring MVC's RequestContext/MessageSource/conversion service, none of which a mail-only engine
+			rendering an opaque template name plus a fact map ever touches. Version is managed by the
+			spring-boot-starter-parent BOM.
+		-->
+		<dependency>
+			<groupId>org.thymeleaf</groupId>
+			<artifactId>thymeleaf</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-validation</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-redis</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-quartz</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.modulith</groupId>
+			<artifactId>spring-modulith-starter-core</artifactId>
+		</dependency>
+		<!-- Provides @ApplicationModuleListener for cross-module application events (recognition -> knowledge like_count). -->
+		<dependency>
+			<groupId>org.springframework.modulith</groupId>
+			<artifactId>spring-modulith-events-api</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-jdbc</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-flyway</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-core</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-database-postgresql</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.postgresql</groupId>
+			<artifactId>postgresql</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>s3</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>sts</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.azure</groupId>
+			<artifactId>azure-storage-blob</artifactId>
+			<exclusions>
+				<exclusion>
+					<groupId>com.azure</groupId>
+					<artifactId>azure-core-http-netty</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>com.azure</groupId>
+			<artifactId>azure-identity</artifactId>
+			<exclusions>
+				<exclusion>
+					<groupId>com.azure</groupId>
+					<artifactId>azure-core-http-netty</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>com.azure</groupId>
+			<artifactId>azure-core-http-jdk-httpclient</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>com.github.f4b6a3</groupId>
+			<artifactId>ulid-creator</artifactId>
+			<version>5.2.4</version>
+		</dependency>
+
+		<!--
+			In-process caches: per-entry expiry, a size bound and atomic compute, on the application's
+			Clock through dev.axonia.ClockTicker. Version managed by the Spring Boot BOM.
+		-->
+		<dependency>
+			<groupId>com.github.ben-manes.caffeine</groupId>
+			<artifactId>caffeine</artifactId>
+		</dependency>
+		<!--
+			CaffeineCacheManager, behind @Cacheable. Declared rather than left to arrive
+			through the mail starter, which is the only thing that brings it today. Version managed
+			by the Spring Boot BOM. spring-boot-cache is deliberately not added: nothing here wants
+			its auto-configuration, cache meters or caches endpoint.
+		-->
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-context-support</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.ai</groupId>
+			<artifactId>spring-ai-starter-mcp-server-webmvc</artifactId>
+		</dependency>
+
+		<!--
+			Telemetry over OTLP. The starter brings the OpenTelemetry SDK plus Micrometer Tracing's
+			bridge to it, and micrometer-registry-otlp pushes meters to the same collector - metrics
+			leave by push precisely so no scrapeable endpoint has to be exposed. The Logback appender
+			is NOT auto-configured by Boot and is declared by hand in logback-spring.xml; it ships
+			outside the Boot BOM, so it carries the explicit version pinned in properties above.
+		-->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-opentelemetry</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>io.micrometer</groupId>
+			<artifactId>micrometer-registry-otlp</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>io.opentelemetry.instrumentation</groupId>
+			<artifactId>opentelemetry-logback-appender-1.0</artifactId>
+			<version>${opentelemetry-instrumentation.version}</version>
+		</dependency>
+
+	</dependencies>
+
+	<build>
+		<plugins>
+
+			<!--
+				The shared test support (CoreJdbcTestSupport, the stand-ins, the fixtures) ships as a
+				test-jar that another module's tests build on. The two property files stay out: that module's own
+				application properties must be the only ones its tests read, whatever the classpath order.
+			-->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>test-jar</id>
+						<goals>
+							<goal>test-jar</goal>
+						</goals>
+						<configuration>
+							<excludes>
+								<exclude>application.properties</exclude>
+								<exclude>application-DEV.properties</exclude>
+							</excludes>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>jacoco-check</id>
+						<configuration>
+							<excludes>
+								<exclude>**/config/**</exclude>
+								<!--
+									Infrastructure adapter classes for the media-storage port. MediaConfig
+									is a Spring @Configuration with @ConditionalOnProperty beans that only
+									activate in specific profiles; MediaStorageProperties is a plain
+									@ConfigurationProperties binding. Excluded here on the same grounds as
+									the broader config/** exclusion above.
+								-->
+								<exclude>**/media/internal/MediaConfig*</exclude>
+								<exclude>**/media/internal/MediaStorageProperties*</exclude>
+								<!--
+									TokenHasher wraps MessageDigest.getInstance("SHA-256") in a try/catch
+									solely to satisfy the checked NoSuchAlgorithmException. SHA-256 is mandated
+									by the Java Security Standard Algorithm Names spec to always be available,
+									making the catch block permanently unreachable. Excluding the class avoids
+									an untestable line-coverage miss without weakening the gate config.
+								-->
+								<exclude>dev/axonia/TokenHasher*</exclude>
+								<!--
+									AgentSecurityConfig is pure Spring wiring for the /mcp/** filter chain
+									(bean registrations + HttpSecurity DSL calls), with no unit-testable
+									branches of its own. Excluded on the same grounds as MediaConfig above;
+									the chain is covered behaviorally by an integration test.
+								-->
+								<exclude>**/agent/internal/AgentSecurityConfig*</exclude>
+							</excludes>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+		</plugins>
+	</build>
+
+</project>

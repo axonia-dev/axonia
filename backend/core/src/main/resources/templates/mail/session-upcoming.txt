@@ -1,0 +1,25 @@
+[(${sessionTitle} ?: 'This session')]: happening soon
+[# th:if="${sender} != null"][(${sender.name})][/][# th:if="not ${#strings.isEmpty(seriesTitle)}" th:with="seriesSeparator=${sender} != null ? ' - ' : ''"][(${seriesSeparator})][(${seriesTitle})][/][# th:if="${scheduledAtLabel} != null"]
+Happening [(${scheduledAtLabel})].[/]
+
+Agenda:
+[# th:if="${talks} == null or ${talks.isEmpty()}" th:with="communityName=${sender} != null ? ${sender.name} : 'your community'"]
+Nothing on the agenda yet. This one is wide open. Put something on it and [(${communityName})] will hear it.[/][# th:each="talk : ${talks}"]
+
+----
+[(${talk.title} ?: 'Untitled talk')]
+[# th:if="not ${#strings.isEmpty(talk.presenter)}"]With [(${talk.presenter})][# th:if="${talk.durationMinutes} != null"] - [(${talk.durationMinutes})] min[/][/][# th:if="${#strings.isEmpty(talk.presenter)}"]Awaiting a presenter[# th:if="${talk.durationMinutes} != null"] - [(${talk.durationMinutes})] min[/][/][# th:if="${talk.subjects} != null and not ${talk.subjects.isEmpty()}"]
+Topics: [(${#strings.listJoin(talk.subjects, ', ')})][/][/]
+[# th:if="${location} != null or ${joinUrl} != null or ${joiningDetails} != null"]
+Where:[# th:if="${location} != null"]
+[(${location})][/][# th:if="${joinUrl} != null"]
+Meets online. Join the session: [(${joinUrl})][/][# th:if="${joiningDetails} != null"]
+[(${joiningDetails})][/]
+[/][# th:if="not ${#strings.isEmpty(sessionUrl)}"
+    th:with="hasTalks=${talks} != null and not ${talks.isEmpty()}, hasOpenSlots=${openSlotCount} != null and ${openSlotCount} > 0, ctaLabel=(not ${hasTalks}) ? 'Put a talk on the agenda' : (${hasOpenSlots} ? 'Take an open slot' : 'View the session page')"]
+[(${ctaLabel})]: [(${sessionUrl})][/][# th:if="${talks} != null and not ${talks.isEmpty()} and not ${#strings.isEmpty(backlogUrl)}"]
+
+Something you want to hear about? Add it to the backlog: [(${backlogUrl})][/][# th:if="${sender} != null"]
+You are a member of [(${sender.name})].[/][# th:if="not ${#strings.isEmpty(unsubscribePageUrl)}"]
+
+Unsubscribe: [(${unsubscribePageUrl})][/]

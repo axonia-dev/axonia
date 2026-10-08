@@ -1,0 +1,141 @@
+# axonia, Self-hosted edition: the edge members reach, the backend behind it, and Postgres.
+#
+# Settings come from the environment or from a .env file beside this one: copy .env.example to .env and fill it in.
+# docs/selfhosted/configuration.md explains every setting. A required one left unset stops `docker compose up` and
+# names it. Put a reverse proxy that terminates TLS in front of the edge: members' browsers keep their session only
+# over https.
+name: axonia
+
+services:
+  postgres:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: axonia
+      # The owner role: it runs the migrations and creates the two roles the backend connects as.
+      POSTGRES_USER: ${DATABASE_OWNER_USERNAME:-axonia_owner}
+      POSTGRES_PASSWORD: ${DATABASE_OWNER_PASSWORD:?set DATABASE_OWNER_PASSWORD (openssl rand -hex 32)}
+    volumes:
+      # Postgres 18 keeps its data under a directory named after its major version, inside this mount.
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d axonia"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  backend:
+    image: ${AXONIA_IMAGE_REGISTRY:-ghcr.io/axonia-dev}/axonia-backend:${AXONIA_VERSION:?set AXONIA_VERSION to the release to run}
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    environment:
+      # Bootstrap: the start refuses without each of these, naming it.
+      DATABASE_URL: ${DATABASE_URL:-jdbc:postgresql://postgres:5432/axonia}
+      DATABASE_OWNER_USERNAME: ${DATABASE_OWNER_USERNAME:-axonia_owner}
+      DATABASE_OWNER_PASSWORD: ${DATABASE_OWNER_PASSWORD:?set DATABASE_OWNER_PASSWORD (openssl rand -hex 32)}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:?set DATABASE_PASSWORD (openssl rand -hex 32)}
+      DATABASE_COMMUNICATION_READ_PASSWORD: ${DATABASE_COMMUNICATION_READ_PASSWORD:?set DATABASE_COMMUNICATION_READ_PASSWORD (openssl rand -hex 32)}
+      AXONIA_PUBLIC_BASE_URL: ${PUBLIC_URL:?set PUBLIC_URL to the address members reach, https://axonia.example.com}
+      # The secrets the backend accepts from the edge; set AXONIA_EDGE_SHARED_SECRETS=new,old in .env to rotate in two steps.
+      AXONIA_EDGE_SHARED_SECRETS: ${AXONIA_EDGE_SHARED_SECRETS:-${EDGE_SHARED_SECRET:?set EDGE_SHARED_SECRET (openssl rand -hex 32)}}
+      AXONIA_UNSUBSCRIBE_SECRET: ${AXONIA_UNSUBSCRIBE_SECRET:?set AXONIA_UNSUBSCRIBE_SECRET (openssl rand -hex 32)}
+      AXONIA_SETTINGS_KEY: ${AXONIA_SETTINGS_KEY:?set AXONIA_SETTINGS_KEY (openssl rand -base64 32) and back it up, kept apart from the database backups}
+      AXONIA_SELFHOSTED_ORGANIZATION_ID: ${AXONIA_SELFHOSTED_ORGANIZATION_ID:?set AXONIA_SELFHOSTED_ORGANIZATION_ID, a short lowercase id never changed afterwards}
+      AXONIA_SELFHOSTED_ORGANIZATION_NAME: ${AXONIA_SELFHOSTED_ORGANIZATION_NAME:?set AXONIA_SELFHOSTED_ORGANIZATION_NAME}
+      AXONIA_SELFHOSTED_OWNER_GROUP: ${AXONIA_SELFHOSTED_OWNER_GROUP:?set AXONIA_SELFHOSTED_OWNER_GROUP to the directory group whose members are Owners}
+      AXONIA_SELFHOSTED_OIDC_ISSUER_URI: ${OIDC_ISSUER:?set OIDC_ISSUER to the identity provider's issuer}
+      AXONIA_SELFHOSTED_OIDC_AUDIENCE: ${AXONIA_SELFHOSTED_OIDC_AUDIENCE:?set AXONIA_SELFHOSTED_OIDC_AUDIENCE to the audience of the access tokens}
+      # Optional: unset here unless set in .env, so the backend's own default applies.
+      AXONIA_SELFHOSTED_OIDC_SUBJECT_CLAIM:
+      AXONIA_SELFHOSTED_OIDC_GROUPS_CLAIM:
+      AXONIA_SELFHOSTED_OIDC_EMAIL_CLAIMS:
+      AXONIA_SELFHOSTED_OIDC_NAME_CLAIM:
+      AXONIA_SETTINGS_PREVIOUS_KEYS:
+      AXONIA_ENTRA_CLIENT_ID:
+      AXONIA_ENTRA_CLIENT_SECRET:
+      AXONIA_MCP_OAUTH_TRUSTED_CLIENT_DOMAINS:
+      AXONIA_RATE_LIMIT_STORE:
+      SPRING_DATA_REDIS_URL:
+      MANAGEMENT_HEALTH_REDIS_ENABLED:
+      APP_MEDIA_TYPE:
+      APP_MEDIA_S3_ENDPOINT:
+      APP_MEDIA_S3_BUCKET:
+      APP_MEDIA_S3_REGION:
+      APP_MEDIA_S3_PATH_STYLE:
+      APP_MEDIA_S3_ACCESS_KEY:
+      APP_MEDIA_S3_SECRET_KEY:
+      APP_MEDIA_AZURE_BLOB_ENDPOINT:
+      APP_MEDIA_AZURE_BLOB_CONTAINER:
+      # The mail server is configured in the application (Settings, Notifications). A field the deployment owns
+      # instead is set in compose.override.yaml, which overrides and locks it there and survives a release replacing
+      # this file (docs/selfhosted/configuration.md, Docker Compose):
+      # AXONIA_MAIL_HOST:
+      # AXONIA_MAIL_PORT:
+      # AXONIA_MAIL_SECURITY:
+      # AXONIA_MAIL_USERNAME:
+      # AXONIA_MAIL_PASSWORD:
+      # AXONIA_MAIL_FROM_ADDRESS:
+      # AXONIA_MAIL_FROM_NAME:
+    volumes:
+      # Images, unless APP_MEDIA_TYPE names a bucket or a container. The image sets MEDIA_LOCAL_PATH to this path.
+      - media:/var/lib/axonia/media
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      # Ready once the Organization is founded and requests are served; the image has bash but no HTTP client.
+      test:
+        - CMD
+        - bash
+        - -c
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/8080
+          && printf 'GET /actuator/health/readiness HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3
+          && head -n 1 <&3 | grep -q ' 200 '
+      interval: 5s
+      timeout: 5s
+      retries: 6
+      # As long as the chart's startup probe allows: a first start migrates the database and founds the Organization,
+      # and an upgrade may rewrite a large table. A start that is ready sooner is healthy at its first passing check.
+      start_period: 600s
+
+  edge:
+    image: ${AXONIA_IMAGE_REGISTRY:-ghcr.io/axonia-dev}/axonia-edge:${AXONIA_VERSION:?set AXONIA_VERSION to the release to run}
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    environment:
+      PUBLIC_URL: ${PUBLIC_URL:?set PUBLIC_URL to the address members reach, https://axonia.example.com}
+      BACKEND_ORIGIN: http://backend:8080
+      EDGE_SHARED_SECRET: ${EDGE_SHARED_SECRET:?set EDGE_SHARED_SECRET (openssl rand -hex 32)}
+      OIDC_ISSUER: ${OIDC_ISSUER:?set OIDC_ISSUER to the identity provider's issuer}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:?set OIDC_CLIENT_ID}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:?set OIDC_CLIENT_SECRET}
+      OIDC_SCOPES: ${OIDC_SCOPES:?set OIDC_SCOPES, for Entra openid profile email offline_access api://<client-id>/axonia}
+      OIDC_SESSION_END: ${OIDC_SESSION_END:?set OIDC_SESSION_END, revoke unless the provider is Keycloak}
+      SESSION_COOKIE_KEY: ${SESSION_COOKIE_KEY:?set SESSION_COOKIE_KEY (openssl rand -base64 32 | tr '+/' '-_' | tr -d '=')}
+      SESSION_MAX_AGE_SECONDS: ${SESSION_MAX_AGE_SECONDS:?set SESSION_MAX_AGE_SECONDS, for Entra 7776000}
+      # The reverse proxy in front appends the caller's address to X-Forwarded-For; 0 when nothing is in front.
+      TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-1}
+    ports:
+      # Loopback only by default: the reverse proxy on this host is the way in.
+      - ${AXONIA_LISTEN:-127.0.0.1:8080}:8080
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:8080/healthz').then((answer) => process.exit(answer.ok ? 0 : 1), () => process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  postgres-data:
+  media:

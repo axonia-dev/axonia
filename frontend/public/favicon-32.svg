@@ -1,0 +1,24 @@
+<svg width="32" height="32" viewBox="0 0 180 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Axonia">
+  <title>Axonia</title>
+  <defs>
+    <linearGradient id="axStroke32" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#6e3ceb"/>
+      <stop offset="0.55" stop-color="#de3b78"/>
+      <stop offset="1" stop-color="#ff7eb0"/>
+    </linearGradient>
+    <linearGradient id="axTrail32" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#de3b78" stop-opacity="0"/>
+      <stop offset="0.55" stop-color="#de3b78" stop-opacity="0.7"/>
+      <stop offset="1" stop-color="#ff7eb0"/>
+    </linearGradient>
+    <radialGradient id="axSpark32" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#fff0f6"/>
+      <stop offset="0.55" stop-color="#ffd6e6"/>
+      <stop offset="1" stop-color="#de3b78"/>
+    </radialGradient>
+  </defs>
+  <path d="M88 44 Q69 98 50 152 L56 152 Q74 99 91 45.5 Z" fill="url(#axStroke32)"/>
+  <path d="M90 45.5 Q109 99 127 152 L133 152 Q114 97 92 44 Z" fill="url(#axStroke32)"/>
+  <line x1="67" y1="112" x2="112" y2="116" stroke="url(#axTrail32)" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="112" cy="116" r="11" fill="url(#axSpark32)"/>
+</svg>

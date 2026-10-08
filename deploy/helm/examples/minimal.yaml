@@ -1,0 +1,22 @@
+# One backend and one edge behind an ingress, images on a volume, any OpenID Connect provider, mail configured in the
+# application. docs/selfhosted/install.md, "Kubernetes".
+publicUrl: https://axonia.example.com
+organization:
+  id: example
+  name: Example
+ownerGroup: axonia-owners
+oidc:
+  issuer: https://login.example.com/realms/example
+  clientId: axonia
+  scopes: openid profile email offline_access
+  sessionMaxAgeSeconds: 2592000
+database:
+  url: jdbc:postgresql://postgres.example.com:5432/axonia?sslmode=verify-full
+  ownerUsername: axonia_owner
+existingSecret: axonia
+ingress:
+  className: nginx
+  # An image upload is up to 6 MB; NGINX refuses a body over 1 MB unless told otherwise.
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: 6m
+  tlsSecretName: axonia-tls

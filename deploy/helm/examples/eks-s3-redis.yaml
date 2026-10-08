@@ -1,0 +1,50 @@
+# Two backend instances sharing their rate limits through Redis, images in S3 reached with IRSA, and every mail field set
+# by the deployment, so each is locked in the application. docs/selfhosted/storage.md and
+# docs/selfhosted/configuration.md.
+publicUrl: https://axonia.example.com
+organization:
+  id: example
+  name: Example
+ownerGroup: axonia-owners
+oidc:
+  issuer: https://example.okta.com/oauth2/default
+  clientId: 0oa1example
+  audience: api://axonia
+  scopes: openid profile email offline_access
+  sessionMaxAgeSeconds: 7776000
+database:
+  url: jdbc:postgresql://axonia.cluster-example.eu-central-1.rds.amazonaws.com:5432/axonia?sslmode=verify-full
+  ownerUsername: axonia_owner
+existingSecret: axonia
+rateLimit:
+  store: redis
+  redis:
+    existingSecret: axonia-redis
+    key: SPRING_DATA_REDIS_URL
+media:
+  type: s3
+  s3:
+    bucket: example-axonia-media
+    region: eu-central-1
+mail:
+  host: email-smtp.eu-central-1.amazonaws.com
+  port: 587
+  security: STARTTLS
+  username: AKIAEXAMPLE
+  password:
+    existingSecret: axonia-mail
+    key: AXONIA_MAIL_PASSWORD
+  fromAddress: axonia@example.com
+  fromName: Example Communities
+backend:
+  replicas: 2
+  serviceAccount:
+    annotations:
+      eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/axonia-backend
+edge:
+  replicas: 2
+ingress:
+  className: alb
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internal
+    alb.ingress.kubernetes.io/target-type: ip

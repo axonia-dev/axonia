@@ -1,0 +1,15 @@
+{
+  "threshold": 1,
+  "minTokens": 50,
+  "reporters": ["consoleFull"],
+  "absolute": true,
+  "gitignore": true,
+  "path": ["src"],
+  "ignore": [
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "src/test/**",
+    "src/features/recognition/domain/emoji-catalog.json",
+    "src/cloud/**"
+  ]
+}

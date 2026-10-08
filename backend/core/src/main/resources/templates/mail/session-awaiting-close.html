@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title th:text="'Did ' + (${sessionTitle} ?: 'this session') + ' happen?'">Did it happen?</title>
+</head>
+<body style="margin:0; padding:0;">
+<div style="display:none; max-height:0; overflow:hidden; mso-hide:all;">
+<div th:replace="~{_shell.html :: preheader(fallback='Nobody has closed this session out yet.')}">Preheader</div>
+</div>
+<div th:replace="~{_shell.html :: page(body=~{::content}, when='Was on for', reason='You look after sessions in')}">
+<!-- Both derived values are resolved up front in th:with, and neither the row below them carries a condition of its
+     own. A th:if written on the same tag as a th:replace NEVER RUNS: fragment inclusion is order 1 in Thymeleaf's own
+     attribute precedence and conditional evaluation is order 3, and th:replace replaces the host tag and stops
+     processing its remaining attributes the moment it fires - so both arms would render, both paragraphs would render,
+     and a ${sender.name} in a parameter expression would be dereferenced even on the null-sender path. Only two
+     placements are safe, and this file uses both: a wrapping th:block (the sessionUrl button, below), or a th:if on
+     the fragment's own definition (nudgeStrip and talkCountCell in _shell.html, matching statStrip). Which arm and
+     which name the copy uses is a value here, not a row, so there is one row per idea rather than one per branch. -->
+<th:block th:fragment="content"
+    th:with="communityName=(${sender} != null) ? ${sender.name} : 'the community',
+             nudgeAlert=(${nudgeArm} == 'ONE_DAY') ? 'A day on, still open'
+                        : ((${nudgeArm} == 'SEVEN_DAY') ? 'A week on, still open' : null)">
+<tr th:replace="~{_shell.html :: nudgeStrip(alert=${nudgeAlert})}">Chips</tr>
+<tr th:replace="~{_shell.html :: bodyText(text='Did it happen? Say so, and ' + ${communityName} + ' gets the wrap-up. Say it did not, and nobody hears about it again.')}">Body</tr>
+<th:block th:if="not ${#strings.isEmpty(sessionUrl)}">
+<tr th:replace="~{_shell.html :: primaryButton(url=${sessionUrl}, label='Close out this session')}">Button</tr>
+</th:block>
+</th:block>
+</div>
+<div style="display:none; max-height:0; overflow:hidden; mso-hide:all;">
+<th:block th:fragment="subject" th:text="'Did ' + (${sessionTitle} ?: 'this session') + ' happen?'">Subject</th:block>
+</div>
+</body>
+</html>

@@ -1,0 +1,51 @@
+# Every optional block of the chart on, so a render names every variable the chart can set: mail, Microsoft Graph,
+# Redis and the S3 keys. check-configuration-docs.sh renders it once per media.type, which is why both bucket blocks are
+# filled. A new optional block in the chart belongs here too.
+publicUrl: https://axonia.example.com
+organization:
+  id: example
+  name: Example
+ownerGroup: axonia-owners
+oidc:
+  issuer: https://login.example.com/realms/example
+  clientId: axonia
+  audience: api://axonia
+  scopes: openid profile email offline_access
+  sessionMaxAgeSeconds: 7776000
+database:
+  url: jdbc:postgresql://postgres.example.com:5432/axonia
+  ownerUsername: axonia_owner
+existingSecret: axonia
+mail:
+  host: smtp.example.com
+  port: 587
+  security: STARTTLS
+  username: axonia
+  password:
+    existingSecret: axonia-mail
+  fromAddress: axonia@example.com
+  fromName: Example Communities
+media:
+  s3:
+    bucket: example-axonia-media
+    region: eu-central-1
+    endpoint: https://s3.example.com
+    pathStyle: true
+    existingSecret: axonia-s3
+  azureBlob:
+    endpoint: https://exampleaxonia.blob.core.windows.net
+    container: axonia-media
+rateLimit:
+  store: redis
+  redis:
+    existingSecret: axonia-redis
+entraGraph:
+  clientId: 99999999-8888-4777-8666-555555555555
+  clientSecret:
+    existingSecret: axonia-entra
+backend:
+  image:
+    repository: ghcr.io/example/axonia-backend
+edge:
+  image:
+    repository: ghcr.io/example/axonia-edge

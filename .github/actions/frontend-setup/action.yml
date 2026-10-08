@@ -1,0 +1,23 @@
+name: Frontend setup
+description: >
+  pnpm, Node and a frozen install for the frontend app. The frontend gate is split across five
+  jobs so they run side by side rather than in series, and every one of them needs exactly these
+  three steps first. Repeating them five times is how they drift apart, so they live here once.
+
+  The checkout stays in the caller: a local action cannot run before the repository it lives in
+  has been fetched, so every job has to check out before it can reach this file at all.
+
+runs:
+  using: composite
+  steps:
+    - uses: pnpm/action-setup@v6
+      with:
+        package_json_file: frontend/package.json
+    - uses: actions/setup-node@v7
+      with:
+        node-version: "24"
+        cache: pnpm
+        cache-dependency-path: frontend/pnpm-lock.yaml
+    - run: pnpm install --frozen-lockfile
+      shell: bash
+      working-directory: frontend

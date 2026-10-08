@@ -1,0 +1,131 @@
+suite: media storage
+templates:
+  - backend-deployment.yaml
+  - media-pvc.yaml
+release:
+  name: axonia
+  namespace: axonia
+values:
+  - values.yaml
+tests:
+  - it: mounts a claim the chart creates at the image's media path, and replaces the pod rather than rolling it
+    asserts:
+      - template: media-pvc.yaml
+        isKind:
+          of: PersistentVolumeClaim
+      - template: media-pvc.yaml
+        equal:
+          path: metadata.annotations["helm.sh/resource-policy"]
+          value: keep
+      - template: backend-deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: media
+            mountPath: /var/lib/axonia/media
+      - template: backend-deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MEDIA_LOCAL_PATH
+            value: /var/lib/axonia/media
+      - template: backend-deployment.yaml
+        equal:
+          path: spec.strategy.type
+          value: Recreate
+
+  - it: mounts the operator's claim and creates none
+    set:
+      media.local.existingClaim: axonia-media-restored
+    asserts:
+      - template: media-pvc.yaml
+        hasDocuments:
+          count: 0
+      - template: backend-deployment.yaml
+        contains:
+          path: spec.template.spec.volumes
+          content:
+            name: media
+            persistentVolumeClaim:
+              claimName: axonia-media-restored
+
+  - it: reaches an S3 bucket as the platform's identity, never rendering an empty key
+    set:
+      media:
+        type: s3
+        s3:
+          bucket: axonia-media
+          region: eu-central-1
+    asserts:
+      - template: media-pvc.yaml
+        hasDocuments:
+          count: 0
+      - template: backend-deployment.yaml
+        notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: APP_MEDIA_S3_ACCESS_KEY
+          any: true
+      - template: backend-deployment.yaml
+        notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: APP_MEDIA_S3_ENDPOINT
+          any: true
+      - template: backend-deployment.yaml
+        notContains:
+          path: spec.template.spec.volumes
+          content:
+            name: media
+          any: true
+      - template: backend-deployment.yaml
+        equal:
+          path: spec.strategy.type
+          value: RollingUpdate
+
+  - it: reads both S3 keys from a Secret when one is named
+    set:
+      media:
+        type: s3
+        s3:
+          bucket: axonia-media
+          endpoint: https://minio.example.com
+          pathStyle: true
+          existingSecret: axonia-s3
+    asserts:
+      - template: backend-deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: APP_MEDIA_S3_SECRET_KEY
+            valueFrom:
+              secretKeyRef:
+                name: axonia-s3
+                key: APP_MEDIA_S3_SECRET_KEY
+      - template: backend-deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: APP_MEDIA_S3_PATH_STYLE
+            value: "true"
+
+  - it: reaches Azure Blob Storage with the workload identity the service account and pod labels carry
+    set:
+      media:
+        type: azure-blob
+        azureBlob:
+          endpoint: https://example.blob.core.windows.net
+          container: axonia-media
+      backend.podLabels:
+        azure.workload.identity/use: "true"
+    asserts:
+      - template: backend-deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AZURE_TOKEN_CREDENTIALS
+            value: prod
+      - template: backend-deployment.yaml
+        equal:
+          path: spec.template.metadata.labels["azure.workload.identity/use"]
+          value: "true"

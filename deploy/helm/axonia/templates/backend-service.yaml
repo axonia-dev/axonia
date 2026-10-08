@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "axonia.backendName" . }}
+  labels:
+    {{- include "axonia.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "axonia.selectorLabels" (dict "context" . "component" "backend") | nindent 4 }}
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

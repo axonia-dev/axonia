@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title th:text="${periodLabel} + ' across your communities'">The quarter</title>
+</head>
+<body style="margin:0; padding:0;">
+<div style="display:none; max-height:0; overflow:hidden; mso-hide:all;"
+    th:with="preheaderLine=(${sessionCount} == 0)
+                           ? 'What every community did last quarter.'
+                           : (${sessionCount} + (${sessionCount} == 1 ? ' session' : ' sessions') + ' across your communities last quarter.')">
+<div th:replace="~{_shell.html :: preheader(fallback=${preheaderLine})}">Preheader</div>
+</div>
+<div th:replace="~{_shell.html :: page(body=~{::content}, when='Covering', reason='You are a member of')}">
+<!-- Four movements, in this order: the scale as a number band, what the quarter was about, what each community did,
+     and the one thing the letter asks for. The past gets NOUNS - talk titles, session titles, resource titles - which
+     is the whole point of the redesign: the letter used to print six figures about what happened and give a title
+     only to what had not happened yet.
+
+     Every derived value is resolved up front in th:with, and no row below carries a condition of its own: a th:if
+     written on the same tag as a th:replace NEVER RUNS (inclusion is order 1 in Thymeleaf's attribute precedence,
+     conditional evaluation order 3), so a conditional row is always a WRAPPING th:block and a conditional word is
+     always a value, never a second row.
+
+     The singular arms are not hypothetical politeness: a tenant's first roundup is routinely one session, in one
+     community, by one person, and a band reading "1 Sessions" is what tells that tenant nobody read this before
+     sending it. The band's own zero arm is not a row of zeroes - it is the sentence that REPLACES the band, and
+     MailRendererTest asserts the band's labels absent rather than only the sentence present, because a contains
+     assertion cannot catch an over-render.
+
+     The first-timer figure is a STANDALONE sentence, never "N of them". It comes from an organization-wide port with
+     no community predicate, while presenterCount is scoped to the communities still named and filtered past erased
+     members, so a subset claim between the two can be arithmetically false in either direction - see RoundupFacts.
+
+     Being unfiltered is also why the sentence is SUPPRESSED ENTIRELY when sessionCount is 0. The producer's floor is
+     now a single clause and refuses every such quarter, so no SENT letter reaches that state - but RoundupPreviewer
+     deliberately applies no floor, because an administrator deciding whether to switch the roundup on is entitled to
+     see the empty letter it would have produced. "3 people presented for the first time." printed under "No sessions
+     were held over the quarter." is not a pair a reader can reconcile in a preview either. Both halves suppress it;
+     MailRendererTest asserts the sentence present for a quarter with sessions and absent for one without. -->
+<th:block th:fragment="content"
+    th:with="heldNothing=${sessionCount} == 0,
+             hasTopics=${topics} != null and not ${topics.isEmpty()},
+             hasCommunities=${communities} != null and not ${communities.isEmpty()},
+             sessionLabel=(${sessionCount} == 1 ? 'Session' : 'Sessions'),
+             talkLabel=(${talkCount} == 1 ? 'Talk' : 'Talks'),
+             presenterLabel=(${presenterCount} == 1 ? 'Presenter' : 'Presenters'),
+             resourceLabel=(${resourceCount} == 1 ? 'Resource' : 'Resources'),
+             firstTimerPhrase=(${firstTimeContributorCount} == 1 ? 'person presented for the first time.' : 'people presented for the first time.'),
+             askPhrase=(${openTalkCount} == 1
+                        ? '1 talk still needs a presenter across the coming quarter. It could be yours.'
+                        : ${openTalkCount} + ' talks still need a presenter across the coming quarter. One could be yours.'),
+             communityRemainderPhrase='and ' + ${moreCommunitiesCount} + (${moreCommunitiesCount} == 1 ? ' more community was active.' : ' more communities were active.')">
+<th:block th:if="${heldNothing}">
+<tr th:replace="~{_shell.html :: bodyText(text='No sessions were held over the quarter.')}">Scale</tr>
+</th:block>
+<th:block th:unless="${heldNothing}">
+<tr th:replace="~{_shell.html :: statBand(a=${sessionCount}, aLabel=${sessionLabel}, b=${talkCount}, bLabel=${talkLabel},
+                                          c=${presenterCount}, cLabel=${presenterLabel}, d=${resourceCount}, dLabel=${resourceLabel})}">Band</tr>
+</th:block>
+<th:block th:if="${firstTimeContributorCount} != null and ${firstTimeContributorCount} > 0 and not ${heldNothing}">
+<tr th:replace="~{_shell.html :: highlight(figure=${firstTimeContributorCount}, text=${firstTimerPhrase})}">Newcomers</tr>
+</th:block>
+<th:block th:if="${hasTopics}">
+<tr th:replace="~{_shell.html :: sectionHeading(text='What we talked about')}">Heading</tr>
+<!--/* The one raw row in this file, and it carries spacing rather than colour: a cloud is words wrapping inside a
+       block, so there is nothing for a tr fragment to iterate over. Every hex the words wear lives in topicWord.
+       Written as a parser-level comment, not a markup one: this row is INSIDE the content fragment, so an ordinary
+       HTML comment here would be copied into every inbox rather than discarded with the template. */-->
+<tr>
+<td style="padding:14px 0 2px 0;"
+><th:block th:each="topic : ${topics}"
+    ><span th:replace="~{_shell.html :: topicWord(topic=${topic})}">topic</span
+></th:block
+></td>
+</tr>
+</th:block>
+<th:block th:if="${hasCommunities}">
+<tr th:replace="~{_shell.html :: sectionHeading(text='What happened')}">Heading</tr>
+<th:block th:each="community : ${communities}">
+<tr th:replace="~{_shell.html :: communityCard(community=${community})}">Community</tr>
+</th:block>
+<th:block th:if="${moreCommunitiesCount} != null and ${moreCommunitiesCount} > 0">
+<tr th:replace="~{_shell.html :: bodyText(text=${communityRemainderPhrase})}">Remainder</tr>
+</th:block>
+</th:block>
+<th:block th:if="${openTalkCount} != null and ${openTalkCount} > 0">
+<tr th:replace="~{_shell.html :: highlight(figure=null, text=${askPhrase})}">Ask</tr>
+</th:block>
+<th:block th:if="not ${#strings.isEmpty(communitiesUrl)}">
+<tr th:replace="~{_shell.html :: primaryButton(url=${communitiesUrl}, label='Browse the communities')}">Button</tr>
+</th:block>
+</th:block>
+</div>
+<div style="display:none; max-height:0; overflow:hidden; mso-hide:all;">
+<th:block th:fragment="subject" th:text="${periodLabel} + ' across your communities'">Subject</th:block>
+</div>
+</body>
+</html>

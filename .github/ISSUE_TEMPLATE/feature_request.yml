@@ -1,0 +1,19 @@
+name: Feature request
+description: Something the Self-hosted edition should do.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What a community, its members or an operator cannot do today, and why it matters.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: A possible solution
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What is done today instead

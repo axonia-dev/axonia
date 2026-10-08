@@ -1,0 +1,419 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-parent</artifactId>
+		<version>4.1.1</version>
+		<relativePath/>
+	</parent>
+
+	<groupId>dev</groupId>
+	<artifactId>axonia-parent</artifactId>
+	<version>1.0-SNAPSHOT</version>
+	<packaging>pom</packaging>
+
+	<properties>
+
+		<java.version>26</java.version>
+
+		<!-- core libraries -->
+		<aws-sdk.version>2.55.11</aws-sdk.version>
+		<azure-sdk-bom.version>1.3.8</azure-sdk-bom.version>
+		<jna.version>5.19.1</jna.version>
+		<spring-ai.version>2.0.1</spring-ai.version>
+		<spring-modulith.version>2.1.1</spring-modulith.version>
+		<!--
+			Boot's BOM manages io.opentelemetry (opentelemetry-bom 1.62.0 as of Boot 4.1.1) but not
+			the separately released io.opentelemetry.instrumentation line, and the Logback appender
+			has no non-alpha release: every version ever published carries the -alpha suffix,
+			the instrumentation project's marker for a not-yet-stabilised API.
+
+			2.28.1-alpha is the last instrumentation release whose BOM imports opentelemetry-bom
+			1.62.0; 2.29 moved to 1.63.0, 2.30 to 1.64.0, 2.31 to 1.65.0. A newer appender drags
+			opentelemetry-api-incubator forward while Boot holds the SDK at 1.62.0, and the SDK
+			then fails at runtime on the incubator class it expects
+			(NoClassDefFoundError io.opentelemetry.api.incubator.common.ExtendedAttributes).
+
+			Move this only to a release that still imports the opentelemetry-bom Boot manages;
+			.github/dependabot.yml holds the automated bump to match.
+		-->
+		<opentelemetry-instrumentation.version>2.28.1-alpha</opentelemetry-instrumentation.version>
+
+		<!-- test libraries -->
+		<htmlunit.version>5.5.0</htmlunit.version>
+
+		<!--
+			Surefire's own default, declared so ${skipTests} resolves for the exec execution of
+			a module pom that reads it. An undeclared property would reach the plugin as the literal text.
+		-->
+		<skipTests>false</skipTests>
+
+		<!--
+			Nothing to run in the parent; the module holding the application turns it back on.
+		-->
+		<spring-boot.run.skip>true</spring-boot.run.skip>
+
+		<!--
+			Each build unit reads its own SpotBugs exclusions, so the open file never names a class it does not carry.
+			The open one is the default; another module may point at its own.
+		-->
+		<spotbugs.excludeFile>${maven.multiModuleProjectDirectory}/config/spotbugs-exclude-core.xml</spotbugs.excludeFile>
+
+		<!-- plugins -->
+		<formatter-maven-plugin.version>2.29.0</formatter-maven-plugin.version>
+		<impsort-maven-plugin.version>1.13.0</impsort-maven-plugin.version>
+		<jacoco-maven-plugin.version>0.8.15</jacoco-maven-plugin.version>
+		<pmd-maven-plugin.version>3.28.0</pmd-maven-plugin.version>
+		<pmd-core.version>7.28.0</pmd-core.version>
+		<spotbugs-maven-plugin.version>4.10.4.1</spotbugs-maven-plugin.version>
+		<exec-maven-plugin.version>3.6.4</exec-maven-plugin.version>
+
+	</properties>
+
+	<dependencyManagement>
+
+		<dependencies>
+			<dependency>
+				<groupId>org.springframework.modulith</groupId>
+				<artifactId>spring-modulith-bom</artifactId>
+				<version>${spring-modulith.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+			<dependency>
+				<groupId>software.amazon.awssdk</groupId>
+				<artifactId>bom</artifactId>
+				<version>${aws-sdk.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+			<dependency>
+				<groupId>com.azure</groupId>
+				<artifactId>azure-sdk-bom</artifactId>
+				<version>${azure-sdk-bom.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+			<!-- azure-identity's msal4j-persistence-extension asks for 5.13.0 nearer than Testcontainers' 5.18.1. -->
+			<dependency>
+				<groupId>net.java.dev.jna</groupId>
+				<artifactId>jna</artifactId>
+				<version>${jna.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>net.java.dev.jna</groupId>
+				<artifactId>jna-platform</artifactId>
+				<version>${jna.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.springframework.ai</groupId>
+				<artifactId>spring-ai-bom</artifactId>
+				<version>${spring-ai.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+			<dependency>
+				<groupId>dev</groupId>
+				<artifactId>axonia-core</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>dev</groupId>
+				<artifactId>axonia-core</artifactId>
+				<version>${project.version}</version>
+				<type>test-jar</type>
+			</dependency>
+		</dependencies>
+
+	</dependencyManagement>
+
+	<!-- What every module builds and tests with; each module adds what it runs on. -->
+	<dependencies>
+
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<optional>true</optional>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-testcontainers</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-jdbc-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-webmvc-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>testcontainers-postgresql</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>testcontainers-junit-jupiter</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.modulith</groupId>
+			<artifactId>spring-modulith-starter-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>io.opentelemetry</groupId>
+			<artifactId>opentelemetry-sdk-testing</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+	</dependencies>
+
+	<modules>
+		<module>core</module>
+		<module>selfhosted-app</module>
+	</modules>
+
+	<profiles>
+		<!-- Builds the hosted edition's module when its directory is present; a tree without it builds the open edition alone. -->
+		<profile>
+			<id>cloud</id>
+			<activation>
+				<file>
+					<exists>${basedir}/cloud/pom.xml</exists>
+				</file>
+			</activation>
+			<modules>
+				<module>cloud</module>
+			</modules>
+		</profile>
+	</profiles>
+
+	<build>
+		<plugins>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>default-compile</id>
+						<phase>compile</phase>
+						<goals>
+							<goal>compile</goal>
+						</goals>
+						<configuration>
+							<annotationProcessorPaths>
+								<path>
+									<groupId>org.projectlombok</groupId>
+									<artifactId>lombok</artifactId>
+								</path>
+							</annotationProcessorPaths>
+						</configuration>
+					</execution>
+					<execution>
+						<id>default-testCompile</id>
+						<phase>test-compile</phase>
+						<goals>
+							<goal>testCompile</goal>
+						</goals>
+						<configuration>
+							<annotationProcessorPaths>
+								<path>
+									<groupId>org.projectlombok</groupId>
+									<artifactId>lombok</artifactId>
+								</path>
+							</annotationProcessorPaths>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>net.revelc.code.formatter</groupId>
+				<artifactId>formatter-maven-plugin</artifactId>
+				<version>${formatter-maven-plugin.version}</version>
+				<configuration>
+					<configFile>${maven.multiModuleProjectDirectory}/config/eclipse-formatter.xml</configFile>
+					<lineEnding>LF</lineEnding>
+					<compilerSource>${java.version}</compilerSource>
+					<compilerCompliance>${java.version}</compilerCompliance>
+					<compilerTargetPlatform>${java.version}</compilerTargetPlatform>
+				</configuration>
+				<executions>
+					<execution>
+						<id>formatter-validate</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>validate</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>net.revelc.code</groupId>
+				<artifactId>impsort-maven-plugin</artifactId>
+				<version>${impsort-maven-plugin.version}</version>
+				<configuration>
+					<groups>java.,javax.,jakarta.,org.,com.,*</groups>
+					<staticGroups>*</staticGroups>
+					<staticAfter>true</staticAfter>
+					<removeUnused>true</removeUnused>
+					<compliance>BLEEDING_EDGE</compliance>
+				</configuration>
+				<executions>
+					<execution>
+						<id>impsort-check</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>check</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-pmd-plugin</artifactId>
+				<version>${pmd-maven-plugin.version}</version>
+				<configuration>
+					<rulesets>
+						<ruleset>${maven.multiModuleProjectDirectory}/config/pmd-ruleset.xml</ruleset>
+					</rulesets>
+					<printFailingErrors>true</printFailingErrors>
+					<failOnViolation>true</failOnViolation>
+					<includeTests>false</includeTests>
+					<minimumTokens>100</minimumTokens>
+				</configuration>
+				<!-- Override bundled PMD: maven-pmd-plugin 3.27.0 ships a PMD too old to parse Java 26 class files (it logs "Unsupported class file major version 70" but does NOT fail the build). Pin pmd-core/pmd-java to 7.25.0 for genuine Java 26 analysis. Remove once the plugin bundles a Java-26-capable PMD. -->
+				<dependencies>
+					<dependency>
+						<groupId>net.sourceforge.pmd</groupId>
+						<artifactId>pmd-core</artifactId>
+						<version>${pmd-core.version}</version>
+					</dependency>
+					<dependency>
+						<groupId>net.sourceforge.pmd</groupId>
+						<artifactId>pmd-java</artifactId>
+						<version>${pmd-core.version}</version>
+					</dependency>
+				</dependencies>
+				<executions>
+					<execution>
+						<id>pmd-check</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>check</goal>
+							<goal>cpd-check</goal>
+						</goals>
+					</execution>
+					<!--
+						cpd-check sees one build unit at a time, so a copy between two modules would pass it.
+						This one runs once, on the parent, over the sources of every module in the reactor.
+					-->
+					<execution>
+						<id>aggregate-cpd-check</id>
+						<phase>verify</phase>
+						<inherited>false</inherited>
+						<goals>
+							<goal>aggregate-cpd-check</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>com.github.spotbugs</groupId>
+				<artifactId>spotbugs-maven-plugin</artifactId>
+				<version>${spotbugs-maven-plugin.version}</version>
+				<configuration>
+					<effort>Max</effort>
+					<threshold>Medium</threshold>
+					<includeTests>false</includeTests>
+					<excludeFilterFile>${spotbugs.excludeFile}</excludeFilterFile>
+					<plugins>
+						<plugin>
+							<groupId>com.h3xstream.findsecbugs</groupId>
+							<artifactId>findsecbugs-plugin</artifactId>
+							<version>1.14.0</version>
+						</plugin>
+					</plugins>
+				</configuration>
+				<executions>
+					<execution>
+						<id>spotbugs-check</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>check</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<!-- 0.8.14 required for Java 26: 0.8.13's bundled ASM throws "Unsupported class file major version 70" and instruments nothing. Do NOT downgrade. -->
+				<version>${jacoco-maven-plugin.version}</version>
+				<executions>
+					<execution>
+						<id>jacoco-prepare-agent</id>
+						<goals>
+							<goal>prepare-agent</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>jacoco-report</id>
+						<phase>test</phase>
+						<goals>
+							<goal>report</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>jacoco-check</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>check</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<rule>
+									<element>BUNDLE</element>
+									<limits>
+										<limit>
+											<counter>LINE</counter>
+											<value>COVEREDRATIO</value>
+											<minimum>1.00</minimum>
+										</limit>
+										<limit>
+											<counter>BRANCH</counter>
+											<value>COVEREDRATIO</value>
+											<minimum>0.90</minimum>
+										</limit>
+									</limits>
+								</rule>
+							</rules>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+		</plugins>
+	</build>
+
+</project>

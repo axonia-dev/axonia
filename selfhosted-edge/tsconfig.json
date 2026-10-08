@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2024",
+    "lib": ["ES2024"],
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    // Node 24 runs this package's TypeScript as written, stripping the types: no build, no bundle,
+    // no emitted JavaScript to ship. These three hold the source, edge/src's shared modules included,
+    // to what stripping runs: syntax that erases, type-only imports spelt as such, and specifiers that
+    // name the file Node loads. main.test.ts starts the real process, which is the check a wrong
+    // specifier fails; vitest's own transform would not.
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "erasableSyntaxOnly": true,
+    "types": ["node"],
+    "skipLibCheck": true,
+    "noEmit": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noUncheckedIndexedAccess": true,
+    "noFallthroughCasesInSwitch": true,
+    "exactOptionalPropertyTypes": true,
+    // The edge's own tests import vitest from beside them, where a tree without the edge package has
+    // no node_modules: this package's copy is the one they run against.
+    "paths": { "vitest": ["./node_modules/vitest"] }
+  },
+  "include": ["src", "vitest.config.ts"]
+}

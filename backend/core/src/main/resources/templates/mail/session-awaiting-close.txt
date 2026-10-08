@@ -1,0 +1,12 @@
+Did [(${sessionTitle} ?: 'this session')] happen?
+[# th:if="${sender} != null"][(${sender.name})][/][# th:if="not ${#strings.isEmpty(seriesTitle)}" th:with="seriesSeparator=${sender} != null ? ' - ' : ''"][(${seriesSeparator})][(${seriesTitle})][/][# th:if="${scheduledAtLabel} != null"]
+This session was scheduled for [(${scheduledAtLabel})], and its status has not been updated since.[/][# th:with="nudgeAlert=(${nudgeArm} == 'ONE_DAY') ? 'A day on, still open' : ((${nudgeArm} == 'SEVEN_DAY') ? 'A week on, still open' : null)"][# th:if="not ${#strings.isEmpty(nudgeAlert)}"]
+[(${nudgeAlert})].[/][/][# th:if="${talks} != null and not ${talks.isEmpty()}" th:with="talkCount=${talks.size()}"]
+[(${talkCount})] [# th:if="${talkCount} == 1"]talk[/][# th:unless="${talkCount} == 1"]talks[/] on the agenda.[/]
+
+[# th:with="communityName=${sender} != null ? ${sender.name} : 'the community'"]Did it happen? Say so, and [(${communityName})] gets the wrap-up. Say it did not, and nobody hears about it again.[/]
+[# th:if="not ${#strings.isEmpty(sessionUrl)}"]
+Close out this session: [(${sessionUrl})][/][# th:if="${sender} != null"]
+You look after sessions in [(${sender.name})].[/][# th:if="not ${#strings.isEmpty(unsubscribePageUrl)}"]
+
+Unsubscribe: [(${unsubscribePageUrl})][/]

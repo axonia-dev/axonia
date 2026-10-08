@@ -1,0 +1,197 @@
+# The Self-hosted edition of axonia: a backend and an edge, in front of a Postgres the operator runs.
+# docs/selfhosted/install.md walks through a first install; docs/selfhosted/configuration.md names every variable these
+# values become. A value left empty here is either required (the chart refuses to render without it) or optional (the
+# variable it maps to is not set at all, never set to an empty string).
+
+# Every object is named after the release and its component: a release named prod creates prod-backend, prod-edge,
+# prod-settings-key and prod-media. A name here replaces the release name in all of them. Set it at the first install
+# only, like the release name: a later change would name a new settings key Secret, a new media volume and a new service
+# account, so an upgrade that changes it is refused.
+fullnameOverride: ""
+
+# The address members reach the installation at, https and no path, for example https://axonia.example.com. The edge's
+# PUBLIC_URL and the backend's AXONIA_PUBLIC_BASE_URL; the identity provider's redirect URIs are registered under it.
+publicUrl: ""
+
+# The one Organization the installation founds on its first start. The id is permanent: a later start with another id
+# is refused. A new name renames the Organization at the next start.
+organization:
+  id: ""
+  name: ""
+
+# The directory group whose members are the Organization's Owners. A new value is bound at the next start beside the
+# earlier ones, which keep the role until an Owner removes them.
+ownerGroup: ""
+
+oidc:
+  # The issuer, exactly as its tokens write `iss`, trailing slash included or not. Both containers read it.
+  issuer: ""
+  # The client the edge signs in as.
+  clientId: ""
+  # The audience the backend requires in every access token. Empty means the client id, which is what Microsoft Entra
+  # puts there once the app registration asks for v2 tokens.
+  audience: ""
+  # The scopes the edge asks for, which must include openid and whatever makes the provider issue a refresh token and
+  # an access token for axonia, for example "openid profile email offline_access api://<client-id>/axonia" with Entra.
+  scopes: ""
+  # How a sign-out ends the provider's session: revoke (RFC 7009, the standard) or refresh-token-post (Keycloak's own).
+  sessionEnd: revoke
+  # How long an edge session lives unused, in seconds: the provider's refresh token lifetime. 7776000 with Entra.
+  sessionMaxAgeSeconds: null
+  # The claims the backend reads from each token. The subject claim is permanent: a later start with another is refused.
+  subjectClaim: sub
+  groupsClaim: groups
+  emailClaims:
+    - email
+    - preferred_username
+  nameClaim: name
+
+database:
+  # The JDBC URL of the installation's database, for example
+  # jdbc:postgresql://db.example.com:5432/axonia?sslmode=verify-full
+  url: ""
+  # The role that owns the schema and runs the migrations. It needs CREATEROLE: the first migration creates the two
+  # roles the application connects as, axonia_app and axonia_communication_read. It also needs CREATE on the database,
+  # which the database's owner holds: an upgrade creates the scheduler schema.
+  ownerUsername: ""
+
+# The Secret, created before the install, that holds the installation's secrets, one key per variable:
+#   DATABASE_OWNER_PASSWORD, DATABASE_PASSWORD, DATABASE_COMMUNICATION_READ_PASSWORD, AXONIA_UNSUBSCRIBE_SECRET,
+#   AXONIA_EDGE_SHARED_SECRETS (backend) and EDGE_SHARED_SECRET (edge), SESSION_COOKIE_KEY and OIDC_CLIENT_SECRET.
+# The chart never takes a secret as a value.
+existingSecret: ""
+
+# The key stored integration secrets (the mail server's password) are encrypted with. Left empty, the chart creates a
+# Secret holding a random key on the first install and keeps it across every upgrade and an uninstall. Name a Secret
+# here to supply it yourself, as a GitOps tool that renders the chart without a cluster must: its key
+# AXONIA_SETTINGS_KEY holds 32 random bytes in base64 (openssl rand -base64 32), and an optional key
+# AXONIA_SETTINGS_PREVIOUS_KEYS lists earlier keys during a rotation (docs/selfhosted/upgrading.md).
+settingsKey:
+  existingSecret: ""
+
+# The mail server, configured in the application by an Owner. Each value set here overrides the stored one and locks
+# its field in the application (docs/selfhosted/configuration.md, "Configured in the application"). Leave all of them
+# empty to configure mail in the application alone.
+mail:
+  host: ""
+  port: null
+  # STARTTLS, TLS (implicit TLS, usually port 465) or NONE.
+  security: ""
+  username: ""
+  # The password, from a Secret the operator manages; never a value.
+  password:
+    existingSecret: ""
+    key: AXONIA_MAIL_PASSWORD
+  fromAddress: ""
+  fromName: ""
+
+# Where uploaded images live. The store is private: the backend serves every image itself.
+media:
+  # local, s3 or azure-blob. Switching store later is a data migration, not a setting.
+  type: local
+  local:
+    # A PersistentVolumeClaim mounted at /var/lib/axonia/media. Name one to reuse it, or let the chart create one.
+    existingClaim: ""
+    size: 10Gi
+    storageClassName: ""
+    # ReadWriteOnce allows one backend instance; more instances need ReadWriteMany, or a bucket.
+    accessModes:
+      - ReadWriteOnce
+  s3:
+    bucket: ""
+    # Left empty, it is auto, which suits Cloudflare R2 only. AWS S3 needs the bucket's region.
+    region: ""
+    # Required while the region is auto; left empty for AWS S3 itself.
+    endpoint: ""
+    # true for most stores run in-house (MinIO, Ceph, SeaweedFS).
+    pathStyle: false
+    # A Secret holding APP_MEDIA_S3_ACCESS_KEY and APP_MEDIA_S3_SECRET_KEY. Left empty, the backend signs in as the
+    # platform's identity (EKS Pod Identity, IRSA, an instance profile).
+    existingSecret: ""
+  azureBlob:
+    # https://<account>.blob.core.windows.net
+    endpoint: ""
+    container: ""
+
+# Where rate-limit budgets are kept. memory keeps each backend instance's apart, so more than one instance needs redis.
+rateLimit:
+  store: memory
+  redis:
+    # A Secret holding SPRING_DATA_REDIS_URL, for example rediss://:<password>@redis.example.com:6380
+    existingSecret: ""
+    key: SPRING_DATA_REDIS_URL
+
+# Microsoft Graph reads (group suggestions, profile photos) for an Entra issuer: an app registration with the
+# GroupMember.Read.All and ProfilePhoto.Read.All application permissions (docs/selfhosted/entra.md).
+entraGraph:
+  clientId: ""
+  clientSecret:
+    existingSecret: ""
+    key: AXONIA_ENTRA_CLIENT_SECRET
+
+image:
+  pullPolicy: IfNotPresent
+  pullSecrets: []
+
+backend:
+  image:
+    # The published image; a mirror's repository replaces it. The tag defaults to the chart's appVersion.
+    repository: ghcr.io/axonia-dev/axonia-backend
+    tag: ""
+  # Scheduled work is safe at any count: each cluster-wide job runs on one instance per slot. More than one
+  # still needs rateLimit.store=redis, and with local media a ReadWriteMany volume.
+  replicas: 1
+  # The JVM's heap follows the container's memory limit.
+  javaToolOptions: "-XX:MaxRAMPercentage=75.0"
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1536Mi
+    limits:
+      memory: 2Gi
+  # A ServiceAccount for the backend, whose annotations carry a workload identity, for example
+  # azure.workload.identity/client-id or eks.amazonaws.com/role-arn.
+  serviceAccount:
+    annotations: {}
+  # Labels on the backend's pods, for example azure.workload.identity/use: "true".
+  podLabels: {}
+  podAnnotations: {}
+  # More variables, as a list of Kubernetes env entries, for anything this file does not name.
+  extraEnv: []
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+edge:
+  image:
+    # The published image; a mirror's repository replaces it. The tag defaults to the chart's appVersion.
+    repository: ghcr.io/axonia-dev/axonia-edge
+    tag: ""
+  replicas: 1
+  # The number of proxies in front of the edge that append to X-Forwarded-For: 1 behind one ingress controller. 0
+  # ignores the header and reads the socket's address, so every member then shares the ingress's address for rate
+  # limits; a number larger than the real count lets a caller choose its own address.
+  trustedProxyHops: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+  podLabels: {}
+  podAnnotations: {}
+  extraEnv: []
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+ingress:
+  enabled: true
+  className: ""
+  annotations: {}
+  # Sign-in (the exact paths /auth/login and /auth/callback) gets an Ingress of its own carrying these annotations as
+  # well, so a rate limit for it can be set at the controller without limiting the rest of the application, session
+  # renewal and sign-out included (docs/selfhosted/configuration.md).
+  authAnnotations: {}
+  # The Secret holding the host's certificate. Left empty, TLS ends in front of the ingress.
+  tlsSecretName: ""

@@ -1,0 +1,56 @@
+# The services a development run of the Self-hosted edition connects to; deploy/dev/README.md has the
+# steps. Every port is published on this machine alone, and a variable moves it.
+name: axonia-selfhosted-dev
+
+services:
+  postgres:
+    # The major an installation runs (deploy/compose.yaml).
+    image: postgres:18
+    labels:
+      # A DEV run that starts this file connects as its own two roles, never as the owner Boot would read from here.
+      org.springframework.boot.ignore: "true"
+    environment:
+      POSTGRES_DB: axonia
+      # The owner role: it runs the migrations and creates the two roles the backend connects as.
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+    ports:
+      - "127.0.0.1:${AXONIA_DEV_POSTGRES_PORT:-5433}:5432"
+    volumes:
+      # Postgres 18 keeps its data under a directory named after its major version, inside this mount.
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d axonia"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  issuer:
+    # A stand-in for a company's identity provider: it signs in whoever fills its form, with the claims
+    # typed there, and audiences every token to the backend. It builds its issuer from the host a caller
+    # reaches it on, so the browser, the dev server and the backend, all on localhost, agree on it.
+    image: ghcr.io/navikt/mock-oauth2-server:6.0.4
+    environment:
+      JSON_CONFIG: >-
+        {"interactiveLogin": true, "tokenCallbacks": [{"issuerId": "axonia", "tokenExpiry": 300,
+        "requestMappings": [{"requestParam": "grant_type", "match": "*", "claims": {"aud": ["axonia-local"]}}]}]}
+    ports:
+      - "127.0.0.1:${AXONIA_DEV_ISSUER_PORT:-8091}:8080"
+
+  mailpit:
+    # Every mail the run sends lands here, whatever address it is sent to.
+    image: axllent/mailpit:v1.28
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "true"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "true"
+    ports:
+      - "127.0.0.1:${AXONIA_DEV_SMTP_PORT:-1026}:1025"
+      - "127.0.0.1:${AXONIA_DEV_MAILPIT_PORT:-8026}:8025"
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  postgres-data:

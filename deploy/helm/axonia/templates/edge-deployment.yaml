@@ -1,0 +1,104 @@
+{{- $secret := required "existingSecret is required: the Secret holding the installation's secrets" .Values.existingSecret -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "axonia.edgeName" . }}
+  labels:
+    {{- include "axonia.labels" . | nindent 4 }}
+    app.kubernetes.io/component: edge
+spec:
+  replicas: {{ .Values.edge.replicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      {{- include "axonia.selectorLabels" (dict "context" . "component" "edge") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "axonia.selectorLabels" (dict "context" . "component" "edge") | nindent 8 }}
+        {{- with .Values.edge.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.edge.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        {{- include "axonia.podSecurityContext" . | nindent 8 }}
+      {{- with .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: edge
+          image: {{ include "axonia.image" (dict "context" . "component" "edge" "image" .Values.edge.image) }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- include "axonia.containerSecurityContext" . | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: PORT
+              value: "8080"
+            - name: PUBLIC_URL
+              value: {{ required "publicUrl is required" .Values.publicUrl | quote }}
+            - name: BACKEND_ORIGIN
+              value: {{ printf "http://%s.%s.svc:8080" (include "axonia.backendName" .) .Release.Namespace | quote }}
+            - name: OIDC_ISSUER
+              value: {{ required "oidc.issuer is required" .Values.oidc.issuer | quote }}
+            - name: OIDC_CLIENT_ID
+              value: {{ required "oidc.clientId is required" .Values.oidc.clientId | quote }}
+            - name: OIDC_SCOPES
+              value: {{ required "oidc.scopes is required" .Values.oidc.scopes | quote }}
+            - name: OIDC_SESSION_END
+              value: {{ .Values.oidc.sessionEnd | quote }}
+            - name: SESSION_MAX_AGE_SECONDS
+              value: {{ required "oidc.sessionMaxAgeSeconds is required" .Values.oidc.sessionMaxAgeSeconds | int64 | toString | quote }}
+            - name: TRUSTED_PROXY_HOPS
+              value: {{ .Values.edge.trustedProxyHops | int64 | toString | quote }}
+            {{- include "axonia.secretEnv" (dict "name" "OIDC_CLIENT_SECRET" "secret" $secret) | nindent 12 }}
+            {{- include "axonia.secretEnv" (dict "name" "SESSION_COOKIE_KEY" "secret" $secret) | nindent 12 }}
+            {{- include "axonia.secretEnv" (dict "name" "EDGE_SHARED_SECRET" "secret" $secret) | nindent 12 }}
+            {{- with .Values.edge.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 5
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.edge.resources | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      {{- with .Values.edge.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.edge.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.edge.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

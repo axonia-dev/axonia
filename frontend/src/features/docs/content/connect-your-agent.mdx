@@ -1,0 +1,44 @@
+import { ConfigBox } from "../ui/ConfigBox";
+import { OAuthCommand } from "../ui/OAuthCommand";
+import { AgentAvailability } from "../ui/AgentAvailability";
+import { AgentGatedLink } from "../ui/AgentGatedLink";
+
+# Connect an agent
+
+<AgentAvailability />
+
+Point an AI assistant at axonia. It acts as the connected member, limited to the
+granted permissions, over the Model Context Protocol (MCP).
+
+## Connect with OAuth
+
+Claude Code signs in over OAuth, with no key to create or paste. Run this in a
+terminal:
+
+<OAuthCommand />
+
+The first call from Claude Code opens a browser, where the consent page asks for
+the organization and the permissions to grant. The connection then shows under
+Connected apps on the <AgentGatedLink to="/me/api-keys">API keys page</AgentGatedLink>,
+where it can be disconnected.
+
+## Or use an API key
+
+For clients without OAuth, and for scripts and CI. On the <AgentGatedLink to="/me/api-keys">API keys page</AgentGatedLink>,
+create a key and tick only the permissions the agent needs. Copy it: it is shown
+once.
+
+## Find the endpoint
+
+Every client below points at the same MCP endpoint for this workspace. The live
+host is filled in automatically, with no placeholder to swap.
+
+## Configure the client
+
+Pick a client below. The snippet is ready to paste, with the endpoint already in
+place. Replace `axp_your_key` with the key from the API keys page.
+
+<ConfigBox />
+
+Once connected, ask the agent to “list my communities” to confirm it can see
+axonia.

@@ -1,0 +1,164 @@
+# A tag v<major>.<minor>.<patch> on a commit of main whose chart names that version publishes both images, for
+# linux/amd64 and linux/arm64, and the Helm chart to GitHub's container registry and drafts the release, whose notes
+# give the PostgreSQL majors it is tested with. Publishing the draft dates it: the notes then name the day the release
+# becomes Apache-2.0, two years after that publication.
+# A version is released once: an image published under it from another commit, a chart published under it with other
+# content, or a release already drafted stops the run. A run that failed half way is rerun on the same commit: it keeps
+# what that commit pushed already and pushes the rest. No image is tagged latest: an installation names its version.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  release:
+    types: [published]
+
+permissions: {}
+
+jobs:
+  release:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # Never cancelled half way, and never two at once, so nothing is pushed between a check and its push.
+    concurrency:
+      group: release
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      packages: write
+    env:
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: The tag is on main and names the chart's version
+        run: |
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::$TAG names $GITHUB_SHA, which is not on main. A release is tagged on a commit of main."
+            exit 1
+          fi
+          python3 .github/scripts/release_notes.py check "$TAG"
+          echo "VERSION=${TAG#v}" >> "$GITHUB_ENV"
+          echo "REGISTRY=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
+
+      - name: No release of this version is drafted yet
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if found="$(gh release view "$TAG" --json tagName 2>&1)"; then
+            echo "::error::The release $TAG is drafted or published already. A version is released once; release the fix as a new version."
+            exit 1
+          fi
+          if [[ "$found" != *"release not found"* ]]; then
+            echo "::error::Cannot tell whether the release $TAG exists: $found"
+            exit 1
+          fi
+
+      # Before the registry login, so no credential is on the runner while these privileged containers start. Each
+      # Dockerfile builds on the runner's own platform and runs only its runtime stage per platform, whose user setup
+      # needs the arm64 emulator registered first.
+      - name: Set up the multi-platform builder
+        run: |
+          docker run --privileged --rm \
+            tonistiigi/binfmt:qemu-v10.2.3@sha256:400a4873b838d1b89194d982c45e5fb3cda4593fbfd7e08a02e76b03b21166f0 \
+            --install arm64
+          docker buildx create --use --bootstrap --driver docker-container \
+            --driver-opt image=moby/buildkit:v0.33.1@sha256:cec9f139f45e93c5c69c60f8b07cfad9f43f4ef6b6a6cd917527fea5ff2e3dea
+
+      - name: Log in to the registry
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          . deploy/helm/tools.sh
+          printf '%s' "$GH_TOKEN" | "$(tool helm)" registry login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+
+      # published <reference> prints the manifest published under the reference, or nothing when there is none. The
+      # registry answers "not found" for a missing tag and refuses a pull token (403) for a missing package; a package
+      # this run may not read is one it may not push to either, so that answer can never lead to an overwrite. Any other
+      # failure (rate limit, outage, network) stops the run rather than reading as "not published".
+      - name: Push both images and the chart, keeping what an earlier run of this commit pushed
+        run: |
+          published() {
+            local answer
+            if answer="$(docker buildx imagetools inspect --raw "$1" 2>&1)"; then
+              printf '%s' "$answer"
+            elif [[ "$answer" != *": not found" && "$answer" != *"403 Forbidden"* ]]; then
+              echo "::error::Cannot tell whether $1 is published: $answer" >&2
+              return 1
+            fi
+          }
+
+          image() {
+            local reference="$REGISTRY/$1:$VERSION" manifest revision options key_value
+            manifest="$(published "$reference")"
+            if [ -n "$manifest" ]; then
+              revision="$(jq -r '.annotations["org.opencontainers.image.revision"] // "an unknown commit"' <<< "$manifest")"
+              if [ "$revision" != "$GITHUB_SHA" ]; then
+                echo "::error::$reference is published already, from $revision. A version is released once; release the fix as a new version."
+                return 1
+              fi
+              echo "$reference was pushed from $GITHUB_SHA by an earlier run; keeping it."
+              return 0
+            fi
+            # Labels describe each platform's image; GHCR reads a multi-platform image's package page from its index.
+            options=(--annotation "index:org.opencontainers.image.description=$4")
+            for key_value in \
+              "org.opencontainers.image.source=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
+              "org.opencontainers.image.version=$VERSION" \
+              "org.opencontainers.image.revision=$GITHUB_SHA" \
+              "org.opencontainers.image.licenses=FSL-1.1-ALv2"; do
+              options+=(--label "$key_value" --annotation "index:$key_value")
+            done
+            docker buildx build --push --provenance=mode=max --sbom=true --platform linux/amd64,linux/arm64 \
+              "${options[@]}" --tag "$reference" --file "$2" "$3"
+          }
+
+          image axonia-backend backend/selfhosted-app/Dockerfile backend "The backend of axonia's Self-hosted edition"
+          image axonia-edge selfhosted-edge/Dockerfile . "The edge of axonia's Self-hosted edition and the web app it serves"
+
+          . deploy/helm/tools.sh
+          helm="$(tool helm)"
+          "$helm" package deploy/helm/axonia --version "$VERSION" --app-version "$VERSION" --destination "$RUNNER_TEMP/chart"
+          chart="$(published "$REGISTRY/charts/axonia:$VERSION")"
+          if [ -z "$chart" ]; then
+            "$helm" push "$RUNNER_TEMP/chart/axonia-$VERSION.tgz" "oci://$REGISTRY/charts"
+          else
+            "$helm" pull "oci://$REGISTRY/charts/axonia" --version "$VERSION" --untar --untardir "$RUNNER_TEMP/published"
+            tar -xzf "$RUNNER_TEMP/chart/axonia-$VERSION.tgz" -C "$RUNNER_TEMP/chart"
+            if ! diff -r "$RUNNER_TEMP/published/axonia" "$RUNNER_TEMP/chart/axonia"; then
+              echo "::error::The chart $VERSION is published already, with other content. A version is released once; release the fix as a new version."
+              exit 1
+            fi
+            echo "The chart $VERSION was pushed with this content by an earlier run; keeping it."
+          fi
+
+      - name: Draft the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          notes="$(python3 .github/scripts/release_notes.py notes "$TAG" unpublished "$GITHUB_REPOSITORY_OWNER")"
+          # --notes is prepended to the notes GitHub generates from the merged pull requests.
+          gh release create "$TAG" --draft --verify-tag --title "axonia $VERSION" --notes "$notes" --generate-notes
+
+  # The licence changes two years after the release is made available, the day its draft is published.
+  date-the-licence-change:
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ github.event.release.tag_name }}
+      PUBLISHED_AT: ${{ github.event.release.published_at }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+      - run: |
+          notes="$RUNNER_TEMP/notes.md"
+          gh release view "$TAG" --json body --jq .body > "$notes"
+          python3 .github/scripts/release_notes.py published "${PUBLISHED_AT%%T*}" < "$notes" > "$notes.dated"
+          gh release edit "$TAG" --notes-file "$notes.dated"

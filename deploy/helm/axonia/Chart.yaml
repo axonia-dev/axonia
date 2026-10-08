@@ -1,0 +1,9 @@
+apiVersion: v2
+name: axonia
+description: The Self-hosted edition of axonia, for software engineering communities of practice, behind its own edge.
+type: application
+# The release's version: a tag v<version> publishes both images and this chart under it, and release.yml refuses a tag
+# that names any other. appVersion, the image tag both containers run, is always the same.
+version: 0.1.0
+appVersion: "0.1.0"
+kubeVersion: ">=1.29.0-0"

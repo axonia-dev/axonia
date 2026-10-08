@@ -1,0 +1,245 @@
+suite: the backend
+templates:
+  - backend-deployment.yaml
+release:
+  name: axonia
+  namespace: axonia
+values:
+  - values.yaml
+tests:
+  - it: reads every secret from the operator's Secret, never from a value
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: DATABASE_OWNER_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: axonia
+                key: DATABASE_OWNER_PASSWORD
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: DATABASE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: axonia
+                key: DATABASE_PASSWORD
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: DATABASE_COMMUNICATION_READ_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: axonia
+                key: DATABASE_COMMUNICATION_READ_PASSWORD
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AXONIA_UNSUBSCRIBE_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: axonia
+                key: AXONIA_UNSUBSCRIBE_SECRET
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AXONIA_EDGE_SHARED_SECRETS
+            valueFrom:
+              secretKeyRef:
+                name: axonia
+                key: AXONIA_EDGE_SHARED_SECRETS
+
+  - it: names the one Organization and reads tokens as the values say, the audience defaulting to the client id
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AXONIA_SELFHOSTED_OIDC_AUDIENCE
+            value: axonia
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AXONIA_SELFHOSTED_OIDC_EMAIL_CLAIMS
+            value: email,preferred_username
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AXONIA_PUBLIC_BASE_URL
+            value: https://axonia.example.com
+
+  - it: sets no mail variable at all when no mail value is given, so every field is the application's
+    asserts:
+      - notMatchRegex:
+          path: spec.template.spec.containers[0].env[*].name
+          pattern: ^(AXONIA_MAIL_|SPRING_MAIL_)
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AXONIA_MAIL_HOST
+          any: true
+
+  - it: maps each mail value onto its overlay variable, the password only from a Secret
+    set:
+      mail:
+        host: smtp.example.com
+        port: 465
+        security: TLS
+        username: axonia
+        password:
+          existingSecret: axonia-mail
+          key: password
+        fromAddress: axonia@example.com
+        fromName: Example Communities
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AXONIA_MAIL_HOST
+            value: smtp.example.com
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AXONIA_MAIL_PORT
+            value: "465"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AXONIA_MAIL_SECURITY
+            value: TLS
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AXONIA_MAIL_USERNAME
+            value: axonia
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AXONIA_MAIL_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: axonia-mail
+                key: password
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AXONIA_MAIL_FROM_ADDRESS
+            value: axonia@example.com
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AXONIA_MAIL_FROM_NAME
+            value: Example Communities
+
+  - it: sets only the mail fields given, leaving the others to the application
+    set:
+      mail.host: smtp.example.com
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AXONIA_MAIL_HOST
+            value: smtp.example.com
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AXONIA_MAIL_PORT
+          any: true
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AXONIA_MAIL_PASSWORD
+          any: true
+
+  - it: keeps the rate limits in memory for one instance, and in Redis with its health back on for more
+    set:
+      backend.replicas: 3
+      media:
+        type: s3
+        s3:
+          bucket: axonia-media
+          region: eu-central-1
+      rateLimit:
+        store: redis
+        redis:
+          existingSecret: axonia-redis
+          key: url
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 3
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AXONIA_RATE_LIMIT_STORE
+            value: redis
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SPRING_DATA_REDIS_URL
+            valueFrom:
+              secretKeyRef:
+                name: axonia-redis
+                key: url
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MANAGEMENT_HEALTH_REDIS_ENABLED
+            value: "true"
+
+  - it: probes readiness, which waits for the founding, and gives the first migration ten minutes before liveness counts
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: /actuator/health/readiness
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: /actuator/health/liveness
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.failureThreshold
+          value: 60
+
+  - it: runs as a non-root user on a read-only root filesystem, with a writable /tmp and no service links
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext.runAsNonRoot
+          value: true
+      - equal:
+          path: spec.template.spec.securityContext.runAsUser
+          value: 10001
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem
+          value: true
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: tmp
+            mountPath: /tmp
+      - equal:
+          path: spec.template.spec.enableServiceLinks
+          value: false
+      - equal:
+          path: spec.template.spec.automountServiceAccountToken
+          value: false
+
+  - it: runs the chart's appVersion unless a tag is given
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: ghcr.io/axonia-dev/axonia-backend:0.1.0
+
+  - it: runs a mirror's repository when one is given
+    set:
+      backend.image.repository: registry.example.com/axonia-backend
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: registry.example.com/axonia-backend:0.1.0
+
+  - it: runs the version a release packages the chart with
+    chart:
+      appVersion: 0.2.0
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: ghcr.io/axonia-dev/axonia-backend:0.2.0

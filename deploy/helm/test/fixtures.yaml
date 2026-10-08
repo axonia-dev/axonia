@@ -1,0 +1,55 @@
+# What a company provides around the chart, standing in for it in test/kind-install.sh: a Postgres whose owner role
+# holds CREATEROLE, and a Service whose name a backend with service links on would read as AXONIA_MAIL_PORT.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:18
+          env:
+            - name: POSTGRES_DB
+              value: axonia
+            - name: POSTGRES_USER
+              value: axonia_owner
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: axonia
+                  key: DATABASE_OWNER_PASSWORD
+          ports:
+            - containerPort: 5432
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "--username", "axonia_owner", "--dbname", "axonia"]
+            periodSeconds: 2
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+spec:
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: axonia-mail
+spec:
+  selector:
+    app: nothing
+  ports:
+    - port: 25

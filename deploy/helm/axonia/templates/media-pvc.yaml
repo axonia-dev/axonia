@@ -1,0 +1,21 @@
+{{- if and (eq .Values.media.type "local") (not .Values.media.local.existingClaim) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "axonia.mediaClaimName" . }}
+  labels:
+    {{- include "axonia.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+  annotations:
+    # Every uploaded image lives here: an uninstall leaves it, as it leaves the database.
+    helm.sh/resource-policy: keep
+spec:
+  accessModes:
+    {{- toYaml .Values.media.local.accessModes | nindent 4 }}
+  {{- with .Values.media.local.storageClassName }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.media.local.size }}
+{{- end }}
