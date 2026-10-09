@@ -1,23 +1,24 @@
-# A tag v<major>.<minor>.<patch> on a commit of main whose chart names that version publishes both images, for
-# linux/amd64 and linux/arm64, and the Helm chart to GitHub's container registry and drafts the release, whose notes
-# give the PostgreSQL majors it is tested with. Publishing the draft dates it: the notes then name the day the release
-# becomes Apache-2.0, two years after that publication.
+# Run from the Actions tab on main: it releases that commit under the version typed, or, left empty, under the latest
+# release's patch raised by one. It publishes both images, for linux/amd64 and linux/arm64, and the Helm chart, packaged
+# with that version, to GitHub's container registry, then tags the commit v<version> and publishes the release, whose
+# notes give the PostgreSQL majors it is tested with and the day it becomes Apache-2.0, two years after.
 # A version is released once: an image published under it from another commit, a chart published under it with other
-# content, or a release already drafted stops the run. A run that failed half way is rerun on the same commit: it keeps
+# content, or a release already published stops the run. A run that failed half way is rerun on the same commit: it keeps
 # what that commit pushed already and pushes the rest. No image is tagged latest: an installation names its version.
 name: Release
 
 on:
-  push:
-    tags: ["v*"]
-  release:
-    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version, such as 0.2.0. Empty raises the latest release's patch by one."
+        required: false
+        type: string
 
 permissions: {}
 
 jobs:
   release:
-    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     # Never cancelled half way, and never two at once, so nothing is pushed between a check and its push.
@@ -27,29 +28,33 @@ jobs:
     permissions:
       contents: write
       packages: write
-    env:
-      TAG: ${{ github.ref_name }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - name: The tag is on main and names the chart's version
+      - name: The version to release, from main
+        env:
+          REQUESTED: ${{ inputs.version }}
         run: |
-          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
-            echo "::error::$TAG names $GITHUB_SHA, which is not on main. A release is tagged on a commit of main."
+          if [ "$GITHUB_REF" != refs/heads/main ]; then
+            echo "::error::A release is run from main, not $GITHUB_REF."
             exit 1
           fi
-          python3 .github/scripts/release_notes.py check "$TAG"
-          echo "VERSION=${TAG#v}" >> "$GITHUB_ENV"
-          echo "REGISTRY=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
+          version="$(python3 .github/scripts/release_notes.py version "$REQUESTED")"
+          echo "Releasing $version from $GITHUB_SHA."
+          {
+            echo "VERSION=$version"
+            echo "TAG=v$version"
+            echo "REGISTRY=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}"
+          } >> "$GITHUB_ENV"
 
-      - name: No release of this version is drafted yet
+      - name: No release of this version exists yet
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           if found="$(gh release view "$TAG" --json tagName 2>&1)"; then
-            echo "::error::The release $TAG is drafted or published already. A version is released once; release the fix as a new version."
+            echo "::error::The release $TAG exists already. A version is released once; release the fix as a new version."
             exit 1
           fi
           if [[ "$found" != *"release not found"* ]]; then
@@ -136,29 +141,19 @@ jobs:
             echo "The chart $VERSION was pushed with this content by an earlier run; keeping it."
           fi
 
-      - name: Draft the release
+      # A rerun finds the tag its first run pushed on this commit; the version step refuses one on any other.
+      - name: Tag the commit
+        run: |
+          if [ -z "$(git tag --list "$TAG")" ]; then
+            git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              tag -a "$TAG" -m "axonia $VERSION"
+            git push origin "$TAG"
+          fi
+
+      - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          notes="$(python3 .github/scripts/release_notes.py notes "$TAG" unpublished "$GITHUB_REPOSITORY_OWNER")"
+          notes="$(python3 .github/scripts/release_notes.py notes "$TAG" "$(date -u +%F)" "$GITHUB_REPOSITORY_OWNER")"
           # --notes is prepended to the notes GitHub generates from the merged pull requests.
-          gh release create "$TAG" --draft --verify-tag --title "axonia $VERSION" --notes "$notes" --generate-notes
-
-  # The licence changes two years after the release is made available, the day its draft is published.
-  date-the-licence-change:
-    if: github.event_name == 'release'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: write
-    env:
-      TAG: ${{ github.event.release.tag_name }}
-      PUBLISHED_AT: ${{ github.event.release.published_at }}
-      GH_TOKEN: ${{ github.token }}
-    steps:
-      - uses: actions/checkout@v7
-      - run: |
-          notes="$RUNNER_TEMP/notes.md"
-          gh release view "$TAG" --json body --jq .body > "$notes"
-          python3 .github/scripts/release_notes.py published "${PUBLISHED_AT%%T*}" < "$notes" > "$notes.dated"
-          gh release edit "$TAG" --notes-file "$notes.dated"
+          gh release create "$TAG" --verify-tag --title "axonia $VERSION" --notes "$notes" --generate-notes

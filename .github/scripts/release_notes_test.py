@@ -3,26 +3,44 @@ import unittest
 
 import release_notes
 
-CHART = 'apiVersion: v2\nname: axonia\n# The release.\nversion: 0.2.0\nappVersion: "0.2.0"\nkubeVersion: ">=1.29.0-0"\n'
+TAGS = ["v0.1.0", "v0.2.0", "v0.2.1", "v0.10.0-rc.1", "nightly"]
+COMPOSE = "services:\n  postgres:\n    image: postgres:18\n"
+CONTAINER = '    public static final String OLDEST_SUPPORTED = "postgres:17";\n'
+CHART_CHECK = "\tfor version in 1.29.0 1.37.0; do\n"
 
 
-class TagTest(unittest.TestCase):
-    def test_a_tag_naming_the_charts_version_passes(self):
-        self.assertEqual([], release_notes.tag_problems("v0.2.0", CHART))
+class VersionTest(unittest.TestCase):
+    def test_nothing_requested_raises_the_latest_releases_patch(self):
+        self.assertEqual("0.2.2", release_notes.release_version("", TAGS, []))
 
-    def test_a_tag_naming_another_version_names_both_fields(self):
-        self.assertEqual(
-            [
-                "deploy/helm/axonia/Chart.yaml version is 0.2.0, not 0.3.0: raise it in the commit the tag names",
-                "deploy/helm/axonia/Chart.yaml appVersion is 0.2.0, not 0.3.0: raise it in the commit the tag names",
-            ],
-            release_notes.tag_problems("v0.3.0", CHART),
-        )
+    def test_the_latest_release_is_compared_by_number_not_by_text(self):
+        self.assertEqual("0.10.1", release_notes.release_version("", ["v0.9.0", "v0.10.0"], []))
 
-    def test_a_tag_that_is_not_a_release_is_refused(self):
-        for tag in ["0.2.0", "v0.2", "v0.2.0-rc.1", "v01.2.0", "release-0.2.0"]:
+    def test_a_requested_version_is_released_with_or_without_its_v(self):
+        self.assertEqual("0.3.0", release_notes.release_version("0.3.0", TAGS, []))
+        self.assertEqual("1.0.0", release_notes.release_version("v1.0.0", TAGS, []))
+
+    def test_a_rerun_releases_the_version_its_first_run_tagged_on_the_commit(self):
+        self.assertEqual("0.2.1", release_notes.release_version("", TAGS, ["v0.2.1"]))
+        self.assertEqual("0.2.1", release_notes.release_version("0.2.1", TAGS, ["v0.2.1"]))
+
+    def test_a_version_released_from_another_commit_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "0.2.0 is released already"):
+            release_notes.release_version("0.2.0", TAGS, [])
+
+    def test_a_version_older_than_the_latest_release_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "older than the latest release, 0.2.1"):
+            release_notes.release_version("0.1.5", TAGS, [])
+
+    def test_the_first_release_must_be_named(self):
+        with self.assertRaisesRegex(ValueError, "name the first version"):
+            release_notes.release_version("", ["nightly"], [])
+        self.assertEqual("0.1.0", release_notes.release_version("0.1.0", [], []))
+
+    def test_a_version_that_is_not_a_release_is_refused(self):
+        for requested in ["0.2", "0.2.0-rc.1", "01.2.0", "release-0.2.0"]:
             with self.assertRaises(ValueError):
-                release_notes.version_of(tag)
+                release_notes.release_version(requested, TAGS, [])
 
 
 class DatesTest(unittest.TestCase):
@@ -35,41 +53,13 @@ class DatesTest(unittest.TestCase):
 
 class NotesTest(unittest.TestCase):
     def test_name_the_conversion_date_the_images_the_chart_postgres_and_kubernetes(self):
-        text = release_notes.notes(
-            "v0.2.0",
-            datetime.date(2026, 10, 6),
-            "Axonia-Dev",
-            CHART,
-            "services:\n  postgres:\n    image: postgres:18\n",
-            '    public static final String OLDEST_SUPPORTED = "postgres:17";\n',
-            "\tfor version in 1.29.0 1.37.0; do\n",
-        )
+        text = release_notes.notes("v0.2.0", datetime.date(2026, 10, 6), "Axonia-Dev", COMPOSE, CONTAINER, CHART_CHECK)
         self.assertIn("on 2028-10-06, the second anniversary of its release on 2026-10-06.", text)
         self.assertIn("- `ghcr.io/axonia-dev/axonia-backend:0.2.0`", text)
         self.assertIn("- `ghcr.io/axonia-dev/axonia-edge:0.2.0`", text)
         self.assertIn("- The Helm chart `oci://ghcr.io/axonia-dev/charts/axonia`, version 0.2.0", text)
         self.assertIn("- PostgreSQL 17 or 18; compose ships 18", text)
         self.assertIn("- Kubernetes 1.29 to 1.37", text)
-
-    def test_a_draft_states_the_change_without_a_date_and_publication_dates_it(self):
-        draft = release_notes.notes(
-            "v0.2.0", None, "axonia-dev", CHART, "services:\n  postgres:\n    image: postgres:18\n",
-            '    public static final String OLDEST_SUPPORTED = "postgres:17";\n', "\tfor version in 1.29.0 1.37.0; do\n")
-        self.assertIn("It becomes available under the Apache License, Version 2.0, on the second anniversary of its "
-                      "publication.\n", draft)
-        body = draft + "\n## What's Changed\n* feat: a thing by @someone\n"
-        published = release_notes.dated(body, datetime.date(2026, 10, 9))
-        self.assertEqual(
-            body.replace("on the second anniversary of its publication.",
-                         "on 2028-10-09, the second anniversary of its release on 2026-10-09."),
-            published,
-        )
-        self.assertEqual(published.replace("2026-10-09", "2026-10-12").replace("2028-10-09", "2028-10-12"),
-                         release_notes.dated(published, datetime.date(2026, 10, 12)))
-
-    def test_notes_without_the_licence_change_are_refused(self):
-        with self.assertRaises(ValueError):
-            release_notes.dated("## What's Changed\n", datetime.date(2026, 10, 9))
 
     def test_a_compose_file_without_postgres_is_refused(self):
         with self.assertRaises(ValueError):
