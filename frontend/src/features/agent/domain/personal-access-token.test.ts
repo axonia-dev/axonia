@@ -15,7 +15,7 @@ import {
 
 const AGENT_SCOPE_ENUM = join(
   SRC,
-  "../../backend/core/src/main/java/dev/axonia/agent/AgentScope.java",
+  "../../backend/core/src/main/java/dev/axonia/agent/domain/AgentScope.java",
 );
 
 function sorted(codes: readonly string[]): string[] {
