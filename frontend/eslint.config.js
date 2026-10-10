@@ -8,8 +8,8 @@ import prettier from "eslint-config-prettier";
 // type-aware typescript set, and runs the whole tree in ~2s. What stays here is what
 // oxlint has no equivalent for: sonarjs' dataflow analysis (dead stores, unread
 // collections, always-true conditions, ReDoS), the security plugin, import sorting,
-// and the em-dash copy rule, which needs esquery selectors. None of these need type
-// information, so this pass runs without projectService and stays cheap.
+// and the em-dash copy rule, which needs esquery selectors. sonarjs needs type
+// information, so this pass keeps projectService (see languageOptions below).
 export default tseslint.config(
   {
     ignores: [
