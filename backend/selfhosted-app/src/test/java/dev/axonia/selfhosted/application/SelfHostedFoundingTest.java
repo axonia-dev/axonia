@@ -182,15 +182,14 @@ class SelfHostedFoundingTest {
     }
 
     @Test
-    void establishIsAPublicTransactionalMethod() throws NoSuchMethodException {
+    void establishRunsInATransaction() throws NoSuchMethodException {
 
         // when
-        var establish = SelfHostedFounding.class.getMethod("establish", Installation.class);
+        var establish = SelfHostedFounding.class.getDeclaredMethod("establish", Installation.class);
 
         // then
-        assertThat(
-                new AnnotationTransactionAttributeSource().getTransactionAttribute(establish, SelfHostedFounding.class))
-                .isNotNull();
+        assertThat(new AnnotationTransactionAttributeSource(false).getTransactionAttribute(establish,
+                SelfHostedFounding.class)).isNotNull();
     }
 
     private static Organization named(String name) {
