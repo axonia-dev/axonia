@@ -5,6 +5,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import dev.axonia.shared.api.ratelimit.RateLimitAttempt;
+import dev.axonia.shared.api.ratelimit.RateLimitStore;
+
 /**
  * A rate-limit store that counts, for the tests that assert what a limiter decides rather than how the arithmetic
  * works. The arithmetic lives in Lua and is covered by {@code RedisRateLimitStoreTest} against a real Redis.

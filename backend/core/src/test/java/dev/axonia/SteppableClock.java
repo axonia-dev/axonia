@@ -6,6 +6,8 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 
+import dev.axonia.shared.api.time.ClockTicker;
+
 /**
  * A clock a test steps by hand, shared rather than copied into each test class. Every Caffeine cache reads the
  * application's clock through {@link ClockTicker}, so stepping this one expires cache entries exactly as it moves every

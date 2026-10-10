@@ -10,11 +10,11 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
-import dev.axonia.identity.IdentityAccounts;
-import dev.axonia.identity.MyOrganizationsService;
-import dev.axonia.identity.OrganizationMembershipView;
-import dev.axonia.privacy.ErasureBlocker;
-import dev.axonia.privacy.ErasurePreflight;
+import dev.axonia.identity.api.OrganizationMembershipView;
+import dev.axonia.identity.api.SwitchableOrganizations;
+import dev.axonia.identity.api.spi.IdentityAccounts;
+import dev.axonia.privacy.application.ErasureBlocker;
+import dev.axonia.privacy.application.ErasurePreflight;
 import tools.jackson.databind.json.JsonMapper;
 
 import static dev.axonia.selfhosted.SelfHostedTestInfrastructure.ORGANIZATION_ID;
@@ -38,7 +38,7 @@ class SelfHostedMembershipTest {
     private MockOidcIssuer issuer;
 
     @Autowired
-    private MyOrganizationsService myOrganizations;
+    private SwitchableOrganizations myOrganizations;
 
     @Autowired
     private JsonMapper jsonMapper;
@@ -112,7 +112,7 @@ class SelfHostedMembershipTest {
 
         assertThat(profiles("c1-leaver")).isOne();
         assertThat(context.getBean(IdentityAccounts.class).getClass().getName())
-                .isEqualTo("dev.axonia.selfhosted.internal.DirectoryOwnedAccounts");
+                .isEqualTo("dev.axonia.selfhosted.adapter.out.identity.DirectoryOwnedAccounts");
     }
 
     private String tokenOf(String subject) {

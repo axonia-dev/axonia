@@ -20,9 +20,10 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import dev.axonia.identity.internal.UserEntity;
-import dev.axonia.identity.internal.UserRepository;
-import dev.axonia.roundup.RoundupSettingsService;
+import dev.axonia.identity.adapter.out.persistence.UserEntity;
+import dev.axonia.identity.adapter.out.persistence.UserRepository;
+import dev.axonia.roundup.application.RoundupSettingsService;
+import dev.axonia.shared.api.tenancy.OrganizationResolver;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -36,8 +37,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <ol>
  * <li>A {@link org.springframework.security.oauth2.jwt.Jwt} in the {@link SecurityContextHolder} is read by
  * {@link OrganizationResolver}.</li>
- * <li>{@link dev.axonia.config.OrganizationAwareDataSource} picks up the resolved Organization and issues
- * {@code SET app.current_org = ?} before handing the connection to Spring Data JDBC.</li>
+ * <li>{@link dev.axonia.shared.adapter.out.persistence.OrganizationAwareDataSource} picks up the resolved Organization
+ * and issues {@code SET app.current_org = ?} before handing the connection to Spring Data JDBC.</li>
  * <li>Postgres RLS policies filter rows so cross-organization data is invisible.</li>
  * </ol>
  *

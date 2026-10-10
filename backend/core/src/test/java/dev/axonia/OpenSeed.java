@@ -4,6 +4,8 @@ import java.util.Map;
 
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
+import dev.axonia.shared.api.personaldata.PersonalDataExporter;
+
 /**
  * One row in every open table any {@link PersonalDataExporter} reads from, for layer 3 of the data-subject-rights gate.
  * No attention is paid to which columns are null: {@code SELECT *} carries every column name as a map key regardless of

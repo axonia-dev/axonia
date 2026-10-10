@@ -15,16 +15,17 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.jdbc.Sql;
 
-import dev.axonia.events.ActionItemQuery;
-import dev.axonia.events.ActionItemService;
-import dev.axonia.events.PastSessionsRequest;
-import dev.axonia.events.Session;
-import dev.axonia.events.SessionService;
-import dev.axonia.events.internal.SessionMapper;
-import dev.axonia.events.internal.SessionRepository;
-import dev.axonia.knowledge.Artifact;
-import dev.axonia.knowledge.ArtifactFilter;
-import dev.axonia.knowledge.ArtifactService;
+import dev.axonia.events.api.PastSessionsRequest;
+import dev.axonia.events.api.Session;
+import dev.axonia.events.application.ActionItemQuery;
+import dev.axonia.events.application.ActionItemService;
+import dev.axonia.events.application.SessionMapper;
+import dev.axonia.events.application.SessionService;
+import dev.axonia.events.application.port.out.SessionStore;
+import dev.axonia.knowledge.api.Artifact;
+import dev.axonia.knowledge.api.ArtifactFilter;
+import dev.axonia.knowledge.application.ArtifactService;
+import dev.axonia.shared.api.tenancy.OrganizationScope;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -67,9 +68,11 @@ class ReadPathQueryBudgetTest {
     private SessionMapper sessionMapper;
 
     @Autowired
-    private SessionRepository sessionRepository;
+    private SessionStore sessionStore;
 
     private Long fullSessionId;
+
+    private Long oneOffSessionId;
 
     @BeforeAll
     void seedTwentySessions() {
@@ -87,6 +90,12 @@ class ReadPathQueryBudgetTest {
     void seedOneFullyPopulatedSession() {
 
         fullSessionId = seed.oneFullyPopulatedSession();
+    }
+
+    @BeforeAll
+    void seedOneOneOffSessionWithItsOwnZone() {
+
+        oneOffSessionId = seed.oneOffSessionWithItsOwnZone();
     }
 
     @BeforeAll
@@ -149,13 +158,28 @@ class ReadPathQueryBudgetTest {
     void theBatchedReadReturnsWhatTheAggregateReadReturned() {
 
         asOrganizationMember(() -> {
-            var viaAggregate = sessionMapper.toSession(sessionRepository
-                    .findByOrganizationIdAndId(PerformanceSeed.ORGANIZATION, fullSessionId).orElseThrow());
+            var viaAggregate = sessionMapper.toSession(
+                    sessionStore.findByOrganizationIdAndId(PerformanceSeed.ORGANIZATION, fullSessionId).orElseThrow());
             var viaReader = sessions
                     .past(PastSessionsRequest.builder().slug(PerformanceSeed.SLUG).pageable(PageRequest.of(0, 50))
                             .build())
                     .getContent().stream().filter(s -> s.id().equals(fullSessionId)).findFirst().orElseThrow();
 
+            assertThat(viaReader).usingRecursiveComparison().isEqualTo(viaAggregate);
+        });
+    }
+
+    /** A one-off session keeps its own zone in the upcoming list exactly as its own detail read carries it. */
+    @Test
+    void theBatchedReadKeepsAOneOffSessionsOwnZone() {
+
+        asOrganizationMember(() -> {
+            var viaAggregate = sessionMapper.toSession(sessionStore
+                    .findByOrganizationIdAndId(PerformanceSeed.ORGANIZATION, oneOffSessionId).orElseThrow());
+            var viaReader = sessions.upcoming(PerformanceSeed.SLUG, PageRequest.of(0, 50)).getContent().stream()
+                    .filter(s -> s.id().equals(oneOffSessionId)).findFirst().orElseThrow();
+
+            assertThat(viaAggregate.timeZone()).isEqualTo("Europe/Zurich");
             assertThat(viaReader).usingRecursiveComparison().isEqualTo(viaAggregate);
         });
     }
@@ -234,8 +258,8 @@ class ReadPathQueryBudgetTest {
     }
 
     /**
-     * {@code SessionService.past} reads no {@link dev.axonia.events.CurrentUser}, so the JWT only has to carry the
-     * {@code org} claim {@code JwtOrganizationContext} resolves the organization from - the same claim
+     * {@code SessionService.past} reads no {@link dev.axonia.events.application.port.out.CurrentUser}, so the JWT only
+     * has to carry the {@code org} claim {@code JwtOrganizationContext} resolves the organization from - the same claim
      * {@code community}'s own port reads when {@code CommunityAccess.communityIdForSlug} looks the seeded community up.
      */
     private void asOrganizationMember(Runnable action) {

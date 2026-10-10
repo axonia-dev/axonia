@@ -17,6 +17,10 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import dev.axonia.shared.api.tenancy.OrganizationScope;
+import dev.axonia.shared.api.tenancy.SubjectScope;
+import dev.axonia.shared.configuration.TenantDiscoveryPool;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -78,9 +82,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  * it holds was invisible to it: 31 fields across 22 files, live in seven read paths at once, among them
  * {@code ReactionService.tally}. The boundary it drew tracked the regex rather than any decision, leaving
  * {@code RecognitionService} and {@code ReactionCatalogService} annotated beside an unannotated
- * {@code ReactionService}. So {@link #REPOSITORY_FIELD} reads each file's field and constructor-parameter declarations,
- * and adds every receiver whose declared TYPE is a repository or a JDBC template to that file's own call pattern
- * ({@link #repositoryCallIn}).
+ * {@code ReactionService}. So {@link #receiverDeclaration} reads each file's field and constructor-parameter
+ * declarations, and adds every receiver whose declared TYPE is a repository or a JDBC template to that file's own call
+ * pattern ({@link #repositoryCallIn}).
  *
  * <p>
  * One shape is still invisible and deliberately left so: a method reference, {@code repository::findById}, defeats
@@ -227,6 +231,16 @@ class ReadPathTransactionGuardTest {
 
     private static final Pattern REPOSITORY_CALL = Pattern.compile("(epository|jdbc|Template)\\s*\\.\\s*\\w+\\(");
 
+    private static final Pattern IMPLEMENTS = Pattern.compile("\\bimplements\\s+([^{;]+?)\\s*\\{");
+
+    private static final Pattern INNERMOST_TYPE_ARGUMENTS = Pattern.compile("<[^<>]*>");
+
+    private static final Path PORTS = Path.of("application", "port", "out");
+
+    private static final Path DRIVEN_ADAPTERS = Path.of("adapter", "out");
+
+    private static final Pattern BARE_RECEIVER_DECLARATION = repositoryField(Set.of());
+
     /**
      * A field or constructor-parameter declaration whose <strong>type</strong> is a repository or a JDBC template,
      * capturing whatever name that declaration gives it. {@link #REPOSITORY_CALL} matches a receiver by what it is
@@ -240,9 +254,83 @@ class ReadPathTransactionGuardTest {
      * followed by {@code (}, never by one of {@code ; , ) =}. Matched against the masked copy, so a type name written
      * inside a comment or a string cannot invent a receiver.
      */
-    private static final Pattern REPOSITORY_FIELD = Pattern.compile("(?<![\\w$])"
-            + "(?:\\w*Repository|JdbcClient|NamedParameterJdbcTemplate|JdbcTemplate|JdbcAggregateTemplate)"
-            + "(?:<[^>]*>)?\\s+(\\w+)\\s*[;,)=]");
+    private final Pattern receiverDeclaration = repositoryField(persistencePorts());
+
+    /**
+     * {@link #receiverDeclaration}'s types: the repository and JDBC-template types, plus every outbound port its module
+     * reads its rows through. An application service holds a port, not a repository, so without the ports the read that
+     * crosses one was invisible here, whatever adapter it reached.
+     */
+    private static Pattern repositoryField(Set<String> persistencePorts) {
+
+        var types = Stream
+                .concat(Stream.of("\\w*Repository", "JdbcClient", "NamedParameterJdbcTemplate", "JdbcTemplate",
+                        "JdbcAggregateTemplate"), persistencePorts.stream().sorted().map(Pattern::quote))
+                .collect(Collectors.joining("|"));
+        return Pattern.compile("(?<![\\w$])(?:" + types + ")(?:<[^>]*>)?\\s+(\\w+)\\s*[;,)=]");
+    }
+
+    /**
+     * The {@code application.port.out} interfaces, at any depth under {@code port.out}, implemented by a class under
+     * {@code adapter.out} that declares a repository or JDBC receiver on a pool a transaction manager spans: the ports
+     * whose calls reach the database. Read from what the implementer holds, not from the package it sits in, so a
+     * driven adapter placed in {@code adapter.out.jdbc} counts as one in {@code adapter.out.persistence} does. A port
+     * to another module or to an outside system is not one of them, so a service reaching it is not held to this guard
+     * by that call alone.
+     */
+    Set<String> persistencePorts() {
+
+        try (Stream<Path> files = Files.walk(Path.of("src/main/java"))) {
+            var sources = files.filter(f -> f.toString().endsWith(".java")).toList();
+            var ports = sources.stream().filter(f -> within(f, PORTS))
+                    .map(f -> f.getFileName().toString().replace(".java", "")).collect(Collectors.toSet());
+            var implemented = new HashSet<String>();
+            sources.stream().filter(f -> within(f, DRIVEN_ADAPTERS)).map(ReadPathTransactionGuardTest::read)
+                    .filter(this::holdsASpannedReceiver).forEach(text -> implemented.addAll(implementedTypes(text)));
+            implemented.retainAll(ports);
+            return implemented;
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    private boolean holdsASpannedReceiver(String text) {
+
+        var unspanned = unspannedPoolReceivers(text, unspannedPoolQualifiers());
+        var receiver = BARE_RECEIVER_DECLARATION.matcher(SourceMasking.mask(text));
+        while (receiver.find()) {
+            if (!unspanned.contains(receiver.group(1))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean within(Path file, Path layer) {
+
+        for (var dir = file.getParent(); dir != null; dir = dir.getParent()) {
+            if (dir.endsWith(layer)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** The simple names in every {@code implements} clause of the source, type arguments of any depth dropped. */
+    static Set<String> implementedTypes(String text) {
+
+        var names = new HashSet<String>();
+        var clause = IMPLEMENTS.matcher(SourceMasking.mask(text));
+        while (clause.find()) {
+            var types = clause.group(1);
+            while (INNERMOST_TYPE_ARGUMENTS.matcher(types).find()) {
+                types = INNERMOST_TYPE_ARGUMENTS.matcher(types).replaceAll("");
+            }
+            Stream.of(types.split(",")).map(name -> name.replace("[]", "").trim().replaceAll(".*\\.", ""))
+                    .filter(name -> !name.isEmpty()).forEach(names::add);
+        }
+        return names;
+    }
 
     private static final Pattern RUN_AS_CALL = Pattern.compile("(OrganizationScope|SubjectScope)\\.runAs\\(");
 
@@ -334,7 +422,7 @@ class ReadPathTransactionGuardTest {
      */
     protected Set<String> ownedPoolConfigurations() {
 
-        return Set.of("src/main/java/dev/axonia/TenantDiscoveryPool.java");
+        return Set.of("src/main/java/dev/axonia/shared/configuration/TenantDiscoveryPool.java");
     }
 
     /**
@@ -345,7 +433,7 @@ class ReadPathTransactionGuardTest {
      * gated request in the application enters through, and it is a proxy boundary - {@code requirePermission} calls
      * {@code hasPermission} on {@code this}, so the annotation below it does not fire on this path.
      */
-    private static final String DEFAULT_AUTHORIZATION_GATE_REQUIRE_PERMISSION = "src/main/java/dev/axonia/access/internal/DefaultAuthorizationGate.java#requirePermission";
+    private static final String DEFAULT_AUTHORIZATION_GATE_REQUIRE_PERMISSION = "src/main/java/dev/axonia/access/application/DefaultAuthorizationGate.java#requirePermission";
 
     /** The void methods this half pins as {@code @Transactional}, as {@code file#method}. */
     protected Set<String> transactionalPins() {
@@ -379,7 +467,7 @@ class ReadPathTransactionGuardTest {
      * keyed to a measure which already understated the true cost about fourfold.
      * {@link #namedExemptionsStillMakeTheOutboundCallTheirReasonNames} fails the build if the Graph call goes.
      */
-    private static final String GROUP_BINDING_SERVICE_LIST = "src/main/java/dev/axonia/access/GroupBindingService.java#list";
+    private static final String GROUP_BINDING_SERVICE_LIST = "src/main/java/dev/axonia/access/application/GroupBindingService.java#list";
 
     /**
      * A {@code @Bean} method returning a transaction manager, anywhere in {@code src/main} - the one change that makes
@@ -502,6 +590,20 @@ class ReadPathTransactionGuardTest {
         return found;
     }
 
+    /**
+     * A few ports each half reads its rows through, so a narrowed derivation cannot drop the guard's scope silently.
+     */
+    protected Set<String> knownPersistencePorts() {
+
+        return Set.of("BookmarkStore", "RoleStore", "OrganizationStore", "RecognitionStore");
+    }
+
+    @Test
+    void thePersistencePortsIncludeTheKnownOnes() {
+
+        assertThat(persistencePorts()).containsAll(knownPersistencePorts());
+    }
+
     @Test
     void everyPublicServiceReadThatTouchesARepositoryIsTransactional() {
 
@@ -592,10 +694,10 @@ class ReadPathTransactionGuardTest {
      * Falls back to the bare name pattern when the file declares no such field, which is what the mechanics tests that
      * declare no field at all rely on.
      */
-    private static Pattern repositoryCallIn(String masked, Set<String> unspannedReceivers) {
+    private Pattern repositoryCallIn(String masked, Set<String> unspannedReceivers) {
 
         var receivers = new ArrayList<String>();
-        var field = REPOSITORY_FIELD.matcher(masked);
+        var field = receiverDeclaration.matcher(masked);
         while (field.find()) {
             if (!unspannedReceivers.contains(field.group(1)) && !receivers.contains(field.group(1))) {
                 receivers.add(field.group(1));
@@ -1282,7 +1384,7 @@ class ReadPathTransactionGuardTest {
          * A repository held in a field named for the rows it holds. {@link #REPOSITORY_CALL} matches a receiver by
          * name, so {@code rates.findBySubject(...)} was invisible to it however plainly the field's TYPE said
          * repository - thirty-one fields across twenty-two files, seven of them on live read paths, among them
-         * {@code ReactionService.tally}. The second assertion is why {@link #REPOSITORY_FIELD} insists on
+         * {@code ReactionService.tally}. The second assertion is why {@link #receiverDeclaration} insists on
          * {@code ; , ) =} after the name: a method <em>returning</em> a repository must not register the method's own
          * name as a receiver, or every file with an accessor like this would indict every method that calls it.
          */
@@ -1351,6 +1453,36 @@ class ReadPathTransactionGuardTest {
                         }
                     }
                     """)).singleElement().asString().contains("read");
+        }
+
+        @Test
+        void flagsAReadThroughAPersistencePortHeldUnderAnyName() {
+
+            var port = knownPersistencePorts().iterator().next();
+            assertThat(offendersIn("Sample.java", """
+                    @Service
+                    class Sample {
+
+                        private final %s saves;
+
+                        public Object read(String id) {
+
+                            return saves.find(id);
+                        }
+                    }
+                    """.formatted(port))).singleElement().asString().contains("read");
+        }
+
+        @Test
+        void readsEveryImplementedTypeWhateverItsTypeArguments() {
+
+            assertThat(implementedTypes("""
+                    final class Sample implements dev.axonia.x.Store<? extends Map<String, List<Long[]>>>, Other[],
+                            Third<Map<String, Map<String, ?>>> {
+                    }
+                    record Row(long id) implements Readable {
+                    }
+                    """)).containsExactlyInAnyOrder("Store", "Other", "Third", "Readable");
         }
 
         /** The file filter: a {@code @Component} is scanned exactly as a {@code @Service} is, a plain class is not. */

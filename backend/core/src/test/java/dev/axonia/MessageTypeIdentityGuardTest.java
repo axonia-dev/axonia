@@ -16,7 +16,7 @@ import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 
-import dev.axonia.communication.MessageType;
+import dev.axonia.communication.api.MessageType;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

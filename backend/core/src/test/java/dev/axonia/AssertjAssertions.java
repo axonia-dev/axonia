@@ -1,5 +1,6 @@
 package dev.axonia;
 
+import dev.axonia.shared.api.persistence.Entity;
 import lombok.experimental.UtilityClass;
 
 import static org.assertj.core.api.Assertions.assertThat;

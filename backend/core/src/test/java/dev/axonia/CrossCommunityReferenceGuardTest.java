@@ -126,8 +126,15 @@ class CrossCommunityReferenceGuardTest {
      * family never repeats this: it reads unmasked source (raw SQL text lives inside string and text-block literals,
      * which {@link SourceMasking#mask} blanks) and fails if any file this symbol set exempts contains an
      * {@code insert into} or {@code update ... set}.
+     *
+     * <p>
+     * An application service writes through its module's outbound ports ({@code application.port.out}), so importing
+     * one is in the set too: matching only the adapters behind those ports would exempt every service whose write this
+     * guard exists to check. A driving adapter importing a port is scanned with them, read port or not, since a
+     * controller can write through one directly.
      */
-    private static final Pattern WRITE_MECHANISM_SYMBOL = Pattern.compile("Repository|JdbcTemplate|JdbcClient");
+    private static final Pattern WRITE_MECHANISM_SYMBOL = Pattern
+            .compile("Repository|JdbcTemplate|JdbcClient|\\.application\\.port\\.out\\.");
 
     /** Shaped like a controller, and writing through a repository, so its name exempts nothing. */
     private static final String A_WRITING_CONTROLLER = """
@@ -270,18 +277,21 @@ class CrossCommunityReferenceGuardTest {
 
     protected List<Path> knownNestedSectionTypeSites() {
 
-        return List.of(source("events", "SessionService.java"), source("events", "SeriesService.java"));
+        return List.of(source("events", "application", "SessionService.java"),
+                source("events", "application", "SeriesService.java"));
     }
 
     protected List<Path> knownWriters() {
 
-        return List.of(source("knowledge", "ArtifactService.java"), source("events", "TopicService.java"),
-                source("events", "SlotService.java"), source("events", "SessionService.java"));
+        return List.of(source("knowledge", "application", "ArtifactService.java"),
+                source("events", "application", "TopicService.java"),
+                source("events", "application", "SlotService.java"),
+                source("events", "application", "SessionService.java"));
     }
 
     protected Path aForwardingController() {
 
-        return source("knowledge", "ResourceController.java");
+        return source("knowledge", "adapter", "in", "web", "ResourceController.java");
     }
 
     static Path source(String... belowTheRootPackage) {

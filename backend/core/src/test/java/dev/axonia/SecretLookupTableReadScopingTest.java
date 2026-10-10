@@ -26,10 +26,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 class SecretLookupTableReadScopingTest extends CoreJdbcTestSupport {
 
     static final Map<String, Set<String>> ALLOWLISTED_SECRET_LOOKUPS = Map.of(
-            "dev.axonia.identity.internal.PersonalAccessTokenRepository", Set.of("findByTokenHash"),
-            "dev.axonia.identity.internal.ScimTokenRepository", Set.of("findByTokenHash"),
-            "dev.axonia.identity.internal.AgentConnectionTokenRepository", Set.of("findByTokenHash"),
-            "dev.axonia.events.internal.CalendarSubscriptionRepository", Set.of("findByTokenHash"));
+            "dev.axonia.identity.adapter.out.persistence.PersonalAccessTokenRepository", Set.of("findByTokenHash"),
+            "dev.axonia.identity.adapter.out.persistence.ScimTokenRepository", Set.of("findByTokenHash"),
+            "dev.axonia.identity.adapter.out.persistence.AgentConnectionTokenRepository", Set.of("findByTokenHash"),
+            "dev.axonia.events.adapter.out.persistence.CalendarSubscriptionRepository", Set.of("findByTokenHash"));
 
     @Autowired
     private NamedParameterJdbcTemplate jdbc;

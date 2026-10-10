@@ -9,6 +9,8 @@ import java.util.List;
 
 import com.sun.net.httpserver.HttpServer;
 
+import dev.axonia.shared.api.metrics.IntegrationMetrics;
+import dev.axonia.shared.api.metrics.MeterContribution;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 /**

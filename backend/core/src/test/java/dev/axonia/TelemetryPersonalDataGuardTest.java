@@ -31,10 +31,11 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import dev.axonia.config.AttributeAllowlist;
-import dev.axonia.organization.OrganizationKind;
-import dev.axonia.organization.OrganizationRegistration;
-import dev.axonia.organization.OrganizationService;
+import dev.axonia.organization.api.OrganizationKind;
+import dev.axonia.organization.api.OrganizationRegistration;
+import dev.axonia.organization.api.OrganizationRegistry;
+import dev.axonia.shared.adapter.out.telemetry.AttributeAllowlist;
+import dev.axonia.shared.api.tenancy.OrganizationScope;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.sdk.testing.exporter.InMemorySpanExporter;
@@ -110,7 +111,7 @@ class TelemetryPersonalDataGuardTest {
     private ApplicationContext context;
 
     @Autowired
-    private OrganizationService organizations;
+    private OrganizationRegistry organizations;
 
     @Autowired
     private InMemorySpanExporter exporter;

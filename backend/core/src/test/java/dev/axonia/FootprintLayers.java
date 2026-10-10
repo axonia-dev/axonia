@@ -11,6 +11,14 @@ import java.util.stream.Stream;
 
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
+import dev.axonia.shared.api.personaldata.ColumnFootprint;
+import dev.axonia.shared.api.personaldata.ExportQueries;
+import dev.axonia.shared.api.personaldata.ExportScope;
+import dev.axonia.shared.api.personaldata.ExportTreatment;
+import dev.axonia.shared.api.personaldata.PersonalDataExporter;
+import dev.axonia.shared.api.personaldata.PersonalDataFootprint;
+import dev.axonia.shared.api.personaldata.TableFootprint;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**

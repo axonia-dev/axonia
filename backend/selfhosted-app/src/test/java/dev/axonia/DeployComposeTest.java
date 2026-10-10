@@ -18,7 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.yaml.snakeyaml.Yaml;
 
-import dev.axonia.selfhosted.SelfHostedProperties;
+import dev.axonia.selfhosted.configuration.SelfHostedProperties;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

@@ -11,8 +11,8 @@ import com.tngtech.archunit.core.domain.PackageMatchers;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 
-import dev.axonia.media.AbsoluteMediaLinks;
-import dev.axonia.media.MediaLinks;
+import dev.axonia.media.api.AbsoluteMediaLinks;
+import dev.axonia.media.api.MediaLinks;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 

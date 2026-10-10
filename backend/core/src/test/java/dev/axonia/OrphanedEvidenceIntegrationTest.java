@@ -15,8 +15,9 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.jdbc.Sql;
 
-import dev.axonia.expertise.ExpertiseService;
-import dev.axonia.expertise.SourceType;
+import dev.axonia.expertise.application.ExpertiseService;
+import dev.axonia.expertise.domain.SourceType;
+import dev.axonia.shared.api.error.NotFoundException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

@@ -17,9 +17,10 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.jdbc.Sql;
 
-import dev.axonia.community.MembershipService;
-import dev.axonia.expertise.ExpertiseArea;
-import dev.axonia.expertise.ExpertiseCurationService;
+import dev.axonia.community.application.MembershipService;
+import dev.axonia.expertise.application.ExpertiseCurationService;
+import dev.axonia.expertise.domain.ExpertiseArea;
+import dev.axonia.shared.api.tenancy.OrganizationScope;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;

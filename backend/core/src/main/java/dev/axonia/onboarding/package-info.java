@@ -5,7 +5,7 @@
  * <p>
  * Rooted at the person rather than at any Organization. A row is scoped by {@code app.current_subject} rather than
  * {@code app.current_org}, outlives any one hub, and is never touched by an Organization's own closure: this module
- * implements no {@link dev.axonia.OrganizationDataPurger}.
+ * implements no {@link dev.axonia.shared.api.personaldata.OrganizationDataPurger}.
  *
  * <p>
  * The three ports below are read once, at assignment, and never again. What they returned is frozen onto the steps as

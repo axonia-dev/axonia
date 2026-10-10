@@ -10,22 +10,26 @@ import java.util.stream.Collectors;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 
-import dev.axonia.communication.DeliveryOutcome;
-import dev.axonia.communication.MailSecurity;
-import dev.axonia.communication.MailServer;
-import dev.axonia.communication.MailServerSettings;
-import dev.axonia.communication.MailServerState;
-import dev.axonia.identity.IdentityAccounts;
-import dev.axonia.identity.IdentityClaims;
-import dev.axonia.identity.OrganizationCardLookSource;
-import dev.axonia.identity.OrganizationIdpResolver;
-import dev.axonia.identity.OrganizationMembershipSource;
-import dev.axonia.identity.SignInObserver;
-import dev.axonia.identity.SignInProviderResolver;
-import dev.axonia.identity.SuccessionAddresses;
-import dev.axonia.organization.OrganizationKind;
-import dev.axonia.organization.OrganizationService;
-import dev.axonia.organization.Organizations;
+import dev.axonia.communication.api.DeliveryOutcome;
+import dev.axonia.communication.api.MailSecurity;
+import dev.axonia.communication.api.MailServerSettings;
+import dev.axonia.communication.api.MailServerState;
+import dev.axonia.communication.api.spi.MailServer;
+import dev.axonia.identity.api.IdentityClaims;
+import dev.axonia.identity.api.spi.IdentityAccounts;
+import dev.axonia.identity.api.spi.OrganizationCardLookSource;
+import dev.axonia.identity.api.spi.OrganizationIdpResolver;
+import dev.axonia.identity.api.spi.OrganizationMembershipSource;
+import dev.axonia.identity.api.spi.SignInObserver;
+import dev.axonia.identity.api.spi.SignInProviderResolver;
+import dev.axonia.identity.api.spi.SuccessionAddresses;
+import dev.axonia.organization.api.OrganizationKind;
+import dev.axonia.organization.api.OrganizationRegistry;
+import dev.axonia.organization.api.Organizations;
+import dev.axonia.shared.api.paid.PaidAction;
+import dev.axonia.shared.api.paid.PaidCapability;
+import dev.axonia.shared.api.security.CurrentToken;
+import dev.axonia.shared.api.tenancy.OrganizationScope;
 
 /**
  * One bean per open port that only closed code implements, each answering what the Cloud adapter answers for fixtures
@@ -113,7 +117,7 @@ public class ClosedPortStandIns {
     }
 
     @Bean
-    OrganizationCardLookSource organizationCardLookSourceStandIn(OrganizationService organizationService) {
+    OrganizationCardLookSource organizationCardLookSourceStandIn(OrganizationRegistry organizationService) {
 
         return new OrganizationCardLookSource() {
 

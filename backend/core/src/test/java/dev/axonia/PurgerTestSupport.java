@@ -5,20 +5,21 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 
-import dev.axonia.access.internal.AccessDataPurger;
-import dev.axonia.agent.internal.AgentDataPurger;
-import dev.axonia.bookmarks.internal.BookmarksDataPurger;
-import dev.axonia.communication.internal.CommunicationDataPurger;
-import dev.axonia.community.internal.CommunityDataPurger;
-import dev.axonia.events.internal.EventsDataPurger;
-import dev.axonia.expertise.internal.ExpertiseDataPurger;
-import dev.axonia.identity.internal.IdentityDataPurger;
-import dev.axonia.knowledge.internal.KnowledgeDataPurger;
-import dev.axonia.learning.internal.LearningDataPurger;
-import dev.axonia.media.MediaStorage;
-import dev.axonia.recognition.internal.ReactionImages;
-import dev.axonia.recognition.internal.RecognitionDataPurger;
-import dev.axonia.roundup.internal.RoundupDataPurger;
+import dev.axonia.access.adapter.out.privacy.AccessDataPurger;
+import dev.axonia.agent.adapter.out.privacy.AgentDataPurger;
+import dev.axonia.bookmarks.adapter.out.privacy.BookmarksDataPurger;
+import dev.axonia.communication.adapter.out.privacy.CommunicationDataPurger;
+import dev.axonia.community.adapter.out.privacy.CommunityDataPurger;
+import dev.axonia.events.adapter.out.privacy.EventsDataPurger;
+import dev.axonia.expertise.adapter.out.privacy.ExpertiseDataPurger;
+import dev.axonia.identity.adapter.out.privacy.IdentityDataPurger;
+import dev.axonia.knowledge.adapter.out.privacy.KnowledgeDataPurger;
+import dev.axonia.learning.adapter.out.privacy.LearningDataPurger;
+import dev.axonia.media.api.MediaStorage;
+import dev.axonia.recognition.adapter.out.privacy.RecognitionDataPurger;
+import dev.axonia.recognition.application.ReactionImages;
+import dev.axonia.roundup.adapter.out.privacy.RoundupDataPurger;
+import dev.axonia.shared.api.personaldata.OrganizationDataPurger;
 
 import static org.mockito.Mockito.mock;
 

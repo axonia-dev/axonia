@@ -10,6 +10,8 @@ import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 
+import dev.axonia.shared.api.error.NotFoundException;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -40,11 +42,12 @@ class NotFoundSwallowGuardTest {
      * The sites that predate the rule, each an ordinary read that will 500 the moment its row is deleted. Shrink this
      * list; never grow it. Owed as of 2026-09-18 - every entry needs the same treatment the expertise ones got.
      */
-    private static final Set<String> KNOWN_UNFIXED = Set.of("dev/axonia/bookmarks/internal/CommunityAccessAdapter.java",
-            "dev/axonia/recognition/internal/CommunityAccessAdapter.java",
-            "dev/axonia/events/internal/ChatDestinationsAdapter.java",
-            "dev/axonia/events/internal/MessageSubjectPolicyAdapter.java",
-            "dev/axonia/onboarding/internal/MembershipStandingAdapter.java");
+    private static final Set<String> KNOWN_UNFIXED = Set.of(
+            "dev/axonia/bookmarks/adapter/out/community/CommunityAccessAdapter.java",
+            "dev/axonia/recognition/adapter/out/community/CommunityAccessAdapter.java",
+            "dev/axonia/events/adapter/out/communication/ChatDestinationsAdapter.java",
+            "dev/axonia/events/adapter/out/communication/MessageSubjectPolicyAdapter.java",
+            "dev/axonia/onboarding/adapter/out/community/MembershipStandingAdapter.java");
 
     private static final Path MAIN = Path.of("src/main/java");
 

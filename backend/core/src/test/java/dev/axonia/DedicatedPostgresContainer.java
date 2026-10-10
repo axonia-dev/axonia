@@ -15,6 +15,15 @@ public final class DedicatedPostgresContainer extends PostgreSQLContainer {
 
     private static final int HOST_CONNECTION_TIMEOUT_SECONDS = 30;
 
+    /**
+     * Bounds every wait on the server. A colima port forward can accept the connection and then never answer, and with
+     * no timeout the driver would block on that read for good, hanging the whole fork. The socket bound sits far above
+     * the slowest statement a test runs on purpose.
+     */
+    static final String LOGIN_TIMEOUT_SECONDS = "30";
+
+    static final String SOCKET_TIMEOUT_SECONDS = "300";
+
     public DedicatedPostgresContainer() {
         this(OLDEST_SUPPORTED);
     }
@@ -22,6 +31,8 @@ public final class DedicatedPostgresContainer extends PostgreSQLContainer {
     public DedicatedPostgresContainer(String image) {
         super(image);
         withConnectTimeoutSeconds(HOST_CONNECTION_TIMEOUT_SECONDS);
+        withUrlParam("loginTimeout", LOGIN_TIMEOUT_SECONDS);
+        withUrlParam("socketTimeout", SOCKET_TIMEOUT_SECONDS);
     }
 
     @Override

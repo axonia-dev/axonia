@@ -13,7 +13,7 @@
 		forged request could ride. Narrowly scoped to this one class so any future CSRF misuse elsewhere is still caught.
 	-->
 	<Match>
-		<Class name="dev.axonia.config.SecurityConfig"/>
+		<Class name="dev.axonia.shared.configuration.SecurityConfig"/>
 		<Bug pattern="SPRING_CSRF_PROTECTION_DISABLED"/>
 	</Match>
 	<!--
@@ -31,11 +31,11 @@
 		the dependency-injection pattern, not a real exposure. Narrowly scoped to this one class and bug pattern.
 	-->
 	<Match>
-		<Class name="dev.axonia.config.ClusteredTaskRegistrar"/>
+		<Class name="dev.axonia.shared.adapter.in.schedule.ClusteredTaskRegistrar"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.community.CommunityKindController"/>
+		<Class name="dev.axonia.community.adapter.in.web.CommunityKindController"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -46,7 +46,7 @@
 		pattern, not a real exposure. Narrowly scoped to this one class and bug pattern.
 	-->
 	<Match>
-		<Class name="dev.axonia.events.TopicController"/>
+		<Class name="dev.axonia.events.adapter.in.web.TopicController"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -58,7 +58,7 @@
 		to this one class and bug pattern.
 	-->
 	<Match>
-		<Class name="dev.axonia.events.TopicService"/>
+		<Class name="dev.axonia.events.application.TopicService"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -69,23 +69,23 @@
 		Series. The builder itself is transient and never shared. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.events.Series$SeriesBuilder"/>
+		<Class name="dev.axonia.events.domain.Series$SeriesBuilder"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
 		SeriesEntity is a Spring Data JDBC aggregate root whose ordered defaultStructure
 		is a @MappedCollection list the framework must read and write directly, so the
 		Lombok-generated getter/builder cannot defensively copy it (unlike the Series
-		record, which does). The entity lives in internal/ and is never handed to callers
+		record, which does). The entity lives in adapter/out/persistence/ and is never handed to callers
 		outside the module. Narrowly scoped to the getter (EI_EXPOSE_REP) and the
 		Lombok @Builder setter (EI_EXPOSE_REP2).
 	-->
 	<Match>
-		<Class name="dev.axonia.events.internal.SeriesEntity"/>
+		<Class name="dev.axonia.events.adapter.out.persistence.SeriesEntity"/>
 		<Bug pattern="EI_EXPOSE_REP"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.events.internal.SeriesEntity$SeriesEntityBuilder"/>
+		<Class name="dev.axonia.events.adapter.out.persistence.SeriesEntity$SeriesEntityBuilder"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -94,7 +94,7 @@
 		other controllers above. Standard Spring DI, not a real exposure. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.events.SessionController"/>
+		<Class name="dev.axonia.events.adapter.in.web.SessionController"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -103,7 +103,7 @@
 		above. Standard Spring DI, not a real exposure. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.events.SlotController"/>
+		<Class name="dev.axonia.events.adapter.in.web.SlotController"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -114,7 +114,7 @@
 		service is the standard DI pattern, not a real exposure. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.knowledge.ArtifactTypeController"/>
+		<Class name="dev.axonia.knowledge.adapter.in.web.ArtifactTypeController"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -125,7 +125,7 @@
 		standard DI pattern, not a real exposure. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.knowledge.ArtifactController"/>
+		<Class name="dev.axonia.knowledge.adapter.in.web.ArtifactController"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -135,15 +135,15 @@
 		The Lombok builder setter is transient and never shared. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.knowledge.Artifact"/>
+		<Class name="dev.axonia.knowledge.api.Artifact"/>
 		<Bug pattern="EI_EXPOSE_REP"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.knowledge.Artifact"/>
+		<Class name="dev.axonia.knowledge.api.Artifact"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.knowledge.Artifact$ArtifactBuilder"/>
+		<Class name="dev.axonia.knowledge.api.Artifact$ArtifactBuilder"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -153,33 +153,33 @@
 		set of tag strings carries no sensitive mutable state. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.knowledge.CreateArtifactRequest"/>
+		<Class name="dev.axonia.knowledge.api.CreateArtifactRequest"/>
 		<Bug pattern="EI_EXPOSE_REP"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.knowledge.CreateArtifactRequest"/>
+		<Class name="dev.axonia.knowledge.api.CreateArtifactRequest"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.knowledge.UpdateArtifactRequest"/>
+		<Class name="dev.axonia.knowledge.application.UpdateArtifactRequest"/>
 		<Bug pattern="EI_EXPOSE_REP"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.knowledge.UpdateArtifactRequest"/>
+		<Class name="dev.axonia.knowledge.application.UpdateArtifactRequest"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
 		ArtifactEntity is a Spring Data JDBC aggregate whose tags (@MappedCollection
 		Set<String>) the framework must read and write directly, so the Lombok
 		getter/builder cannot defensively copy them (same case as SeriesEntity/
-		SessionEntity above). The entity lives in internal/. Narrowly scoped.
+		SessionEntity above). The entity lives in adapter/out/persistence/. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.knowledge.internal.ArtifactEntity"/>
+		<Class name="dev.axonia.knowledge.adapter.out.persistence.ArtifactEntity"/>
 		<Bug pattern="EI_EXPOSE_REP"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.knowledge.internal.ArtifactEntity$ArtifactEntityBuilder"/>
+		<Class name="dev.axonia.knowledge.adapter.out.persistence.ArtifactEntity$ArtifactEntityBuilder"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -187,11 +187,11 @@
 		the compact constructor copies it with List.copyOf, so nothing mutable escapes. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.installation.internal.MailServerChangeView"/>
+		<Class name="dev.axonia.installation.application.MailServerChangeView"/>
 		<Bug pattern="EI_EXPOSE_REP"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.installation.internal.MailServerChangeView"/>
+		<Class name="dev.axonia.installation.application.MailServerChangeView"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -201,46 +201,46 @@
 		Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.events.Session$SessionBuilder"/>
+		<Class name="dev.axonia.events.api.Session$SessionBuilder"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.events.Section$SectionBuilder"/>
+		<Class name="dev.axonia.events.api.Section$SectionBuilder"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.events.Slot$SlotBuilder"/>
+		<Class name="dev.axonia.events.api.Slot$SlotBuilder"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
 		SessionEntity/SectionEntity/SlotEntity are Spring Data JDBC aggregate members whose
 		@MappedCollection children (sections / slots / presenters) the framework must read
 		and write directly, so the Lombok getter/builder cannot defensively copy them (same
-		case as SeriesEntity above). They live in internal/. Narrowly scoped to the getter
+		case as SeriesEntity above). They live in adapter/out/persistence/. Narrowly scoped to the getter
 		(EI_EXPOSE_REP) and the @Builder setter (EI_EXPOSE_REP2).
 	-->
 	<Match>
-		<Class name="dev.axonia.events.internal.SessionEntity"/>
+		<Class name="dev.axonia.events.adapter.out.persistence.SessionEntity"/>
 		<Bug pattern="EI_EXPOSE_REP"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.events.internal.SessionEntity$SessionEntityBuilder"/>
+		<Class name="dev.axonia.events.adapter.out.persistence.SessionEntity$SessionEntityBuilder"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.events.internal.SectionEntity"/>
+		<Class name="dev.axonia.events.adapter.out.persistence.SectionEntity"/>
 		<Bug pattern="EI_EXPOSE_REP"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.events.internal.SectionEntity$SectionEntityBuilder"/>
+		<Class name="dev.axonia.events.adapter.out.persistence.SectionEntity$SectionEntityBuilder"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.events.internal.SlotEntity"/>
+		<Class name="dev.axonia.events.adapter.out.persistence.SlotEntity"/>
 		<Bug pattern="EI_EXPOSE_REP"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.events.internal.SlotEntity$SlotEntityBuilder"/>
+		<Class name="dev.axonia.events.adapter.out.persistence.SlotEntity$SlotEntityBuilder"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -251,7 +251,7 @@
 		Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.recognition.RecognizedContribution$RecognizedContributionBuilder"/>
+		<Class name="dev.axonia.recognition.application.RecognizedContribution$RecognizedContributionBuilder"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -261,11 +261,11 @@
 		Artifact / Role read-model records above. Convention is exclusion over List.copyOf. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.recognition.ContributionSource"/>
+		<Class name="dev.axonia.recognition.api.ContributionSource"/>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.recognition.ContributionSource$ContributionSourceBuilder"/>
+		<Class name="dev.axonia.recognition.api.ContributionSource$ContributionSourceBuilder"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -275,7 +275,7 @@
 		and never shared. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.events.ScheduleEntry$ScheduleEntryBuilder"/>
+		<Class name="dev.axonia.events.api.ScheduleEntry$ScheduleEntryBuilder"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -286,7 +286,7 @@
 		DI pattern, not a real exposure. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.community.CommunityController"/>
+		<Class name="dev.axonia.community.adapter.in.web.CommunityController"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -296,7 +296,7 @@
 		exposure. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.community.LookAndFeelService"/>
+		<Class name="dev.axonia.community.application.LookAndFeelService"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -307,7 +307,7 @@
 		caller mutates the bytes after construction. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.media.ImageUpload"/>
+		<Class name="dev.axonia.media.api.ImageUpload"/>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -318,7 +318,7 @@
 		pattern, not a real exposure. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.access.AccessController"/>
+		<Class name="dev.axonia.access.adapter.in.web.AccessController"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -328,30 +328,30 @@
 		The Lombok builder setter is transient and never shared. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.access.Role"/>
+		<Class name="dev.axonia.access.application.Role"/>
 		<Bug pattern="EI_EXPOSE_REP"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.access.Role"/>
+		<Class name="dev.axonia.access.application.Role"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.access.Role$RoleBuilder"/>
+		<Class name="dev.axonia.access.application.Role$RoleBuilder"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
 		RoleEntity is a Spring Data JDBC aggregate root whose permissions
 		(@MappedCollection Set<RolePermissionEntity>) the framework must read and write
 		directly, so the Lombok-generated getter/builder cannot defensively copy them (same
-		case as SeriesEntity/SessionEntity above). The entity lives in internal/ and is never
+		case as SeriesEntity/SessionEntity above). The entity lives in adapter/out/persistence/ and is never
 		handed to callers outside the module. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.access.internal.RoleEntity"/>
+		<Class name="dev.axonia.access.adapter.out.persistence.RoleEntity"/>
 		<Bug pattern="EI_EXPOSE_REP"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.access.internal.RoleEntity$RoleEntityBuilder"/>
+		<Class name="dev.axonia.access.adapter.out.persistence.RoleEntity$RoleEntityBuilder"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -362,15 +362,15 @@
 		never shared. Same case as the Role / Artifact read-model records above. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.access.AdminUser"/>
+		<Class name="dev.axonia.access.application.AdminUser"/>
 		<Bug pattern="EI_EXPOSE_REP"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.access.AdminUser"/>
+		<Class name="dev.axonia.access.application.AdminUser"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.access.AdminUser$AdminUserBuilder"/>
+		<Class name="dev.axonia.access.application.AdminUser$AdminUserBuilder"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -381,7 +381,7 @@
 		of Spring-managed singletons is the standard DI pattern, not a real exposure. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.access.AdminUserController"/>
+		<Class name="dev.axonia.access.adapter.in.web.AdminUserController"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -391,17 +391,7 @@
 		construction time - callers cannot mutate the original. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.access.IdpGroupView"/>
-		<Bug pattern="EI_EXPOSE_REP"/>
-	</Match>
-	<!--
-		IdpGroupsResponse record trips EI_EXPOSE_REP on the groups (List<IdpGroupView>) accessor
-		for the same reason as IdpGroupView above: the compact constructor makes a List.copyOf(),
-		so callers cannot mutate the original, but SpotBugs still flags the getter returning the
-		field reference. Narrowly scoped.
-	-->
-	<Match>
-		<Class name="dev.axonia.access.IdpGroupsResponse"/>
+		<Class name="dev.axonia.access.application.IdpGroupView"/>
 		<Bug pattern="EI_EXPOSE_REP"/>
 	</Match>
 	<!--
@@ -411,7 +401,7 @@
 		getter returning the field reference. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.identity.IdentityProviderDirectory$DirectoryListing"/>
+		<Class name="dev.axonia.identity.api.IdentityProviderDirectory$DirectoryListing"/>
 		<Bug pattern="EI_EXPOSE_REP"/>
 	</Match>
 	<!--
@@ -422,7 +412,7 @@
 		Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.access.GroupBindingService"/>
+		<Class name="dev.axonia.access.application.GroupBindingService"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -432,7 +422,7 @@
 		exposure. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.access.IdpGroupController"/>
+		<Class name="dev.axonia.access.adapter.in.web.IdpGroupController"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -443,7 +433,7 @@
 		Spring-managed singleton service is the standard DI pattern, not a real exposure. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.organization.OrganizationAdminController"/>
+		<Class name="dev.axonia.organization.adapter.in.web.OrganizationAdminController"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -453,7 +443,7 @@
 		exposure. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.organization.OrganizationAdminService"/>
+		<Class name="dev.axonia.organization.application.OrganizationAdminService"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -465,43 +455,43 @@
 		Same justification as Artifact / CreateArtifactRequest above. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.identity.scim.ScimUser"/>
+		<Class name="dev.axonia.identity.application.scim.ScimUser"/>
 		<Bug pattern="EI_EXPOSE_REP"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.identity.scim.ScimUser"/>
+		<Class name="dev.axonia.identity.application.scim.ScimUser"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.identity.scim.ScimGroup"/>
+		<Class name="dev.axonia.identity.application.scim.ScimGroup"/>
 		<Bug pattern="EI_EXPOSE_REP"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.identity.scim.ScimGroup"/>
+		<Class name="dev.axonia.identity.application.scim.ScimGroup"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.identity.scim.ScimListResponse"/>
+		<Class name="dev.axonia.identity.application.scim.ScimListResponse"/>
 		<Bug pattern="EI_EXPOSE_REP"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.identity.scim.ScimListResponse"/>
+		<Class name="dev.axonia.identity.application.scim.ScimListResponse"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.identity.scim.ScimPatchRequest"/>
+		<Class name="dev.axonia.identity.application.scim.ScimPatchRequest"/>
 		<Bug pattern="EI_EXPOSE_REP"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.identity.scim.ScimPatchRequest"/>
+		<Class name="dev.axonia.identity.application.scim.ScimPatchRequest"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.identity.scim.ScimError"/>
+		<Class name="dev.axonia.identity.adapter.in.scim.ScimError"/>
 		<Bug pattern="EI_EXPOSE_REP"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.identity.scim.ScimError"/>
+		<Class name="dev.axonia.identity.adapter.in.scim.ScimError"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -511,7 +501,7 @@
 		to this one class and bug pattern.
 	-->
 	<Match>
-		<Class name="dev.axonia.identity.scim.ScimSecurityConfig"/>
+		<Class name="dev.axonia.identity.configuration.ScimSecurityConfig"/>
 		<Bug pattern="SPRING_CSRF_PROTECTION_DISABLED"/>
 	</Match>
 	<!--
@@ -522,7 +512,7 @@
 		Narrowly scoped to this one class and bug pattern.
 	-->
 	<Match>
-		<Class name="dev.axonia.identity.scim.ScimAuthenticationToken"/>
+		<Class name="dev.axonia.identity.adapter.in.scim.ScimAuthenticationToken"/>
 		<Bug pattern="SE_BAD_FIELD"/>
 	</Match>
 	<!--
@@ -532,7 +522,7 @@
 		Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.identity.UserService"/>
+		<Class name="dev.axonia.identity.application.UserService"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -542,15 +532,15 @@
 		is the standard DI pattern, not a real exposure. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.identity.scim.ScimUserService"/>
+		<Class name="dev.axonia.identity.application.scim.ScimUserService"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.identity.scim.ScimGroupService"/>
+		<Class name="dev.axonia.identity.application.scim.ScimGroupService"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.identity.scim.ScimTokenAuthenticationFilter"/>
+		<Class name="dev.axonia.identity.adapter.in.scim.ScimTokenAuthenticationFilter"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -559,16 +549,35 @@
 		of a Spring-managed singleton is the standard DI pattern, not a real exposure. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.identity.scim.ScimTokenAdminController"/>
+		<Class name="dev.axonia.identity.adapter.in.scim.ScimTokenAdminController"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
 		ScimTokenAdminService trips EI_EXPOSE_REP2 (storing the injected ScimTokens / ScimTokenGate
-		/ ScimTokenRepository into fields) for the same inconsistency. Constructor injection of
+		/ ScimTokenStore into fields) for the same inconsistency. Constructor injection of
 		Spring-managed singletons is the standard DI pattern, not a real exposure. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.identity.scim.ScimTokenAdminService"/>
+		<Class name="dev.axonia.identity.application.scim.ScimTokenAdminService"/>
+		<Bug pattern="EI_EXPOSE_REP2"/>
+	</Match>
+	<!--
+		UserProvisioningFilter, EntraPhotoSource and GraphGroups became public when they left identity's
+		internal package for their hexagonal layers (a configuration class and a test helper construct
+		them), so SpotBugs now reports their constructor-injected Spring singletons (UserService, the
+		Graph RestClient) as EI_EXPOSE_REP2. Constructor injection is the standard DI pattern, not a real
+		exposure. Narrowly scoped.
+	-->
+	<Match>
+		<Class name="dev.axonia.identity.adapter.in.web.UserProvisioningFilter"/>
+		<Bug pattern="EI_EXPOSE_REP2"/>
+	</Match>
+	<Match>
+		<Class name="dev.axonia.identity.adapter.out.entra.EntraPhotoSource"/>
+		<Bug pattern="EI_EXPOSE_REP2"/>
+	</Match>
+	<Match>
+		<Class name="dev.axonia.identity.adapter.out.entra.GraphGroups"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -589,139 +598,130 @@
 		- knowledge.ArtifactContributed: event record with tags (List<String>).
 		- expertise.Evidence / ExpertiseArea / SelfView / SelfArea / AreaEvidencePage: read-model
 		  records with List components (SelfArea.communities, AreaEvidencePage.items).
-		- expertise.internal.ExpertiseQueryRepository$UserSignals: internal grouping record.
 	-->
 	<Match>
-		<Class name="dev.axonia.events.Topic"/>
+		<Class name="dev.axonia.events.api.Topic"/>
 		<Bug pattern="EI_EXPOSE_REP"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.events.Topic"/>
+		<Class name="dev.axonia.events.api.Topic"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.events.TopicTagsChanged"/>
+		<Class name="dev.axonia.events.api.TopicTagsChanged"/>
 		<Bug pattern="EI_EXPOSE_REP"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.events.TopicTagsChanged"/>
+		<Class name="dev.axonia.events.api.TopicTagsChanged"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.events.SlotPresented"/>
+		<Class name="dev.axonia.events.api.SlotPresented"/>
 		<Bug pattern="EI_EXPOSE_REP"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.events.SlotPresented"/>
+		<Class name="dev.axonia.events.api.SlotPresented"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.events.ActionItemClosed"/>
+		<Class name="dev.axonia.events.api.ActionItemClosed"/>
 		<Bug pattern="EI_EXPOSE_REP"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.events.ActionItemClosed"/>
+		<Class name="dev.axonia.events.api.ActionItemClosed"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.events.ProposeTopicRequest"/>
+		<Class name="dev.axonia.events.api.ProposeTopicRequest"/>
 		<Bug pattern="EI_EXPOSE_REP"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.events.ProposeTopicRequest"/>
+		<Class name="dev.axonia.events.api.ProposeTopicRequest"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.events.UpdateTopicRequest"/>
+		<Class name="dev.axonia.events.application.UpdateTopicRequest"/>
 		<Bug pattern="EI_EXPOSE_REP"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.events.UpdateTopicRequest"/>
+		<Class name="dev.axonia.events.application.UpdateTopicRequest"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.events.ActionItem"/>
+		<Class name="dev.axonia.events.api.ActionItem"/>
 		<Bug pattern="EI_EXPOSE_REP"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.events.ActionItem"/>
+		<Class name="dev.axonia.events.api.ActionItem"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.events.RaiseActionItemRequest"/>
+		<Class name="dev.axonia.events.api.RaiseActionItemRequest"/>
 		<Bug pattern="EI_EXPOSE_REP"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.events.RaiseActionItemRequest"/>
+		<Class name="dev.axonia.events.api.RaiseActionItemRequest"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.events.UpdateActionItemRequest"/>
+		<Class name="dev.axonia.events.application.UpdateActionItemRequest"/>
 		<Bug pattern="EI_EXPOSE_REP"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.events.UpdateActionItemRequest"/>
+		<Class name="dev.axonia.events.application.UpdateActionItemRequest"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.knowledge.ArtifactContributed"/>
+		<Class name="dev.axonia.knowledge.api.ArtifactContributed"/>
 		<Bug pattern="EI_EXPOSE_REP"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.knowledge.ArtifactContributed"/>
+		<Class name="dev.axonia.knowledge.api.ArtifactContributed"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.expertise.Evidence"/>
+		<Class name="dev.axonia.expertise.domain.Evidence"/>
 		<Bug pattern="EI_EXPOSE_REP"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.expertise.Evidence"/>
+		<Class name="dev.axonia.expertise.domain.Evidence"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.expertise.ExpertiseArea"/>
+		<Class name="dev.axonia.expertise.domain.ExpertiseArea"/>
 		<Bug pattern="EI_EXPOSE_REP"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.expertise.ExpertiseArea"/>
+		<Class name="dev.axonia.expertise.domain.ExpertiseArea"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.expertise.SelfArea"/>
+		<Class name="dev.axonia.expertise.application.SelfArea"/>
 		<Bug pattern="EI_EXPOSE_REP"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.expertise.SelfArea"/>
+		<Class name="dev.axonia.expertise.application.SelfArea"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.expertise.AreaEvidencePage"/>
+		<Class name="dev.axonia.expertise.application.AreaEvidencePage"/>
 		<Bug pattern="EI_EXPOSE_REP"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.expertise.AreaEvidencePage"/>
+		<Class name="dev.axonia.expertise.application.AreaEvidencePage"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.expertise.SelfView"/>
+		<Class name="dev.axonia.expertise.application.SelfView"/>
 		<Bug pattern="EI_EXPOSE_REP"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.expertise.SelfView"/>
-		<Bug pattern="EI_EXPOSE_REP2"/>
-	</Match>
-	<Match>
-		<Class name="dev.axonia.expertise.internal.ExpertiseQueryRepository$UserSignals"/>
-		<Bug pattern="EI_EXPOSE_REP"/>
-	</Match>
-	<Match>
-		<Class name="dev.axonia.expertise.internal.ExpertiseQueryRepository$UserSignals"/>
+		<Class name="dev.axonia.expertise.application.SelfView"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<!-- Read-only projection records handed straight to Jackson; the lists are never mutated after construction. -->
 	<Match>
-		<Class name="dev.axonia.expertise.TopicMap"/>
+		<Class name="dev.axonia.expertise.domain.TopicMap"/>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -729,7 +729,7 @@
 		to Jackson and discarded. Same justification, same convention (exclusion over List.copyOf).
 	-->
 	<Match>
-		<Class name="dev.axonia.expertise.MapContributions"/>
+		<Class name="dev.axonia.expertise.application.MapContributions"/>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -738,45 +738,45 @@
 		be pure overhead. Narrowly scoped to this one record and the expose patterns.
 	-->
 	<Match>
-		<Class name="dev.axonia.identity.internal.AvatarPhoto"/>
+		<Class name="dev.axonia.identity.domain.AvatarPhoto"/>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
 		Personal access token port records intentionally expose their scope Set (immutable value carriers).
 	-->
 	<Match>
-		<Class name="dev.axonia.identity.pat.PersonalTokenPrincipal"/>
+		<Class name="dev.axonia.identity.api.pat.PersonalTokenPrincipal"/>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.identity.pat.PersonalTokenSummary"/>
+		<Class name="dev.axonia.identity.api.pat.PersonalTokenSummary"/>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.identity.pat.MintPersonalAccessToken"/>
+		<Class name="dev.axonia.identity.api.pat.MintPersonalAccessToken"/>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.identity.pat.UpdatePersonalAccessToken"/>
+		<Class name="dev.axonia.identity.api.pat.UpdatePersonalAccessToken"/>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
 		MCP connection port records expose their scope Set (immutable value carriers), as the identity.pat ones do.
 	-->
 	<Match>
-		<Class name="dev.axonia.identity.connection.AuthorizeConnection"/>
+		<Class name="dev.axonia.identity.api.connection.AuthorizeConnection"/>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.identity.connection.IssuedTokens"/>
+		<Class name="dev.axonia.identity.api.connection.IssuedTokens"/>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.identity.connection.ConnectionPrincipal"/>
+		<Class name="dev.axonia.identity.api.connection.ConnectionPrincipal"/>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.identity.connection.ConnectionSummary"/>
+		<Class name="dev.axonia.identity.api.connection.ConnectionSummary"/>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -784,11 +784,11 @@
 		(immutable value carrier), same as the pat port records above.
 	-->
 	<Match>
-		<Class name="dev.axonia.agent.PersonalTokenController$CreateTokenRequest"/>
+		<Class name="dev.axonia.agent.adapter.in.web.PersonalTokenController$CreateTokenRequest"/>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.agent.PersonalTokenController$UpdateTokenRequest"/>
+		<Class name="dev.axonia.agent.adapter.in.web.PersonalTokenController$UpdateTokenRequest"/>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -799,7 +799,7 @@
 		and the dev-stub SecurityConfig above. Narrowly scoped to this one class and bug pattern.
 	-->
 	<Match>
-		<Class name="dev.axonia.agent.internal.AgentSecurityConfig"/>
+		<Class name="dev.axonia.agent.configuration.AgentSecurityConfig"/>
 		<Bug pattern="SPRING_CSRF_PROTECTION_DISABLED"/>
 	</Match>
 	<!--
@@ -812,31 +812,31 @@
 		justification - convention is exclusion over defensive copy. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.agent.internal.ReadTools$SessionView"/>
+		<Class name="dev.axonia.agent.adapter.in.mcp.ReadTools$SessionView"/>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.agent.internal.ReadTools$SectionView"/>
+		<Class name="dev.axonia.agent.adapter.in.mcp.ReadTools$SectionView"/>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.agent.internal.WriteTools$ContributeParams"/>
+		<Class name="dev.axonia.agent.adapter.in.mcp.WriteTools$ContributeParams"/>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.agent.internal.WriteTools$ProposeTopicParams"/>
+		<Class name="dev.axonia.agent.adapter.in.mcp.WriteTools$ProposeTopicParams"/>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.agent.internal.ReadTools$ArtifactView"/>
+		<Class name="dev.axonia.agent.adapter.in.mcp.ReadTools$ArtifactView"/>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.agent.internal.WriteTools$AddSlotParams"/>
+		<Class name="dev.axonia.agent.adapter.in.mcp.WriteTools$AddSlotParams"/>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.agent.internal.WriteTools$RecordedSlotView"/>
+		<Class name="dev.axonia.agent.adapter.in.mcp.WriteTools$RecordedSlotView"/>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 
@@ -849,19 +849,19 @@
 	-->
 	<Match>
 		<Or>
-			<Class name="dev.axonia.events.PresenterResolution"/>
-			<Class name="dev.axonia.events.RecordSlotRequest"/>
+			<Class name="dev.axonia.events.api.PresenterResolution"/>
+			<Class name="dev.axonia.events.api.RecordSlotRequest"/>
 		</Or>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 
 	<!--
-		ResolvedPresenters (dev.axonia.events.internal) is PresenterResolver's return value: the resolved user ids
+		ResolvedPresenters (dev.axonia.events.domain) is PresenterResolver's return value: the resolved user ids
 		alongside the PresenterResolution report. Same List-carrying value-carrier shape as PresenterResolution
 		above, already defensively copied in its compact constructor.
 	-->
 	<Match>
-		<Class name="dev.axonia.events.internal.ResolvedPresenters"/>
+		<Class name="dev.axonia.events.domain.ResolvedPresenters"/>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 
@@ -874,14 +874,14 @@
 	-->
 	<Match>
 		<Or>
-			<Class name="dev.axonia.events.AddSlotRequest"/>
-			<Class name="dev.axonia.events.EditSlotRequest"/>
+			<Class name="dev.axonia.events.application.AddSlotRequest"/>
+			<Class name="dev.axonia.events.application.EditSlotRequest"/>
 		</Or>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 
 	<!--
-		UserSearch (dev.axonia.identity.internal) carries a Collection component: the user ids a directory search is
+		UserSearch (dev.axonia.identity.domain) carries a Collection component: the user ids a directory search is
 		narrowed to. It trips EI_EXPOSE_REP (accessor returning the collection) / EI_EXPOSE_REP2 (canonical
 		constructor storing it). It is a short-lived parameter object, built at one call site and consumed
 		immediately by UserSearchRepositoryImpl to bind an IN clause; it is never retained. A defensive copy would
@@ -889,7 +889,7 @@
 		value-carrier records above: convention is exclusion, not defensive copy. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.identity.internal.UserSearch"/>
+		<Class name="dev.axonia.identity.domain.UserSearch"/>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -903,19 +903,19 @@
 	-->
 	<Match>
 		<Or>
-			<Class name="dev.axonia.agent.internal.AgentAuthenticationFilter"/>
-			<Class name="dev.axonia.config.SecurityConfig"/>
-			<Class name="dev.axonia.identity.scim.ScimTokenAuthenticationFilter"/>
-			<Class name="dev.axonia.organization.internal.OrganizationLifecycleFilter"/>
+			<Class name="dev.axonia.agent.adapter.in.security.AgentAuthenticationFilter"/>
+			<Class name="dev.axonia.shared.configuration.SecurityConfig"/>
+			<Class name="dev.axonia.identity.adapter.in.scim.ScimTokenAuthenticationFilter"/>
+			<Class name="dev.axonia.organization.adapter.in.web.OrganizationLifecycleFilter"/>
 		</Or>
 		<Bug pattern="XSS_SERVLET"/>
 	</Match>
 	<Match>
-		<Class name="~dev\.axonia\.(TableFootprint|ExportFragment)"/>
+		<Class name="~dev\.axonia\.shared\.api\.personaldata\.(TableFootprint|ExportFragment)"/>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
-		ExportPackageWriter$PlannedEntry$Json (dev.axonia.privacy.internal) carries a bytes (byte[])
+		ExportPackageWriter$PlannedEntry$Json (dev.axonia.privacy.application) carries a bytes (byte[])
 		component: one fragment's or the manifest's already-serialized JSON, built once by the writer
 		itself and written straight into the ZIP entry that turns around and consumes it. Same
 		build-once-consume-once shape as ExportFragment above; convention is exclusion, not a
@@ -923,7 +923,7 @@
 		record.
 	-->
 	<Match>
-		<Class name="dev.axonia.privacy.internal.ExportPackageWriter$PlannedEntry$Json"/>
+		<Class name="dev.axonia.privacy.application.ExportPackageWriter$PlannedEntry$Json"/>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -933,7 +933,7 @@
 		not List.copyOf. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.privacy.ErasurePreflight"/>
+		<Class name="dev.axonia.privacy.application.ErasurePreflight"/>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -946,18 +946,18 @@
 		record RateLimiters superseded. Narrowly scoped to this one class.
 	-->
 	<Match>
-		<Class name="dev.axonia.RateLimiters"/>
+		<Class name="dev.axonia.shared.api.ratelimit.RateLimiters"/>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
-		AvatarProperties (dev.axonia.identity.internal) is a @ConfigurationProperties record binding the
+		AvatarProperties (dev.axonia.identity.configuration) is a @ConfigurationProperties record binding the
 		static, small allowedHosts (List<String>) that avatar bytes may be fetched from. It is bound once
 		at startup from application config, never from caller input, and read-only for the process
 		lifetime. Same case as the other read-model records above: convention is exclusion, not
 		List.copyOf. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.identity.internal.AvatarProperties"/>
+		<Class name="dev.axonia.identity.configuration.AvatarProperties"/>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -967,7 +967,7 @@
 		lifetime. Same case as AvatarProperties above: convention is exclusion, not List.copyOf. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.selfhosted.SelfHostedProperties$Oidc"/>
+		<Class name="dev.axonia.selfhosted.configuration.SelfHostedProperties$Oidc"/>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -979,7 +979,7 @@
 		slower. Narrowly scoped to this one class and bug pattern.
 	-->
 	<Match>
-		<Class name="dev.axonia.identity.internal.AvatarSyncService"/>
+		<Class name="dev.axonia.identity.application.AvatarSyncService"/>
 		<Bug pattern="UNSAFE_HASH_EQUALS"/>
 	</Match>
 	<!--
@@ -991,15 +991,15 @@
 		List.copyOf/Map.copyOf. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.communication.OutboundMessage"/>
+		<Class name="dev.axonia.communication.api.OutboundMessage"/>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.communication.OutboundMessage$OutboundMessageBuilder"/>
+		<Class name="dev.axonia.communication.api.OutboundMessage$OutboundMessageBuilder"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
-		SessionFactsContext (dev.axonia.events.internal) carries displayNamesByUserId
+		SessionFactsContext (dev.axonia.events.domain) carries displayNamesByUserId
 		(Map<String,String>), resourcesBySlotId (Map<Long,List<ResourceLink>>), sessionResources
 		(List<ResourceLink>) and actionPoints (List<ActionPointSource>): everything SessionFacts.of
 		needs but a bare Session cannot supply, resolved once per session by the producer that
@@ -1008,7 +1008,7 @@
 		Map.copyOf/List.copyOf. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.events.internal.SessionFactsContext"/>
+		<Class name="dev.axonia.events.domain.SessionFactsContext"/>
 		<Bug pattern="EI_EXPOSE_REP"/>
 	</Match>
 	<!--
@@ -1021,7 +1021,7 @@
 		Map.copyOf/List.copyOf. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.events.SessionResources"/>
+		<Class name="dev.axonia.events.api.SessionResources"/>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -1032,11 +1032,11 @@
 		exclusion, not Map.copyOf. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.communication.RenderRequest"/>
+		<Class name="dev.axonia.communication.api.RenderRequest"/>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.communication.RenderRequest$RenderRequestBuilder"/>
+		<Class name="dev.axonia.communication.api.RenderRequest$RenderRequestBuilder"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -1047,7 +1047,7 @@
 		above; convention is exclusion, not List.copyOf. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.roundup.SessionActivity$HeldSession"/>
+		<Class name="dev.axonia.roundup.api.spi.SessionActivity$HeldSession"/>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -1058,32 +1058,32 @@
 		Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.roundup.SessionActivity$HeldSession$HeldSessionBuilder"/>
+		<Class name="dev.axonia.roundup.api.spi.SessionActivity$HeldSession$HeldSessionBuilder"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
-		QuarterActivity (dev.axonia.roundup.internal) carries communities, held, upcoming, captured and topics
+		QuarterActivity (dev.axonia.roundup.domain) carries communities, held, upcoming, captured and topics
 		(all List&lt;...&gt;): everything one closed quarter was read to be, built once by whoever is about to
 		render it and consumed once by RoundupFacts#of on the very next line. Same short-lived,
 		build-once-consume-once value-carrier shape as the read-model records above; convention is
 		exclusion, not List.copyOf. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.roundup.internal.QuarterActivity"/>
+		<Class name="dev.axonia.roundup.domain.QuarterActivity"/>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.roundup.internal.QuarterActivity$QuarterActivityBuilder"/>
+		<Class name="dev.axonia.roundup.domain.QuarterActivity$QuarterActivityBuilder"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
-		ChatPost (dev.axonia.communication.internal) carries a details (Map<String,String>) component. It trips
+		ChatPost (dev.axonia.communication.adapter.out.chat) carries a details (Map<String,String>) component. It trips
 		EI_EXPOSE_REP: the record's own compact constructor already copies details into a fresh LinkedHashMap, but
 		SpotBugs cannot see through the record accessor to know that. Exclusion is this repo's convention over
 		Map.copyOf at every read site.
 	-->
 	<Match>
-		<Class name="dev.axonia.communication.internal.ChatPost"/>
+		<Class name="dev.axonia.communication.adapter.out.chat.ChatPost"/>
 		<Bug pattern="EI_EXPOSE_REP"/>
 	</Match>
 	<!--
@@ -1093,7 +1093,7 @@
 		transient, built once per post and never shared. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.communication.internal.ChatPost$ChatPostBuilder"/>
+		<Class name="dev.axonia.communication.adapter.out.chat.ChatPost$ChatPostBuilder"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -1104,7 +1104,7 @@
 		List.copyOf. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.communication.NotificationPage"/>
+		<Class name="dev.axonia.communication.domain.NotificationPage"/>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -1115,7 +1115,7 @@
 		built once per feed render and never shared. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.events.internal.IcsDocumentRequest$IcsDocumentRequestBuilder"/>
+		<Class name="dev.axonia.events.domain.IcsDocumentRequest$IcsDocumentRequestBuilder"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -1128,22 +1128,22 @@
 		its own class to bring SessionMapper's cyclomatic complexity back under the class-level PMD ceiling.)
 	-->
 	<Match>
-		<Class name="dev.axonia.events.internal.SessionBatchLookups$BatchLookups"/>
+		<Class name="dev.axonia.events.application.SessionBatchLookups$BatchLookups"/>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
 		OnboardingPathEntity is a Spring Data JDBC aggregate root whose ordered steps
 		(@MappedCollection List<OnboardingStepEntity>) the framework must read and write
 		directly, so the Lombok-generated getter/builder cannot defensively copy them (same
-		case as SeriesEntity/RoleEntity above). The entity lives in internal/ and is never
+		case as SeriesEntity/RoleEntity above). The entity lives in adapter/out/persistence/ and is never
 		handed to callers outside the module. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.onboarding.internal.OnboardingPathEntity"/>
+		<Class name="dev.axonia.onboarding.adapter.out.persistence.OnboardingPathEntity"/>
 		<Bug pattern="EI_EXPOSE_REP"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.onboarding.internal.OnboardingPathEntity$OnboardingPathEntityBuilder"/>
+		<Class name="dev.axonia.onboarding.adapter.out.persistence.OnboardingPathEntity$OnboardingPathEntityBuilder"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -1152,11 +1152,11 @@
 		read-model records above. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.onboarding.OnboardingPath"/>
+		<Class name="dev.axonia.onboarding.domain.OnboardingPath"/>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.onboarding.OnboardingPath$OnboardingPathBuilder"/>
+		<Class name="dev.axonia.onboarding.domain.OnboardingPath$OnboardingPathBuilder"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -1167,7 +1167,7 @@
 		convention is exclusion, not List.copyOf. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.agent.ClientMetadata"/>
+		<Class name="dev.axonia.agent.application.ClientMetadata"/>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -1179,15 +1179,15 @@
 		List.copyOf / Set.copyOf. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.agent.internal.AuthorizationOutcome$Ready"/>
+		<Class name="dev.axonia.agent.application.AuthorizationOutcome$Ready"/>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.agent.internal.AgentConnectionController$Approval"/>
+		<Class name="dev.axonia.agent.adapter.in.web.AgentConnectionController$Approval"/>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<Match>
-		<Class name="dev.axonia.agent.internal.AgentPrincipal"/>
+		<Class name="dev.axonia.agent.adapter.in.security.AgentPrincipal"/>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -1199,7 +1199,7 @@
 		and AgentSecurityConfig above. Narrowly scoped to this one class and bug pattern.
 	-->
 	<Match>
-		<Class name="dev.axonia.agent.internal.McpOAuthConfig$PublicMcpOAuthSecurityConfig"/>
+		<Class name="dev.axonia.agent.configuration.McpOAuthConfig$PublicMcpOAuthSecurityConfig"/>
 		<Bug pattern="SPRING_CSRF_PROTECTION_DISABLED"/>
 	</Match>
 	<!--
@@ -1208,7 +1208,7 @@
 		table could leak. Same case as the constructor-injected collaborators above. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.MemberTagTable"/>
+		<Class name="dev.axonia.expertise.adapter.out.persistence.MemberTagTable"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -1217,7 +1217,34 @@
 		exclusion, not List.copyOf. Narrowly scoped.
 	-->
 	<Match>
-		<Class name="dev.axonia.learning.LearningPage"/>
+		<Class name="dev.axonia.learning.api.LearningPage"/>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+	</Match>
+	<!--
+		Read-model and value records that became public in the hexagonal move, each built once per read
+		and handed on unmutated: expertise's TopicMap sibling UserSignals, knowledge's StoredArtifact (the
+		port's view of an artifact row, tags a Set of strings), privacy's ExportSubjectNaming (built once
+		per export package) and shared's ExportQuery (a statement and its bound values, run once). Same
+		case as the other read-model records above: convention is exclusion, not copyOf. Narrowly scoped.
+	-->
+	<Match>
+		<Class name="~dev\.axonia\.(expertise\.domain\.UserSignals|knowledge\.domain\.StoredArtifact|privacy\.domain\.ExportSubjectNaming|shared\.api\.personaldata\.ExportQuery)"/>
+		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+	</Match>
+	<!--
+		McpOAuthProperties is a @ConfigurationProperties record bound once at startup; its
+		trustedClientDomains set is configuration, never mutated after binding. Narrowly scoped.
+	-->
+	<Match>
+		<Class name="dev.axonia.agent.configuration.McpOAuthProperties"/>
+		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+	</Match>
+	<!--
+		RedisRateLimitStore stores the injected StringRedisTemplate it exists to drive: the
+		dependency-injection pattern, not a real exposure. Narrowly scoped to this class and pattern.
+	-->
+	<Match>
+		<Class name="dev.axonia.shared.adapter.out.ratelimit.RedisRateLimitStore"/>
+		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
 </FindBugsFilter>

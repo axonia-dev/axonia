@@ -27,13 +27,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
-import dev.axonia.communication.MailServer;
-import dev.axonia.communication.MessageType;
-import dev.axonia.communication.internal.MessageSubjectPolicies;
-import dev.axonia.selfhosted.SelfHostedProperties;
+import dev.axonia.communication.api.MessageType;
+import dev.axonia.communication.api.spi.MailServer;
+import dev.axonia.communication.application.MessageSubjectPolicies;
 import dev.axonia.selfhosted.SelfHostedRequests;
 import dev.axonia.selfhosted.SelfHostedSpringBootTest;
 import dev.axonia.selfhosted.SelfHostedTestInfrastructure;
+import dev.axonia.selfhosted.configuration.SelfHostedProperties;
+import dev.axonia.shared.api.ratelimit.RateLimitStore;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -127,7 +128,7 @@ class AxoniaSelfHostedApplicationTests {
 
         assertThat(context.getBeanNamesForType(JavaMailSender.class)).isEmpty();
         assertThat(AopUtils.getTargetClass(context.getBean(MailServer.class)).getName())
-                .isEqualTo("dev.axonia.installation.internal.StoredMailServer");
+                .isEqualTo("dev.axonia.installation.adapter.out.communication.StoredMailServer");
     }
 
     @Test

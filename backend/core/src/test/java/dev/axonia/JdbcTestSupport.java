@@ -11,8 +11,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
-import dev.axonia.config.PersistenceConfig;
-import dev.axonia.config.TimeConfig;
+import dev.axonia.shared.configuration.PersistenceConfig;
+import dev.axonia.shared.configuration.TimeConfig;
 
 @DataJdbcTest
 @ActiveProfiles("DEV")

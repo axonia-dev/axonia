@@ -17,19 +17,19 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.jdbc.Sql;
 
-import dev.axonia.events.AddSlotRequest;
-import dev.axonia.events.CreateOneOffRequest;
-import dev.axonia.events.ProposeTopicRequest;
-import dev.axonia.events.ScheduledAt;
-import dev.axonia.events.SectionTemplate;
-import dev.axonia.events.SessionService;
-import dev.axonia.events.SlotService;
-import dev.axonia.events.TopicKind;
-import dev.axonia.events.TopicService;
-import dev.axonia.expertise.ExpertiseCurationService;
-import dev.axonia.expertise.TagUsageReport;
-import dev.axonia.knowledge.ArtifactService;
-import dev.axonia.knowledge.CreateArtifactRequest;
+import dev.axonia.events.api.CreateOneOffRequest;
+import dev.axonia.events.api.ProposeTopicRequest;
+import dev.axonia.events.api.ScheduledAt;
+import dev.axonia.events.api.SectionTemplate;
+import dev.axonia.events.api.TopicKind;
+import dev.axonia.events.application.AddSlotRequest;
+import dev.axonia.events.application.SessionService;
+import dev.axonia.events.application.SlotService;
+import dev.axonia.events.application.TopicService;
+import dev.axonia.expertise.application.ExpertiseCurationService;
+import dev.axonia.expertise.application.TagUsageReport;
+import dev.axonia.knowledge.api.CreateArtifactRequest;
+import dev.axonia.knowledge.application.ArtifactService;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

@@ -10,38 +10,39 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.TestComponent;
 
-import dev.axonia.community.CommunityStatus;
-import dev.axonia.community.internal.CommunityEntity;
-import dev.axonia.community.internal.CommunityKindEntity;
-import dev.axonia.community.internal.CommunityKindRepository;
-import dev.axonia.community.internal.CommunityRepository;
-import dev.axonia.events.ActionItemOutcome;
-import dev.axonia.events.CadenceUnit;
-import dev.axonia.events.SeriesStatus;
-import dev.axonia.events.TopicKind;
-import dev.axonia.events.TopicStatus;
-import dev.axonia.events.internal.ActionItemEntity;
-import dev.axonia.events.internal.ActionItemRepository;
-import dev.axonia.events.internal.ActionItemTagRef;
-import dev.axonia.events.internal.AttendanceEntity;
-import dev.axonia.events.internal.AttendanceRepository;
-import dev.axonia.events.internal.SectionEntity;
-import dev.axonia.events.internal.SectionTypeEntity;
-import dev.axonia.events.internal.SectionTypeRepository;
-import dev.axonia.events.internal.SeriesEntity;
-import dev.axonia.events.internal.SeriesRepository;
-import dev.axonia.events.internal.SessionEntity;
-import dev.axonia.events.internal.SessionRepository;
-import dev.axonia.events.internal.SlotEntity;
-import dev.axonia.events.internal.SlotPresenterRef;
-import dev.axonia.events.internal.SlotTagRef;
-import dev.axonia.events.internal.TopicEntity;
-import dev.axonia.events.internal.TopicRepository;
-import dev.axonia.knowledge.internal.ArtifactEntity;
-import dev.axonia.knowledge.internal.ArtifactRepository;
-import dev.axonia.knowledge.internal.ArtifactTagRef;
-import dev.axonia.knowledge.internal.ArtifactTypeEntity;
-import dev.axonia.knowledge.internal.ArtifactTypeRepository;
+import dev.axonia.community.adapter.out.persistence.CommunityEntity;
+import dev.axonia.community.adapter.out.persistence.CommunityKindEntity;
+import dev.axonia.community.adapter.out.persistence.CommunityKindRepository;
+import dev.axonia.community.adapter.out.persistence.CommunityRepository;
+import dev.axonia.community.api.CommunityStatus;
+import dev.axonia.events.adapter.out.persistence.ActionItemEntity;
+import dev.axonia.events.adapter.out.persistence.ActionItemRepository;
+import dev.axonia.events.adapter.out.persistence.ActionItemTagRef;
+import dev.axonia.events.adapter.out.persistence.AttendanceEntity;
+import dev.axonia.events.adapter.out.persistence.AttendanceRepository;
+import dev.axonia.events.adapter.out.persistence.SectionEntity;
+import dev.axonia.events.adapter.out.persistence.SectionTypeEntity;
+import dev.axonia.events.adapter.out.persistence.SectionTypeRepository;
+import dev.axonia.events.adapter.out.persistence.SeriesEntity;
+import dev.axonia.events.adapter.out.persistence.SeriesRepository;
+import dev.axonia.events.adapter.out.persistence.SessionEntity;
+import dev.axonia.events.adapter.out.persistence.SessionRepository;
+import dev.axonia.events.adapter.out.persistence.SlotEntity;
+import dev.axonia.events.adapter.out.persistence.SlotPresenterRef;
+import dev.axonia.events.adapter.out.persistence.SlotTagRef;
+import dev.axonia.events.adapter.out.persistence.TopicEntity;
+import dev.axonia.events.adapter.out.persistence.TopicRepository;
+import dev.axonia.events.api.ActionItemOutcome;
+import dev.axonia.events.api.TopicKind;
+import dev.axonia.events.api.TopicStatus;
+import dev.axonia.events.domain.CadenceUnit;
+import dev.axonia.events.domain.SeriesStatus;
+import dev.axonia.knowledge.adapter.out.persistence.ArtifactEntity;
+import dev.axonia.knowledge.adapter.out.persistence.ArtifactRepository;
+import dev.axonia.knowledge.adapter.out.persistence.ArtifactTagRef;
+import dev.axonia.knowledge.adapter.out.persistence.ArtifactTypeEntity;
+import dev.axonia.knowledge.adapter.out.persistence.ArtifactTypeRepository;
+import dev.axonia.shared.api.tenancy.OrganizationScope;
 
 /**
  * Seeds a community and a page of sessions for {@code ReadPathQueryBudgetTest}, entirely through the repositories, and
@@ -181,6 +182,19 @@ public class PerformanceSeed {
                         .notes("section notes").slots(new ArrayList<>(List.of(fromTopic))).build(),
                 SectionEntity.builder().sectionTypeId(retro.getId()).title("Retro").durationMinutes(30).notes(null)
                         .slots(new ArrayList<>(List.of(ownSubject))).build());
+    }
+
+    /**
+     * One upcoming one-off session - no series - carrying a zone of its own, three days out so it is never the
+     * community's soonest upcoming session the action-item checkpoints resolve against. Returns its id.
+     */
+    public Long oneOffSessionWithItsOwnZone() {
+
+        return OrganizationScope.runAs(ORGANIZATION,
+                () -> sessionRepository.save(SessionEntity.builder().organizationId(ORGANIZATION)
+                        .communityId(communityId()).status("SCHEDULED").scheduledAt(Instant.now().plusSeconds(259_200))
+                        .hasTime(true).timeZone("Europe/Zurich").title("One-off").notes("").recordingUrl("")
+                        .sections(List.of()).build()).getId());
     }
 
     /**

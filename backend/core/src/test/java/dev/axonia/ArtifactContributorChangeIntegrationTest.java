@@ -15,15 +15,17 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.jdbc.Sql;
 
-import dev.axonia.expertise.ExpertisePreferenceService;
-import dev.axonia.expertise.ExpertiseService;
-import dev.axonia.expertise.Practitioner;
-import dev.axonia.expertise.SourceType;
-import dev.axonia.knowledge.ArtifactCreditService;
-import dev.axonia.knowledge.ArtifactService;
-import dev.axonia.knowledge.ChangeContributorRequest;
-import dev.axonia.knowledge.CreateArtifactRequest;
-import dev.axonia.knowledge.UpdateArtifactRequest;
+import dev.axonia.expertise.application.ExpertisePreferenceService;
+import dev.axonia.expertise.application.ExpertiseService;
+import dev.axonia.expertise.application.Practitioner;
+import dev.axonia.expertise.domain.SourceType;
+import dev.axonia.knowledge.api.CreateArtifactRequest;
+import dev.axonia.knowledge.application.ArtifactCreditService;
+import dev.axonia.knowledge.application.ArtifactService;
+import dev.axonia.knowledge.application.ChangeContributorRequest;
+import dev.axonia.knowledge.application.UpdateArtifactRequest;
+import dev.axonia.shared.api.error.ForbiddenException;
+import dev.axonia.shared.api.error.NotFoundException;
 import tools.jackson.databind.json.JsonMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;

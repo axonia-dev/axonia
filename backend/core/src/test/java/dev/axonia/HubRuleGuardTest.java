@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 
-import dev.axonia.organization.OrganizationKind;
+import dev.axonia.organization.api.OrganizationKind;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static org.assertj.core.api.Assertions.assertThat;

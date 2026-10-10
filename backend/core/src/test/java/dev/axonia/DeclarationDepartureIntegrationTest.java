@@ -13,7 +13,7 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.jdbc.Sql;
 
-import dev.axonia.community.MembershipService;
+import dev.axonia.community.application.MembershipService;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

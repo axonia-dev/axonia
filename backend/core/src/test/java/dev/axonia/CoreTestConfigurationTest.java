@@ -18,16 +18,17 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.util.ClassUtils;
 
-import dev.axonia.communication.MailServer;
-import dev.axonia.health.HealthController;
-import dev.axonia.health.HealthService;
-import dev.axonia.identity.IdentityAccounts;
-import dev.axonia.identity.OrganizationCardLookSource;
-import dev.axonia.identity.OrganizationIdpResolver;
-import dev.axonia.identity.OrganizationMembershipSource;
-import dev.axonia.identity.SignInObserver;
-import dev.axonia.identity.SignInProviderResolver;
-import dev.axonia.identity.SuccessionAddresses;
+import dev.axonia.communication.api.spi.MailServer;
+import dev.axonia.health.adapter.in.web.HealthController;
+import dev.axonia.health.application.HealthService;
+import dev.axonia.identity.api.spi.IdentityAccounts;
+import dev.axonia.identity.api.spi.OrganizationCardLookSource;
+import dev.axonia.identity.api.spi.OrganizationIdpResolver;
+import dev.axonia.identity.api.spi.OrganizationMembershipSource;
+import dev.axonia.identity.api.spi.SignInObserver;
+import dev.axonia.identity.api.spi.SignInProviderResolver;
+import dev.axonia.identity.api.spi.SuccessionAddresses;
+import dev.axonia.shared.api.paid.PaidCapability;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

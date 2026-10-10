@@ -7,8 +7,8 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
-import dev.axonia.config.SecurityConfig;
-import dev.axonia.config.WebConfig;
+import dev.axonia.shared.configuration.SecurityConfig;
+import dev.axonia.shared.configuration.WebConfig;
 import tools.jackson.databind.json.JsonMapper;
 
 @ActiveProfiles("DEV")

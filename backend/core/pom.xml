@@ -165,7 +165,7 @@
 
 		<!--
 			In-process caches: per-entry expiry, a size bound and atomic compute, on the application's
-			Clock through dev.axonia.ClockTicker. Version managed by the Spring Boot BOM.
+			Clock through dev.axonia.shared.api.time.ClockTicker. Version managed by the Spring Boot BOM.
 		-->
 		<dependency>
 			<groupId>com.github.ben-manes.caffeine</groupId>
@@ -245,16 +245,15 @@
 						<id>jacoco-check</id>
 						<configuration>
 							<excludes>
-								<exclude>**/config/**</exclude>
 								<!--
 									Infrastructure adapter classes for the media-storage port. MediaConfig
 									is a Spring @Configuration with @ConditionalOnProperty beans that only
 									activate in specific profiles; MediaStorageProperties is a plain
-									@ConfigurationProperties binding. Excluded here on the same grounds as
-									the broader config/** exclusion above.
+									@ConfigurationProperties binding; neither has a
+									unit-testable branch of its own.
 								-->
-								<exclude>**/media/internal/MediaConfig*</exclude>
-								<exclude>**/media/internal/MediaStorageProperties*</exclude>
+								<exclude>**/media/configuration/MediaConfig*</exclude>
+								<exclude>**/media/configuration/MediaStorageProperties*</exclude>
 								<!--
 									TokenHasher wraps MessageDigest.getInstance("SHA-256") in a try/catch
 									solely to satisfy the checked NoSuchAlgorithmException. SHA-256 is mandated
@@ -262,14 +261,14 @@
 									making the catch block permanently unreachable. Excluding the class avoids
 									an untestable line-coverage miss without weakening the gate config.
 								-->
-								<exclude>dev/axonia/TokenHasher*</exclude>
+								<exclude>dev/axonia/shared/api/secret/TokenHasher*</exclude>
 								<!--
 									AgentSecurityConfig is pure Spring wiring for the /mcp/** filter chain
 									(bean registrations + HttpSecurity DSL calls), with no unit-testable
 									branches of its own. Excluded on the same grounds as MediaConfig above;
 									the chain is covered behaviorally by an integration test.
 								-->
-								<exclude>**/agent/internal/AgentSecurityConfig*</exclude>
+								<exclude>**/agent/configuration/AgentSecurityConfig*</exclude>
 							</excludes>
 						</configuration>
 					</execution>

@@ -1,1 +1,1 @@
-org.springframework.context.ApplicationContextInitializer=dev.axonia.selfhosted.internal.ResolvedConfigurationGuard
+org.springframework.context.ApplicationContextInitializer=dev.axonia.selfhosted.configuration.ResolvedConfigurationGuard

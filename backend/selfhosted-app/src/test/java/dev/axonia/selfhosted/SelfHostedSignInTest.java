@@ -17,8 +17,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 
-import dev.axonia.access.Permission;
-import dev.axonia.installation.InstallationPermissions;
+import dev.axonia.access.api.Permission;
+import dev.axonia.installation.application.MailServerPermissions;
 import tools.jackson.databind.json.JsonMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -139,8 +139,8 @@ class SelfHostedSignInTest {
         assertThat(List.of(JSON.treeToValue(JSON.readTree(access.body()).path("permissions"), String[].class)))
                 .containsExactlyElementsOf(Stream
                         .concat(Permission.OPEN.stream(),
-                                Stream.of(InstallationPermissions.MAIL_SERVER_READ,
-                                        InstallationPermissions.MAIL_SERVER_WRITE))
+                                Stream.of(MailServerPermissions.MAIL_SERVER_READ,
+                                        MailServerPermissions.MAIL_SERVER_WRITE))
                         .map(Permission::code).sorted().toList());
     }
 
