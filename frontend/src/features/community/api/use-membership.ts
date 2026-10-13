@@ -65,12 +65,14 @@ export function useMyMembership(slug: string) {
   });
 }
 
-export function useJoin(slug: string) {
+/** `onJoined` fires the moment the join request succeeds, before the refetches below land. */
+export function useJoin(slug: string, onJoined?: () => void) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () => gateway.join(slug),
-    onSuccess: () =>
-      Promise.all([
+    onSuccess: () => {
+      onJoined?.();
+      return Promise.all([
         // detail(slug) is the prefix of myMembership(slug), so this also refreshes
         // the membership answer the hero and the management access both read.
         queryClient.invalidateQueries({ queryKey: communityKeys.detail(slug) }),
@@ -78,7 +80,8 @@ export function useJoin(slug: string) {
         queryClient.invalidateQueries({
           queryKey: learningKeys.community(slug),
         }),
-      ]),
+      ]);
+    },
   });
 }
 

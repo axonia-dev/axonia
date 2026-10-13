@@ -1,6 +1,7 @@
-import { lazy, Suspense, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 
+import { StageBackdrop } from "@/components/patterns/ceremony/StageBackdrop";
 import { Button } from "@/components/ui/Button";
 import { useCommunity } from "@/features/community/api/use-communities";
 import {
@@ -10,6 +11,10 @@ import {
   useSetFocalPoint,
 } from "@/features/community/api/use-look-and-feel";
 import { useManagementAccess } from "@/features/community/api/use-management-access";
+import {
+  LazyWelcomePreview,
+  preloadWelcomePreview,
+} from "@/features/community/ui/ceremony/lazy-ceremonies";
 import { useCommunityCrumbs } from "@/features/community/ui/community-chrome";
 import { CommunityHeroCard } from "@/features/community/ui/CommunityHeroCard";
 import { FocalPointControl } from "@/features/community/ui/FocalPointControl";
@@ -20,15 +25,10 @@ import {
 } from "@/features/community/ui/look-and-feel-controls";
 import { OrganizerPage } from "@/features/community/ui/OrganizerPage";
 
-const WelcomePreview = lazy(() =>
-  import("@/features/community/ui/ceremony/WelcomePreview").then((module) => ({
-    default: module.WelcomePreview,
-  })),
-);
-
 export function LookAndFeelEditor() {
   const [previewing, setPreviewing] = useState(false);
   const card = useRef<HTMLDivElement>(null);
+  useEffect(preloadWelcomePreview, []);
   const { slug = "" } = useParams();
   const access = useManagementAccess(slug);
   const query = useCommunity(slug);
@@ -127,8 +127,8 @@ export function LookAndFeelEditor() {
               />
             </div>
             {previewing && (
-              <Suspense fallback={null}>
-                <WelcomePreview
+              <Suspense fallback={<StageBackdrop />}>
+                <LazyWelcomePreview
                   community={community}
                   target={card}
                   onDone={() => setPreviewing(false)}

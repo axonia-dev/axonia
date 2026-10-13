@@ -19,16 +19,19 @@ vi.mock("@/features/community/ui/JoinAction", () => ({
   ),
 }));
 vi.mock("@/features/community/ui/CommunityMenu", () => ({
-  CommunityMenu: () => <div>community-menu</div>,
+  CommunityMenu: () => <button>community-menu</button>,
 }));
 vi.mock("@/features/community/ui/ceremony/HeroCeremony", () => ({
   HeroCeremony: ({
     ceremony,
+    onDone,
   }: {
     ceremony: { kind: string; countFrom: number; countTo: number };
+    onDone: () => void;
   }) => (
     <div>
       ceremony {ceremony.kind} {ceremony.countFrom} to {ceremony.countTo}
+      <button onClick={onDone}>end ceremony</button>
     </div>
   ),
 }));
@@ -132,6 +135,26 @@ describe("IdentityHero ceremonies", () => {
 
     // then
     const card = screen.getByLabelText("Community identity");
-    expect(card.parentElement).toHaveStyle({ visibility: "hidden" });
+    expect(card.parentElement).toHaveClass("invisible");
+  });
+
+  it("returns focus to the footer once the welcome has played", async () => {
+    // given
+    renderHero();
+    await userEvent.click(screen.getByRole("button", { name: "Join" }));
+    vi.mocked(useMyMembership).mockReturnValue({
+      data: { role: "MEMBER" },
+      isError: false,
+    } as never);
+
+    // when
+    await userEvent.click(
+      await screen.findByRole("button", { name: "end ceremony" }),
+    );
+
+    // then
+    expect(
+      screen.getByRole("button", { name: "community-menu" }),
+    ).toHaveFocus();
   });
 });

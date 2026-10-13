@@ -106,4 +106,21 @@ describe("useHeroCeremony", () => {
     expect(result.current.active).toBeNull();
     expect(result.current.announcement).toBe("Joined Backend Guild");
   });
+
+  it("announces a handoff only after the first commit, so a screen reader hears the change", () => {
+    // given
+    handOffCeremony("birth", "backend-guild");
+    const seen: string[] = [];
+
+    // when
+    renderHook(() => {
+      const hero = useHeroCeremony(community);
+      seen.push(hero.announcement);
+      return hero;
+    });
+
+    // then
+    expect(seen[0]).toBe("");
+    expect(seen.at(-1)).toBe("Backend Guild created");
+  });
 });

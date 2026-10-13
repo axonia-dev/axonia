@@ -4,7 +4,7 @@ import type { Community } from "@/features/community/domain/community";
 import { HeroCeremony } from "@/features/community/ui/ceremony/HeroCeremony";
 import { useHeroFaces } from "@/features/community/ui/use-hero-faces";
 
-interface WelcomePreviewProps {
+export interface WelcomePreviewProps {
   community: Community;
   target: RefObject<HTMLElement | null>;
   onDone: () => void;

@@ -1,6 +1,7 @@
 import { Share2 } from "lucide-react";
-import { lazy, Suspense, useRef, useState } from "react";
+import { type RefObject, Suspense, useEffect, useRef, useState } from "react";
 
+import { StageBackdrop } from "@/components/patterns/ceremony/StageBackdrop";
 import { MemberFacepile } from "@/components/patterns/MemberFacepile";
 import { Button } from "@/components/ui/Button";
 import { useEdition } from "@/edition-context";
@@ -11,6 +12,7 @@ import {
 } from "@/features/community/api/use-management-access";
 import { useMyMembership } from "@/features/community/api/use-membership";
 import { type Community } from "@/features/community/domain/community";
+import { LazyHeroCeremony } from "@/features/community/ui/ceremony/lazy-ceremonies";
 import { useHeroCeremony } from "@/features/community/ui/ceremony/use-hero-ceremony";
 import { CommunityHeroCard } from "@/features/community/ui/CommunityHeroCard";
 import { CommunityMenu } from "@/features/community/ui/CommunityMenu";
@@ -20,12 +22,8 @@ import {
   HERO_FACES_SHOWN,
   useHeroFaces,
 } from "@/features/community/ui/use-hero-faces";
-
-const HeroCeremony = lazy(() =>
-  import("@/features/community/ui/ceremony/HeroCeremony").then((module) => ({
-    default: module.HeroCeremony,
-  })),
-);
+import { cn } from "@/lib/cn";
+import { useMediaQuery } from "@/lib/use-media-query";
 
 interface IdentityHeroProps {
   community: Community;
@@ -88,6 +86,25 @@ const shareTriggerClass =
  * Self-serve hubs get a quiet share glyph in the card's top-right corner for whoever the
  * invite axis opens for. Management lives in the card's footer, next to the membership chip.
  */
+/** The Join button that held focus is gone once the member's chip replaces it, so focus goes to the footer. */
+function useFocusFooterAfterJoin(
+  hero: RefObject<HTMLElement | null>,
+  playing: boolean,
+): () => void {
+  const joined = useRef(false);
+  useEffect(() => {
+    if (!playing && joined.current) {
+      joined.current = false;
+      hero.current
+        ?.querySelector<HTMLElement>('[data-ceremony-part="footer"] button')
+        ?.focus();
+    }
+  }, [hero, playing]);
+  return () => {
+    joined.current = true;
+  };
+}
+
 export function IdentityHero({ community, slug }: Readonly<IdentityHeroProps>) {
   const access = useManagementAccess(slug);
   const { CommunityInvite } = useEdition();
@@ -96,6 +113,13 @@ export function IdentityHero({ community, slug }: Readonly<IdentityHeroProps>) {
   const faces = useHeroFaces(slug);
   const ceremony = useHeroCeremony(community);
   const hero = useRef<HTMLDivElement>(null);
+  const playing = ceremony.active !== null;
+  const reduced = useMediaQuery("(prefers-reduced-motion: reduce)");
+  const markJoined = useFocusFooterAfterJoin(hero, playing);
+  const onJoined = () => {
+    markJoined();
+    ceremony.welcome();
+  };
 
   const meta = <MemberFacepile members={faces} max={HERO_FACES_SHOWN} />;
   const footer = (
@@ -103,7 +127,7 @@ export function IdentityHero({ community, slug }: Readonly<IdentityHeroProps>) {
       community={community}
       slug={slug}
       access={access}
-      onJoined={ceremony.welcome}
+      onJoined={onJoined}
     />
   );
   const cornerControl = showInvite ? (
@@ -122,10 +146,7 @@ export function IdentityHero({ community, slug }: Readonly<IdentityHeroProps>) {
 
   return (
     <>
-      <div
-        ref={hero}
-        style={ceremony.active === null ? undefined : { visibility: "hidden" }}
-      >
+      <div ref={hero} className={cn(playing && !reduced && "invisible")}>
         <CommunityHeroCard
           community={community}
           meta={meta}
@@ -134,8 +155,8 @@ export function IdentityHero({ community, slug }: Readonly<IdentityHeroProps>) {
         />
       </div>
       {ceremony.active !== null && (
-        <Suspense fallback={null}>
-          <HeroCeremony
+        <Suspense fallback={<StageBackdrop />}>
+          <LazyHeroCeremony
             ceremony={ceremony.active}
             community={community}
             faces={faces}

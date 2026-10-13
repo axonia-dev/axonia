@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useState } from "react";
 
 import {
   type CeremonyKind,
@@ -43,6 +43,8 @@ function fromHandoff(community: HeroCommunity): State {
 export function useHeroCeremony(community: HeroCommunity) {
   const [state, setState] = useState<State>(() => fromHandoff(community));
   const { slug, name, memberCount } = community;
+  // Mounted empty, then filled by a deferred pass: a live region only announces a change.
+  const announcement = useDeferredValue(state.announcement, "");
 
   useEffect(() => {
     if (state.active !== null) {
@@ -67,7 +69,7 @@ export function useHeroCeremony(community: HeroCommunity) {
 
   return {
     active: state.active,
-    announcement: state.announcement,
+    announcement,
     welcome,
     finish,
   };
