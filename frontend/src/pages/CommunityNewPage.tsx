@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Breadcrumb } from "@/components/patterns/Breadcrumb";
 import { PageHeader } from "@/components/patterns/PageHeader";
 import { useCurrentOrganization } from "@/features/admin/api/use-current-organization";
+import { handOffCeremony } from "@/features/community/api/ceremony-handoff";
 import { CommunityForm } from "@/features/community/ui/CommunityForm";
 
 export function CommunityNewPage() {
@@ -25,6 +26,7 @@ export function CommunityNewPage() {
       )}
       <CommunityForm
         onCreated={(slug) => {
+          handOffCeremony("birth", slug);
           void navigate(`/communities/${slug}`);
         }}
       />

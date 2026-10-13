@@ -1,13 +1,17 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useCurrentOrganization } from "@/features/admin/api/use-current-organization";
 import type { CurrentOrganization } from "@/features/admin/domain/current-organization";
+import { pendingCeremony } from "@/features/community/api/ceremony-handoff";
 import { CommunityNewPage } from "@/pages/CommunityNewPage";
 
 vi.mock("@/features/community/ui/CommunityForm", () => ({
-  CommunityForm: () => <div>community form</div>,
+  CommunityForm: ({ onCreated }: { onCreated: (slug: string) => void }) => (
+    <button onClick={() => onCreated("backend-guild")}>create</button>
+  ),
 }));
 vi.mock("@/features/admin/api/use-current-organization", () => ({
   useCurrentOrganization: vi.fn(),
@@ -54,5 +58,17 @@ describe("CommunityNewPage", () => {
 
     // then
     expect(screen.queryByText(/creating in/i)).not.toBeInTheDocument();
+  });
+
+  it("hands a birth ceremony to the new community", async () => {
+    // given
+    mockCurrentOrg.mockReturnValue(queryResult(undefined));
+    renderPage();
+
+    // when
+    await userEvent.click(screen.getByRole("button", { name: "create" }));
+
+    // then
+    expect(pendingCeremony("backend-guild")).toBe("birth");
   });
 });
