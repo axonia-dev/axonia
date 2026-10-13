@@ -33,7 +33,10 @@ export function CommunityHeroCard({
       className="flex flex-col gap-2"
       style={accentVariables(community)}
     >
-      <div className="border-border bg-surface relative overflow-hidden rounded-lg border shadow-sm">
+      <div
+        data-ceremony-part="surface"
+        className="border-border bg-surface relative overflow-hidden rounded-lg border shadow-sm"
+      >
         {showBanner && (
           <HeroBanner
             heroUrl={community.heroUrl}

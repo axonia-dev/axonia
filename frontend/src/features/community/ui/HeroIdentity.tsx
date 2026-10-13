@@ -38,6 +38,7 @@ function Badge({
   return (
     <div
       data-focal-frame
+      data-ceremony-part="badge"
       className={cn(
         "relative mb-3 inline-flex",
         hasBanner ? "-mt-14" : "mt-0",
@@ -81,7 +82,10 @@ export function HeroIdentity({
           overlay={badgeOverlay}
         />
       )}
-      <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-sm">
+      <div
+        data-ceremony-part="meta"
+        className="text-muted-foreground flex flex-wrap items-center gap-2 text-sm"
+      >
         <KindBadge
           kindId={community.kindId}
           label={community.kind}
@@ -93,11 +97,17 @@ export function HeroIdentity({
           {pluralWord(community.memberCount, "member")}
         </span>
       </div>
-      <h1 className="font-display text-foreground mt-3 text-4xl font-bold tracking-tight">
+      <h1
+        data-ceremony-part="name"
+        className="font-display text-foreground mt-3 text-4xl font-bold tracking-tight"
+      >
         {community.name}
       </h1>
       {community.description && (
-        <p className="text-foreground mt-2.5 max-w-prose text-lg">
+        <p
+          data-ceremony-part="description"
+          className="text-foreground mt-2.5 max-w-prose text-lg"
+        >
           {community.description}
         </p>
       )}
@@ -106,7 +116,11 @@ export function HeroIdentity({
           Archived
         </p>
       )}
-      {footer && <div className="mt-5">{footer}</div>}
+      {footer && (
+        <div data-ceremony-part="footer" className="mt-5">
+          {footer}
+        </div>
+      )}
     </div>
   );
 }

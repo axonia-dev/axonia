@@ -1,7 +1,6 @@
 import { Share2 } from "lucide-react";
 import { useState } from "react";
 
-import type { FacepileMember } from "@/components/patterns/MemberFacepile";
 import { MemberFacepile } from "@/components/patterns/MemberFacepile";
 import { Button } from "@/components/ui/Button";
 import { useEdition } from "@/edition-context";
@@ -10,45 +9,20 @@ import {
   type ManagementAccess,
   useManagementAccess,
 } from "@/features/community/api/use-management-access";
-import {
-  useMembers,
-  useMyMembership,
-} from "@/features/community/api/use-membership";
+import { useMyMembership } from "@/features/community/api/use-membership";
 import { type Community } from "@/features/community/domain/community";
 import { CommunityHeroCard } from "@/features/community/ui/CommunityHeroCard";
 import { CommunityMenu } from "@/features/community/ui/CommunityMenu";
 import { JoinAction } from "@/features/community/ui/JoinAction";
 import { MembershipChip } from "@/features/community/ui/MembershipChip";
-import { useUsers } from "@/features/identity/api/use-users";
-import { userHue } from "@/lib/user-hue";
+import {
+  HERO_FACES_SHOWN,
+  useHeroFaces,
+} from "@/features/community/ui/use-hero-faces";
 
 interface IdentityHeroProps {
   community: Community;
   slug: string;
-}
-
-const FACES_SHOWN = 5;
-
-/** The community's newest people, as a capped facepile: kept as its own hook
- *  so `IdentityHero`'s own eslint `complexity` count stays under the gate.
- *  Reads `{ page: 0, size: 100 }`, the same arguments `NewMembers` holds open
- *  on this page, so TanStack Query dedupes the request rather than firing a
- *  second one - then sorts by `joinedAt` descending and caps at
- *  `FACES_SHOWN`, since the backend applies no ordering of its own. */
-function useFaces(slug: string): FacepileMember[] {
-  const members = useMembers(slug, { page: 0, size: 100 });
-  const rows = (members.data?.content ?? [])
-    .slice()
-    .sort((a, b) => Date.parse(b.joinedAt) - Date.parse(a.joinedAt))
-    .slice(0, FACES_SHOWN);
-  const users = useUsers(rows.map((member) => member.userId));
-
-  return rows.map((member) => ({
-    id: member.userId,
-    name: users.data?.[member.userId]?.displayName ?? "Someone",
-    hue: userHue(member.userId),
-    src: users.data?.[member.userId]?.avatarUrl ?? null,
-  }));
 }
 
 // Invites are a self-serve concern: the affordance exists only in hub-kind organizations, for
@@ -110,13 +84,13 @@ export function IdentityHero({ community, slug }: Readonly<IdentityHeroProps>) {
   const { CommunityInvite } = useEdition();
   const showInvite = useShowInvite(access.invite, CommunityInvite !== null);
   const [inviting, setInviting] = useState(false);
-  const faces = useFaces(slug);
+  const faces = useHeroFaces(slug);
 
   return (
     <>
       <CommunityHeroCard
         community={community}
-        meta={<MemberFacepile members={faces} max={FACES_SHOWN} />}
+        meta={<MemberFacepile members={faces} max={HERO_FACES_SHOWN} />}
         footer={
           <HeroFooter community={community} slug={slug} access={access} />
         }

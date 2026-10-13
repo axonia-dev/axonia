@@ -136,4 +136,31 @@ describe("CommunityHeroCard", () => {
       kindHue("3"),
     );
   });
+
+  it("marks the parts a ceremony animates", () => {
+    // given
+    const described = { ...base, description: "Patterns and practices." };
+
+    // when
+    const { container } = render(
+      <CommunityHeroCard
+        community={described}
+        footer={<button>Join</button>}
+      />,
+    );
+
+    // then
+    const parts = [...container.querySelectorAll("[data-ceremony-part]")].map(
+      (element) => element.getAttribute("data-ceremony-part"),
+    );
+    expect(parts).toEqual(
+      expect.arrayContaining([
+        "surface",
+        "meta",
+        "name",
+        "description",
+        "footer",
+      ]),
+    );
+  });
 });
