@@ -236,3 +236,27 @@ test("the learning page fits a phone, however long an area's name", async ({
   await expect(browser.getByText(contributor.displayName)).toBeVisible();
   expect(await overflowing(browser)).toEqual([]);
 });
+
+test("the welcome stage fits a phone", async ({ page: browser }) => {
+  // given - a welcome handed off to the community home, as a hub join does
+  await stubReads(browser, {
+    ...shellOfCommunity,
+    [`/axonia/communities/${SLUG}/members`]: paged([member]),
+  });
+  await browser.addInitScript((slug) => {
+    sessionStorage.setItem(
+      "axonia.ceremony",
+      JSON.stringify({ kind: "welcome", slug, at: Date.now() }),
+    );
+  }, SLUG);
+
+  // when
+  await browser.goto(`/communities/${SLUG}`);
+  const card = browser.locator("[data-ceremony-card]");
+  await expect(card).toBeVisible();
+
+  // then - the staged card sits inside the screen
+  const box = await card.boundingBox();
+  expect(box?.x ?? -1).toBeGreaterThanOrEqual(0);
+  expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(412);
+});

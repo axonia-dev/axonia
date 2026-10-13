@@ -160,6 +160,11 @@ test("create a community, then join and leave another", async ({
   await browser.getByLabel("Kind").click();
   await browser.getByRole("option", { name: "Guild" }).click();
   await browser.getByRole("button", { name: "Create" }).click();
+
+  // then - the birth plays over the page, then settles into the hero
+  const stage = browser.locator("[data-ceremony-stage]");
+  await expect(stage).toBeVisible();
+  await expect(stage).toBeHidden({ timeout: 10_000 });
   await expect(
     browser.getByRole("heading", { name: "Backend Guild" }),
   ).toBeVisible();
@@ -173,9 +178,18 @@ test("create a community, then join and leave another", async ({
   // when - join / then - the hero drops the Join call and states the standing instead,
   // alongside the menu that only a member gets
   await browser.getByRole("button", { name: "Join" }).click();
+
+  // then - the welcome plays, and any key ends it at once
+  await expect(stage).toBeVisible();
+  await browser.keyboard.press("Escape");
+  await expect(stage).toBeHidden();
+
+  // when - the page reloads / then - nothing replays
+  await browser.reload();
   await expect(
     browser.getByRole("button", { name: "Community actions" }),
   ).toBeVisible();
+  await expect(stage).toHaveCount(0);
   await expect(browser.getByRole("button", { name: "Join" })).toBeHidden();
 
   // when - leave, which lives in that menu now rather than on the hero. It acts at once
@@ -185,4 +199,12 @@ test("create a community, then join and leave another", async ({
 
   // then - the front door offers Join again
   await expect(browser.getByRole("button", { name: "Join" })).toBeVisible();
+
+  // when - join again with reduced motion asked for / then - no stage, straight to member
+  await browser.emulateMedia({ reducedMotion: "reduce" });
+  await browser.getByRole("button", { name: "Join" }).click();
+  await expect(
+    browser.getByRole("button", { name: "Community actions" }),
+  ).toBeVisible();
+  await expect(stage).toHaveCount(0);
 });
