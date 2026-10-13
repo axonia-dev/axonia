@@ -25,10 +25,10 @@ import type { Beat } from "@/components/patterns/ceremony/timeline";
 
 export const BIRTH_LENGTH = 3.4;
 
-export const BIRTH_BEATS = {
+const BIRTH_BEATS = {
   sparks: { start: 0.15, duration: 1.8 },
   sparksFade: { start: 2.25, duration: 0.6 },
-  surface: { start: 1.9, duration: 0.7 },
+  surface: { start: 2.0, duration: 0.9 },
   name: { start: 2.1, duration: 0.5 },
   glow: { start: 2.6, duration: 0.8 },
   sheen: { start: 2.45, duration: 0.75 },
@@ -83,9 +83,11 @@ export function birthPainter(hue: string): Painter {
     if (prepared === null) {
       if (!loading) {
         loading = true;
-        void loadTextFont(name).then(() => {
-          prepared = prepare(name, card);
-        });
+        void loadTextFont(name)
+          .catch(() => undefined)
+          .then(() => {
+            prepared = prepare(name, card);
+          });
       }
       return;
     }

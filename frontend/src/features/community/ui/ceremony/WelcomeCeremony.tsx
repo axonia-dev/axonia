@@ -8,11 +8,12 @@ import {
   type FacepileMember,
   MemberFacepile,
 } from "@/components/patterns/MemberFacepile";
-import type { CeremonyCardProps } from "@/features/community/ui/ceremony/BirthCeremony";
+import type { CeremonyCardProps } from "@/features/community/ui/ceremony/ceremony-card-props";
 import {
   placeFlier,
   WELCOME_BEATS,
   WELCOME_LENGTH,
+  WELCOME_SETTLE,
   welcomeCues,
   welcomePainter,
 } from "@/features/community/ui/ceremony/welcome-choreography";
@@ -54,6 +55,7 @@ export function WelcomeCeremony({
 }: Readonly<WelcomeCeremonyProps>) {
   const [count, setCount] = useState(countFrom);
   const hue = communityHue(community);
+  const members = withNewcomerFirst(faces, newcomer);
   const paint = useMemo(() => welcomePainter(hue), [hue]);
   const onFrame = useCallback(
     (card: HTMLElement, t: number) => {
@@ -71,6 +73,7 @@ export function WelcomeCeremony({
       length={WELCOME_LENGTH}
       target={target}
       settle={settle}
+      settleSeconds={WELCOME_SETTLE}
       onFrame={onFrame}
       paint={paint}
       onDone={onDone}
@@ -79,12 +82,11 @@ export function WelcomeCeremony({
       <CommunityHeroCard
         community={{ ...community, memberCount: count }}
         meta={
-          <span data-ceremony-part="facepile" className="flex">
-            <MemberFacepile
-              members={withNewcomerFirst(faces, newcomer)}
-              max={HERO_FACES_SHOWN}
-            />
-          </span>
+          members.length > 0 && (
+            <span data-ceremony-part="facepile" className="flex">
+              <MemberFacepile members={members} max={HERO_FACES_SHOWN} />
+            </span>
+          )
         }
         footer={footer}
         cornerControl={cornerControl}

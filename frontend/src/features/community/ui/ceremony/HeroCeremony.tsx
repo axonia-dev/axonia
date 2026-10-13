@@ -1,8 +1,6 @@
 import type { FacepileMember } from "@/components/patterns/MemberFacepile";
-import {
-  BirthCeremony,
-  type CeremonyCardProps,
-} from "@/features/community/ui/ceremony/BirthCeremony";
+import { BirthCeremony } from "@/features/community/ui/ceremony/BirthCeremony";
+import type { CeremonyCardProps } from "@/features/community/ui/ceremony/ceremony-card-props";
 import type { ActiveCeremony } from "@/features/community/ui/ceremony/use-hero-ceremony";
 import { WelcomeCeremony } from "@/features/community/ui/ceremony/WelcomeCeremony";
 import { useMe } from "@/features/identity/api/use-me";

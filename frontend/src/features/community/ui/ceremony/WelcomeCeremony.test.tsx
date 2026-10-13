@@ -1,7 +1,7 @@
-import { act, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import type { CeremonyClock } from "@/components/patterns/ceremony/clock";
+import { manualClock } from "@/components/patterns/ceremony/ceremony-stage.test-helpers";
 import type { Community } from "@/features/community/domain/community";
 import { WelcomeCeremony } from "@/features/community/ui/ceremony/WelcomeCeremony";
 
@@ -25,30 +25,6 @@ const newcomer = {
   src: null,
 };
 const others = [{ id: "mk", name: "Mia Kent", hue: "#de3b78", src: null }];
-
-function manualClock() {
-  let now = 0;
-  let pending: (() => void) | null = null;
-  const clock: CeremonyClock = {
-    now: () => now,
-    request: (callback) => {
-      pending = callback;
-      return 1;
-    },
-    cancel: () => {
-      pending = null;
-    },
-  };
-  const run = (milliseconds: number) => {
-    for (let elapsed = 0; elapsed < milliseconds; elapsed += 16) {
-      now += 16;
-      const callback = pending;
-      pending = null;
-      act(() => callback?.());
-    }
-  };
-  return { clock, run };
-}
 
 function renderWelcome(withNewcomer = true) {
   const { clock, run } = manualClock();

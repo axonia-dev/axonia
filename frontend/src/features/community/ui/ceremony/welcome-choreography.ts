@@ -29,6 +29,7 @@ import {
 } from "@/components/patterns/ceremony/timeline";
 
 export const WELCOME_LENGTH = 4.2;
+export const WELCOME_SETTLE = 0.8;
 
 export const WELCOME_BEATS = {
   slit: { start: 0, duration: 0.3 },
@@ -46,13 +47,16 @@ export const WELCOME_BEATS = {
 } satisfies Record<string, Beat>;
 
 /** Where the newcomer's avatar is born, as a share of the card's height from its top. */
-export const FLIER_ANCHOR = 0.32;
+const FLIER_ANCHOR = 0.32;
 const FLIER_START_SIZE = 64;
 const FLIER_END_SIZE = 28;
 const ARC_LIFT = 110;
 const FACE_STEP = 20;
 
 function doors(p: number): CueStyle {
+  if (p >= 1) {
+    return { "clip-path": "" };
+  }
   const side = (50 * (1 - easeInOutCubic(p))).toFixed(2);
   return { "clip-path": `inset(0 ${side}% 0 ${side}%)` };
 }
