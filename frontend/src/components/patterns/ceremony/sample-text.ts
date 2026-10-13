@@ -63,26 +63,42 @@ function drawFitted(
   context.restore();
 }
 
+/** Samples per em of the text's rendered size: dense enough for the letters to read at any size. */
+const STEP_PER_EM = 0.075;
+const MIN_STEP = 1.5;
+
+function scaleOf(frame: HTMLElement): number {
+  const width = frame.getBoundingClientRect().width;
+  return width / (frame.offsetWidth || width || 1);
+}
+
+/** The distance between samples for an element's text as `frame` draws it, in screen pixels. */
+export function sampleStep(text: HTMLElement, frame: HTMLElement): number {
+  const size = parseFloat(getComputedStyle(text).fontSize) || 16;
+  return Math.max(MIN_STEP, size * scaleOf(frame) * STEP_PER_EM);
+}
+
 /**
- * The pixels of an element's text as points relative to `frame`, for sparks to condense onto.
- * Await `loadTextFont` first, or the canvas draws a fallback face.
+ * The pixels of an element's text as points relative to `frame`, `step` screen pixels apart, for
+ * sparks to condense onto. It draws at the device's pixel density, so a small name keeps its shapes. Await `loadTextFont` first, or the canvas draws a fallback face.
  */
 export function textTargets(
   text: HTMLElement,
   frame: HTMLElement,
-  step = 5,
+  step: number,
 ): Point[] {
   const frameBox = frame.getBoundingClientRect();
+  const density = Math.max(1, window.devicePixelRatio || 1);
   const canvas = document.createElement("canvas");
-  canvas.width = Math.ceil(frameBox.width);
-  canvas.height = Math.ceil(frameBox.height);
+  canvas.width = Math.ceil(frameBox.width * density);
+  canvas.height = Math.ceil(frameBox.height * density);
   const context = canvas.getContext("2d");
   if (context === null || canvas.width === 0 || canvas.height === 0) {
     return [];
   }
+  context.setTransform(density, 0, 0, density, 0, 0);
   const style = getComputedStyle(text);
-  const scale = frameBox.width / (frame.offsetWidth || frameBox.width);
-  context.font = fontOf(style, scale);
+  context.font = fontOf(style, scaleOf(frame));
   context.letterSpacing = style.letterSpacing;
   context.textBaseline = "middle";
   context.fillStyle = "#ffffff";
@@ -91,6 +107,6 @@ export function textTargets(
   }
   return sampleTargets(
     context.getImageData(0, 0, canvas.width, canvas.height),
-    step,
-  );
+    step * density,
+  ).map(({ x, y }) => ({ x: x / density, y: y / density }));
 }

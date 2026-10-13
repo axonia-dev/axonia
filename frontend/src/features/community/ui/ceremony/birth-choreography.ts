@@ -6,16 +6,19 @@ import {
   sheen,
 } from "@/components/patterns/ceremony/cues";
 import {
+  canvasColour,
   drawSparks,
   type Painter,
   viewportField,
 } from "@/components/patterns/ceremony/paint";
 import {
   loadTextFont,
+  sampleStep,
   textTargets,
 } from "@/components/patterns/ceremony/sample-text";
 import {
   createSeeds,
+  fitTargets,
   type Point,
   sparkBudget,
   sparksAt,
@@ -58,17 +61,29 @@ export function birthCues(hue: string): Cue[] {
 interface Prepared {
   readonly targets: readonly Point[];
   readonly seeds: readonly SparkSeed[];
+  readonly colour: string;
 }
 
-function prepare(name: HTMLElement, card: HTMLElement): Prepared {
-  const targets = textTargets(name, card);
+/** Spark radius per sample step: the letters' dots touch without running together. */
+const SIZE_PER_STEP = 0.16;
+
+function prepare(name: HTMLElement, card: HTMLElement, hue: string): Prepared {
   const field = viewportField();
   const budget = sparkBudget(
     field.width,
     field.height,
     window.devicePixelRatio || 1,
   );
-  return { targets, seeds: createSeeds(Math.min(budget, targets.length), 7) };
+  const { targets, step } = fitTargets(
+    (at) => textTargets(name, card, at),
+    sampleStep(name, card),
+    budget,
+  );
+  return {
+    targets,
+    seeds: createSeeds(targets.length, 7, step * SIZE_PER_STEP),
+    colour: canvasColour(hue, card),
+  };
 }
 
 /** Sparks that fly in from beyond the edges and condense into the name's letterforms. */
@@ -86,7 +101,7 @@ export function birthPainter(hue: string): Painter {
         void loadTextFont(name)
           .catch(() => undefined)
           .then(() => {
-            prepared = prepare(name, card);
+            prepared = prepare(name, card, hue);
           });
       }
       return;
@@ -109,7 +124,7 @@ export function birthPainter(hue: string): Painter {
         t,
         viewportField(),
       ),
-      hue,
+      prepared.colour,
     );
   };
 }

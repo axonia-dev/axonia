@@ -12,6 +12,7 @@ import {
 
 vi.mock("@/components/patterns/ceremony/sample-text", () => ({
   loadTextFont: vi.fn(),
+  sampleStep: vi.fn(() => 5),
   textTargets: vi.fn(() => []),
 }));
 vi.mock("@/components/patterns/ceremony/paint", async (original) => ({

@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import {
   createSeeds,
+  fitTargets,
+  type Point,
   sampleTargets,
   sparkBudget,
   sparksAt,
+  spreadTargets,
 } from "./spark-field";
 
 const field = { width: 1280, height: 800 };
@@ -65,6 +68,26 @@ describe("sparksAt condense", () => {
 
     // then
     expect(actual).toEqual([]);
+  });
+
+  it("flies in the community's hue", () => {
+    // when
+    const actual = sparksAt(condense, createSeeds(3, 7), 0.5, field);
+
+    // then
+    expect(actual.map((spark) => spark.white)).toEqual([false, false, false]);
+  });
+
+  it("burns white and steady once landed", () => {
+    // when
+    const actual = sparksAt(condense, createSeeds(3, 7), 2, field);
+
+    // then
+    expect(actual.map((spark) => [spark.white, spark.alpha])).toEqual([
+      [true, 0.9],
+      [true, 0.9],
+      [true, 0.9],
+    ]);
   });
 
   it("uses no more sparks than there are targets", () => {
@@ -135,7 +158,72 @@ describe("sparkBudget", () => {
     const actual = sparkBudget(100, 100, 1);
 
     // then
-    expect(actual).toBe(120);
+    expect(actual).toBe(1100);
+  });
+});
+
+describe("createSeeds", () => {
+  it("scales the sparks' size", () => {
+    // when
+    const actual = createSeeds(4, 7, 0.5).map((seed) => seed.size);
+
+    // then
+    const full = createSeeds(4, 7, 1).map((seed) => seed.size / 2);
+    actual.forEach((size, index) => {
+      expect(size).toBeCloseTo(full.at(index) ?? 0);
+    });
+  });
+});
+
+function grid(columns: number, rows: number): Point[] {
+  return Array.from({ length: columns * rows }, (_, index) => ({
+    x: index % columns,
+    y: Math.floor(index / columns),
+  }));
+}
+
+describe("spreadTargets", () => {
+  it("keeps every row of the text when it keeps only some of the points", () => {
+    // when
+    const actual = spreadTargets(grid(40, 10), 100, 7);
+
+    // then
+    expect(new Set(actual.map((point) => point.y)).size).toBe(10);
+  });
+
+  it("never invents a point", () => {
+    // when
+    const actual = spreadTargets(grid(3, 1), 10, 7);
+
+    // then
+    expect(actual).toHaveLength(3);
+  });
+});
+
+describe("fitTargets", () => {
+  it("keeps the fine step when the points fit the budget", () => {
+    // given
+    const sample = (step: number) => grid(Math.round(20 / step), 1);
+
+    // when
+    const actual = fitTargets(sample, 1, 50);
+
+    // then
+    expect(actual.step).toBe(1);
+    expect(actual.targets).toHaveLength(20);
+  });
+
+  it("samples a coarser grid sized to the budget when there are too many points", () => {
+    // given
+    const sample = (step: number) =>
+      grid(Math.round(40 / step), Math.round(10 / step));
+
+    // when
+    const actual = fitTargets(sample, 1, 100);
+
+    // then
+    expect(actual.step).toBeCloseTo(2);
+    expect(actual.targets).toHaveLength(100);
   });
 });
 

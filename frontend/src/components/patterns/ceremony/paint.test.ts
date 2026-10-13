@@ -1,6 +1,10 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { drawLightBar, drawSparks } from "./paint";
+import { canvasColour, drawLightBar, drawSparks } from "./paint";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 function recordingContext() {
   const gradient = { addColorStop: vi.fn() };
@@ -59,5 +63,38 @@ describe("drawLightBar", () => {
 
     // then
     expect(context.fillRect).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("canvasColour", () => {
+  it("answers the colour the browser resolves inside the scope", () => {
+    // given
+    const scope = document.createElement("div");
+    vi.spyOn(window, "getComputedStyle").mockImplementation(
+      (element) =>
+        ({
+          color: element.parentElement === scope ? "rgb(26, 166, 160)" : "",
+        }) as CSSStyleDeclaration,
+    );
+
+    // when
+    const actual = canvasColour("var(--community-accent)", scope);
+
+    // then
+    expect(actual).toBe("rgb(26, 166, 160)");
+    expect(scope.childElementCount).toBe(0);
+  });
+
+  it("keeps the colour as given when the browser resolves nothing", () => {
+    // given
+    vi.spyOn(window, "getComputedStyle").mockReturnValue({
+      color: "",
+    } as CSSStyleDeclaration);
+
+    // when
+    const actual = canvasColour("#1aa6a0", document.createElement("div"));
+
+    // then
+    expect(actual).toBe("#1aa6a0");
   });
 });

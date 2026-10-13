@@ -14,6 +14,20 @@ export function viewportField(): Field {
   };
 }
 
+/**
+ * A colour as the canvas can parse it. A canvas silently ignores a `fillStyle` it cannot read, such as
+ * a custom property, so the browser resolves the colour once, inside `scope` where any variable is defined.
+ */
+export function canvasColour(colour: string, scope: Element): string {
+  const probe = document.createElement("span");
+  probe.style.color = colour;
+  probe.style.display = "none";
+  scope.append(probe);
+  const resolved = getComputedStyle(probe).color;
+  probe.remove();
+  return resolved === "" ? colour : resolved;
+}
+
 export function drawSparks(
   context: CanvasRenderingContext2D,
   sparks: readonly Spark[],

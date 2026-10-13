@@ -61,25 +61,71 @@ function seededRandom(seed: number): () => number {
   };
 }
 
-export function createSeeds(count: number, seed: number): SparkSeed[] {
+/** `scale` sizes the sparks: 1 suits targets sampled 5 px apart. */
+export function createSeeds(
+  count: number,
+  seed: number,
+  scale = 1,
+): SparkSeed[] {
   const random = seededRandom(seed);
   return Array.from({ length: count }, () => ({
     angle: random() * Math.PI * 2,
     reach: 0.55 + random() * 0.5,
     delay: random() * MAX_DELAY,
     swirl: (random() - 0.5) * 220,
-    size: 1.4 + random() * 2.2,
-    white: random() > 0.7,
+    size: (1.4 + random() * 2.2) * scale,
+    white: random() > 0.82,
   }));
 }
+
+/** Enough for a long name to read as letters on a phone. */
+const BUDGET_FLOOR = 1100;
+const BUDGET_CAP = 1800;
 
 export function sparkBudget(
   width: number,
   height: number,
   pixelRatio: number,
 ): number {
-  const byArea = Math.min(700, Math.max(120, (width * height) / 2000));
-  return Math.max(120, Math.round(byArea / Math.max(1, pixelRatio / 2)));
+  const byArea = Math.min(
+    BUDGET_CAP,
+    Math.max(BUDGET_FLOOR, (width * height) / 550),
+  );
+  return Math.round(byArea / Math.max(1, pixelRatio / 2.5));
+}
+
+/** Up to `count` of the points, picked in a seeded shuffle so any subset stays evenly spread. */
+export function spreadTargets(
+  points: readonly Point[],
+  count: number,
+  seed: number,
+): Point[] {
+  const random = seededRandom(seed);
+  const keyed = points.map((point) => ({ point, key: random() }));
+  keyed.sort((a, b) => a.key - b.key);
+  return keyed.slice(0, count).map(({ point }) => point);
+}
+
+export interface FittedTargets {
+  readonly targets: Point[];
+  readonly step: number;
+}
+
+/**
+ * Samples at `step`, and where that yields more points than the budget, samples again on a coarser
+ * grid sized to fit it, so the letters thin out evenly instead of losing whole rows.
+ */
+export function fitTargets(
+  sample: (step: number) => Point[],
+  step: number,
+  budget: number,
+): FittedTargets {
+  const fine = sample(step);
+  if (fine.length <= budget) {
+    return { targets: spreadTargets(fine, budget, 7), step };
+  }
+  const coarser = step * Math.sqrt(fine.length / budget);
+  return { targets: spreadTargets(sample(coarser), budget, 7), step: coarser };
 }
 
 function staggered(beat: Beat, seed: SparkSeed): Beat {
@@ -121,12 +167,13 @@ function condense(
     const k = easeInOutCubic(progress(staggered(mode.beat, seed), t));
     const normal = unitNormal(start, target);
     const swirl = Math.sin(k * Math.PI) * seed.swirl;
+    const landed = k > 0.97;
     return {
       x: lerp(start.x, target.x, k) + normal.x * swirl,
       y: lerp(start.y, target.y, k) + normal.y * swirl,
-      alpha: 0.85 * fade * twinkle(t, index),
+      alpha: fade * (landed ? 0.9 : 0.85 * twinkle(t, index)),
       size: seed.size * (1 + (1 - k) * 0.6),
-      white: k > 0.97 || seed.white,
+      white: landed,
     };
   });
 }
@@ -210,10 +257,13 @@ export interface PixelImage {
   readonly data: ArrayLike<number>;
 }
 
+/** The opaque pixels on a grid `step` pixels apart; a fractional step lands on the nearest pixel. */
 export function sampleTargets(image: PixelImage, step: number): Point[] {
   const points: Point[] = [];
-  for (let y = 0; y < image.height; y += step) {
-    for (let x = 0; x < image.width; x += step) {
+  for (let row = step / 2; row < image.height; row += step) {
+    const y = Math.floor(row);
+    for (let column = step / 2; column < image.width; column += step) {
+      const x = Math.floor(column);
       if ((image.data[(y * image.width + x) * 4 + 3] ?? 0) > 128) {
         points.push({ x, y });
       }
