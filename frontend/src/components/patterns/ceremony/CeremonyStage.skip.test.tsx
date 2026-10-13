@@ -1,7 +1,7 @@
 import { act, fireEvent } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { renderStage, stage } from "./stage-harness";
+import { renderStage, stage } from "./ceremony-stage.test-helpers";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -94,6 +94,17 @@ describe("CeremonyStage skipping", () => {
     run(120, 60);
     run(16);
     run(120, 60);
+
+    // then
+    expect(onDone).not.toHaveBeenCalled();
+  });
+
+  it("leaves a browser shortcut alone", () => {
+    // given
+    const { onDone } = renderStage();
+
+    // when
+    fireEvent.keyDown(window, { key: "r", ctrlKey: true });
 
     // then
     expect(onDone).not.toHaveBeenCalled();

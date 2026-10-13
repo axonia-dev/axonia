@@ -3,17 +3,17 @@ import { StrictMode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
-  centredPlacement,
-  CeremonyStage,
-  SETTLE_SECONDS,
-} from "./CeremonyStage";
-import {
   manualClock,
   moveTarget,
   renderStage,
   stage,
   target,
-} from "./stage-harness";
+} from "./ceremony-stage.test-helpers";
+import {
+  centredPlacement,
+  CeremonyStage,
+  SETTLE_SECONDS,
+} from "./CeremonyStage";
 
 afterEach(() => {
   moveTarget(new DOMRect(100, 80, 768, 400));
@@ -95,6 +95,20 @@ describe("CeremonyStage", () => {
     expect(parseFloat(card?.style.width ?? "")).toBeCloseTo(600, 0);
   });
 
+  it("settles for as long as it is told to", () => {
+    // given
+    const { run, onDone } = renderStage({ settleSeconds: 0.4 });
+
+    // when
+    run(1000);
+    const early = onDone.mock.calls.length;
+    run(500);
+
+    // then
+    expect(early).toBe(0);
+    expect(onDone).toHaveBeenCalledOnce();
+  });
+
   it("plays one loop and finishes once under StrictMode", () => {
     // given
     const { clock, run } = manualClock();
@@ -119,9 +133,11 @@ describe("CeremonyStage", () => {
     run(2000);
 
     // then
-    const times = onFrame.mock.calls.map(([, t]) => t as number);
+    const times = onFrame.mock.calls
+      .map(([, t]) => t as number)
+      .filter((t) => t > 0 && t < 1);
     expect(onDone).toHaveBeenCalledOnce();
-    expect(times).toEqual([...times].sort((a, b) => a - b));
+    expect(new Set(times).size).toBe(times.length);
   });
 
   it("finishes at once without a target to settle onto", () => {

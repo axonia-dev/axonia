@@ -39,6 +39,8 @@ export interface CeremonyStageProps {
   target: RefObject<HTMLElement | null>;
   /** Morph onto the target, or fade out in place where the target is not the same card. */
   settle: "morph" | "fade";
+  /** Seconds the settle takes after `length`. */
+  settleSeconds?: number;
   onFrame: (card: HTMLElement, t: number) => void;
   paint?: Painter;
   onDone: () => void;
@@ -145,7 +147,7 @@ function play({
   clock,
   finish,
 }: Playback): () => void {
-  const { length, settle } = props.current;
+  const { length, settle, settleSeconds = SETTLE_SECONDS } = props.current;
   const from = centredPlacement(box, viewportField());
   const start = clock.now();
   let last = start;
@@ -156,7 +158,7 @@ function play({
   const draw = (t: number) => {
     props.current.onFrame(card, Math.min(t, length));
     const settled = easeInOutCubic(
-      Math.min(1, Math.max(0, t - length) / SETTLE_SECONDS),
+      Math.min(1, Math.max(0, t - length) / settleSeconds),
     );
     const to =
       settle === "morph"
@@ -180,7 +182,7 @@ function play({
     slow = warm && now - last > SLOW_FRAME_MS ? slow + 1 : 0;
     last = now;
     const t = (now - start) / 1000;
-    if (slow >= SLOW_FRAMES_TO_FINISH || t >= length + SETTLE_SECONDS) {
+    if (slow >= SLOW_FRAMES_TO_FINISH || t >= length + settleSeconds) {
       finish();
       return;
     }
@@ -225,10 +227,11 @@ function Stage(props: Readonly<CeremonyStageProps>) {
 
   useEffect(() => {
     const skip = (event: KeyboardEvent) => {
-      if (!event.ctrlKey && !event.metaKey) {
-        event.preventDefault();
-        event.stopPropagation();
+      if (event.ctrlKey || event.metaKey) {
+        return;
       }
+      event.preventDefault();
+      event.stopPropagation();
       finish();
     };
     window.addEventListener("keydown", skip, true);

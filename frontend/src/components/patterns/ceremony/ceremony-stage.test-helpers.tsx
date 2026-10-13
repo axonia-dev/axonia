@@ -7,23 +7,24 @@ import type { CeremonyClock } from "./clock";
 
 export function manualClock() {
   let now = 0;
-  let pending: (() => void) | null = null;
+  let next = 1;
+  const pending = new Map<number, () => void>();
   const clock: CeremonyClock = {
     now: () => now,
     request: (callback) => {
-      pending = callback;
-      return 1;
+      pending.set(next, callback);
+      return next++;
     },
-    cancel: () => {
-      pending = null;
+    cancel: (handle) => {
+      pending.delete(handle);
     },
   };
   const run = (milliseconds: number, frame = 16) => {
     for (let elapsed = 0; elapsed < milliseconds; elapsed += frame) {
       now += frame;
-      const callback = pending;
-      pending = null;
-      act(() => callback?.());
+      const callbacks = [...pending.values()];
+      pending.clear();
+      act(() => callbacks.forEach((callback) => callback()));
     }
   };
   return { clock, run };
