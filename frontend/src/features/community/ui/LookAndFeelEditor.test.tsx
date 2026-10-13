@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -31,6 +32,12 @@ vi.mock("@/features/community/api/use-look-and-feel", () => ({
 }));
 vi.mock("@/features/community/ui/community-chrome", () => ({
   useCommunityCrumbs: vi.fn(),
+}));
+
+vi.mock("@/features/community/ui/ceremony/WelcomePreview", () => ({
+  WelcomePreview: ({ onDone }: { onDone: () => void }) => (
+    <button onClick={onDone}>welcome-preview</button>
+  ),
 }));
 
 const community: Community = {
@@ -107,5 +114,38 @@ describe("LookAndFeelEditor", () => {
       screen.getByRole("button", { name: /add logo/i }),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /accent/i })).toBeInTheDocument();
+  });
+
+  it("plays the welcome on demand", async () => {
+    // given
+    renderEditor();
+
+    // when
+    await userEvent.click(
+      screen.getByRole("button", { name: "Preview welcome" }),
+    );
+
+    // then
+    expect(
+      await screen.findByRole("button", { name: "welcome-preview" }),
+    ).toBeInTheDocument();
+  });
+
+  it("puts the preview away once it has played", async () => {
+    // given
+    renderEditor();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Preview welcome" }),
+    );
+
+    // when
+    await userEvent.click(
+      await screen.findByRole("button", { name: "welcome-preview" }),
+    );
+
+    // then
+    expect(
+      screen.queryByRole("button", { name: "welcome-preview" }),
+    ).toBeNull();
   });
 });
