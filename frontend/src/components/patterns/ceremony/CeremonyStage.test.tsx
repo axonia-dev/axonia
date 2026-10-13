@@ -9,11 +9,8 @@ import {
   stage,
   target,
 } from "./ceremony-stage.test-helpers";
-import {
-  centredPlacement,
-  CeremonyStage,
-  SETTLE_SECONDS,
-} from "./CeremonyStage";
+import { CeremonyStage } from "./CeremonyStage";
+import { SETTLE_SECONDS } from "./stage-motion";
 
 afterEach(() => {
   moveTarget(new DOMRect(100, 80, 768, 400));
@@ -190,31 +187,5 @@ describe("CeremonyStage", () => {
     expect(document.querySelector("[data-ceremony-card]")).toHaveAttribute(
       "inert",
     );
-  });
-});
-
-describe("centredPlacement", () => {
-  it("fits the card inside the viewport, centred", () => {
-    // when
-    const actual = centredPlacement(
-      { width: 768, height: 400 },
-      { width: 1280, height: 800 },
-    );
-
-    // then
-    expect(actual.scale).toBeCloseTo(1232 / 768);
-    expect(actual.x).toBeCloseTo(24);
-    expect(actual.y).toBeCloseTo((800 - 400 * (1232 / 768)) / 2);
-  });
-
-  it("shrinks a card wider than a phone", () => {
-    // when
-    const actual = centredPlacement(
-      { width: 380, height: 520 },
-      { width: 412, height: 892 },
-    );
-
-    // then
-    expect(actual.scale).toBeCloseTo(364 / 380);
   });
 });

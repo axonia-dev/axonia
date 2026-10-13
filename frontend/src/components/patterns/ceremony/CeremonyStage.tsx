@@ -11,33 +11,21 @@ import { createPortal } from "react-dom";
 import { useMediaQuery } from "@/lib/use-media-query";
 
 import { browserClock, type CeremonyClock } from "./clock";
-import { type Painter, viewportField } from "./paint";
-import { easeInOutCubic, lerp } from "./timeline";
+import type { Painter } from "./paint";
+import { viewportField } from "./paint";
+import { paintFrame, placeCard, revealer, stagedSize } from "./stage-frame";
+import { centredPlacement, SETTLE_SECONDS, settlePhase } from "./stage-motion";
 
-export const SETTLE_SECONDS = 0.85;
-const MARGIN = 24;
-const MAX_SCALE = 2;
 const SLOW_FRAME_MS = 50;
 const SLOW_FRAMES_TO_FINISH = 3;
 const WARMUP_MS = 250;
-
-export interface StagePlacement {
-  readonly x: number;
-  readonly y: number;
-  readonly scale: number;
-}
-
-interface Size {
-  readonly width: number;
-  readonly height: number;
-}
 
 export interface CeremonyStageProps {
   /** Seconds of choreography before the stage settles. */
   length: number;
   /** The on-page element the stage card settles onto. It must be mounted before the stage commits, so render it earlier in the tree. */
   target: RefObject<HTMLElement | null>;
-  /** Morph onto the target, or fade out in place where the target is not the same card. */
+  /** Morph onto the target and cross-fade into it, or fade out in place where the target is not the same card. */
   settle: "morph" | "fade";
   /** Seconds the settle takes after `length`. */
   settleSeconds?: number;
@@ -46,66 +34,6 @@ export interface CeremonyStageProps {
   onDone: () => void;
   clock?: CeremonyClock;
   children: ReactNode;
-}
-
-export function centredPlacement(card: Size, viewport: Size): StagePlacement {
-  const scale = Math.min(
-    MAX_SCALE,
-    (viewport.width - 2 * MARGIN) / card.width,
-    (viewport.height - 2 * MARGIN) / card.height,
-  );
-  return {
-    x: (viewport.width - card.width * scale) / 2,
-    y: (viewport.height - card.height * scale) / 2,
-    scale,
-  };
-}
-
-function between(
-  from: StagePlacement,
-  to: StagePlacement,
-  p: number,
-): StagePlacement {
-  return {
-    x: lerp(from.x, to.x, p),
-    y: lerp(from.y, to.y, p),
-    scale: lerp(from.scale, to.scale, p),
-  };
-}
-
-function placementOf(
-  element: HTMLElement | null,
-  fallback: StagePlacement,
-): StagePlacement {
-  const box = element?.getBoundingClientRect();
-  return box === undefined ? fallback : { x: box.left, y: box.top, scale: 1 };
-}
-
-function widthOf(element: HTMLElement | null, fallback: number): number {
-  return element?.getBoundingClientRect().width ?? fallback;
-}
-
-function paintFrame(
-  canvas: HTMLCanvasElement | null,
-  paint: Painter | undefined,
-  t: number,
-  card: HTMLElement,
-): void {
-  const context = canvas?.getContext("2d") ?? null;
-  if (canvas === null || context === null) {
-    return;
-  }
-  const ratio = window.devicePixelRatio || 1;
-  const field = viewportField();
-  const width = Math.round(field.width * ratio);
-  const height = Math.round(field.height * ratio);
-  if (canvas.width !== width || canvas.height !== height) {
-    canvas.width = width;
-    canvas.height = height;
-  }
-  context.setTransform(ratio, 0, 0, ratio, 0, 0);
-  context.clearRect(0, 0, field.width, field.height);
-  paint?.(context, t, card);
 }
 
 function useLatest<T>(value: T): RefObject<T> {
@@ -147,32 +75,26 @@ function play({
   clock,
   finish,
 }: Playback): () => void {
-  const { length, settle, settleSeconds = SETTLE_SECONDS } = props.current;
-  const from = centredPlacement(box, viewportField());
+  const { length, settleSeconds = SETTLE_SECONDS } = props.current;
+  const size = stagedSize(card, box);
+  const origin = {
+    from: centredPlacement(size, viewportField()),
+    width: box.width,
+  };
+  const target = revealer(props.current.target);
   const start = clock.now();
   let last = start;
   let slow = 0;
   let handle = 0;
-  card.style.width = `${box.width}px`;
 
   const draw = (t: number) => {
     props.current.onFrame(card, Math.min(t, length));
-    const settled = easeInOutCubic(
-      Math.min(1, Math.max(0, t - length) / settleSeconds),
-    );
-    const to =
-      settle === "morph"
-        ? placementOf(props.current.target.current, from)
-        : from;
-    const at = between(from, to, settled);
-    card.style.width = `${lerp(box.width, widthOf(props.current.target.current, box.width), settled)}px`;
-    card.style.transform = `translate(${at.x}px, ${at.y}px) scale(${at.scale})`;
-    if (settle === "fade") {
-      card.style.opacity = String(1 - settled);
+    const phase = settlePhase(t, { length, settleSeconds });
+    placeCard(card, props.current, origin, phase);
+    if (props.current.settle === "morph" && phase.crossfade > 0) {
+      target.reveal();
     }
-    if (backdrop !== null) {
-      backdrop.style.opacity = String(1 - settled);
-    }
+    backdrop?.style.setProperty("opacity", String(phase.backdrop));
     paintFrame(canvas, props.current.paint, t, card);
   };
 
@@ -192,7 +114,10 @@ function play({
 
   draw(0);
   handle = clock.request(tick);
-  return () => clock.cancel(handle);
+  return () => {
+    clock.cancel(handle);
+    target.restore();
+  };
 }
 
 function Stage(props: Readonly<CeremonyStageProps>) {
@@ -245,12 +170,12 @@ function Stage(props: Readonly<CeremonyStageProps>) {
       className="fixed inset-0 z-[100] cursor-pointer"
       onClick={finish}
     >
-      <div ref={backdrop} className="absolute inset-0 bg-[#0d0910]" />
+      <div ref={backdrop} className="absolute inset-0 bg-[#0d0910] opacity-0" />
       <div
         ref={card}
         data-ceremony-card
         inert
-        className="absolute top-0 left-0 origin-top-left"
+        className="theme-dark text-foreground absolute top-0 left-0 origin-top-left"
       >
         {children}
       </div>
@@ -263,22 +188,30 @@ function Stage(props: Readonly<CeremonyStageProps>) {
   );
 }
 
-function ReducedMotion({ onDone }: Readonly<{ onDone: () => void }>) {
+const REDUCED_FADE = { duration: 200, easing: "ease-out" };
+
+/** No stage: the target simply fades in, with no movement. */
+function ReducedMotion({
+  target,
+  onDone,
+}: Readonly<Pick<CeremonyStageProps, "target" | "onDone">>) {
   const finish = useFinish(onDone);
   useEffect(() => {
+    target.current?.animate?.([{ opacity: 0 }, { opacity: 1 }], REDUCED_FADE);
     finish();
-  }, [finish]);
+  }, [finish, target]);
   return null;
 }
 
 /**
  * A full-screen moment that plays `onFrame`'s choreography over a dark backdrop, then settles
  * onto `target`. Any click or key finishes it at once, and it never plays under reduced motion.
+ * The staged card always wears the dark theme: sparks and sheen only read on dark.
  */
 export function CeremonyStage(props: Readonly<CeremonyStageProps>) {
   const reduced = useMediaQuery("(prefers-reduced-motion: reduce)");
   return reduced ? (
-    <ReducedMotion onDone={props.onDone} />
+    <ReducedMotion target={props.target} onDone={props.onDone} />
   ) : (
     <Stage {...props} />
   );

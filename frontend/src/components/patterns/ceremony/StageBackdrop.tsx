@@ -11,7 +11,7 @@ export function StageBackdrop() {
         <div
           data-ceremony-backdrop
           aria-hidden
-          className="fixed inset-0 z-[100] bg-[#0d0910]"
+          className="fixed inset-0 z-[100] bg-[#0d0910] transition-opacity duration-[180ms] starting:opacity-0"
         />,
         document.body,
       );
