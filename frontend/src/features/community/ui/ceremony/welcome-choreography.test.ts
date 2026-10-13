@@ -7,7 +7,7 @@ import {
   welcomeCues,
 } from "@/features/community/ui/ceremony/welcome-choreography";
 
-const PLAIN = { pictured: false };
+const PLAIN = { pictured: false, arriving: true };
 
 function card(): HTMLElement {
   const root = document.createElement("div");
@@ -111,6 +111,18 @@ describe("welcomeCues", () => {
     expect(styleOf(root, "#newcomer").opacity).toBe("1");
   });
 
+  it("leaves an existing member's face alone when nobody flies in", () => {
+    // given
+    const root = card();
+
+    // when
+    applyCues(root, welcomeCues({ pictured: false, arriving: false }), 2.6);
+
+    // then
+    expect(styleOf(root, "#newcomer").opacity).toBe("");
+    expect(styleOf(root, "#newcomer").marginRight).toBe("");
+  });
+
   it("opens the doors of a card without a banner onto its accent", () => {
     // given
     const root = card();
@@ -142,7 +154,7 @@ describe("welcomeCues", () => {
     const root = card();
 
     // when
-    applyCues(root, welcomeCues({ pictured: true }), 0.8);
+    applyCues(root, welcomeCues({ pictured: true, arriving: true }), 0.8);
 
     // then
     expect(

@@ -91,9 +91,26 @@ const FACEPILE = `${part("facepile")} [data-facepile-item]`;
 
 export interface WelcomeCard {
   readonly pictured: boolean;
+  /** Whether a newcomer flies in; without one the first face is an existing member and stays put. */
+  readonly arriving: boolean;
 }
 
-export function welcomeCues({ pictured }: WelcomeCard): Cue[] {
+function arrivalCues(): Cue[] {
+  return [
+    {
+      selector: `${FACEPILE}:first-child`,
+      beat: WELCOME_BEATS.shift,
+      style: makeRoom,
+    },
+    {
+      selector: `${FACEPILE}:first-child`,
+      beat: WELCOME_BEATS.land,
+      style: fadeIn,
+    },
+  ];
+}
+
+export function welcomeCues({ pictured, arriving }: WelcomeCard): Cue[] {
   const washes = pictured
     ? []
     : [{ selector: part("identity"), beat: WELCOME_BEATS.wash, style: wash }];
@@ -107,16 +124,7 @@ export function welcomeCues({ pictured }: WelcomeCard): Cue[] {
       style: rise(24),
     })),
     { selector: part("footer"), beat: WELCOME_BEATS.rise, style: fadeIn },
-    {
-      selector: `${FACEPILE}:first-child`,
-      beat: WELCOME_BEATS.shift,
-      style: makeRoom,
-    },
-    {
-      selector: `${FACEPILE}:first-child`,
-      beat: WELCOME_BEATS.land,
-      style: fadeIn,
-    },
+    ...(arriving ? arrivalCues() : []),
     { selector: part("name"), beat: WELCOME_BEATS.sheen, style: sheen },
   ];
 }

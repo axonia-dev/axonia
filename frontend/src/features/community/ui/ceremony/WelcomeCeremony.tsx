@@ -56,7 +56,11 @@ export function WelcomeCeremony({
   const members = withNewcomerFirst(faces, newcomer);
   const pictured = community.heroUrl != null;
   const paint = useMemo(() => welcomePainter(hue), [hue]);
-  const cues = useMemo(() => welcomeCues({ pictured }), [pictured]);
+  const arriving = newcomer !== null;
+  const cues = useMemo(
+    () => welcomeCues({ pictured, arriving }),
+    [pictured, arriving],
+  );
   const onFrame = useCallback(
     (card: HTMLElement, t: number) => {
       applyCues(card, cues, t);
