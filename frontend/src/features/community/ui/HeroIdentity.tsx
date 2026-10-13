@@ -71,6 +71,7 @@ export function HeroIdentity({
 }: Readonly<HeroIdentityProps>) {
   return (
     <div
+      data-ceremony-part="identity"
       className={cn("relative", hasBanner ? "px-8 pb-8" : "p-8")}
       style={hasBanner ? IDENTITY_WASH : { backgroundColor: "var(--surface)" }}
     >

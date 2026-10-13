@@ -32,6 +32,7 @@ export function HeroBanner({
   if (heroUrl == null) {
     return (
       <div
+        data-ceremony-part="banner"
         className={cn(
           "from-primary/10 to-secondary/10 relative aspect-3/2 bg-linear-to-br sm:aspect-32/9",
           editing && "group/banner",
@@ -45,6 +46,7 @@ export function HeroBanner({
   return (
     <div
       data-focal-frame
+      data-ceremony-part="banner"
       className={cn(
         "relative aspect-3/2 overflow-hidden sm:aspect-32/9",
         editing && "group/banner",

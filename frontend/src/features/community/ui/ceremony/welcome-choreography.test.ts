@@ -7,10 +7,13 @@ import {
   welcomeCues,
 } from "@/features/community/ui/ceremony/welcome-choreography";
 
+const PLAIN = { pictured: false };
+
 function card(): HTMLElement {
   const root = document.createElement("div");
   root.innerHTML = `
     <div data-ceremony-part="surface">
+      <div data-ceremony-part="identity">
       <div data-ceremony-part="badge"></div>
       <div data-ceremony-part="meta">
         <span data-ceremony-part="facepile">
@@ -19,6 +22,7 @@ function card(): HTMLElement {
         </span>
       </div>
       <h1 data-ceremony-part="name">Platform Engineering</h1>
+      </div>
     </div>`;
   return root;
 }
@@ -33,7 +37,7 @@ describe("welcomeCues", () => {
     const root = card();
 
     // when
-    applyCues(root, welcomeCues(), 0);
+    applyCues(root, welcomeCues(PLAIN), 0);
 
     // then
     expect(styleOf(root, '[data-ceremony-part="surface"]').clipPath).toBe(
@@ -46,7 +50,7 @@ describe("welcomeCues", () => {
     const root = card();
 
     // when
-    applyCues(root, welcomeCues(), 1.6);
+    applyCues(root, welcomeCues(PLAIN), 1.6);
 
     // then
     expect(styleOf(root, '[data-ceremony-part="surface"]').clipPath).toBe("");
@@ -57,7 +61,7 @@ describe("welcomeCues", () => {
     const root = card();
 
     // when
-    applyCues(root, welcomeCues(), 3.2);
+    applyCues(root, welcomeCues(PLAIN), 3.2);
 
     // then
     expect(styleOf(root, "#newcomer").opacity).toBe("0");
@@ -68,21 +72,82 @@ describe("welcomeCues", () => {
     const root = card();
 
     // when
-    applyCues(root, welcomeCues(), 3.4);
+    applyCues(root, welcomeCues(PLAIN), 3.4);
 
     // then
     expect(styleOf(root, "#newcomer").opacity).toBe("1");
   });
 
-  it("slides the other faces over to make room", () => {
+  it("keeps the newcomer's slot folded under the other faces until they make room", () => {
     // given
     const root = card();
 
     // when
-    applyCues(root, welcomeCues(), 2.6);
+    applyCues(root, welcomeCues(PLAIN), 2.6);
 
     // then
-    expect(styleOf(root, "#other").transform).toBe("translateX(-20.00px)");
+    expect(styleOf(root, "#newcomer").marginRight).toBe("-20px");
+  });
+
+  it("opens the newcomer's slot once the faces have shifted over", () => {
+    // given
+    const root = card();
+
+    // when
+    applyCues(root, welcomeCues(PLAIN), 3.3);
+
+    // then
+    expect(styleOf(root, "#newcomer").marginRight).toBe("");
+  });
+
+  it("shows the newcomer's face in full as the avatar lands", () => {
+    // given
+    const root = card();
+
+    // when
+    applyCues(root, welcomeCues(PLAIN), 3.35);
+
+    // then
+    expect(styleOf(root, "#newcomer").opacity).toBe("1");
+  });
+
+  it("opens the doors of a card without a banner onto its accent", () => {
+    // given
+    const root = card();
+
+    // when
+    applyCues(root, welcomeCues(PLAIN), 0.8);
+
+    // then
+    expect(
+      styleOf(root, '[data-ceremony-part="identity"]').backgroundImage,
+    ).toContain("var(--community-accent) 35.0%");
+  });
+
+  it("lets the accent settle into the plain surface", () => {
+    // given
+    const root = card();
+
+    // when
+    applyCues(root, welcomeCues(PLAIN), 2.5);
+
+    // then
+    expect(
+      styleOf(root, '[data-ceremony-part="identity"]').backgroundImage,
+    ).toBe("");
+  });
+
+  it("leaves a pictured card's own wash alone", () => {
+    // given
+    const root = card();
+
+    // when
+    applyCues(root, welcomeCues({ pictured: true }), 0.8);
+
+    // then
+    expect(
+      styleOf(root, '[data-ceremony-part="identity"]').backgroundImage,
+    ).toBe("");
   });
 });
 

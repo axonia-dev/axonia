@@ -21,8 +21,6 @@ import { communityHue } from "@/features/community/ui/community-accent";
 import { CommunityHeroCard } from "@/features/community/ui/CommunityHeroCard";
 import { HERO_FACES_SHOWN } from "@/features/community/ui/use-hero-faces";
 
-const WELCOME_CUES = welcomeCues();
-
 export interface WelcomeCeremonyProps extends CeremonyCardProps {
   newcomer: FacepileMember | null;
   countFrom: number;
@@ -56,16 +54,18 @@ export function WelcomeCeremony({
   const [count, setCount] = useState(countFrom);
   const hue = communityHue(community);
   const members = withNewcomerFirst(faces, newcomer);
+  const pictured = community.heroUrl != null;
   const paint = useMemo(() => welcomePainter(hue), [hue]);
+  const cues = useMemo(() => welcomeCues({ pictured }), [pictured]);
   const onFrame = useCallback(
     (card: HTMLElement, t: number) => {
-      applyCues(card, WELCOME_CUES, t);
+      applyCues(card, cues, t);
       placeFlier(card, t);
       if (t >= WELCOME_BEATS.count.start) {
         setCount(countTo);
       }
     },
-    [countTo],
+    [countTo, cues],
   );
 
   return (
@@ -92,14 +92,17 @@ export function WelcomeCeremony({
         cornerControl={cornerControl}
       />
       {newcomer !== null && (
-        <span data-ceremony-flier className="absolute top-0 left-0 opacity-0">
+        <span
+          data-ceremony-flier
+          className="absolute top-0 left-0 flex opacity-0 *:size-full"
+        >
           <MemberAvatar
             name={newcomer.name}
             hue={newcomer.hue}
             subject={newcomer.id}
             src={newcomer.src}
             shape="circle"
-            className="size-full border-2 border-white text-xs"
+            className="size-full border-2 border-(color:--flier-ring) text-[length:inherit]"
           />
         </span>
       )}
