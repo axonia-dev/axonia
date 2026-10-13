@@ -10,7 +10,10 @@ import {
   type Painter,
   viewportField,
 } from "@/components/patterns/ceremony/paint";
-import { textTargets } from "@/components/patterns/ceremony/sample-text";
+import {
+  loadTextFont,
+  textTargets,
+} from "@/components/patterns/ceremony/sample-text";
 import {
   createSeeds,
   type Point,
@@ -71,12 +74,21 @@ function prepare(name: HTMLElement, card: HTMLElement): Prepared {
 /** Sparks that fly in from beyond the edges and condense into the name's letterforms. */
 export function birthPainter(hue: string): Painter {
   let prepared: Prepared | null = null;
+  let loading = false;
   return (context, t, card) => {
     const name = card.querySelector<HTMLElement>(part("name"));
     if (name === null) {
       return;
     }
-    prepared ??= prepare(name, card);
+    if (prepared === null) {
+      if (!loading) {
+        loading = true;
+        void loadTextFont(name).then(() => {
+          prepared = prepare(name, card);
+        });
+      }
+      return;
+    }
     const frame = card.getBoundingClientRect();
     const targets = prepared.targets.map((point) => ({
       x: frame.left + point.x,
