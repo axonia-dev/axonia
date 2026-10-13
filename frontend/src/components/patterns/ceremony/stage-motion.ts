@@ -1,7 +1,6 @@
 import { easeInOutCubic, lerp } from "./timeline";
 
 export const SETTLE_SECONDS = 0.85;
-const ENTRANCE_SECONDS = 0.18;
 const CROSSFADE_SECONDS = 0.25;
 const MARGIN = 24;
 const MAX_SCALE = 2;
@@ -55,7 +54,6 @@ export interface SettlePhase {
   readonly crossfade: number;
   /** The whole settle, eased: the page fading back in around the card. */
   readonly settled: number;
-  readonly backdrop: number;
 }
 
 function share(elapsed: number, seconds: number): number {
@@ -73,6 +71,5 @@ export function settlePhase(
     travel: easeInOutCubic(share(t - length, travelSeconds)),
     crossfade: share(t - length - travelSeconds, crossfadeSeconds),
     settled,
-    backdrop: Math.min(share(t, ENTRANCE_SECONDS), 1 - settled),
   };
 }

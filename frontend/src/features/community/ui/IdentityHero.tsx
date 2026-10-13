@@ -1,5 +1,12 @@
 import { Share2 } from "lucide-react";
-import { type RefObject, Suspense, useEffect, useRef, useState } from "react";
+import {
+  type RefObject,
+  Suspense,
+  useDeferredValue,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import { StageBackdrop } from "@/components/patterns/ceremony/StageBackdrop";
 import { MemberFacepile } from "@/components/patterns/MemberFacepile";
@@ -82,29 +89,43 @@ const shareTriggerClass =
   "rounded-full bg-black/35 p-2 text-white backdrop-blur hover:bg-primary hover:text-primary-foreground";
 
 /**
- * The community's front door: the shared hero card with the primary Join call-to-action.
- * Self-serve hubs get a quiet share glyph in the card's top-right corner for whoever the
- * invite axis opens for. Management lives in the card's footer, next to the membership chip.
+ * The Join button that held focus is gone once the member's chip replaces it, so focus goes to the
+ * footer's member controls: once the ceremony is over and the membership answer says member, which
+ * under reduced motion or after an early skip can land after the ceremony.
  */
-/** The Join button that held focus is gone once the member's chip replaces it, so focus goes to the footer. */
 function useFocusFooterAfterJoin(
   hero: RefObject<HTMLElement | null>,
-  playing: boolean,
+  settled: boolean,
 ): () => void {
   const joined = useRef(false);
   useEffect(() => {
-    if (!playing && joined.current) {
+    if (settled && joined.current) {
       joined.current = false;
       hero.current
         ?.querySelector<HTMLElement>('[data-ceremony-part="footer"] button')
         ?.focus();
     }
-  }, [hero, playing]);
+  }, [hero, settled]);
   return () => {
     joined.current = true;
   };
 }
 
+/** A polite live region, filled one pass after it mounts so a screen reader hears it; a new `key` announces the same words again. */
+function Announcement({ text }: Readonly<{ text: string }>) {
+  const shown = useDeferredValue(text, "");
+  return (
+    <p role="status" className="sr-only">
+      {shown}
+    </p>
+  );
+}
+
+/**
+ * The community's front door: the shared hero card with the primary Join call-to-action.
+ * Self-serve hubs get a quiet share glyph in the card's top-right corner for whoever the
+ * invite axis opens for. Management lives in the card's footer, next to the membership chip.
+ */
 export function IdentityHero({ community, slug }: Readonly<IdentityHeroProps>) {
   const access = useManagementAccess(slug);
   const { CommunityInvite } = useEdition();
@@ -115,7 +136,11 @@ export function IdentityHero({ community, slug }: Readonly<IdentityHeroProps>) {
   const hero = useRef<HTMLDivElement>(null);
   const playing = ceremony.active !== null;
   const reduced = useMediaQuery("(prefers-reduced-motion: reduce)");
-  const markJoined = useFocusFooterAfterJoin(hero, playing);
+  const { data: membership } = useMyMembership(slug);
+  const markJoined = useFocusFooterAfterJoin(
+    hero,
+    !playing && membership != null,
+  );
   const onJoined = () => {
     markJoined();
     ceremony.welcome();
@@ -155,22 +180,25 @@ export function IdentityHero({ community, slug }: Readonly<IdentityHeroProps>) {
         />
       </div>
       {ceremony.active !== null && (
-        <Suspense fallback={<StageBackdrop />}>
-          <LazyHeroCeremony
-            ceremony={ceremony.active}
-            community={community}
-            faces={faces}
-            footer={footer}
-            cornerControl={cornerControl}
-            target={hero}
-            settle="morph"
-            onDone={ceremony.finish}
-          />
-        </Suspense>
+        <StageBackdrop>
+          <Suspense fallback={null}>
+            <LazyHeroCeremony
+              ceremony={ceremony.active}
+              community={community}
+              faces={faces}
+              footer={footer}
+              cornerControl={cornerControl}
+              target={hero}
+              settle="morph"
+              onDone={ceremony.finish}
+            />
+          </Suspense>
+        </StageBackdrop>
       )}
-      <p role="status" className="sr-only">
-        {ceremony.announcement}
-      </p>
+      <Announcement
+        key={ceremony.announcementKey}
+        text={ceremony.announcement}
+      />
       {showInvite && CommunityInvite !== null && (
         <CommunityInvite
           slug={slug}

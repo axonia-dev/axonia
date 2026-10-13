@@ -5,14 +5,17 @@ import { renderStage, target } from "./ceremony-stage.test-helpers";
 
 afterEach(() => {
   vi.restoreAllMocks();
+  Reflect.deleteProperty(HTMLElement.prototype, "animate");
 });
 
 function card(): HTMLElement {
   return document.querySelector("[data-ceremony-card]") as HTMLElement;
 }
 
-function backdrop(): HTMLElement {
-  return document.querySelector("[data-ceremony-stage] > div") as HTMLElement;
+function backdrops(): HTMLElement[] {
+  return [
+    ...document.querySelectorAll<HTMLElement>("[data-ceremony-backdrop]"),
+  ];
 }
 
 function hiddenTarget() {
@@ -30,12 +33,34 @@ describe("CeremonyStage settling", () => {
     expect(card()).toHaveClass("theme-dark");
   });
 
-  it("fades the backdrop in rather than cutting to it", () => {
+  it("brings its own backdrop and fades it in rather than cutting to it", () => {
+    // given
+    const animate = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, "animate", {
+      value: animate,
+      configurable: true,
+    });
+
     // when
     renderStage();
 
     // then
-    expect(backdrop().style.opacity).toBe("0");
+    expect(backdrops()).toHaveLength(1);
+    expect(animate).toHaveBeenCalledWith([{ opacity: 0 }, { opacity: 1 }], {
+      duration: 180,
+      easing: "ease-out",
+    });
+  });
+
+  it("clears its backdrop as it settles", () => {
+    // given
+    const { run } = renderStage();
+
+    // when
+    run(1000 + 848);
+
+    // then
+    expect(Number(backdrops()[0]?.style.opacity)).toBeLessThan(0.01);
   });
 
   it("centres the staged card by its own size, not the target's", () => {

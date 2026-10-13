@@ -31,14 +31,6 @@ describe("centredPlacement", () => {
 });
 
 describe("settlePhase", () => {
-  it("starts on a clear backdrop that darkens at once", () => {
-    // when
-    const actual = [settlePhase(0, timing), settlePhase(0.2, timing)];
-
-    // then
-    expect(actual.map((phase) => phase.backdrop)).toEqual([0, 1]);
-  });
-
   it("arrives on the target before the cross-fade begins", () => {
     // when
     const actual = settlePhase(3.4 + 0.6, timing);
@@ -60,12 +52,11 @@ describe("settlePhase", () => {
     expect(actual[1]?.crossfade).toBe(1);
   });
 
-  it("clears the backdrop by the end of the settle", () => {
+  it("has fully settled by the end of the settle", () => {
     // when
     const actual = settlePhase(3.4 + 0.85, timing);
 
     // then
-    expect(actual.backdrop).toBe(0);
     expect(actual.settled).toBe(1);
   });
 

@@ -157,4 +157,47 @@ describe("IdentityHero ceremonies", () => {
       screen.getByRole("button", { name: "community-menu" }),
     ).toHaveFocus();
   });
+
+  it("returns focus to the footer when the membership answer lands after the ceremony", async () => {
+    // given the ceremony is over (skipped early, or never staged under reduced motion)
+    const { rerender } = renderHero();
+    await userEvent.click(screen.getByRole("button", { name: "Join" }));
+    await userEvent.click(
+      await screen.findByRole("button", { name: "end ceremony" }),
+    );
+
+    // when
+    vi.mocked(useMyMembership).mockReturnValue({
+      data: { role: "MEMBER" },
+      isError: false,
+    } as never);
+    rerender(
+      <MemoryRouter>
+        <IdentityHero community={community} slug="backend-guild" />
+      </MemoryRouter>,
+    );
+
+    // then
+    expect(
+      screen.getByRole("button", { name: "community-menu" }),
+    ).toHaveFocus();
+  });
+
+  it("announces a rejoin again, with a fresh live region", async () => {
+    // given
+    renderHero();
+    await userEvent.click(screen.getByRole("button", { name: "Join" }));
+    await userEvent.click(
+      await screen.findByRole("button", { name: "end ceremony" }),
+    );
+    const first = screen.getByRole("status");
+
+    // when
+    await userEvent.click(screen.getByRole("button", { name: "Join" }));
+
+    // then
+    const actual = screen.getByRole("status");
+    expect(actual).not.toBe(first);
+    expect(actual).toHaveTextContent("Joined Backend Guild");
+  });
 });

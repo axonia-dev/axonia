@@ -1,18 +1,54 @@
+import {
+  createContext,
+  type ReactNode,
+  type RefObject,
+  useContext,
+  useLayoutEffect,
+  useRef,
+} from "react";
 import { createPortal } from "react-dom";
 
 import { useMediaQuery } from "@/lib/use-media-query";
 
-/** The stage's dark backdrop alone, held up while the ceremony still loads so it starts at once. */
-export function StageBackdrop() {
+const ENTRANCE = { duration: 180, easing: "ease-out" };
+
+const BackdropContext = createContext<RefObject<HTMLElement | null> | null>(
+  null,
+);
+
+/** The backdrop the stage stands on, or `null` outside a `StageBackdrop`. */
+export function useStageBackdrop(): RefObject<HTMLElement | null> | null {
+  return useContext(BackdropContext);
+}
+
+/**
+ * The stage's dark backdrop, held from the moment a ceremony starts until it ends. Render it around
+ * the ceremony and outside any Suspense boundary, so it darkens once whether or not the ceremony's
+ * chunk has loaded; the stage inside only fades it out as it settles.
+ */
+export function StageBackdrop({ children }: Readonly<{ children: ReactNode }>) {
   const reduced = useMediaQuery("(prefers-reduced-motion: reduce)");
-  return reduced
-    ? null
-    : createPortal(
+  const backdrop = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    backdrop.current?.animate?.([{ opacity: 0 }, { opacity: 1 }], ENTRANCE);
+  }, [reduced]);
+
+  if (reduced) {
+    return <>{children}</>;
+  }
+  return (
+    <BackdropContext value={backdrop}>
+      {createPortal(
         <div
+          ref={backdrop}
           data-ceremony-backdrop
           aria-hidden
-          className="fixed inset-0 z-[100] bg-[#0d0910] transition-opacity duration-[180ms] starting:opacity-0"
+          className="fixed inset-0 z-[100] bg-[#0d0910]"
         />,
         document.body,
-      );
+      )}
+      {children}
+    </BackdropContext>
+  );
 }

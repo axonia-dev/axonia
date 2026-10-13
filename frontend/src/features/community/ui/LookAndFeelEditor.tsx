@@ -127,13 +127,15 @@ export function LookAndFeelEditor() {
               />
             </div>
             {previewing && (
-              <Suspense fallback={<StageBackdrop />}>
-                <LazyWelcomePreview
-                  community={community}
-                  target={card}
-                  onDone={() => setPreviewing(false)}
-                />
-              </Suspense>
+              <StageBackdrop>
+                <Suspense fallback={null}>
+                  <LazyWelcomePreview
+                    community={community}
+                    target={card}
+                    onDone={() => setPreviewing(false)}
+                  />
+                </Suspense>
+              </StageBackdrop>
             )}
           </section>
         );

@@ -18,6 +18,8 @@ type HeroCommunity = Pick<Community, "slug" | "name" | "memberCount">;
 interface State {
   readonly active: ActiveCeremony | null;
   readonly announcement: string;
+  /** How many joins this visit has welcomed: a rejoin is announced again even with the same words. */
+  readonly joins: number;
 }
 
 function announcementFor(kind: CeremonyKind, name: string): string {
@@ -28,7 +30,7 @@ function announcementFor(kind: CeremonyKind, name: string): string {
 function fromHandoff(community: HeroCommunity): State {
   const kind = pendingCeremony(community.slug);
   if (kind === null) {
-    return { active: null, announcement: "" };
+    return { active: null, announcement: "", joins: 0 };
   }
   const countFrom =
     kind === "welcome"
@@ -37,6 +39,7 @@ function fromHandoff(community: HeroCommunity): State {
   return {
     active: { kind, countFrom, countTo: community.memberCount },
     announcement: announcementFor(kind, community.name),
+    joins: 0,
   };
 }
 
@@ -53,14 +56,15 @@ export function useHeroCeremony(community: HeroCommunity) {
   }, [slug, state.active]);
 
   const welcome = useCallback(() => {
-    setState({
+    setState((current) => ({
       active: {
         kind: "welcome",
         countFrom: memberCount,
         countTo: memberCount + 1,
       },
       announcement: announcementFor("welcome", name),
-    });
+      joins: current.joins + 1,
+    }));
   }, [memberCount, name]);
 
   const finish = useCallback(() => {
@@ -70,6 +74,7 @@ export function useHeroCeremony(community: HeroCommunity) {
   return {
     active: state.active,
     announcement,
+    announcementKey: state.joins,
     welcome,
     finish,
   };

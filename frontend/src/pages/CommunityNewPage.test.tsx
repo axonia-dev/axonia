@@ -6,12 +6,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useCurrentOrganization } from "@/features/admin/api/use-current-organization";
 import type { CurrentOrganization } from "@/features/admin/domain/current-organization";
 import { pendingCeremony } from "@/features/community/api/ceremony-handoff";
+import { preloadHeroCeremony } from "@/features/community/ui/ceremony/lazy-ceremonies";
 import { CommunityNewPage } from "@/pages/CommunityNewPage";
 
 vi.mock("@/features/community/ui/CommunityForm", () => ({
   CommunityForm: ({ onCreated }: { onCreated: (slug: string) => void }) => (
     <button onClick={() => onCreated("backend-guild")}>create</button>
   ),
+}));
+vi.mock("@/features/community/ui/ceremony/lazy-ceremonies", () => ({
+  preloadHeroCeremony: vi.fn(),
 }));
 vi.mock("@/features/admin/api/use-current-organization", () => ({
   useCurrentOrganization: vi.fn(),
@@ -35,6 +39,17 @@ beforeEach(() => {
 });
 
 describe("CommunityNewPage", () => {
+  it("loads the birth ceremony ahead, so it starts at once after creating", () => {
+    // given
+    mockCurrentOrg.mockReturnValue(queryResult(undefined));
+
+    // when
+    renderPage();
+
+    // then
+    expect(preloadHeroCeremony).toHaveBeenCalled();
+  });
+
   it("names the organization the community will be created in", () => {
     // given
     mockCurrentOrg.mockReturnValue(

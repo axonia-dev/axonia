@@ -15,6 +15,7 @@ import type { Painter } from "./paint";
 import { viewportField } from "./paint";
 import { paintFrame, placeCard, revealer, stagedSize } from "./stage-frame";
 import { centredPlacement, SETTLE_SECONDS, settlePhase } from "./stage-motion";
+import { StageBackdrop, useStageBackdrop } from "./StageBackdrop";
 
 const SLOW_FRAME_MS = 50;
 const SLOW_FRAMES_TO_FINISH = 3;
@@ -57,7 +58,7 @@ function useFinish(onDone: () => void): () => void {
 
 interface Playback {
   card: HTMLElement;
-  backdrop: HTMLElement | null;
+  backdrop: RefObject<HTMLElement | null>;
   canvas: HTMLCanvasElement | null;
   box: DOMRect;
   props: RefObject<CeremonyStageProps>;
@@ -94,7 +95,7 @@ function play({
     if (props.current.settle === "morph" && phase.crossfade > 0) {
       target.reveal();
     }
-    backdrop?.style.setProperty("opacity", String(phase.backdrop));
+    backdrop.current?.style.setProperty("opacity", String(1 - phase.settled));
     paintFrame(canvas, props.current.paint, t, card);
   };
 
@@ -120,10 +121,12 @@ function play({
   };
 }
 
-function Stage(props: Readonly<CeremonyStageProps>) {
+function Stage({
+  backdrop,
+  ...props
+}: Readonly<CeremonyStageProps & { backdrop: RefObject<HTMLElement | null> }>) {
   const { target, clock = browserClock, children } = props;
   const card = useRef<HTMLDivElement>(null);
-  const backdrop = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const latest = useLatest(props);
   const finish = useFinish(props.onDone);
@@ -141,14 +144,14 @@ function Stage(props: Readonly<CeremonyStageProps>) {
     }
     return play({
       card: card.current,
-      backdrop: backdrop.current,
+      backdrop,
       canvas: canvas.current,
       box,
       props: latest,
       clock,
       finish,
     });
-  }, [clock, finish, latest, target]);
+  }, [backdrop, clock, finish, latest, target]);
 
   useEffect(() => {
     const skip = (event: KeyboardEvent) => {
@@ -170,7 +173,6 @@ function Stage(props: Readonly<CeremonyStageProps>) {
       className="fixed inset-0 z-[100] cursor-pointer"
       onClick={finish}
     >
-      <div ref={backdrop} className="absolute inset-0 bg-[#0d0910] opacity-0" />
       <div
         ref={card}
         data-ceremony-card
@@ -203,6 +205,18 @@ function ReducedMotion({
   return null;
 }
 
+/** The stage stands on the backdrop its consumer holds up, or brings its own. */
+function OnBackdrop(props: Readonly<CeremonyStageProps>) {
+  const backdrop = useStageBackdrop();
+  return backdrop === null ? (
+    <StageBackdrop>
+      <OnBackdrop {...props} />
+    </StageBackdrop>
+  ) : (
+    <Stage {...props} backdrop={backdrop} />
+  );
+}
+
 /**
  * A full-screen moment that plays `onFrame`'s choreography over a dark backdrop, then settles
  * onto `target`. Any click or key finishes it at once, and it never plays under reduced motion.
@@ -213,6 +227,6 @@ export function CeremonyStage(props: Readonly<CeremonyStageProps>) {
   return reduced ? (
     <ReducedMotion target={props.target} onDone={props.onDone} />
   ) : (
-    <Stage {...props} />
+    <OnBackdrop {...props} />
   );
 }
