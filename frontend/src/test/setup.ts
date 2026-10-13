@@ -108,8 +108,5 @@ if (typeof Element.prototype.scrollIntoView !== "function") {
 
 afterEach(() => {
   cleanup();
-});
-
-afterEach(() => {
   sessionStorage.clear();
 });

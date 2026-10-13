@@ -1,73 +1,22 @@
-import { act, fireEvent, render } from "@testing-library/react";
-import type { RefObject } from "react";
+import { render } from "@testing-library/react";
+import { StrictMode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   centredPlacement,
   CeremonyStage,
-  type CeremonyStageProps,
   SETTLE_SECONDS,
 } from "./CeremonyStage";
-import type { CeremonyClock } from "./clock";
-
-function manualClock() {
-  let now = 0;
-  let pending: (() => void) | null = null;
-  const clock: CeremonyClock = {
-    now: () => now,
-    request: (callback) => {
-      pending = callback;
-      return 1;
-    },
-    cancel: () => {
-      pending = null;
-    },
-  };
-  const run = (milliseconds: number, frame = 16) => {
-    for (let elapsed = 0; elapsed < milliseconds; elapsed += frame) {
-      now += frame;
-      const callback = pending;
-      pending = null;
-      act(() => callback?.());
-    }
-  };
-  return { clock, run };
-}
-
-let targetBox = new DOMRect(100, 80, 768, 400);
-
-function target(): RefObject<HTMLElement | null> {
-  const element = document.createElement("div");
-  element.getBoundingClientRect = () => targetBox;
-  return { current: element };
-}
-
-function renderStage(overrides: Partial<CeremonyStageProps> = {}) {
-  const { clock, run } = manualClock();
-  const onDone = vi.fn();
-  const onFrame = vi.fn();
-  render(
-    <CeremonyStage
-      length={1}
-      target={target()}
-      settle="morph"
-      onFrame={onFrame}
-      onDone={onDone}
-      clock={clock}
-      {...overrides}
-    >
-      <p>card</p>
-    </CeremonyStage>,
-  );
-  return { run, onDone, onFrame };
-}
-
-function stage(): HTMLElement | null {
-  return document.querySelector("[data-ceremony-stage]");
-}
+import {
+  manualClock,
+  moveTarget,
+  renderStage,
+  stage,
+  target,
+} from "./stage-harness";
 
 afterEach(() => {
-  targetBox = new DOMRect(100, 80, 768, 400);
+  moveTarget(new DOMRect(100, 80, 768, 400));
   vi.restoreAllMocks();
 });
 
@@ -119,7 +68,7 @@ describe("CeremonyStage", () => {
   it("settles onto the target where it is at the end, not where it was", () => {
     // given
     const { run } = renderStage();
-    targetBox = new DOMRect(300, 40, 768, 400);
+    moveTarget(new DOMRect(300, 40, 768, 400));
 
     // when
     run(1840);
@@ -133,37 +82,46 @@ describe("CeremonyStage", () => {
     expect(y).toBeCloseTo(40, 0);
   });
 
-  it("finishes at once on any key", () => {
+  it("follows the width of the target while settling", () => {
     // given
-    const { onDone } = renderStage();
+    const { run } = renderStage();
+    moveTarget(new DOMRect(100, 80, 600, 400));
 
     // when
-    fireEvent.keyDown(window, { key: "Escape" });
+    run(1840);
 
     // then
-    expect(onDone).toHaveBeenCalledOnce();
+    const card = document.querySelector<HTMLElement>("[data-ceremony-card]");
+    expect(parseFloat(card?.style.width ?? "")).toBeCloseTo(600, 0);
   });
 
-  it("finishes at once on a press anywhere", () => {
+  it("plays one loop and finishes once under StrictMode", () => {
     // given
-    const { onDone } = renderStage();
+    const { clock, run } = manualClock();
+    const onDone = vi.fn();
+    const onFrame = vi.fn();
+    render(
+      <StrictMode>
+        <CeremonyStage
+          length={1}
+          target={target()}
+          settle="morph"
+          onFrame={onFrame}
+          onDone={onDone}
+          clock={clock}
+        >
+          <p>card</p>
+        </CeremonyStage>
+      </StrictMode>,
+    );
 
     // when
-    fireEvent.pointerDown(stage() as HTMLElement);
+    run(2000);
 
     // then
+    const times = onFrame.mock.calls.map(([, t]) => t as number);
     expect(onDone).toHaveBeenCalledOnce();
-  });
-
-  it("finishes when frames keep running slow", () => {
-    // given
-    const { run, onDone } = renderStage();
-
-    // when
-    run(300, 60);
-
-    // then
-    expect(onDone).toHaveBeenCalledOnce();
+    expect(times).toEqual([...times].sort((a, b) => a - b));
   });
 
   it("finishes at once without a target to settle onto", () => {

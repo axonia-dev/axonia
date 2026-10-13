@@ -11,7 +11,7 @@ import { createPortal } from "react-dom";
 import { useMediaQuery } from "@/lib/use-media-query";
 
 import { browserClock, type CeremonyClock } from "./clock";
-import type { Painter } from "./paint";
+import { type Painter, viewportField } from "./paint";
 import { easeInOutCubic, lerp } from "./timeline";
 
 export const SETTLE_SECONDS = 0.85;
@@ -19,6 +19,7 @@ const MARGIN = 24;
 const MAX_SCALE = 2;
 const SLOW_FRAME_MS = 50;
 const SLOW_FRAMES_TO_FINISH = 3;
+const WARMUP_MS = 250;
 
 export interface StagePlacement {
   readonly x: number;
@@ -34,7 +35,7 @@ interface Size {
 export interface CeremonyStageProps {
   /** Seconds of choreography before the stage settles. */
   length: number;
-  /** The on-page element the stage card settles onto. */
+  /** The on-page element the stage card settles onto. It must be mounted before the stage commits, so render it earlier in the tree. */
   target: RefObject<HTMLElement | null>;
   /** Morph onto the target, or fade out in place where the target is not the same card. */
   settle: "morph" | "fade";
@@ -78,6 +79,10 @@ function placementOf(
   return box === undefined ? fallback : { x: box.left, y: box.top, scale: 1 };
 }
 
+function widthOf(element: HTMLElement | null, fallback: number): number {
+  return element?.getBoundingClientRect().width ?? fallback;
+}
+
 function paintFrame(
   canvas: HTMLCanvasElement | null,
   paint: Painter | undefined,
@@ -89,14 +94,15 @@ function paintFrame(
     return;
   }
   const ratio = window.devicePixelRatio || 1;
-  const width = Math.round(window.innerWidth * ratio);
-  const height = Math.round(window.innerHeight * ratio);
+  const field = viewportField();
+  const width = Math.round(field.width * ratio);
+  const height = Math.round(field.height * ratio);
   if (canvas.width !== width || canvas.height !== height) {
     canvas.width = width;
     canvas.height = height;
   }
   context.setTransform(ratio, 0, 0, ratio, 0, 0);
-  context.clearRect(0, 0, window.innerWidth, window.innerHeight);
+  context.clearRect(0, 0, field.width, field.height);
   paint?.(context, t, card);
 }
 
@@ -140,10 +146,7 @@ function play({
   finish,
 }: Playback): () => void {
   const { length, settle } = props.current;
-  const from = centredPlacement(box, {
-    width: window.innerWidth,
-    height: window.innerHeight,
-  });
+  const from = centredPlacement(box, viewportField());
   const start = clock.now();
   let last = start;
   let slow = 0;
@@ -160,6 +163,7 @@ function play({
         ? placementOf(props.current.target.current, from)
         : from;
     const at = between(from, to, settled);
+    card.style.width = `${lerp(box.width, widthOf(props.current.target.current, box.width), settled)}px`;
     card.style.transform = `translate(${at.x}px, ${at.y}px) scale(${at.scale})`;
     if (settle === "fade") {
       card.style.opacity = String(1 - settled);
@@ -172,7 +176,8 @@ function play({
 
   const tick = () => {
     const now = clock.now();
-    slow = now - last > SLOW_FRAME_MS ? slow + 1 : 0;
+    const warm = now - start >= WARMUP_MS;
+    slow = warm && now - last > SLOW_FRAME_MS ? slow + 1 : 0;
     last = now;
     const t = (now - start) / 1000;
     if (slow >= SLOW_FRAMES_TO_FINISH || t >= length + SETTLE_SECONDS) {
@@ -219,8 +224,15 @@ function Stage(props: Readonly<CeremonyStageProps>) {
   }, [clock, finish, latest, target]);
 
   useEffect(() => {
-    window.addEventListener("keydown", finish);
-    return () => window.removeEventListener("keydown", finish);
+    const skip = (event: KeyboardEvent) => {
+      if (!event.ctrlKey && !event.metaKey) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      finish();
+    };
+    window.addEventListener("keydown", skip, true);
+    return () => window.removeEventListener("keydown", skip, true);
   }, [finish]);
 
   return createPortal(
@@ -228,7 +240,7 @@ function Stage(props: Readonly<CeremonyStageProps>) {
       data-ceremony-stage
       aria-hidden
       className="fixed inset-0 z-[100] cursor-pointer"
-      onPointerDown={finish}
+      onClick={finish}
     >
       <div ref={backdrop} className="absolute inset-0 bg-[#0d0910]" />
       <div
@@ -258,7 +270,7 @@ function ReducedMotion({ onDone }: Readonly<{ onDone: () => void }>) {
 
 /**
  * A full-screen moment that plays `onFrame`'s choreography over a dark backdrop, then settles
- * onto `target`. Any press or key finishes it at once, and it never plays under reduced motion.
+ * onto `target`. Any click or key finishes it at once, and it never plays under reduced motion.
  */
 export function CeremonyStage(props: Readonly<CeremonyStageProps>) {
   const reduced = useMediaQuery("(prefers-reduced-motion: reduce)");

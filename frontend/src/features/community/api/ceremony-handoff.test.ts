@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   consumeCeremony,
@@ -7,6 +7,10 @@ import {
 } from "@/features/community/api/ceremony-handoff";
 
 const KEY = "axonia.ceremony";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("ceremony handoff", () => {
   it("answers the ceremony handed off for a community", () => {
@@ -89,6 +93,17 @@ describe("ceremony handoff", () => {
 
     // then
     expect(actual).not.toThrow();
-    vi.restoreAllMocks();
+  });
+
+  it("ignores and removes an entry dated in the future", () => {
+    // given
+    handOffCeremony("welcome", "backend-guild", 10_000);
+
+    // when
+    const actual = pendingCeremony("backend-guild", 1_000);
+
+    // then
+    expect(actual).toBeNull();
+    expect(sessionStorage.getItem(KEY)).toBeNull();
   });
 });

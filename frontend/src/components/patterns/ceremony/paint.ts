@@ -7,7 +7,11 @@ export type Painter = (
 ) => void;
 
 export function viewportField(): Field {
-  return { width: window.innerWidth, height: window.innerHeight };
+  const root = document.documentElement;
+  return {
+    width: root.clientWidth || window.innerWidth,
+    height: root.clientHeight || window.innerHeight,
+  };
 }
 
 export function drawSparks(

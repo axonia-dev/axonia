@@ -61,7 +61,8 @@ export function pendingCeremony(
   if (handoff === null) {
     return null;
   }
-  if (now - handoff.at > MAX_AGE_MS) {
+  const age = now - handoff.at;
+  if (age < 0 || age > MAX_AGE_MS) {
     remove();
     return null;
   }
