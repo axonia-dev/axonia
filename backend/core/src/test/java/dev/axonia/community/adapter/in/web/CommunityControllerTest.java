@@ -15,10 +15,13 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import dev.axonia.ControllerTestSupport;
 import dev.axonia.CoreWebMvcTest;
 import dev.axonia.community.api.CommunicationSettings;
+import dev.axonia.community.api.CommunityListing;
 import dev.axonia.community.api.CommunityMother;
+import dev.axonia.community.api.CommunityRole;
 import dev.axonia.community.api.CommunityStatus;
 import dev.axonia.community.api.ContributionPolicy;
 import dev.axonia.community.api.FocalPoint;
+import dev.axonia.community.api.MembershipFilter;
 import dev.axonia.community.application.CommunityPolicyService;
 import dev.axonia.community.application.CommunityService;
 import dev.axonia.community.application.CreateCommunityRequest;
@@ -35,6 +38,7 @@ import dev.axonia.shared.api.error.NotFoundException;
 import dev.axonia.shared.api.error.ValidationException;
 import tools.jackson.core.JacksonException;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.refEq;
@@ -57,19 +61,45 @@ class CommunityControllerTest extends ControllerTestSupport {
     void directory() throws JacksonException {
 
         // given
-        var community = CommunityMother.any().build();
+        var listing = new CommunityListing(CommunityMother.any().build(), CommunityRole.MEMBER);
         var pageable = PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "created_at"));
-        var page = new PageImpl<>(List.of(community), pageable, 1);
-        when(communityService.directory(eq("guild"), refEq(pageable))).thenReturn(page);
+        when(communityService.listing(eq("guild"), eq(null), refEq(pageable)))
+                .thenReturn(new PageImpl<>(List.of(listing), pageable, 1));
 
         // when
         var actual = mvc.get().uri("/axonia/communities").queryParam("page", "0").queryParam("size", "20")
-                .queryParam("sort", "created_at,desc").queryParam("q", "guild");
+                .queryParam("sort", "created_at,desc").queryParam("q", "guild").exchange();
 
         // then
-        actual.assertThat().hasStatus2xxSuccessful().bodyJson().extractingPath("$.content.length()").isEqualTo(1);
-        actual.assertThat().bodyJson().extractingPath("$.content[0].slug").isEqualTo("backend-guild");
-        actual.assertThat().bodyJson().extractingPath("$.page.totalElements").isEqualTo(1);
+        assertThat(actual).hasStatus2xxSuccessful().bodyJson().extractingPath("$.content.length()").isEqualTo(1);
+        assertThat(actual).bodyJson().extractingPath("$.content[0].slug").isEqualTo("backend-guild");
+        assertThat(actual).bodyJson().extractingPath("$.content[0].role").isEqualTo("MEMBER");
+        assertThat(actual).bodyJson().extractingPath("$.page.totalElements").isEqualTo(1);
+    }
+
+    @Test
+    void directory_filtersByMembership() {
+
+        // given
+        var pageable = PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "created_at"));
+        when(communityService.listing(any(), eq(MembershipFilter.JOINED), any()))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // when
+        var actual = mvc.get().uri("/axonia/communities").queryParam("membership", "JOINED").exchange();
+
+        // then
+        assertThat(actual).hasStatus2xxSuccessful();
+    }
+
+    @Test
+    void directory_unknownMembershipIsRejected() {
+
+        // when
+        var actual = mvc.get().uri("/axonia/communities").queryParam("membership", "SOMETIMES").exchange();
+
+        // then
+        assertThat(actual).hasStatus4xxClientError();
     }
 
     @Test

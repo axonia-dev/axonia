@@ -24,8 +24,10 @@ import org.springframework.web.multipart.MultipartFile;
 
 import dev.axonia.community.api.CommunicationSettings;
 import dev.axonia.community.api.Community;
+import dev.axonia.community.api.CommunityListing;
 import dev.axonia.community.api.ContributionPolicy;
 import dev.axonia.community.api.FocalPoint;
+import dev.axonia.community.api.MembershipFilter;
 import dev.axonia.community.application.CommunityPolicyService;
 import dev.axonia.community.application.CommunityService;
 import dev.axonia.community.application.CreateCommunityRequest;
@@ -50,10 +52,11 @@ public class CommunityController {
     private final LookAndFeelService lookAndFeelService;
 
     @GetMapping
-    Page<Community> directory(@RequestParam(required = false) String q,
+    Page<CommunityListing> directory(@RequestParam(required = false) String q,
+            @RequestParam(required = false) MembershipFilter membership,
             @PageableDefault(size = 20, sort = "created_at", direction = Sort.Direction.DESC) Pageable pageable) {
 
-        return communityService.directory(q, Pageables.requireSortIn(pageable, Set.of("created_at")));
+        return communityService.listing(q, membership, Pageables.requireSortIn(pageable, Set.of("created_at")));
     }
 
     @PostMapping

@@ -2,6 +2,7 @@ package dev.axonia.community.application;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,7 +18,11 @@ import dev.axonia.access.api.AuthorizationGate;
 import dev.axonia.access.api.Permission;
 import dev.axonia.community.api.CommunityDetailsChanged;
 import dev.axonia.community.api.CommunityIdentity;
+import dev.axonia.community.api.CommunityListing;
+import dev.axonia.community.api.CommunityRole;
 import dev.axonia.community.api.CommunityStatus;
+import dev.axonia.community.api.MembershipFilter;
+import dev.axonia.community.application.port.out.CommunitySearch;
 import dev.axonia.community.application.port.out.CommunityKindStore;
 import dev.axonia.community.application.port.out.CommunityStore;
 import dev.axonia.community.application.port.out.CurrentUser;
@@ -26,6 +31,7 @@ import dev.axonia.community.application.port.out.OrganizationContext;
 import dev.axonia.community.domain.CommunityKindRecordMother;
 import dev.axonia.community.domain.CommunityRecord;
 import dev.axonia.community.domain.CommunityRecordMother;
+import dev.axonia.community.domain.MembershipRecordMother;
 import dev.axonia.media.api.MediaLinks;
 import dev.axonia.shared.api.error.ConflictException;
 import dev.axonia.shared.api.error.NotFoundException;
@@ -36,6 +42,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.entry;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -416,6 +423,46 @@ class CommunityServiceTest {
         assertThat(actual.getContent()).hasSize(1);
         assertThat(actual.getContent().getFirst().memberCount()).isEqualTo(5L);
         assertThat(actual.getContent().getFirst().kind()).isEqualTo("Guild");
+    }
+
+    @Test
+    void listing_carries_the_callers_role() {
+
+        // given
+        when(currentUser.userId()).thenReturn("dev-user");
+        when(membershipLedger.findAllOf("default", "dev-user")).thenReturn(
+                List.of(MembershipRecordMother.any().communityId(1L).role(CommunityRole.ORGANIZER).build()));
+        var joined = CommunityRecordMother.any().id(1L).build();
+        var other = CommunityRecordMother.any().id(2L).slug("other").build();
+        var pageable = PageRequest.of(0, 10);
+        when(communityStore.search(any(), eq(pageable)))
+                .thenReturn(new PageImpl<>(List.of(joined, other), pageable, 2));
+
+        // when
+        var actual = sut.listing("guild", null, pageable);
+
+        // then
+        assertThat(actual.getContent()).extracting(CommunityListing::role).containsExactly(CommunityRole.ORGANIZER,
+                null);
+        assertThat(actual.getContent().getFirst().community().kind()).isEqualTo("Guild");
+    }
+
+    @Test
+    void listing_searches_with_the_filter_and_the_callers_communities() {
+
+        // given
+        when(currentUser.userId()).thenReturn("dev-user");
+        when(membershipLedger.findAllOf("default", "dev-user"))
+                .thenReturn(List.of(MembershipRecordMother.any().communityId(7L).role(CommunityRole.MEMBER).build()));
+        var pageable = PageRequest.of(0, 10);
+        when(communityStore.search(any(), eq(pageable))).thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // when
+        sut.listing(null, MembershipFilter.EXPLORE, pageable);
+
+        // then
+        verify(communityStore).search(CommunitySearch.builder().organizationId("default").status(CommunityStatus.ACTIVE)
+                .name("").membership(MembershipFilter.EXPLORE).memberOf(Set.of(7L)).build(), pageable);
     }
 
     @Test

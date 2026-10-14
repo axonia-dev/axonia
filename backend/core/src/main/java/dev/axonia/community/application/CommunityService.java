@@ -18,10 +18,13 @@ import dev.axonia.community.api.Communities;
 import dev.axonia.community.api.Community;
 import dev.axonia.community.api.CommunityDetailsChanged;
 import dev.axonia.community.api.CommunityIdentity;
+import dev.axonia.community.api.CommunityListing;
 import dev.axonia.community.api.CommunityRole;
 import dev.axonia.community.api.CommunityStatus;
 import dev.axonia.community.api.FocalPoint;
+import dev.axonia.community.api.MembershipFilter;
 import dev.axonia.community.application.port.out.CommunityKindStore;
+import dev.axonia.community.application.port.out.CommunitySearch;
 import dev.axonia.community.application.port.out.CommunityStore;
 import dev.axonia.community.application.port.out.CurrentUser;
 import dev.axonia.community.application.port.out.MembershipLedger;
@@ -211,6 +214,20 @@ public class CommunityService implements Communities {
         return communityStore.searchByName(organizationId, CommunityStatus.ACTIVE, filter, pageable)
                 .map(entity -> toCommunity(entity, memberCount(organizationId, entity.getId()),
                         labels.get(entity.getKindId())));
+    }
+
+    @Transactional(readOnly = true)
+    public Page<CommunityListing> listing(String q, MembershipFilter membership, Pageable pageable) {
+
+        var organizationId = organizationContext.organizationId();
+        var roles = membershipLedger.findAllOf(organizationId, currentUser.userId()).stream()
+                .collect(Collectors.toMap(MembershipRecord::getCommunityId, MembershipRecord::getRole));
+        var search = CommunitySearch.builder().organizationId(organizationId).status(CommunityStatus.ACTIVE)
+                .name(q == null ? "" : q).membership(membership).memberOf(roles.keySet()).build();
+        var labels = kindLabels(organizationId);
+        return communityStore.search(search, pageable).map(entity -> new CommunityListing(
+                toCommunity(entity, memberCount(organizationId, entity.getId()), labels.get(entity.getKindId())),
+                roles.get(entity.getId())));
     }
 
     private CommunityKindRecord requireKind(String organizationId, Long kindId) {
