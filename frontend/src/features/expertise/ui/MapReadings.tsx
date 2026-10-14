@@ -96,7 +96,8 @@ export function MapReadings({
   /** Whether a settled term plays an echo, which needs a lit mark to drop from: an area offered and never practised
    *  only fades, and the people beside the map have no echo to wait for. */
   onEchoesChange: (played: EchoReport) => void;
-  /** What the term answers, when the readings are stacked out of its sight: listed under the drawing instead. */
+  /** What the term answers, when the readings are stacked out of its sight: listed under the drawing instead, after
+   *  the strip a chosen mark opens, which belongs to the drawing. */
   answer: ReactNode;
 }>) {
   const [picture, setPicture] = useState<MapReading>("terrain");
@@ -253,17 +254,17 @@ export function MapReadings({
           )}
         </div>
       </div>
-      <div className="mt-3 empty:hidden">{answer}</div>
       {data?.truncated === true && (
         <p className="text-muted-foreground mt-2 text-xs">
           Showing the most recent 5,000 contributions. Older activity is not
-          drawn. The counts beside the map cover every contribution.
+          drawn. The counts in the readings cover every contribution.
         </p>
       )}
       <ContributionStrip
         contribution={selected}
         author={authorOf(selected, people)}
       />
+      <div className="mt-3 empty:hidden">{answer}</div>
     </div>
   );
 }
