@@ -115,12 +115,39 @@ export const member = {
   updatedAt: "2026-05-31T10:00:00Z",
 };
 
+function practitioner(userId: string, displayName: string) {
+  return {
+    userId,
+    displayName,
+    avatarUrl: null,
+    orgUnit: null,
+    tier: "PRACTITIONER",
+    evidence: {
+      presentedCount: 2,
+      contributedCount: 1,
+      offeredCount: 0,
+      recent: [],
+    },
+    openToQuestions: false,
+    declaredAt: null,
+  };
+}
+
+/** Four people for the "Who knows" section, which asks the search endpoint for the one matched area. */
+export const WHO_KNOWS = [
+  "Ada Lovelace",
+  "Grace Hopper",
+  "Edsger Dijkstra",
+  "Barbara Liskov",
+].map((name, i) => practitioner(`p${i + 1}`, name));
+
 export const answers: { at: (path: string) => boolean; body: unknown }[] = [
   {
     at: (p) => p.endsWith("/expertise/map/contributions"),
     body: contributions(240),
   },
   { at: (p) => p.endsWith("/expertise/map"), body: topics },
+  { at: (p) => p.endsWith("/expertise/search"), body: WHO_KNOWS },
   { at: (p) => p.endsWith(`/communities/${SLUG}/members/me`), body: member },
   { at: (p) => p.endsWith(`/communities/${SLUG}`), body: community },
   { at: (p) => p.endsWith("/management-policy"), body: {} },
