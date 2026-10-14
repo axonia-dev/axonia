@@ -26,7 +26,7 @@ export function JoinAction({ slug, onJoined }: Readonly<JoinActionProps>) {
 
   return (
     <div className="flex flex-col gap-1">
-      <Button isDisabled={join.isPending} onPress={onPress}>
+      <Button isPending={join.isPending} onPress={onPress}>
         Join
       </Button>
       {join.isError && (

@@ -54,4 +54,19 @@ describe("JoinAction", () => {
       /already a member of this community/i,
     );
   });
+
+  it("shows the same pending spinner as every Join while joining, and ignores a second press", async () => {
+    // given
+    const mutate = vi.fn();
+    mockUseJoin.mockReturnValue({ mutate, isPending: true } as never);
+    render(<JoinAction slug="backend-guild" />);
+    const join = screen.getByRole("button", { name: "Join" });
+
+    // when
+    await user.click(join);
+
+    // then
+    expect(join.querySelector("[data-button-spinner]")).not.toBeNull();
+    expect(mutate).not.toHaveBeenCalled();
+  });
 });

@@ -39,7 +39,30 @@ beforeEach(() => {
 });
 
 describe("community lists", () => {
-  it("refreshes every community list after a join", async () => {
+  it("keeps the join pending until the act that follows it settles", async () => {
+    // given
+    gateway.join.mockResolvedValue(membership);
+    let depart: () => void = () => undefined;
+    const departure = new Promise<void>((resolve) => {
+      depart = resolve;
+    });
+    const { result } = renderHook(
+      () => useJoin("backend-guild", () => departure),
+      { wrapper: clientWrapper(testClient()) },
+    );
+
+    // when
+    result.current.mutate();
+
+    // then
+    await waitFor(() => expect(gateway.join).toHaveBeenCalledOnce());
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(result.current.isPending).toBe(true);
+    depart();
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+  });
+
+  it("marks every community list stale after a join without refetching under the departing page", async () => {
     // given
     gateway.join.mockResolvedValue(membership);
     const client = testClient();
@@ -55,10 +78,11 @@ describe("community lists", () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: communityKeys.lists(),
+      refetchType: "none",
     });
   });
 
-  it("refreshes every community list after a leave", async () => {
+  it("marks every community list stale after a leave without refetching", async () => {
     // given
     gateway.leave.mockResolvedValue(undefined);
     const client = testClient();
@@ -74,6 +98,7 @@ describe("community lists", () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: communityKeys.lists(),
+      refetchType: "none",
     });
   });
 });

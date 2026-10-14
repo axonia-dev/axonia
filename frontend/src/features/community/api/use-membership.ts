@@ -1,4 +1,5 @@
 import {
+  type QueryClient,
   useInfiniteQuery,
   useMutation,
   useQuery,
@@ -58,6 +59,14 @@ export function useMemberSearch(slug: string, text: string) {
   });
 }
 
+// A refetch now would reshuffle the lobby under its departing curtain; the next mount refetches.
+function markListsStale(queryClient: QueryClient): Promise<void> {
+  return queryClient.invalidateQueries({
+    queryKey: communityKeys.lists(),
+    refetchType: "none",
+  });
+}
+
 export function useMyMembership(slug: string) {
   return useQuery({
     queryKey: communityKeys.myMembership(slug),
@@ -65,14 +74,14 @@ export function useMyMembership(slug: string) {
   });
 }
 
-/** `onJoined` fires the moment the join request succeeds, before the refetches below land. */
-export function useJoin(slug: string, onJoined?: () => void) {
+/** `onJoined` fires the moment the join succeeds; the join stays pending until what it answers settles. */
+export function useJoin(slug: string, onJoined?: () => void | Promise<void>) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () => gateway.join(slug),
     onSuccess: () => {
-      onJoined?.();
       return Promise.all([
+        onJoined?.(),
         // detail(slug) is the prefix of myMembership(slug), so this also refreshes
         // the membership answer the hero and the management access both read.
         queryClient.invalidateQueries({ queryKey: communityKeys.detail(slug) }),
@@ -80,7 +89,7 @@ export function useJoin(slug: string, onJoined?: () => void) {
         queryClient.invalidateQueries({
           queryKey: learningKeys.community(slug),
         }),
-        queryClient.invalidateQueries({ queryKey: communityKeys.lists() }),
+        markListsStale(queryClient),
       ]);
     },
   });
@@ -109,7 +118,7 @@ export function useLeave(slug: string) {
       void queryClient.invalidateQueries({
         queryKey: learningKeys.community(slug),
       });
-      void queryClient.invalidateQueries({ queryKey: communityKeys.lists() });
+      void markListsStale(queryClient);
     },
   });
 }

@@ -65,7 +65,7 @@ describe("Button", () => {
     );
   });
 
-  it("dims while pending, as a disabled button does, and ignores presses", async () => {
+  it("ignores presses while pending", async () => {
     // given
     const user = userEvent.setup({ delay: null });
     const onPress = vi.fn();
@@ -81,7 +81,28 @@ describe("Button", () => {
 
     // then
     expect(button).toHaveAttribute("data-pending", "true");
-    expect(button.className).toContain("data-[pending]:opacity-50");
     expect(onPress).not.toHaveBeenCalled();
+  });
+
+  it("swaps its label for a full-strength spinner while pending, keeping its name and width", () => {
+    // when
+    render(<Button isPending>Join</Button>);
+
+    // then
+    const button = screen.getByRole("button", { name: "Join" });
+    const spinner = button.querySelector("[data-button-spinner]");
+    expect(spinner).not.toBeNull();
+    expect(screen.getByText("Join")).toHaveClass("opacity-0");
+    expect(button.className).not.toContain("data-[pending]:opacity");
+  });
+
+  it("shows its label and no spinner when idle", () => {
+    // when
+    render(<Button>Join</Button>);
+
+    // then
+    const button = screen.getByRole("button", { name: "Join" });
+    expect(button.querySelector("[data-button-spinner]")).toBeNull();
+    expect(screen.getByText("Join")).toBe(button);
   });
 });

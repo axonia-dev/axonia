@@ -18,7 +18,7 @@ vi.mock("@/features/community/api/ceremony-handoff", () => ({
 const mockUseJoin = vi.mocked(useJoin);
 
 let user: ReturnType<typeof userEvent.setup>;
-let onJoined: (() => void) | undefined;
+let onJoined: (() => void | Promise<void>) | undefined;
 const mutate = vi.fn();
 
 function mockJoin(state: Record<string, unknown> = {}) {
@@ -75,7 +75,9 @@ describe("ExploreJoinButton", () => {
     renderButton();
 
     // when
-    act(() => onJoined?.());
+    await act(async () => {
+      await onJoined?.();
+    });
 
     // then
     expect(handOffCeremony).toHaveBeenCalledWith("welcome", "backend-guild");
@@ -101,15 +103,16 @@ describe("ExploreJoinButton", () => {
     expect(handOffCeremony).not.toHaveBeenCalled();
   });
 
-  it("cannot be pressed twice while joining", () => {
+  it("cannot be pressed twice while joining", async () => {
     // given
     mockJoin({ isPending: true });
-
-    // when
     renderButton();
 
+    // when
+    await user.click(screen.getByRole("button", { name: "Join" }));
+
     // then
-    expect(screen.getByRole("button", { name: "Join" })).toBeDisabled();
+    expect(mutate).not.toHaveBeenCalled();
   });
 
   it("shows a spinner and keeps the label while joining", () => {
@@ -121,7 +124,7 @@ describe("ExploreJoinButton", () => {
 
     // then
     const button = screen.getByRole("button", { name: "Join" });
-    expect(button.querySelector("[data-join-spinner]")).not.toBeNull();
+    expect(button.querySelector("[data-button-spinner]")).not.toBeNull();
   });
 
   it("shows no spinner when idle", () => {
@@ -132,7 +135,7 @@ describe("ExploreJoinButton", () => {
     expect(
       screen
         .getByRole("button", { name: "Join" })
-        .querySelector("[data-join-spinner]"),
+        .querySelector("[data-button-spinner]"),
     ).toBeNull();
   });
 });

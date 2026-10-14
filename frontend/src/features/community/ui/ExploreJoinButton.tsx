@@ -1,20 +1,14 @@
-import { Loader2 } from "lucide-react";
 import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/Button";
 import { useJoin } from "@/features/community/api/use-membership";
 import { communityErrorMessage } from "@/features/community/community-errors";
-import { departForCeremony } from "@/features/community/ui/ceremony/ceremony-arrival";
 import { preloadHeroCeremony } from "@/features/community/ui/ceremony/lazy-ceremonies";
+import { useDepartForCeremony } from "@/features/community/ui/ceremony/use-depart-for-ceremony";
 
 export function ExploreJoinButton({ slug }: Readonly<{ slug: string }>) {
-  const navigate = useNavigate();
-  const join = useJoin(slug, () => {
-    void departForCeremony("welcome", slug).then(() =>
-      navigate(`/communities/${slug}`),
-    );
-  });
+  const depart = useDepartForCeremony();
+  const join = useJoin(slug, () => depart("welcome", slug));
 
   useEffect(preloadHeroCeremony, []);
 
@@ -23,19 +17,10 @@ export function ExploreJoinButton({ slug }: Readonly<{ slug: string }>) {
       <Button
         variant="outline"
         size="sm"
-        className="relative"
-        isDisabled={join.isPending}
+        isPending={join.isPending}
         onPress={() => join.mutate()}
       >
-        <span className={join.isPending ? "opacity-0" : undefined}>Join</span>
-        {join.isPending && (
-          <Loader2
-            data-join-spinner
-            size={14}
-            aria-hidden
-            className="absolute motion-safe:animate-spin"
-          />
-        )}
+        Join
       </Button>
       {join.isError && (
         <span
