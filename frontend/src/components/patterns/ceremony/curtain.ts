@@ -36,18 +36,12 @@ function raise(holdMs: number): HTMLElement | null {
   return curtain;
 }
 
-/**
- * Darkens the page from the app's first frame, for a ceremony that arrives with a page load, so the
- * page never shows before the stage. A stage backdrop takes it over; when none does in time, it lifts.
- */
+/** Darkens the page from the app's first frame, until a stage backdrop takes it over or the hold lifts it. */
 export function raiseCurtain(holdMs = HOLD_MS): void {
   raise(holdMs);
 }
 
-/**
- * Darkens the live page for a ceremony the app navigates to, and answers once it is fully dark, so
- * the page can change underneath unseen. A stage backdrop takes it over like an arrival's.
- */
+/** Darkens the live page and answers once it is fully dark, so the page can change unseen. */
 export async function fadeInCurtain(holdMs = HOLD_MS): Promise<void> {
   const fade = raise(holdMs)?.animate?.(
     [{ opacity: 0 }, { opacity: 1 }],

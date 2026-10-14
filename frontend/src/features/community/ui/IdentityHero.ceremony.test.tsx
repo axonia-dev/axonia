@@ -24,14 +24,12 @@ vi.mock("@/features/community/ui/CommunityMenu", () => ({
 vi.mock("@/features/community/ui/ceremony/HeroCeremony", () => ({
   HeroCeremony: ({
     ceremony,
-    placement,
     onDone,
   }: {
-    ceremony: { kind: string; countFrom: number; countTo: number };
-    placement?: string;
+    ceremony: Record<"kind" | "countFrom" | "countTo" | "placement", string>;
     onDone: () => void;
   }) => (
-    <div data-placement={placement}>
+    <div data-placement={ceremony.placement}>
       ceremony {ceremony.kind} {ceremony.countFrom} to {ceremony.countTo}
       <button onClick={onDone}>end ceremony</button>
     </div>
@@ -175,8 +173,9 @@ describe("IdentityHero ceremonies", () => {
     expect(card.parentElement).toHaveClass("invisible");
   });
 
-  it("returns focus to the footer once the welcome has played", async () => {
+  it("returns focus to the footer once the welcome has played, without scrolling the page", async () => {
     // given
+    const focus = vi.spyOn(HTMLElement.prototype, "focus");
     renderHero();
     await userEvent.click(screen.getByRole("button", { name: "Join" }));
     vi.mocked(useMyMembership).mockReturnValue({
@@ -193,6 +192,8 @@ describe("IdentityHero ceremonies", () => {
     expect(
       screen.getByRole("button", { name: "community-menu" }),
     ).toHaveFocus();
+    expect(focus).toHaveBeenLastCalledWith({ preventScroll: true });
+    focus.mockRestore();
   });
 
   it("returns focus to the footer when the membership answer lands after the ceremony", async () => {

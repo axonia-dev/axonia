@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 
+import type { StagePlacement } from "@/components/patterns/ceremony/CeremonyStage";
 import { StageBackdrop } from "@/components/patterns/ceremony/StageBackdrop";
 import { MemberFacepile } from "@/components/patterns/MemberFacepile";
 import { Button } from "@/components/ui/Button";
@@ -21,10 +22,7 @@ import {
 import { useMyMembership } from "@/features/community/api/use-membership";
 import { type Community } from "@/features/community/domain/community";
 import { LazyHeroCeremony } from "@/features/community/ui/ceremony/lazy-ceremonies";
-import {
-  type ActiveCeremony,
-  useHeroCeremony,
-} from "@/features/community/ui/ceremony/use-hero-ceremony";
+import { useHeroCeremony } from "@/features/community/ui/ceremony/use-hero-ceremony";
 import { CommunityHeroCard } from "@/features/community/ui/CommunityHeroCard";
 import { CommunityMenu } from "@/features/community/ui/CommunityMenu";
 import { JoinAction } from "@/features/community/ui/JoinAction";
@@ -92,12 +90,7 @@ function HeroFooter({
 const shareTriggerClass =
   "rounded-full bg-black/35 p-2 text-white backdrop-blur hover:bg-primary hover:text-primary-foreground";
 
-/**
- * The control that earned the ceremony is gone once it has played, so focus goes to the footer's
- * member controls: once the ceremony is over and the membership answer says member, which under
- * reduced motion or after an early skip can land after the ceremony. A hero mounted mid-ceremony
- * was handed one, so it starts armed.
- */
+/** Focus lands on the member controls once a ceremony earned by a join is over and says member. */
 function useFocusFooterAfterJoin(
   hero: RefObject<HTMLElement | null>,
   settled: boolean,
@@ -109,7 +102,7 @@ function useFocusFooterAfterJoin(
       joined.current = false;
       hero.current
         ?.querySelector<HTMLElement>('[data-ceremony-part="footer"] button')
-        ?.focus();
+        ?.focus({ preventScroll: true });
     }
   }, [hero, settled]);
   return () => {
@@ -127,11 +120,11 @@ function Announcement({ text }: Readonly<{ text: string }>) {
   );
 }
 
-/** A welcome played in place stands on the page itself; any other is raised over a full-screen backdrop. */
+/** An in-place welcome stands on the page; any other ceremony on a full-screen backdrop. */
 function CeremonyBackdrop({
   placement,
   children,
-}: Readonly<{ placement: ActiveCeremony["placement"]; children: ReactNode }>) {
+}: Readonly<{ placement: StagePlacement; children: ReactNode }>) {
   return placement === "in-place" ? (
     <>{children}</>
   ) : (
@@ -212,7 +205,6 @@ export function IdentityHero({ community, slug }: Readonly<IdentityHeroProps>) {
               cornerControl={cornerControl}
               target={hero}
               settle="morph"
-              placement={ceremony.active.placement}
               onDone={ceremony.finish}
             />
           </Suspense>

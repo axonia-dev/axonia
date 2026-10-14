@@ -13,13 +13,13 @@ import { useMediaQuery } from "@/lib/use-media-query";
 import { browserClock, type CeremonyClock } from "./clock";
 import type { Painter } from "./paint";
 import { viewportField } from "./paint";
+import { useStageExits } from "./stage-exits";
 import {
   clipTo,
   fadeAway,
   paintFrame,
   placeCard,
   revealer,
-  scrollMovesTarget,
   stagedSize,
 } from "./stage-frame";
 import { centredPlacement, SETTLE_SECONDS, settlePhase } from "./stage-motion";
@@ -28,6 +28,8 @@ import { StageBackdrop, useStageBackdrop } from "./StageBackdrop";
 const SLOW_FRAME_MS = 50;
 const SLOW_FRAMES_TO_BAIL = 3;
 const WARMUP_MS = 250;
+
+export type StagePlacement = "viewport" | "in-place";
 
 export interface CeremonyStageProps {
   /** Seconds of choreography before the stage settles. */
@@ -43,7 +45,7 @@ export interface CeremonyStageProps {
   onDone: () => void;
   clock?: CeremonyClock;
   /** Full screen over a backdrop, or clipped to the target card where it stands. */
-  placement?: "viewport" | "in-place";
+  placement?: StagePlacement;
   children: ReactNode;
 }
 
@@ -190,41 +192,7 @@ function Stage({
     });
   }, [backdrop, clock, finish, latest, target]);
 
-  const inPlace = props.placement === "in-place";
-  useEffect(() => {
-    const skip = (event: KeyboardEvent) => {
-      if (event.ctrlKey || event.metaKey) {
-        return;
-      }
-      if (!inPlace) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
-      finish();
-    };
-    window.addEventListener("keydown", skip, true);
-    return () => window.removeEventListener("keydown", skip, true);
-  }, [finish, inPlace]);
-
-  useEffect(() => {
-    if (!inPlace) {
-      return undefined;
-    }
-    const scrolled = (event: Event) => {
-      if (scrollMovesTarget(event.target, target.current)) {
-        finish();
-      }
-    };
-    window.addEventListener("scroll", scrolled, {
-      passive: true,
-      capture: true,
-    });
-    window.addEventListener("resize", finish);
-    return () => {
-      window.removeEventListener("scroll", scrolled, { capture: true });
-      window.removeEventListener("resize", finish);
-    };
-  }, [finish, inPlace, target]);
+  useStageExits(finish, props.placement === "in-place", target);
 
   return createPortal(
     <div
@@ -280,12 +248,7 @@ function OnBackdrop(props: Readonly<CeremonyStageProps>) {
 
 const NO_BACKDROP: RefObject<HTMLElement | null> = { current: null };
 
-/**
- * A moment that plays `onFrame`'s choreography, full screen over a dark backdrop or clipped to
- * `target` in place, then settles onto `target`. Any click or key finishes it at once, and it
- * never plays under reduced motion. The staged card always wears the dark theme: sparks and
- * sheen only read on dark.
- */
+/** Plays `onFrame`'s choreography on the dark theme, then settles onto `target`; a click or key ends it. */
 export function CeremonyStage(props: Readonly<CeremonyStageProps>) {
   const reduced = useMediaQuery("(prefers-reduced-motion: reduce)");
   if (reduced) {

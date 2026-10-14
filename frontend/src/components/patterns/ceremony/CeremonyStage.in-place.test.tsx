@@ -83,6 +83,19 @@ describe("CeremonyStage in place", () => {
     expect(onDone).toHaveBeenCalledOnce();
   });
 
+  it("finishes when the window resizes, which a fixed clip no longer matches", () => {
+    // given
+    const { onDone } = renderStage({ placement: "in-place" });
+
+    // when
+    act(() => {
+      window.dispatchEvent(new Event("resize"));
+    });
+
+    // then
+    expect(onDone).toHaveBeenCalledOnce();
+  });
+
   it("finishes on a key and lets the key reach the page", () => {
     // given
     const { onDone } = renderStage({ placement: "in-place" });
@@ -136,6 +149,19 @@ describe("CeremonyStage in place", () => {
     // then
     expect(document.querySelector("[data-ceremony-backdrop]")).not.toBeNull();
     expect(stage()?.style.clipPath).toBe("");
+  });
+
+  it("plays the full-screen stage on through a resize", () => {
+    // given
+    const { onDone } = renderStage();
+
+    // when
+    act(() => {
+      window.dispatchEvent(new Event("resize"));
+    });
+
+    // then
+    expect(onDone).not.toHaveBeenCalled();
   });
 
   it("plays the full-screen stage on through a scroll", () => {

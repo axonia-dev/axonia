@@ -10,8 +10,16 @@ vi.mock("@/features/community/ui/ceremony/BirthCeremony", () => ({
   BirthCeremony: () => <div>birth</div>,
 }));
 vi.mock("@/features/community/ui/ceremony/WelcomeCeremony", () => ({
-  WelcomeCeremony: ({ newcomer }: { newcomer: { id: string } | null }) => (
-    <div>welcome {newcomer?.id ?? "nobody"}</div>
+  WelcomeCeremony: ({
+    newcomer,
+    placement,
+  }: {
+    newcomer: { id: string } | null;
+    placement: string;
+  }) => (
+    <div>
+      welcome {newcomer?.id ?? "nobody"} {placement}
+    </div>
   ),
 }));
 
@@ -21,10 +29,13 @@ const community = {
   memberCount: 43,
 } as Community;
 
-function renderCeremony(kind: "birth" | "welcome") {
+function renderCeremony(
+  kind: "birth" | "welcome",
+  placement: "viewport" | "in-place" = "viewport",
+) {
   return render(
     <HeroCeremony
-      ceremony={{ kind, countFrom: 42, countTo: 43, placement: "viewport" }}
+      ceremony={{ kind, countFrom: 42, countTo: 43, placement }}
       community={community}
       faces={[]}
       target={{ current: null }}
@@ -57,5 +68,16 @@ describe("HeroCeremony", () => {
 
     // then
     expect(container).toHaveTextContent("welcome alice");
+  });
+
+  it("stages the welcome where the ceremony says it plays", () => {
+    // given
+    vi.mocked(useMe).mockReturnValue({ data: undefined } as never);
+
+    // when
+    const { container } = renderCeremony("welcome", "in-place");
+
+    // then
+    expect(container).toHaveTextContent("welcome nobody in-place");
   });
 });

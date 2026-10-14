@@ -44,10 +44,7 @@ export function prepareCeremonyArrival(): void {
   document.documentElement.classList.remove(ARRIVAL_CLASS);
 }
 
-/**
- * Run by an act that earns a ceremony and then navigates within the app. Settles once the page is
- * dark, so the community loads unseen and its stage takes the curtain where it stands.
- */
+/** Hands off the ceremony and settles once the page is dark, so the community loads unseen. */
 export async function departForCeremony(
   kind: CeremonyKind,
   slug: string,

@@ -7,7 +7,10 @@ import { useMe } from "@/features/identity/api/use-me";
 import type { User } from "@/features/identity/domain/user";
 import { userHue } from "@/lib/user-hue";
 
-export interface HeroCeremonyProps extends Omit<CeremonyCardProps, "clock"> {
+export interface HeroCeremonyProps extends Omit<
+  CeremonyCardProps,
+  "clock" | "placement"
+> {
   ceremony: ActiveCeremony;
 }
 
@@ -32,6 +35,7 @@ export function HeroCeremony({
   return (
     <WelcomeCeremony
       {...card}
+      placement={ceremony.placement}
       newcomer={me === undefined ? null : faceOf(me)}
       countFrom={ceremony.countFrom}
       countTo={ceremony.countTo}

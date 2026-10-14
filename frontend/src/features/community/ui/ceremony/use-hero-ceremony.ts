@@ -1,5 +1,6 @@
 import { useCallback, useDeferredValue, useEffect, useState } from "react";
 
+import type { StagePlacement } from "@/components/patterns/ceremony/CeremonyStage";
 import { liftCurtain } from "@/components/patterns/ceremony/curtain";
 import {
   type CeremonyKind,
@@ -12,7 +13,7 @@ export interface ActiveCeremony {
   readonly kind: CeremonyKind;
   readonly countFrom: number;
   readonly countTo: number;
-  readonly placement: "viewport" | "in-place";
+  readonly placement: StagePlacement;
 }
 
 type HeroCommunity = Pick<Community, "slug" | "name" | "memberCount">;
