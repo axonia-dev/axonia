@@ -5,6 +5,8 @@ import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -21,6 +23,7 @@ import dev.axonia.community.application.port.out.OrganizationContext;
 import dev.axonia.community.domain.CommunityRecord;
 import dev.axonia.community.domain.CommunityRecordMother;
 import dev.axonia.community.domain.LookAndFeelAsset;
+import dev.axonia.media.api.ImageHeaders;
 import dev.axonia.media.api.ImageUpload;
 import dev.axonia.media.api.MediaStorage;
 import dev.axonia.shared.api.error.ConflictException;
@@ -126,14 +129,14 @@ class LookAndFeelServiceTest {
         when(communityStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
         var expected = Community.builder().id(1L).slug("backend-guild").badgeUrl("/public/media/resolved").build();
         when(communityService.getBySlug("backend-guild")).thenReturn(expected);
-        var upload = new ImageUpload(new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47}, "image/png", "logo.png");
+        var upload = new ImageUpload(ImageHeaders.png(512, 512), "image/png", "logo.png");
 
         // when
         var actual = sut.addLookAndFeelAsset("backend-guild", LookAndFeelAsset.BADGE, upload);
 
         // then
         assertThat(actual).isSameAs(expected);
-        verify(mediaStorage).store(any(), any(ByteArrayInputStream.class), eq("image/png"), eq(4L));
+        verify(mediaStorage).store(any(), any(ByteArrayInputStream.class), eq("image/png"), eq(upload.size()));
         verify(communityStore).save(any());
     }
 
@@ -145,7 +148,7 @@ class LookAndFeelServiceTest {
         when(communityStore.findBySlug("default", "backend-guild")).thenReturn(Optional.of(entity));
         when(communityStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(communityService.getBySlug("backend-guild")).thenReturn(Community.builder().build());
-        var upload = new ImageUpload(new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47}, "image/png", "logo.png");
+        var upload = new ImageUpload(ImageHeaders.png(512, 512), "image/png", "logo.png");
 
         // when
         sut.addLookAndFeelAsset("backend-guild", LookAndFeelAsset.BADGE, upload);
@@ -190,7 +193,7 @@ class LookAndFeelServiceTest {
         when(communityStore.findBySlug("default", "backend-guild")).thenReturn(Optional.of(entity));
         when(communityStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(communityService.getBySlug("backend-guild")).thenReturn(Community.builder().build());
-        var upload = new ImageUpload(new byte[]{0x52, 0x49, 0x46, 0x46}, "image/webp", "hero.webp");
+        var upload = new ImageUpload(ImageHeaders.webpLossy(2560, 1440), "image/webp", "hero.webp");
 
         // when
         sut.addLookAndFeelAsset("backend-guild", LookAndFeelAsset.HERO, upload);
@@ -209,7 +212,7 @@ class LookAndFeelServiceTest {
         when(communityStore.findBySlug("default", "backend-guild")).thenReturn(Optional.of(entity));
         when(communityStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(communityService.getBySlug("backend-guild")).thenReturn(Community.builder().build());
-        var upload = new ImageUpload(new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF}, "image/jpeg", "photo.jpg");
+        var upload = new ImageUpload(ImageHeaders.jpeg(400, 300), "image/jpeg", "photo.jpg");
 
         // when
         sut.addLookAndFeelAsset("backend-guild", LookAndFeelAsset.BADGE, upload);
@@ -242,7 +245,7 @@ class LookAndFeelServiceTest {
         var entity = CommunityRecordMother.any().id(1L).accentColor("#DE3B78").build();
         when(communityStore.findBySlug("default", "backend-guild")).thenReturn(Optional.of(entity));
         when(communityStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
-        var upload = new ImageUpload(new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47}, "image/png", "logo.png");
+        var upload = new ImageUpload(ImageHeaders.png(512, 512), "image/png", "logo.png");
 
         // when
         sut.addLookAndFeelAsset("backend-guild", LookAndFeelAsset.BADGE, upload);
@@ -277,7 +280,7 @@ class LookAndFeelServiceTest {
         var entity = CommunityRecordMother.any().id(1L).build();
         when(communityStore.findBySlug("default", "backend-guild")).thenReturn(Optional.of(entity));
         when(communityStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
-        var upload = new ImageUpload(new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF}, "image/jpeg", "photo.jpg");
+        var upload = new ImageUpload(ImageHeaders.jpeg(400, 300), "image/jpeg", "photo.jpg");
 
         // when
         sut.addLookAndFeelAsset("backend-guild", LookAndFeelAsset.HERO, upload);
@@ -388,8 +391,36 @@ class LookAndFeelServiceTest {
         assertThat(saved.getValue().getBadgeFocusY()).isNull();
     }
 
+    @ParameterizedTest
+    @CsvSource({"HERO,2561", "BADGE,513"})
+    void addLookAndFeelAsset_refusesAnImageOverTheAssetsLongestEdge(LookAndFeelAsset asset, int edge) {
+
+        // given
+        var entity = CommunityRecordMother.any().id(1L).build();
+        when(communityStore.findBySlug("default", "guild")).thenReturn(Optional.of(entity));
+        var upload = new ImageUpload(ImageHeaders.png(edge, 10), "image/png", "big.png");
+
+        // when / then
+        assertThatThrownBy(() -> sut.addLookAndFeelAsset("guild", asset, upload))
+                .isInstanceOf(ValidationException.class).extracting("code").isEqualTo("IMAGE_TOO_LARGE");
+        verifyNoInteractions(mediaStorage);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"HERO,2560", "BADGE,512"})
+    void addLookAndFeelAsset_acceptsAnImageExactlyAtTheAssetsLongestEdge(LookAndFeelAsset asset, int edge) {
+
+        // given
+        var entity = CommunityRecordMother.any().id(1L).build();
+        when(communityStore.findBySlug("default", "guild")).thenReturn(Optional.of(entity));
+        var upload = new ImageUpload(ImageHeaders.png(10, edge), "image/png", "edge.png");
+
+        // when / then
+        assertThatCode(() -> sut.addLookAndFeelAsset("guild", asset, upload)).doesNotThrowAnyException();
+    }
+
     private static ImageUpload anImageUpload() {
 
-        return new ImageUpload(new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47, 1, 2, 3, 4}, "image/png", "hero.png");
+        return new ImageUpload(ImageHeaders.png(1920, 1080), "image/png", "hero.png");
     }
 }

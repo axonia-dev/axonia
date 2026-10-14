@@ -16,6 +16,7 @@ import dev.axonia.identity.api.IdentityClaims;
 import dev.axonia.identity.application.port.out.UserStore;
 import dev.axonia.identity.domain.AvatarOverrideUpdate;
 import dev.axonia.identity.domain.UserAccountMother;
+import dev.axonia.media.api.ImageHeaders;
 import dev.axonia.media.api.ImageUpload;
 import dev.axonia.media.api.MediaStorage;
 import dev.axonia.shared.api.error.NotFoundException;
@@ -203,6 +204,25 @@ class AvatarOverrideServiceTest {
         assertThatThrownBy(() -> service.set(oversized)).isInstanceOf(ValidationException.class)
                 .hasMessageContaining("2 MB");
         verifyNoInteractions(mediaStorage);
+    }
+
+    @Test
+    void anImageWiderThanTheEdgeIsRefused() {
+
+        var tooWide = new ImageUpload(ImageHeaders.jpeg(513, 512), "image/jpeg", "wide.jpg");
+
+        assertThatThrownBy(() -> service.set(tooWide)).isInstanceOf(ValidationException.class)
+                .hasMessage("Image exceeds the maximum of 512 pixels on its longest side");
+        verifyNoInteractions(mediaStorage);
+    }
+
+    @Test
+    void anImageExactlyAtTheEdgeIsStored() {
+
+        seedUser(null);
+
+        assertThatCode(() -> service.set(new ImageUpload(ImageHeaders.jpeg(512, 512), "image/jpeg", "me.jpg")))
+                .doesNotThrowAnyException();
     }
 
     /**

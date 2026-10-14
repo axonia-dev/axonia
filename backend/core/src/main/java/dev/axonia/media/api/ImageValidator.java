@@ -20,12 +20,13 @@ public final class ImageValidator {
     private ImageValidator() {
     }
 
-    public static void validate(ImageUpload upload, long maxBytes) {
+    public static void validate(ImageUpload upload, ImageLimits limits) {
 
         checkPresent(upload);
         checkContentType(upload);
-        checkSize(upload, maxBytes);
+        checkSize(upload, limits.maxBytes());
         checkMagic(upload);
+        checkDimensions(upload, limits.maxEdge());
     }
 
     private static void checkPresent(ImageUpload upload) {
@@ -82,6 +83,16 @@ public final class ImageValidator {
         var magic = MAGIC.get(upload.contentType());
         if (magic != null && !startsWith(upload.content(), magic)) {
             throw new ValidationException("INVALID_IMAGE", "File content does not match its declared type");
+        }
+    }
+
+    private static void checkDimensions(ImageUpload upload, int maxEdge) {
+
+        var dimensions = ImageDimensions.read(upload.content(), upload.contentType()).orElseThrow(
+                () -> new ValidationException("INVALID_IMAGE", "Image dimensions cannot be read from the file"));
+        if (dimensions.longestEdge() > maxEdge) {
+            throw new ValidationException("IMAGE_TOO_LARGE",
+                    "Image exceeds the maximum of " + maxEdge + " pixels on its longest side");
         }
     }
 

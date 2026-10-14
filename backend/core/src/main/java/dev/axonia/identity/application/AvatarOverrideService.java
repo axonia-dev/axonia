@@ -10,6 +10,7 @@ import dev.axonia.identity.api.ClaimsReader;
 import dev.axonia.identity.application.port.out.UserStore;
 import dev.axonia.identity.domain.AvatarOverrideUpdate;
 import dev.axonia.identity.domain.UserAccount;
+import dev.axonia.media.api.ImageLimits;
 import dev.axonia.media.api.ImageUpload;
 import dev.axonia.media.api.ImageValidator;
 import dev.axonia.media.api.MediaKeys;
@@ -38,9 +39,9 @@ public class AvatarOverrideService {
 
     /**
      * The same ceiling the BADGE asset and axonia.avatar.max-bytes already apply, so an override can never be heavier
-     * than a synced photo.
+     * than a synced photo, and the same 512 pixel edge as the BADGE.
      */
-    private static final long MAX_BYTES = 2L * 1024 * 1024;
+    private static final ImageLimits LIMITS = new ImageLimits(2L * 1024 * 1024, 512);
 
     private final UserStore userStore;
     private final ClaimsReader claimsReader;
@@ -50,7 +51,7 @@ public class AvatarOverrideService {
     @Transactional
     public String set(ImageUpload upload) {
 
-        ImageValidator.validate(upload, MAX_BYTES);
+        ImageValidator.validate(upload, LIMITS);
         var claims = claimsReader.read();
         var user = requireProfile(claims.organizationId(), claims.userId());
 

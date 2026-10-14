@@ -7,11 +7,14 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoSettings;
 
+import dev.axonia.media.api.ImageHeaders;
 import dev.axonia.media.api.ImageUpload;
 import dev.axonia.media.api.MediaStorage;
+import dev.axonia.shared.api.error.ValidationException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -41,6 +44,28 @@ class ReactionImagesTest {
 
         // then
         assertThat(stored).startsWith("reactions/" + ORG + "/").endsWith(".png");
+    }
+
+    @Test
+    void storingRefusesAnImageTallerThanTheEdge() {
+
+        // given
+        var upload = new ImageUpload(ImageHeaders.webpLossless(256, 257), "image/webp", "tall.webp");
+
+        // when / then
+        assertThatThrownBy(() -> images.store(ORG, upload)).isInstanceOf(ValidationException.class).extracting("code")
+                .isEqualTo("IMAGE_TOO_LARGE");
+        verifyNoInteractions(mediaStorage);
+    }
+
+    @Test
+    void storingAcceptsAnImageExactlyAtTheEdge() {
+
+        // when
+        var stored = images.store(ORG, new ImageUpload(ImageHeaders.webpLossless(256, 256), "image/webp", "a.webp"));
+
+        // then
+        assertThat(stored).endsWith(".webp");
     }
 
     @Test

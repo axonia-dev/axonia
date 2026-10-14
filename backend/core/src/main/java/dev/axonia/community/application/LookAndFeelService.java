@@ -15,6 +15,7 @@ import dev.axonia.community.application.port.out.CurrentUser;
 import dev.axonia.community.application.port.out.OrganizationContext;
 import dev.axonia.community.domain.CommunityRecord;
 import dev.axonia.community.domain.LookAndFeelAsset;
+import dev.axonia.media.api.ImageLimits;
 import dev.axonia.media.api.ImageUpload;
 import dev.axonia.media.api.ImageValidator;
 import dev.axonia.media.api.MediaKeys;
@@ -55,7 +56,7 @@ public class LookAndFeelService {
 
         var organizationId = organizationContext.organizationId();
         var entity = requireEditable(organizationId, slug);
-        ImageValidator.validate(upload, asset.maxBytes());
+        ImageValidator.validate(upload, new ImageLimits(asset.maxBytes(), asset.maxEdge()));
 
         var key = MediaKeys.communityAsset(entity.getId(), asset.segment(), upload.contentType());
         mediaStorage.store(key, new ByteArrayInputStream(upload.content()), upload.contentType(), upload.size());

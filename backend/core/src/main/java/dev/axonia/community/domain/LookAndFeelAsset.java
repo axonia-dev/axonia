@@ -4,15 +4,17 @@ import dev.axonia.shared.api.error.NotFoundException;
 
 public enum LookAndFeelAsset {
 
-    BADGE("badge", 2L * 1024 * 1024), HERO("hero", 5L * 1024 * 1024);
+    BADGE("badge", 2L * 1024 * 1024, 512), HERO("hero", 5L * 1024 * 1024, 2560);
 
     private final String segment;
     private final long maxBytes;
+    private final int maxEdge;
 
-    LookAndFeelAsset(String segment, long maxBytes) {
+    LookAndFeelAsset(String segment, long maxBytes, int maxEdge) {
 
         this.segment = segment;
         this.maxBytes = maxBytes;
+        this.maxEdge = maxEdge;
     }
 
     public String segment() {
@@ -23,6 +25,11 @@ public enum LookAndFeelAsset {
     public long maxBytes() {
 
         return maxBytes;
+    }
+
+    public int maxEdge() {
+
+        return maxEdge;
     }
 
     public static LookAndFeelAsset fromPath(String value) {

@@ -4,6 +4,7 @@ import java.io.ByteArrayInputStream;
 
 import org.springframework.stereotype.Component;
 
+import dev.axonia.media.api.ImageLimits;
 import dev.axonia.media.api.ImageUpload;
 import dev.axonia.media.api.ImageValidator;
 import dev.axonia.media.api.MediaKeys;
@@ -19,21 +20,21 @@ import lombok.extern.slf4j.Slf4j;
  * in the Organization can open, and an authenticated blob fetch per chip is not a thing that would ship.
  *
  * <p>
- * 128 KB rather than the avatar's 2 MB: this renders at seventeen pixels. {@link ImageValidator} rejects GIF, which
- * settles animation without a separate argument.
+ * 128 KB and 256 pixels rather than the avatar's 2 MB and 512: this renders at seventeen pixels. {@link ImageValidator}
+ * rejects GIF, which settles animation without a separate argument.
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class ReactionImages {
 
-    static final long MAX_BYTES = 128L * 1024;
+    private static final ImageLimits LIMITS = new ImageLimits(128L * 1024, 256);
 
     private final MediaStorage mediaStorage;
 
     public String store(String organizationId, ImageUpload upload) {
 
-        ImageValidator.validate(upload, MAX_BYTES);
+        ImageValidator.validate(upload, LIMITS);
         var key = MediaKeys.reaction(organizationId, upload.contentType());
         mediaStorage.store(key, new ByteArrayInputStream(upload.content()), upload.contentType(), upload.size());
         return key;
