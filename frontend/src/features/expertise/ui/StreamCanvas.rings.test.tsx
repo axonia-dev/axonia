@@ -174,9 +174,9 @@ describe("StreamCanvas rings", () => {
       bands.map((b) => (b.material as THREE.Material).stencilZPass),
     ).toStrictEqual(bands.map(() => THREE.ReplaceStencilOp));
     expect(rings.length).toBeGreaterThan(0);
-    expect(new Set(rings.map((r) => r.material.stencilFunc))).toStrictEqual(
-      new Set([THREE.EqualStencilFunc]),
-    );
+    expect(
+      new Set(rings.map((r) => (r.material as THREE.Material).stencilFunc)),
+    ).toStrictEqual(new Set([THREE.EqualStencilFunc]));
   });
 
   it("disposes its rings and twinkles when it goes away mid-echo", () => {
