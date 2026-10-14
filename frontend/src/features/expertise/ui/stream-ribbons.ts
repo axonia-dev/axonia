@@ -14,6 +14,8 @@ import type { GraphSize } from "@/features/expertise/ui/use-graph-size";
 
 export interface RibbonLayer {
   objects: THREE.Object3D[];
+  /** The bands' filled shapes alone, which are the ground an echo's rings are drawn on. */
+  fills: THREE.Mesh[];
   /** One RGBA tint per band and per edge, which a highlight repaints in place. */
   tints: Tinted[];
   dispose: () => void;
@@ -109,6 +111,7 @@ function bandTint(
  */
 export function ribbons(stacked: Stacked[], size: GraphSize): RibbonLayer {
   const objects: THREE.Object3D[] = [];
+  const fills: THREE.Mesh[] = [];
   const tints: Tinted[] = [];
   const spent: { dispose: () => void }[] = [];
 
@@ -130,13 +133,15 @@ export function ribbons(stacked: Stacked[], size: GraphSize): RibbonLayer {
 
     tints.push(bandTint(geometry, band.tag, shades.fill));
     tints.push(bandTint(edge, band.tag, shades.edge));
-    objects.push(new THREE.Mesh(geometry, material));
-    objects.push(new THREE.Line(edge, edgeMaterial));
+    const fill = new THREE.Mesh(geometry, material);
+    fills.push(fill);
+    objects.push(fill, new THREE.Line(edge, edgeMaterial));
     spent.push(geometry, material, edge, edgeMaterial);
   }
 
   return {
     objects,
+    fills,
     tints,
     dispose: () => {
       for (const item of spent) item.dispose();

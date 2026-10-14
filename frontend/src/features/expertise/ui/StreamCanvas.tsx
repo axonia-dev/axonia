@@ -23,6 +23,10 @@ import {
 import { ribbons } from "@/features/expertise/ui/stream-ribbons";
 import { StreamAxis } from "@/features/expertise/ui/StreamAxis";
 import { markPxFor } from "@/features/expertise/ui/terrain-mark-size";
+import {
+  stampGround,
+  standOnGround,
+} from "@/features/expertise/ui/terrain-stencil";
 import type { GraphSize } from "@/features/expertise/ui/use-graph-size";
 import {
   type EchoGpu,
@@ -54,8 +58,8 @@ const RING_LIFT = MARK_LIFT - 0.5;
 const TWINKLES_ORDER = 1.5;
 
 /**
- * The stream's echo: the plane it is laid out on is centred on the camera, and nothing is stood on a ground, so a
- * ring is simply drawn flat over the bands and the drawing's own edge cuts it.
+ * The stream's echo: the plane it is laid out on is centred on the camera, and a ring is drawn flat over it, but only
+ * where the bands are. The background beyond them is no ground, and a ring crossing it would be about nothing.
  */
 function streamGround(
   size: GraphSize,
@@ -69,11 +73,14 @@ function streamGround(
       maxY: size.height / 2,
     },
     marks: seated,
-    rings: () =>
-      ringLayer({
+    rings: () => {
+      const rings = ringLayer({
         place: (x, y) => new THREE.Vector3(x, y, RING_LIFT),
         capacity: ECHO.ringLagsMs.length * MAX_DROPS,
-      }),
+      });
+      standOnGround(rings.objects);
+      return rings;
+    },
     twinkles: ({ points, markPx }) => {
       const made = twinkleLayer({
         points,
@@ -128,7 +135,11 @@ export function StreamCanvas({
     const host = hostRef.current;
     if (host === null || !supported) return undefined;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: true,
+      stencil: true,
+    });
     renderer.setPixelRatio(rendererPixelRatio());
     renderer.setSize(size.width, size.height);
     host.append(renderer.domElement);
@@ -169,6 +180,7 @@ export function StreamCanvas({
     if (gpu === null) return undefined;
 
     const bands = ribbons(stacked, size);
+    stampGround(bands.fills);
     for (const object of bands.objects) gpu.scene.add(object);
     const release = holdLive(tintsRef.current, bands.tints, drawnRef.current);
     gpu.request();

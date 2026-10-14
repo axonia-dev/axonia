@@ -12,12 +12,25 @@ const at = (
 ) => ({ signalId, tag, slot, x, y });
 
 describe("dropsFor", () => {
-  it("drops once per area from the centre of its lit marks", () => {
+  it("drops once per area from the lit mark nearest the centre of its lit marks", () => {
     const drops = dropsFor(
-      [at(1, "kafka", 0, 0), at(2, "kafka", 10, 20), at(3, "rust", 500, 500)],
-      new Set([1, 2]),
+      [
+        at(1, "kafka", 0, 0),
+        at(2, "kafka", 12, 24),
+        at(3, "kafka", 3, 9),
+        at(4, "rust", 500, 500),
+      ],
+      new Set([1, 2, 3]),
     );
-    expect(drops).toEqual([{ x: 5, y: 10, delayMs: 0, slot: 0 }]);
+    expect(drops).toEqual([{ x: 3, y: 9, delayMs: 0, slot: 0 }]);
+  });
+  /** A band curves, so the centre of its marks can lie in the gap beside it; a mark is always on it. */
+  it("drops on a mark, never in the empty middle of a curved area", () => {
+    const drops = dropsFor(
+      [at(1, "kafka", 0, 0), at(2, "kafka", 100, 0), at(3, "kafka", 50, -40)],
+      new Set([1, 2, 3]),
+    );
+    expect(drops.map(({ x, y }) => [x, y])).toEqual([[50, -40]]);
   });
   it("staggers areas, the one with the most matches first, ties by name", () => {
     const drops = dropsFor(
