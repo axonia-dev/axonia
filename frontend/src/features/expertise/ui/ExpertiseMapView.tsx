@@ -14,6 +14,7 @@ import {
   ReadingPanel,
 } from "@/features/expertise/ui/ReadingPanel";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
+import { useMediaQuery } from "@/lib/use-media-query";
 import { useNow } from "@/lib/use-wake-at";
 
 /** Long enough that a term is matched once rather than per keystroke: every settled term repaints the ground, which
@@ -31,6 +32,7 @@ export function ExpertiseMapView() {
   const [reading, setReading] = useState<PanelSelection>("neighbourhoods");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [term, setTerm] = useState("");
+  const reduced = useMediaQuery("(prefers-reduced-motion: reduce)");
   const settled = useDebouncedValue(term, SEARCH_DEBOUNCE_MS);
   const { data, isLoading, isError } = useExpertiseMap(slug);
 
@@ -73,8 +75,9 @@ export function ExpertiseMapView() {
   }
 
   function chooseMatchedArea(tag: string) {
-    setTerm("");
+    setReading("neighbourhoods");
     setSelectedTag(tag);
+    setTerm("");
   }
 
   // The selection goes too, including back onto "Neighbourhoods". Kept, it put a reader who chose an area, went to
@@ -117,6 +120,7 @@ export function ExpertiseMapView() {
         onSeeWhoKnows={seeWhoKnows}
         matchedAreas={matchedAreas}
         slug={slug}
+        echoing={!reduced}
         onChooseMatchedArea={chooseMatchedArea}
       />
       <div className="border-border border-t md:order-first md:border-t-0">

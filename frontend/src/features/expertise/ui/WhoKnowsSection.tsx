@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { MemberAvatar } from "@/components/patterns/MemberAvatar";
 import { useExpertiseSearch } from "@/features/expertise/api/use-expertise-search";
@@ -13,8 +13,8 @@ import { userHue } from "@/lib/user-hue";
 
 const MAX_ROWS = 4;
 
-function msUntilCue(mountedAt: number): number {
-  return Math.max(0, ECHO.panelCueMs - (performance.now() - mountedAt));
+function msUntilCue(mountedAt: number, cueMs: number): number {
+  return Math.max(0, cueMs - (performance.now() - mountedAt));
 }
 
 function PersonRow({
@@ -49,35 +49,44 @@ function PersonRow({
   );
 }
 
-/** A short preview of the people Search would list for one area; it stays out of sight until it has an answer. */
+/**
+ * A short preview of the people Search would list for one area; it stays out of sight until it has an answer.
+ * `cueMs` is how long after mounting the rows may appear: the echo's crossing time when a term is echoing on the map,
+ * and nothing anywhere else.
+ */
 export function WhoKnowsSection({
   slug,
   tag,
   onOpenSearch,
+  cueMs = 0,
 }: Readonly<{
   slug: string;
   tag: string;
   onOpenSearch?: (tag: string) => void;
+  cueMs?: number;
 }>) {
   const [mountedAt] = useState(() => performance.now());
+  const [revealed, setRevealed] = useState(false);
   const { data } = useExpertiseSearch(slug, {
     term: tag,
     demonstratedOnly: false,
   });
-  // The rows wait for the echo to cross the map, counted from when the section mounted, not from when data lands.
-  const waitMs = useMemo(
-    () => (data === undefined ? 0 : msUntilCue(mountedAt)),
-    [data, mountedAt],
-  );
+  const answered = data !== undefined && data.length > 0;
+  // The reveal is a timer armed when the first answer lands, so a refetch never rewrites a wait already running.
+  useEffect(() => {
+    if (!answered) return;
+    const timer = setTimeout(
+      () => setRevealed(true),
+      msUntilCue(mountedAt, cueMs),
+    );
+    return () => clearTimeout(timer);
+  }, [answered, mountedAt, cueMs]);
 
-  if (data === undefined || data.length === 0) return null;
+  if (!answered || !revealed) return null;
 
   return (
     <section className="flex flex-col gap-2.5">
-      <h3
-        className="text-sm font-semibold motion-safe:animate-[who-knows-in_350ms_ease-out_both]"
-        style={{ animationDelay: `${waitMs}ms` }}
-      >
+      <h3 className="text-sm font-semibold motion-safe:animate-[who-knows-in_350ms_ease-out_both]">
         Who knows {tag}
       </h3>
       <ul className="flex flex-col gap-2.5">
@@ -85,7 +94,7 @@ export function WhoKnowsSection({
           <PersonRow
             key={practitioner.userId}
             practitioner={practitioner}
-            delayMs={waitMs + index * ECHO.panelStepMs}
+            delayMs={(index + 1) * ECHO.panelStepMs}
           />
         ))}
       </ul>

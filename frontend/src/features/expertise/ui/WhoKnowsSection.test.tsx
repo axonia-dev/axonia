@@ -33,19 +33,25 @@ function person(userId: string, over: Partial<Practitioner> = {}) {
   } as Practitioner;
 }
 
-function renderSection(onOpenSearch?: (tag: string) => void) {
+function renderSection(onOpenSearch?: (tag: string) => void, cueMs?: number) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return render(
+  const rendered = render(
     <QueryClientProvider client={client}>
       <WhoKnowsSection
         slug="acme"
         tag="kafka"
         {...(onOpenSearch ? { onOpenSearch } : {})}
+        {...(cueMs === undefined ? {} : { cueMs })}
       />
     </QueryClientProvider>,
   );
+  return { ...rendered, client };
+}
+
+function settledStatus(client: QueryClient) {
+  return client.getQueryCache().getAll()[0]?.state.status;
 }
 
 beforeEach(() => {
@@ -103,17 +109,40 @@ test("without a handler there is no Open in Search", async () => {
 test("a failed search renders nothing", async () => {
   gateway.search.mockRejectedValue(new Error("boom"));
 
-  const { container } = renderSection();
+  const { container, client } = renderSection();
 
-  await waitFor(() => expect(gateway.search).toHaveBeenCalled());
+  await waitFor(() => expect(settledStatus(client)).toBe("error"));
   expect(container).toBeEmptyDOMElement();
 });
 
 test("an empty answer renders nothing", async () => {
   gateway.search.mockResolvedValue([]);
 
-  const { container } = renderSection();
+  const { container, client } = renderSection();
 
-  await waitFor(() => expect(gateway.search).toHaveBeenCalled());
+  await waitFor(() => expect(settledStatus(client)).toBe("success"));
   expect(container).toBeEmptyDOMElement();
+});
+
+test("the rows follow the heading by one step each", async () => {
+  gateway.search.mockResolvedValue([person("ana"), person("bo")]);
+
+  renderSection();
+
+  await screen.findByRole("heading", { name: "Who knows kafka" });
+  expect(
+    screen.getAllByRole("listitem").map((row) => row.style.animationDelay),
+  ).toEqual(["90ms", "180ms"]);
+});
+
+test("with a cue the section stays out of sight until the echo has crossed the map", async () => {
+  gateway.search.mockResolvedValue([person("ana")]);
+
+  const { client } = renderSection(undefined, 300);
+
+  await waitFor(() => expect(settledStatus(client)).toBe("success"));
+  expect(screen.queryByRole("heading")).not.toBeInTheDocument();
+  expect(
+    await screen.findByRole("heading", { name: "Who knows kafka" }),
+  ).toBeInTheDocument();
 });

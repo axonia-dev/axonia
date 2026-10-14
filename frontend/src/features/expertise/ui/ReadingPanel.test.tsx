@@ -68,6 +68,7 @@ function panel(over: Partial<Parameters<typeof ReadingPanel>[0]> = {}) {
         matchedAreas={[]}
         slug="acme"
         onChooseMatchedArea={vi.fn()}
+        echoing={false}
         {...over}
       />
     </QueryClientProvider>,

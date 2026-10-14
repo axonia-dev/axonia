@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, test, vi } from "vitest";
 
@@ -78,6 +78,7 @@ function panel(over: Partial<Parameters<typeof ReadingPanel>[0]> = {}) {
         matchedAreas={[]}
         slug="acme"
         onChooseMatchedArea={vi.fn()}
+        echoing={false}
         {...over}
       />
     </QueryClientProvider>,
@@ -130,4 +131,32 @@ test("a selected area shows who knows it without Open in Search", async () => {
   expect(
     screen.getByRole("button", { name: "See who knows kafka" }),
   ).toBeInTheDocument();
+});
+
+test("a term and a selected area never list people twice", async () => {
+  panel({ selectedTag: "rust", matchedAreas: ["kafka"] });
+
+  expect(
+    await screen.findByRole("heading", { name: "Who knows kafka" }),
+  ).toBeInTheDocument();
+  expect(screen.getAllByRole("heading", { name: /Who knows/ })).toHaveLength(1);
+  expect(
+    screen.getByRole("button", { name: "See who knows rust" }),
+  ).toBeInTheDocument();
+});
+
+test("a selected area's section shows without waiting for an echo", async () => {
+  panel({ selectedTag: "kafka" });
+
+  expect(
+    await screen.findByRole("heading", { name: "Who knows kafka" }),
+  ).toBeInTheDocument();
+});
+
+test("an echoing term keeps its section out of sight at first", async () => {
+  panel({ matchedAreas: ["kafka"], echoing: true });
+
+  await waitFor(() => expect(gateway.search).toHaveBeenCalled());
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  expect(screen.queryByRole("heading", { name: /Who knows/ })).toBeNull();
 });

@@ -56,6 +56,7 @@ function panel(groups: DrawnGroup[], selectedTag: string | null = null) {
         matchedAreas={[]}
         slug="acme"
         onChooseMatchedArea={vi.fn()}
+        echoing={false}
       />
     </QueryClientProvider>,
   );

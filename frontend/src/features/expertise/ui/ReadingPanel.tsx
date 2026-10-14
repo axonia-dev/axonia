@@ -12,6 +12,7 @@ import {
   type ReadingId,
 } from "@/features/expertise/ui/expertise-readings";
 import type { DrawnGroup } from "@/features/expertise/ui/named-area-grouping";
+import { ECHO } from "@/features/expertise/ui/echo-timeline";
 import { MatchedAreasLine } from "@/features/expertise/ui/MatchedAreasLine";
 import { NeighbourhoodSummary } from "@/features/expertise/ui/NeighbourhoodSummary";
 import { WhoKnowsSection } from "@/features/expertise/ui/WhoKnowsSection";
@@ -47,6 +48,8 @@ interface Props {
   matchedAreas: readonly string[];
   slug: string;
   onChooseMatchedArea: (tag: string) => void;
+  /** True while the map plays an echo for the settled term, which the people listed beside it wait for. */
+  echoing: boolean;
 }
 
 export function ReadingPanel({
@@ -62,6 +65,7 @@ export function ReadingPanel({
   matchedAreas,
   slug,
   onChooseMatchedArea,
+  echoing,
 }: Readonly<Props>) {
   return (
     <aside
@@ -92,6 +96,7 @@ export function ReadingPanel({
           onSelectTag={onSelectTag}
           onSeeWhoKnows={onSeeWhoKnows}
           slug={slug}
+          termActive={matchedAreas.length > 0}
         />
       ) : (
         <ReadingRows built={built} />
@@ -102,6 +107,7 @@ export function ReadingPanel({
           slug={slug}
           tag={matchedAreas[0]!}
           onOpenSearch={onSeeWhoKnows}
+          cueMs={echoing ? ECHO.panelCueMs : 0}
         />
       )}
       {matchedAreas.length > 1 && (
@@ -119,8 +125,10 @@ function NeighbourhoodPane({
   onSelectTag,
   onSeeWhoKnows,
   slug,
+  termActive,
 }: Readonly<{
   slug: string;
+  termActive: boolean;
   selectedTag: string | null;
   groups: DrawnGroup[];
   topics: TopicNode[];
@@ -147,6 +155,7 @@ function NeighbourhoodPane({
       onSelectTag={onSelectTag}
       onSeeWhoKnows={onSeeWhoKnows}
       slug={slug}
+      termActive={termActive}
     />
   );
 }
@@ -208,8 +217,10 @@ function TopicDetail({
   onSelectTag,
   onSeeWhoKnows,
   slug,
+  termActive,
 }: Readonly<{
   slug: string;
+  termActive: boolean;
   tag: string;
   topics: TopicNode[];
   links: TopicLink[];
@@ -265,7 +276,7 @@ function TopicDetail({
           ))}
         </ul>
       </div>
-      <WhoKnowsSection slug={slug} tag={tag} />
+      {!termActive && <WhoKnowsSection slug={slug} tag={tag} />}
       <button
         type="button"
         onClick={() => onSeeWhoKnows(tag)}
