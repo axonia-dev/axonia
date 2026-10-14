@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useCurrentOrganization } from "@/features/admin/api/use-current-organization";
 import type { CurrentOrganization } from "@/features/admin/domain/current-organization";
@@ -34,8 +34,17 @@ function queryResult(data: CurrentOrganization | undefined) {
   return { data } as ReturnType<typeof useCurrentOrganization>;
 }
 
+function CommunityHome() {
+  const dark = document.querySelector("[data-ceremony-curtain]") !== null;
+  return <p>{dark ? "home under the curtain" : "home in plain sight"}</p>;
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
+});
+
+afterEach(() => {
+  document.querySelector("[data-ceremony-curtain]")?.remove();
 });
 
 describe("CommunityNewPage", () => {
@@ -85,5 +94,26 @@ describe("CommunityNewPage", () => {
 
     // then
     expect(pendingCeremony("backend-guild")).toBe("birth");
+  });
+
+  it("darkens the page before it enters the new community", async () => {
+    // given
+    mockCurrentOrg.mockReturnValue(queryResult(undefined));
+    render(
+      <MemoryRouter initialEntries={["/communities/new"]}>
+        <Routes>
+          <Route path="/communities/new" element={<CommunityNewPage />} />
+          <Route path="/communities/:slug" element={<CommunityHome />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    // when
+    await userEvent.click(screen.getByRole("button", { name: "create" }));
+
+    // then
+    expect(
+      await screen.findByText("home under the curtain"),
+    ).toBeInTheDocument();
   });
 });

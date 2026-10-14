@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { liftCurtain, raiseCurtain, STAGE_DARK, takeCurtain } from "./curtain";
+import {
+  fadeInCurtain,
+  liftCurtain,
+  raiseCurtain,
+  STAGE_DARK,
+  takeCurtain,
+} from "./curtain";
 
 function curtains(): HTMLElement[] {
   return [...document.querySelectorAll<HTMLElement>("[data-ceremony-curtain]")];
@@ -91,5 +97,54 @@ describe("the ceremony curtain", () => {
       expect.objectContaining({ duration: 250 }),
     );
     expect(curtains()).toHaveLength(0);
+  });
+
+  it("fades in over the live page and answers once it is fully dark", async () => {
+    // given
+    let dark = (): void => undefined;
+    const fade = {
+      finished: new Promise<void>((resolve) => {
+        dark = resolve;
+      }),
+    } as unknown as Animation;
+    const animate = vi.fn(() => fade);
+    HTMLElement.prototype.animate = animate;
+    const settled = vi.fn();
+
+    // when
+    void fadeInCurtain().then(settled);
+    await Promise.resolve();
+
+    // then
+    expect(curtains()).toHaveLength(1);
+    expect(animate).toHaveBeenCalledWith(
+      [{ opacity: 0 }, { opacity: 1 }],
+      expect.objectContaining({ duration: 180 }),
+    );
+    expect(settled).not.toHaveBeenCalled();
+    dark();
+    await vi.waitFor(() => expect(settled).toHaveBeenCalledOnce());
+  });
+
+  it("answers at once where nothing animates", async () => {
+    // when
+    await fadeInCurtain();
+
+    // then
+    expect(curtains()).toHaveLength(1);
+  });
+
+  it("answers even when the fade is cut short", async () => {
+    // given
+    const fade = {
+      finished: Promise.reject(new DOMException("cut", "AbortError")),
+    } as unknown as Animation;
+    HTMLElement.prototype.animate = vi.fn(() => fade);
+
+    // when
+    await fadeInCurtain();
+
+    // then
+    expect(curtains()).toHaveLength(1);
   });
 });

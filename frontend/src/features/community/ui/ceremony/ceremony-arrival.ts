@@ -1,9 +1,22 @@
-import { raiseCurtain } from "@/components/patterns/ceremony/curtain";
-import { pendingCeremonySlug } from "@/features/community/api/ceremony-handoff";
+import {
+  fadeInCurtain,
+  raiseCurtain,
+} from "@/components/patterns/ceremony/curtain";
+import {
+  type CeremonyKind,
+  handOffCeremony,
+  pendingCeremonySlug,
+} from "@/features/community/api/ceremony-handoff";
 import { preloadHeroCeremony } from "@/features/community/ui/ceremony/lazy-ceremonies";
 
 /** Set before first paint by the inline script in index.html and app.html. */
 const ARRIVAL_CLASS = "ceremony-arrival";
+
+function reducedMotion(): boolean {
+  return (
+    globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false
+  );
+}
 
 /** The root lands a hub member on its community; the community is where the ceremony plays. */
 function landsOnCeremony(slug: string): boolean {
@@ -23,10 +36,25 @@ export function prepareCeremonyArrival(): void {
     slug !== null &&
     landsOnCeremony(slug) &&
     !prerendered &&
-    !globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+    !reducedMotion()
   ) {
     raiseCurtain();
     preloadHeroCeremony();
   }
   document.documentElement.classList.remove(ARRIVAL_CLASS);
+}
+
+/**
+ * Run by an act that earns a ceremony and then navigates within the app. Settles once the page is
+ * dark, so the community loads unseen and its stage takes the curtain where it stands.
+ */
+export async function departForCeremony(
+  kind: CeremonyKind,
+  slug: string,
+): Promise<void> {
+  handOffCeremony(kind, slug);
+  preloadHeroCeremony();
+  if (!reducedMotion()) {
+    await fadeInCurtain();
+  }
 }

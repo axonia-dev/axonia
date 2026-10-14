@@ -3,6 +3,7 @@ export const STAGE_DARK = "#0d0910";
 const SELECTOR = "[data-ceremony-curtain]";
 const HOLD_MS = 5_000;
 const LIFT = { duration: 250, easing: "ease-out" };
+const ENTER = { duration: 180, easing: "ease-out" };
 
 function lift(curtain: HTMLElement): void {
   if (!curtain.isConnected || curtain.dataset.ceremonyCurtain === "lifting") {
@@ -17,13 +18,9 @@ function lift(curtain: HTMLElement): void {
   fade.onfinish = () => curtain.remove();
 }
 
-/**
- * Darkens the page from the app's first frame, for a ceremony that arrives with a page load, so the
- * page never shows before the stage. A stage backdrop takes it over; when none does in time, it lifts.
- */
-export function raiseCurtain(holdMs = HOLD_MS): void {
+function raise(holdMs: number): HTMLElement | null {
   if (document.querySelector(SELECTOR) !== null) {
-    return;
+    return null;
   }
   const curtain = document.createElement("div");
   curtain.dataset.ceremonyCurtain = "";
@@ -36,6 +33,27 @@ export function raiseCurtain(holdMs = HOLD_MS): void {
   });
   document.body.append(curtain);
   setTimeout(() => lift(curtain), holdMs);
+  return curtain;
+}
+
+/**
+ * Darkens the page from the app's first frame, for a ceremony that arrives with a page load, so the
+ * page never shows before the stage. A stage backdrop takes it over; when none does in time, it lifts.
+ */
+export function raiseCurtain(holdMs = HOLD_MS): void {
+  raise(holdMs);
+}
+
+/**
+ * Darkens the live page for a ceremony the app navigates to, and answers once it is fully dark, so
+ * the page can change underneath unseen. A stage backdrop takes it over like an arrival's.
+ */
+export async function fadeInCurtain(holdMs = HOLD_MS): Promise<void> {
+  const fade = raise(holdMs)?.animate?.(
+    [{ opacity: 0 }, { opacity: 1 }],
+    ENTER,
+  );
+  await fade?.finished.catch(() => undefined);
 }
 
 /** Lifts the curtain at once, for a page that knows no ceremony is coming. */

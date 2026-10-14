@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
+import { raiseCurtain } from "@/components/patterns/ceremony/curtain";
 import { SidebarProvider } from "@/components/patterns/SidebarProvider";
 import { useCommunity } from "@/features/community/api/use-communities";
 import { CommunityShell } from "@/features/community/ui/CommunityShell";
@@ -106,6 +107,18 @@ describe("CommunityShell loading/error states", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(
       "Could not load this community.",
     );
+  });
+
+  it("lifts a ceremony's curtain off a community that fails to load", () => {
+    // given
+    raiseCurtain();
+    vi.mocked(useCommunity).mockReturnValue(failed() as never);
+
+    // when
+    renderShell();
+
+    // then
+    expect(document.querySelector("[data-ceremony-curtain]")).toBeNull();
   });
 
   it("asks for the community again when told to", async () => {

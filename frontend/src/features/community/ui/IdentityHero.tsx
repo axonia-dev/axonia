@@ -78,7 +78,7 @@ function HeroFooter({
     return <JoinAction slug={slug} onJoined={onJoined} />;
   }
   return (
-    <div className="flex items-center justify-between gap-3">
+    <div className="flex min-h-9 items-center justify-between gap-3">
       <div className="flex min-w-0 items-center gap-3">
         <MembershipChip role={membership.role} />
       </div>
@@ -93,15 +93,17 @@ const shareTriggerClass =
   "rounded-full bg-black/35 p-2 text-white backdrop-blur hover:bg-primary hover:text-primary-foreground";
 
 /**
- * The Join button that held focus is gone once the member's chip replaces it, so focus goes to the
- * footer's member controls: once the ceremony is over and the membership answer says member, which
- * under reduced motion or after an early skip can land after the ceremony.
+ * The control that earned the ceremony is gone once it has played, so focus goes to the footer's
+ * member controls: once the ceremony is over and the membership answer says member, which under
+ * reduced motion or after an early skip can land after the ceremony. A hero mounted mid-ceremony
+ * was handed one, so it starts armed.
  */
 function useFocusFooterAfterJoin(
   hero: RefObject<HTMLElement | null>,
   settled: boolean,
+  mountedPlaying: boolean,
 ): () => void {
-  const joined = useRef(false);
+  const joined = useRef(mountedPlaying);
   useEffect(() => {
     if (settled && joined.current) {
       joined.current = false;
@@ -156,6 +158,7 @@ export function IdentityHero({ community, slug }: Readonly<IdentityHeroProps>) {
   const markJoined = useFocusFooterAfterJoin(
     hero,
     !playing && membership != null,
+    playing,
   );
   const onJoined = () => {
     markJoined();

@@ -220,6 +220,61 @@ describe("IdentityHero ceremonies", () => {
     ).toHaveFocus();
   });
 
+  it.each(["welcome", "birth"] as const)(
+    "lands focus on the footer once a handed-off %s has played",
+    async (kind) => {
+      // given
+      handOffCeremony(kind, "backend-guild");
+      vi.mocked(useMyMembership).mockReturnValue({
+        data: { role: kind === "birth" ? "ORGANIZER" : "MEMBER" },
+        isError: false,
+      } as never);
+      renderHero();
+
+      // when
+      await userEvent.click(
+        await screen.findByRole("button", { name: "end ceremony" }),
+      );
+
+      // then
+      expect(
+        screen.getByRole("button", { name: "community-menu" }),
+      ).toHaveFocus();
+    },
+  );
+
+  it("leaves focus alone on a member's ordinary visit", () => {
+    // given
+    vi.mocked(useMyMembership).mockReturnValue({
+      data: { role: "MEMBER" },
+      isError: false,
+    } as never);
+
+    // when
+    renderHero();
+
+    // then
+    expect(
+      screen.getByRole("button", { name: "community-menu" }),
+    ).not.toHaveFocus();
+  });
+
+  it("keeps the member's footer row as tall as the Join button, so the card never shrinks mid-welcome", () => {
+    // given
+    vi.mocked(useMyMembership).mockReturnValue({
+      data: { role: "MEMBER" },
+      isError: false,
+    } as never);
+
+    // when
+    renderHero();
+
+    // then
+    const row = screen.getByRole("button", { name: "community-menu" })
+      .parentElement as HTMLElement;
+    expect(row).toHaveClass("min-h-9");
+  });
+
   it("announces a rejoin again, with a fresh live region", async () => {
     // given
     renderHero();

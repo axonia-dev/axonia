@@ -1,7 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { handOffCeremony } from "@/features/community/api/ceremony-handoff";
-import { prepareCeremonyArrival } from "@/features/community/ui/ceremony/ceremony-arrival";
+import {
+  handOffCeremony,
+  pendingCeremony,
+} from "@/features/community/api/ceremony-handoff";
+import {
+  departForCeremony,
+  prepareCeremonyArrival,
+} from "@/features/community/ui/ceremony/ceremony-arrival";
 
 const { preloadHeroCeremony } = vi.hoisted(() => ({
   preloadHeroCeremony: vi.fn(),
@@ -103,6 +109,32 @@ describe("prepareCeremonyArrival", () => {
     prepareCeremonyArrival();
 
     // then
+    expect(curtain()).toBeNull();
+  });
+});
+
+describe("departForCeremony", () => {
+  it("hands the ceremony off and is fully dark before the app navigates", async () => {
+    // when
+    await departForCeremony("welcome", "backend-guild");
+
+    // then
+    expect(pendingCeremony("backend-guild")).toBe("welcome");
+    expect(curtain()).not.toBeNull();
+    expect(preloadHeroCeremony).toHaveBeenCalledOnce();
+  });
+
+  it("darkens nothing under reduced motion, where no stage plays", async () => {
+    // given
+    vi.spyOn(window, "matchMedia").mockReturnValue({
+      matches: true,
+    } as MediaQueryList);
+
+    // when
+    await departForCeremony("birth", "backend-guild");
+
+    // then
+    expect(pendingCeremony("backend-guild")).toBe("birth");
     expect(curtain()).toBeNull();
   });
 });

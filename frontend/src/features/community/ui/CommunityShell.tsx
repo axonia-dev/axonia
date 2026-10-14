@@ -10,6 +10,7 @@ import { Outlet, useLocation, useParams } from "react-router-dom";
 
 import { AppShell } from "@/components/patterns/AppShell";
 import { Breadcrumb, type Crumb } from "@/components/patterns/Breadcrumb";
+import { liftCurtain } from "@/components/patterns/ceremony/curtain";
 import { LoadFailed } from "@/components/patterns/LoadFailed";
 import type { NavGroup, NavItem } from "@/components/patterns/nav-types";
 import { ACCOUNT_SETTINGS } from "@/components/patterns/settings-nav";
@@ -124,6 +125,15 @@ function useAssignOnboardingOnArrival(slug: string): void {
   }, [slug, data?.state, mutate]);
 }
 
+/** A ceremony departing for this community darkened the page; a failure must still be seen. */
+function useLiftCurtainOnFailure(failed: boolean): void {
+  useEffect(() => {
+    if (failed) {
+      liftCurtain();
+    }
+  }, [failed]);
+}
+
 function mainClass(pathname: string): string {
   return cn(
     "mx-auto w-full flex-1 px-6 pt-8 pb-24 md:pb-8",
@@ -149,8 +159,10 @@ export function CommunityShell() {
   // dedupes on the shared query key regardless, but the recorder is a write, and mounting it
   // from the affordance would fire it twice per arrival.
   useVisitRecorder(useOnboardingPath());
+  const failed = failedToLoad(query);
+  useLiftCurtainOnFailure(failed);
 
-  if (failedToLoad(query)) {
+  if (failed) {
     return (
       <LoadFailed message="Could not load this community." query={query} />
     );

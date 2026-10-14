@@ -1,7 +1,7 @@
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { handOffCeremony } from "@/features/community/api/ceremony-handoff";
 import { useJoin } from "@/features/community/api/use-membership";
@@ -28,6 +28,11 @@ function mockJoin(state: Record<string, unknown> = {}) {
   });
 }
 
+function CommunityHome() {
+  const dark = document.querySelector("[data-ceremony-curtain]") !== null;
+  return <p>{dark ? "home under the curtain" : "home in plain sight"}</p>;
+}
+
 function renderButton() {
   return render(
     <MemoryRouter initialEntries={["/communities"]}>
@@ -36,7 +41,7 @@ function renderButton() {
           path="/communities"
           element={<ExploreJoinButton slug="backend-guild" />}
         />
-        <Route path="/communities/:slug" element={<p>community home</p>} />
+        <Route path="/communities/:slug" element={<CommunityHome />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -47,6 +52,10 @@ beforeEach(() => {
   vi.clearAllMocks();
   onJoined = undefined;
   mockJoin();
+});
+
+afterEach(() => {
+  document.querySelector("[data-ceremony-curtain]")?.remove();
 });
 
 describe("ExploreJoinButton", () => {
@@ -61,7 +70,7 @@ describe("ExploreJoinButton", () => {
     expect(mutate).toHaveBeenCalledOnce();
   });
 
-  it("hands off the welcome and enters the community once the join succeeds", () => {
+  it("hands off the welcome and enters the community under the curtain once the join succeeds", async () => {
     // given
     renderButton();
 
@@ -70,7 +79,9 @@ describe("ExploreJoinButton", () => {
 
     // then
     expect(handOffCeremony).toHaveBeenCalledWith("welcome", "backend-guild");
-    expect(screen.getByText("community home")).toBeInTheDocument();
+    expect(
+      await screen.findByText("home under the curtain"),
+    ).toBeInTheDocument();
   });
 
   it("stays on the page and says why when the join fails", () => {
