@@ -20,3 +20,32 @@ export function bandColour(band: Stacked, lit: boolean): THREE.Color {
   const { r, g, b } = dimAccent(hex, groundPalette());
   return new THREE.Color().setRGB(r, g, b, THREE.SRGBColorSpace);
 }
+
+/** One vertex's paint, as an RGBA attribute holds it: the colour in the renderer's working space, and how solid. */
+export type Rgba = readonly [number, number, number, number];
+
+/** What a band, or its edge, is painted in when it is lit and when it is set back. */
+export interface BandShades {
+  lit: Rgba;
+  back: Rgba;
+}
+
+const rgbaOf = (colour: THREE.Color, alpha: number): Rgba => [
+  colour.r,
+  colour.g,
+  colour.b,
+  alpha,
+];
+
+/** Both the band's fill and its edge, resolved out of the theme once, when the band is built. */
+export function bandShades(band: Stacked): {
+  fill: BandShades;
+  edge: BandShades;
+} {
+  const accent = bandColour(band, true);
+  const dim = bandColour(band, false);
+  return {
+    fill: { lit: rgbaOf(accent, BAND_OPACITY), back: rgbaOf(dim, DIM_OPACITY) },
+    edge: { lit: rgbaOf(accent, EDGE_OPACITY), back: rgbaOf(dim, DIM_OPACITY) },
+  };
+}

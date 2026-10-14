@@ -3,7 +3,7 @@ import * as THREE from "three";
 
 import type { MapPerson } from "@/features/expertise/domain/expertise";
 import type { PlacedContribution } from "@/features/expertise/ui/contribution-placement";
-import { paintNow, type Tinted } from "@/features/expertise/ui/echo-blend";
+import type { Tinted } from "@/features/expertise/ui/echo-blend";
 import type { DrawnHighlight } from "@/features/expertise/ui/echo-transition";
 import { faceSprites } from "@/features/expertise/ui/face-sprites";
 import { groundPalette } from "@/features/expertise/ui/ground-palette";
@@ -21,6 +21,7 @@ import {
   targetOf,
   type TerrainView,
 } from "@/features/expertise/ui/terrain-camera";
+import { type Gpu, openGpu } from "@/features/expertise/ui/terrain-gpu";
 import {
   DEEPEST,
   groundLayer,
@@ -31,11 +32,11 @@ import {
   markPxAt,
   spriteScaleFor,
 } from "@/features/expertise/ui/terrain-mark-size";
-import { type Gpu, openGpu } from "@/features/expertise/ui/terrain-gpu";
 import { groundColourAt } from "@/features/expertise/ui/terrain-shading";
 import { standOnGround } from "@/features/expertise/ui/terrain-stencil";
 import type { Surface } from "@/features/expertise/ui/terrain-surface";
 import type { PlacedTopic } from "@/features/expertise/ui/topic-graph-layout";
+import { holdLive } from "@/features/expertise/ui/use-map-echo";
 import { useTerrainEcho } from "@/features/expertise/ui/use-terrain-echo";
 import { useThemePaint } from "@/features/expertise/ui/use-theme-paint";
 import {
@@ -57,24 +58,6 @@ interface Props {
   drawn: DrawnHighlight;
   /** The mark the strip below the drawing is describing, or null while nothing is chosen. */
   chosen: number | null;
-}
-
-/**
- * Takes a freshly built layer's colours into the live set, painted in the highlight that stands now, and gives back
- * what lets them go again when the layer is torn down.
- */
-function holdLive(
-  live: Set<Tinted>,
-  built: readonly Tinted[],
-  drawn: DrawnHighlight,
-): () => void {
-  for (const tint of built) {
-    live.add(tint);
-    paintNow(tint, drawn.highlight);
-  }
-  return () => {
-    for (const tint of built) live.delete(tint);
-  };
 }
 
 export function TerrainCanvas({

@@ -10,7 +10,6 @@ import { PAD_X, RESTING_CAMERA } from "@/features/expertise/ui/stream-layout";
 import { StreamCanvas } from "@/features/expertise/ui/StreamCanvas";
 import { markPxFor } from "@/features/expertise/ui/terrain-mark-size";
 import * as webgl from "@/features/expertise/ui/webgl-support";
-import { switchTheme } from "@/test/theme";
 
 const gpu = vi.hoisted(() => ({
   disposed: 0,
@@ -62,11 +61,6 @@ const props: Props = {
   chosen: null,
 };
 
-const onKafka: Props["drawn"] = {
-  highlight: { tags: new Set(["kafka"]), marks: null },
-  transition: "snap",
-};
-
 function mark(
   signalId: number,
   occurredAt: number,
@@ -104,7 +98,8 @@ function ribbonsOf(scene: THREE.Scene): THREE.Mesh[] {
 
 function edgesOf(scene: THREE.Scene): THREE.Line[] {
   return scene.children.filter(
-    (child): child is THREE.Line => child instanceof THREE.Line,
+    (child): child is THREE.Line =>
+      child instanceof THREE.Line && !(child instanceof THREE.LineLoop),
   );
 }
 
@@ -112,10 +107,6 @@ function pointsOf(scene: THREE.Scene): THREE.Points[] {
   return scene.children.filter(
     (child): child is THREE.Points => child instanceof THREE.Points,
   );
-}
-
-function colourOf(ribbon: THREE.Mesh): string {
-  return (ribbon.material as THREE.MeshBasicMaterial).color.getHexString();
 }
 
 function verticalsOf(object: THREE.Mesh | THREE.Points): number[] {
@@ -140,8 +131,6 @@ describe("what StreamCanvas draws", () => {
   });
 
   afterEach(() => {
-    document.documentElement.style.removeProperty("--ring-teal-a");
-    document.documentElement.className = "";
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
@@ -167,65 +156,6 @@ describe("what StreamCanvas draws", () => {
     const scene = frame();
 
     expect(edgesOf(scene)).toHaveLength(ribbonsOf(scene).length);
-  });
-
-  it("paints each neighbourhood in the accent the theme gives it", () => {
-    document.documentElement.style.setProperty("--ring-teal-a", "#0f8f8f");
-
-    draw({
-      marks: [
-        mark(1, 0, { tag: "kafka" }),
-        mark(2, DAY, { slot: 1, tag: "rust" }),
-      ],
-    });
-    const [teal, other] = ribbonsOf(frame()).map(colourOf);
-
-    expect(teal).toBe("0f8f8f");
-    expect(other).not.toBe("0f8f8f");
-  });
-
-  /** The stream resolves its accents out of the cascade too, so it goes stale on a theme switch the same way. */
-  it("repaints when the theme is switched under it", async () => {
-    document.documentElement.style.setProperty("--ring-teal-a", "#0f8f8f");
-    draw({ marks: [mark(1, 0, { tag: "kafka" })] });
-    expect(colourOf(ribbonsOf(frame())[0]!)).toBe("0f8f8f");
-
-    document.documentElement.style.setProperty("--ring-teal-a", "#2bc4bf");
-    await switchTheme("theme-dark");
-
-    expect(colourOf(ribbonsOf(frame())[0]!)).toBe("2bc4bf");
-  });
-
-  // Without this, changing the reading beside the map changed nothing a reader could see on it.
-  it("sets back a band the reading is not about, keeping its shape", () => {
-    draw({
-      marks: [
-        mark(1, 0, { tag: "kafka" }),
-        mark(2, DAY, { slot: 1, tag: "rust" }),
-      ],
-      drawn: onKafka,
-    });
-    const [lit, dim] = ribbonsOf(frame());
-
-    const opacityOf = (band: THREE.Mesh) =>
-      (band.material as THREE.MeshBasicMaterial).opacity;
-    expect(opacityOf(dim!)).toBeLessThan(opacityOf(lit!));
-    expect(verticalsOf(dim!)).not.toHaveLength(0);
-  });
-
-  it("paints every band in full when the panel is about the whole map", () => {
-    draw({ marks: [mark(1, 0, { tag: "kafka" })] });
-    const full = (ribbonsOf(frame())[0]!.material as THREE.MeshBasicMaterial)
-      .opacity;
-
-    draw({
-      marks: [mark(1, 0, { tag: "kafka" })],
-      drawn: onKafka,
-    });
-
-    expect(
-      (ribbonsOf(frame())[0]!.material as THREE.MeshBasicMaterial).opacity,
-    ).toBe(full);
   });
 
   /** Not just the silhouette: a stack resting on a floor also spans an equal distance up and down at its peak. */

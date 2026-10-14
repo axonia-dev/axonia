@@ -1,30 +1,20 @@
-import { type RefObject, useEffect, useRef } from "react";
-import * as THREE from "three";
+import { type RefObject, useMemo } from "react";
 
-import { browserClock } from "@/components/patterns/ceremony/clock";
 import type { PlacedContribution } from "@/features/expertise/ui/contribution-placement";
 import type { Tinted } from "@/features/expertise/ui/echo-blend";
-import { dropsFor } from "@/features/expertise/ui/echo-drops";
-import { type EchoStage, play } from "@/features/expertise/ui/echo-play";
-import {
-  echoInk,
-  MAX_DROPS,
-  type RingLayer,
-  ringLayer,
-} from "@/features/expertise/ui/echo-rings";
+import { MAX_DROPS, ringLayer } from "@/features/expertise/ui/echo-rings";
 import { type Bounds, ECHO } from "@/features/expertise/ui/echo-timeline";
 import type { DrawnHighlight } from "@/features/expertise/ui/echo-transition";
-import {
-  type TwinkleLayer,
-  type TwinklePoint,
-  twinkleLayer,
-} from "@/features/expertise/ui/echo-twinkles";
-import { groundPalette } from "@/features/expertise/ui/ground-palette";
+import { twinkleLayer } from "@/features/expertise/ui/echo-twinkles";
 import { MARK_LIFT } from "@/features/expertise/ui/terrain-camera";
-import { placeAt } from "@/features/expertise/ui/terrain-ground";
 import type { Gpu } from "@/features/expertise/ui/terrain-gpu";
+import { placeAt } from "@/features/expertise/ui/terrain-ground";
 import { standOnGround } from "@/features/expertise/ui/terrain-stencil";
 import type { Surface } from "@/features/expertise/ui/terrain-surface";
+import {
+  type EchoGround,
+  useMapEcho,
+} from "@/features/expertise/ui/use-map-echo";
 import { rendererPixelRatio } from "@/features/expertise/ui/webgl-support";
 
 const RING_LIFT = 1;
@@ -40,19 +30,42 @@ const planeOf = ({ size }: Surface): Bounds => ({
   maxY: size.height,
 });
 
-/** The ring an answer's twinkle is drawn in: the first area's echo, or the map's own ring with no area to take. */
-function twinkleInk(drawn: DrawnHighlight, marks: PlacedContribution[]) {
-  const first = dropsFor(marks, drawn.highlight.marks ?? new Set())[0];
-  return first === undefined
-    ? new THREE.Color(groundPalette().ring)
-    : echoInk(first.slot);
+function terrainGround(
+  surface: Surface,
+  marks: readonly PlacedContribution[],
+): EchoGround {
+  const globe = surface.projection === "globe";
+  return {
+    bounds: planeOf(surface),
+    marks,
+    rings: () => {
+      const rings = ringLayer({
+        place: placeAt(surface, RING_LIFT),
+        capacity: ECHO.ringLagsMs.length * MAX_DROPS,
+        ...(globe ? { within: planeOf(surface) } : {}),
+      });
+      // A ring runs past the land, and the flat map's sea beyond the ground is only its clear colour: stood on the
+      // ground there, it is cut at a line nobody can see. The globe has a limb, and there the cut is the point.
+      if (globe) standOnGround(rings.objects);
+      for (const loop of rings.objects) loop.renderOrder = RINGS_ORDER;
+      return rings;
+    },
+    twinkles: ({ points, colour, markPx }) => {
+      const made = twinkleLayer({
+        points,
+        place: placeAt(surface, MARK_LIFT),
+        markPx,
+        pixelRatio: rendererPixelRatio(),
+        colour,
+      });
+      made.object.renderOrder = TWINKLES_ORDER;
+      standOnGround([made.object]);
+      return made;
+    },
+  };
 }
 
-/**
- * Plays every highlight the map is given on the layers it holds: an echo from where the answers are, a fade or a
- * snap. Called after the layers are built, so the colours a highlight moves are already live when it runs. Mounting
- * and rebuilding a layer never echo: what a reader is shown on arrival, or after a theme change, is simply there.
- */
+/** The terrain's echo: rings laid on the ground itself, and cut at the globe's limb. See `useMapEcho`. */
 export function useTerrainEcho({
   gpuRef,
   tintsRef,
@@ -70,89 +83,10 @@ export function useTerrainEcho({
   }>;
 }>): void {
   const { surface, marks, drawn, markPx, supported, painted } = layer;
-  const ringsRef = useRef<RingLayer | null>(null);
-  const twinklesRef = useRef<TwinkleLayer | null>(null);
-  const stopRef = useRef<() => void>(() => {});
-  const playedRef = useRef(drawn);
-
-  useEffect(() => {
-    const gpu = gpuRef.current;
-    if (gpu === null) return undefined;
-
-    const rings = ringLayer({
-      place: placeAt(surface, RING_LIFT),
-      capacity: ECHO.ringLagsMs.length * MAX_DROPS,
-      ...(surface.projection === "globe" ? { within: planeOf(surface) } : {}),
-    });
-    // A ring runs past the land, and the flat map's sea beyond the ground is only its clear colour: stood on the
-    // ground there, it is cut at a line nobody can see. The globe has a limb, and there the cut is the point.
-    if (surface.projection === "globe") standOnGround(rings.objects);
-    for (const loop of rings.objects) {
-      loop.renderOrder = RINGS_ORDER;
-      gpu.scene.add(loop);
-    }
-    ringsRef.current = rings;
-    return () => {
-      // The layers this echo was moving are rebuilt in the same commit and painted settled, so it ends with them.
-      stopRef.current();
-      stopRef.current = () => {};
-      ringsRef.current = null;
-      for (const loop of rings.objects) loop.removeFromParent();
-      rings.dispose();
-    };
-  }, [gpuRef, surface, supported, painted]);
-
-  useEffect(() => {
-    const gpu = gpuRef.current;
-    const rings = ringsRef.current;
-    if (gpu === null || rings === null) return undefined;
-
-    const again = playedRef.current === drawn;
-    playedRef.current = drawn;
-    const twinkles = (points: readonly TwinklePoint[]): TwinkleLayer => {
-      const made = twinkleLayer({
-        points,
-        place: placeAt(surface, MARK_LIFT),
-        markPx,
-        pixelRatio: rendererPixelRatio(),
-        colour: twinkleInk(drawn, marks),
-      });
-      made.object.renderOrder = TWINKLES_ORDER;
-      standOnGround([made.object]);
-      gpu.scene.add(made.object);
-      twinklesRef.current = made;
-      return {
-        ...made,
-        dispose: () => {
-          made.object.removeFromParent();
-          if (twinklesRef.current === made) twinklesRef.current = null;
-          made.dispose();
-        },
-      };
-    };
-    const stage: EchoStage = {
-      tints: [...tintsRef.current],
-      marks,
-      bounds: planeOf(surface),
-      rings,
-      twinkles,
-      request: gpu.request,
-    };
-    const stop = play({
-      stage,
-      drawn: again ? { ...drawn, transition: "snap" } : drawn,
-      clock: browserClock,
-    });
-    stopRef.current = stop;
-    return () => {
-      stopRef.current = () => {};
-      stop();
-    };
-    // Only a new highlight plays: the layers it plays on are read as they stand when it arrives.
-    // oxlint-disable-next-line react/exhaustive-deps
-  }, [drawn]);
-
-  useEffect(() => {
-    twinklesRef.current?.resize(markPx);
-  }, [markPx]);
+  const ground = useMemo(() => terrainGround(surface, marks), [surface, marks]);
+  useMapEcho({
+    gpuRef,
+    tintsRef,
+    layer: { ground, drawn, markPx, supported, painted },
+  });
 }

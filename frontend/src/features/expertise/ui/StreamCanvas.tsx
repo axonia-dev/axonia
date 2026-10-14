@@ -2,13 +2,12 @@ import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
 import type { PlacedContribution } from "@/features/expertise/ui/contribution-placement";
-import {
-  type DrawOnDemand,
-  drawOnDemand,
-} from "@/features/expertise/ui/draw-on-demand";
-import { paintNow } from "@/features/expertise/ui/echo-blend";
+import { drawOnDemand } from "@/features/expertise/ui/draw-on-demand";
+import type { Tinted } from "@/features/expertise/ui/echo-blend";
+import { MAX_DROPS, ringLayer } from "@/features/expertise/ui/echo-rings";
+import { ECHO } from "@/features/expertise/ui/echo-timeline";
 import type { DrawnHighlight } from "@/features/expertise/ui/echo-transition";
-import { isLit } from "@/features/expertise/ui/map-highlight";
+import { twinkleLayer } from "@/features/expertise/ui/echo-twinkles";
 import { buildAtlas } from "@/features/expertise/ui/mark-atlas";
 import { detailFor } from "@/features/expertise/ui/mark-lod";
 import { markPoints } from "@/features/expertise/ui/mark-sprites";
@@ -17,21 +16,20 @@ import {
   binsFor,
   reseat,
   stack,
-  type Stacked,
   type StreamCamera,
   streamFrustum,
   visibleSpan,
-  xOf,
 } from "@/features/expertise/ui/stream-layout";
-import {
-  BAND_OPACITY,
-  bandColour,
-  DIM_OPACITY,
-  EDGE_OPACITY,
-} from "@/features/expertise/ui/stream-paint";
+import { ribbons } from "@/features/expertise/ui/stream-ribbons";
 import { StreamAxis } from "@/features/expertise/ui/StreamAxis";
 import { markPxFor } from "@/features/expertise/ui/terrain-mark-size";
 import type { GraphSize } from "@/features/expertise/ui/use-graph-size";
+import {
+  type EchoGpu,
+  type EchoGround,
+  holdLive,
+  useMapEcho,
+} from "@/features/expertise/ui/use-map-echo";
 import { useThemePaint } from "@/features/expertise/ui/use-theme-paint";
 import {
   hasWebGl2,
@@ -49,93 +47,42 @@ interface Props {
 }
 
 const MARK_LIFT = 1;
+/** Over the bands and under their edges and every mark: a ring passes beneath what it is about. */
+const RING_LIFT = MARK_LIFT - 0.5;
+/** Over the marks a twinkle opens round, and under the one a reader chose. */
+const TWINKLES_ORDER = 1.5;
 
-interface Layer {
-  objects: THREE.Object3D[];
-  dispose: () => void;
-}
-
-function ribbonGeometry(band: Stacked, size: GraphSize): THREE.BufferGeometry {
-  const bins = band.lower.length;
-  const positions: number[] = [];
-  const indices: number[] = [];
-
-  for (let bin = 0; bin < bins; bin++) {
-    const x = xOf(bin, bins, size);
-    positions.push(x, band.lower[bin]!, 0, x, band.upper[bin]!, 0);
-    if (bin === 0) continue;
-    const previous = (bin - 1) * 2;
-    indices.push(
-      previous,
-      previous + 1,
-      previous + 2,
-      previous + 2,
-      previous + 1,
-      previous + 3,
-    );
-  }
-
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute(
-    "position",
-    new THREE.Float32BufferAttribute(positions, 3),
-  );
-  geometry.setIndex(indices);
-  return geometry;
-}
-
-/** The band's own upper edge, drawn as a line. Filled alone, neighbouring bands of one colour read as a single
- *  shape; the edge is what says how many things a community was working on at once. */
-function edgeGeometry(band: Stacked, size: GraphSize): THREE.BufferGeometry {
-  const bins = band.upper.length;
-  const positions: number[] = [];
-  for (let bin = 0; bin < bins; bin++) {
-    positions.push(xOf(bin, bins, size), band.upper[bin]!, 1);
-  }
-
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute(
-    "position",
-    new THREE.Float32BufferAttribute(positions, 3),
-  );
-  return geometry;
-}
-
-function ribbons(
-  stacked: Stacked[],
+/**
+ * The stream's echo: the plane it is laid out on is centred on the camera, and nothing is stood on a ground, so a
+ * ring is simply drawn flat over the bands and the drawing's own edge cuts it.
+ */
+function streamGround(
   size: GraphSize,
-  highlight: ReadonlySet<string> | null,
-): Layer {
-  const objects: THREE.Object3D[] = [];
-  const spent: { dispose: () => void }[] = [];
-
-  for (const band of stacked) {
-    const lit = isLit(highlight, [band.tag]);
-    const accent = bandColour(band, lit);
-    const fill = lit ? BAND_OPACITY : DIM_OPACITY;
-    const geometry = ribbonGeometry(band, size);
-    const material = new THREE.MeshBasicMaterial({
-      color: accent,
-      transparent: true,
-      opacity: fill,
-      side: THREE.DoubleSide,
-    });
-    const edge = edgeGeometry(band, size);
-    const edgeMaterial = new THREE.LineBasicMaterial({
-      color: accent,
-      transparent: true,
-      opacity: lit ? EDGE_OPACITY : DIM_OPACITY,
-    });
-
-    objects.push(new THREE.Mesh(geometry, material));
-    objects.push(new THREE.Line(edge, edgeMaterial));
-    spent.push(geometry, material, edge, edgeMaterial);
-  }
-
+  seated: readonly PlacedContribution[],
+): EchoGround {
   return {
-    objects,
-    dispose: () => {
-      for (const item of spent) item.dispose();
+    bounds: {
+      minX: -size.width / 2,
+      maxX: size.width / 2,
+      minY: -size.height / 2,
+      maxY: size.height / 2,
+    },
+    marks: seated,
+    rings: () =>
+      ringLayer({
+        place: (x, y) => new THREE.Vector3(x, y, RING_LIFT),
+        capacity: ECHO.ringLagsMs.length * MAX_DROPS,
+      }),
+    twinkles: ({ points, colour, markPx }) => {
+      const made = twinkleLayer({
+        points,
+        place: (x, y) => new THREE.Vector3(x, y, MARK_LIFT),
+        markPx,
+        pixelRatio: rendererPixelRatio(),
+        colour,
+      });
+      made.object.renderOrder = TWINKLES_ORDER;
+      return made;
     },
   };
 }
@@ -154,8 +101,11 @@ export function StreamCanvas({
 }: Readonly<Props>) {
   const hostRef = useRef<HTMLDivElement>(null);
   const cameraRef = useRef<THREE.OrthographicCamera | null>(null);
-  const sceneRef = useRef<THREE.Scene | null>(null);
-  const requestRef = useRef<DrawOnDemand["request"]>(() => {});
+  const gpuRef = useRef<EchoGpu | null>(null);
+  // The highlight as it stands, read by a layer built after it moved, so a rebuilt layer starts in today's colours.
+  const drawnRef = useRef(drawn);
+  // Every colour the layers on screen hold, so a highlight repaints them in place rather than rebuilding them.
+  const tintsRef = useRef(new Set<Tinted>());
   const supported = hasWebGl2();
   const painted = useThemePaint();
   const markPx = markPxFor(size, camera.zoom);
@@ -165,6 +115,12 @@ export function StreamCanvas({
     () => buildStream(marks, binsFor(size.width)),
     [marks, size.width],
   );
+  const stacked = useMemo(() => stack(layout, size), [layout, size]);
+  const seated = useMemo(
+    () => reseat(marks, layout, stacked, size),
+    [marks, layout, stacked, size],
+  );
+  const ground = useMemo(() => streamGround(size, seated), [size, seated]);
 
   // The renderer and its context, taken once per box. See the same split in `TerrainCanvas`: a context per rebuild
   // spends the browser's whole budget of them within a few wheel clicks.
@@ -182,34 +138,52 @@ export function StreamCanvas({
     // different numbers depending on where along the axis it fell.
     const view = new THREE.OrthographicCamera(0, 0, 0, 0, 1, 1000);
     view.position.set(0, 0, 500);
-    sceneRef.current = scene;
     cameraRef.current = view;
     const drawing = drawOnDemand(renderer, host, () =>
       renderer.render(scene, view),
     );
-    requestRef.current = drawing.request;
+    gpuRef.current = { scene, request: drawing.request };
 
     return () => {
       drawing.stop();
-      sceneRef.current = null;
+      gpuRef.current = null;
       cameraRef.current = null;
-      requestRef.current = () => {};
       renderer.forceContextLoss();
       renderer.dispose();
       renderer.domElement.remove();
     };
   }, [size, supported]);
 
+  // Before the layer effects, so a layer rebuilt in the same commit as a highlight moved starts in the new one.
   useEffect(() => {
-    const scene = sceneRef.current;
-    if (scene === null) return undefined;
+    drawnRef.current = drawn;
+  }, [drawn]);
 
-    const stacked = stack(layout, size);
-    const { highlight } = drawn;
-    const bands = ribbons(stacked, size, highlight.tags);
+  // The bands, built once per history, size and theme: a highlight only repaints them.
+  useEffect(() => {
+    const gpu = gpuRef.current;
+    if (gpu === null) return undefined;
+
+    const bands = ribbons(stacked, size);
+    for (const object of bands.objects) gpu.scene.add(object);
+    const release = holdLive(tintsRef.current, bands.tints, drawnRef.current);
+    gpu.request();
+
+    return () => {
+      for (const object of bands.objects) object.removeFromParent();
+      release();
+      bands.dispose();
+    };
+  }, [stacked, size, supported, painted]);
+
+  /** The contributions themselves, seated on their bands, and the one of them the strip below is describing. */
+  useEffect(() => {
+    const gpu = gpuRef.current;
+    if (gpu === null) return undefined;
+
     const atlas = new THREE.CanvasTexture(buildAtlas());
     const glyphs = markPoints(
-      reseat(marks, layout, stacked, size),
+      seated,
       (x, y) => new THREE.Vector3(x, y, MARK_LIFT),
       {
         atlas,
@@ -220,19 +194,25 @@ export function StreamCanvas({
       },
     );
 
-    for (const tint of glyphs.tints) paintNow(tint, highlight);
-
-    const objects = [...bands.objects, ...glyphs.halos, ...glyphs.points];
-    for (const object of objects) scene.add(object);
-    requestRef.current();
+    const objects = [...glyphs.halos, ...glyphs.points];
+    for (const object of objects) gpu.scene.add(object);
+    const release = holdLive(tintsRef.current, glyphs.tints, drawnRef.current);
+    gpu.request();
 
     return () => {
       for (const object of objects) object.removeFromParent();
-      bands.dispose();
+      release();
       glyphs.dispose();
       atlas.dispose();
     };
-  }, [layout, marks, size, markPx, drawn, chosen, supported, painted]);
+  }, [seated, markPx, chosen, supported, painted]);
+
+  // A highlight moved: the bands and the marks are carried to it in place, and drawn frame by frame while they move.
+  useMapEcho({
+    gpuRef,
+    tintsRef,
+    layer: { ground, drawn, markPx, supported, painted },
+  });
 
   // The frame the camera holds, moved in place: zooming and panning must not rebuild a history.
   useEffect(() => {
@@ -244,7 +224,7 @@ export function StreamCanvas({
     view.top = top;
     view.bottom = bottom;
     view.updateProjectionMatrix();
-    requestRef.current();
+    gpuRef.current?.request();
   }, [size, camera]);
 
   if (!supported) {
