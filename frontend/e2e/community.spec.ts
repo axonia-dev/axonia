@@ -83,7 +83,7 @@ test("create a community, then join and leave another", async ({
       { id: 1, label: "Guild", communityCount: 0 },
     ],
     "GET /communities": () =>
-      page([community("design-circle", "Design Circle", 1)]),
+      page([{ ...community("design-circle", "Design Circle", 1), role: null }]),
     "POST /communities": () => community("backend-guild", "Backend Guild", 1),
     "GET /communities/backend-guild": () =>
       community("backend-guild", "Backend Guild", 1),

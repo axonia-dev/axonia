@@ -88,4 +88,43 @@ describe("ListRow", () => {
     // then
     expect(onPress).toHaveBeenCalledTimes(1);
   });
+
+  it("rings an action row only for keyboard focus on its link, never for a clicked action", () => {
+    // when
+    render(
+      <MemoryRouter>
+        <ListRow
+          href="/communities/a"
+          title="A"
+          action={<button type="button">Join</button>}
+        />
+      </MemoryRouter>,
+    );
+
+    // then
+    const row = screen.getByRole("link", { name: /A/ }).parentElement;
+    expect(row?.className).not.toContain("focus-within");
+    expect(row?.className).toContain(
+      "has-[[data-row-link]:focus-visible]:ring-2",
+    );
+  });
+
+  it("centres the trailing badge on the row as a flex box, not on a line box", () => {
+    // when
+    render(
+      <MemoryRouter>
+        <ListRow
+          href="/communities/a"
+          title="A"
+          trailing={<span>Guild</span>}
+        />
+      </MemoryRouter>,
+    );
+
+    // then
+    expect(screen.getByText("Guild").parentElement).toHaveClass(
+      "ml-auto",
+      "flex",
+    );
+  });
 });

@@ -95,12 +95,22 @@ function ExploreRow({ community }: Readonly<{ community: CommunityListing }>) {
   );
 }
 
-function ListSkeleton() {
+function SectionSkeleton({
+  label,
+  className,
+  item,
+  count,
+}: Readonly<{
+  label: string;
+  className: string;
+  item: string;
+  count: number;
+}>) {
   return (
-    <div className="flex flex-col gap-2">
-      <Skeleton className="h-16 w-full" />
-      <Skeleton className="h-16 w-full" />
-      <Skeleton className="h-16 w-full" />
+    <div data-testid={`${label}-skeleton`} className={className}>
+      {Array.from({ length: count }, (_, i) => (
+        <Skeleton key={i} className={item} />
+      ))}
     </div>
   );
 }
@@ -109,6 +119,14 @@ function JoinedSection({ section }: Readonly<{ section: Section }>) {
   const rows = section.query.data?.content ?? [];
   return (
     <>
+      {section.query.isLoading && (
+        <SectionSkeleton
+          label="Joined"
+          className="grid grid-cols-1 gap-3 sm:grid-cols-2"
+          item="h-36 w-full"
+          count={2}
+        />
+      )}
       {failedToLoad(section.query) && (
         <LoadFailed
           inline
@@ -139,6 +157,14 @@ function ExploreSection({ section }: Readonly<{ section: Section }>) {
   const rows = section.query.data?.content ?? [];
   return (
     <>
+      {section.query.isLoading && (
+        <SectionSkeleton
+          label="Explore"
+          className="flex flex-col gap-2"
+          item="h-16 w-full"
+          count={3}
+        />
+      )}
       {failedToLoad(section.query) && (
         <LoadFailed
           inline
@@ -173,7 +199,6 @@ export function CommunityList() {
   const [q, setQ] = useState("");
   const joined = useSection(q, "JOINED");
   const explore = useSection(q, "EXPLORE");
-  const loading = joined.query.isLoading || explore.query.isLoading;
   const nothing = isEmpty(joined) && isEmpty(explore);
 
   return (
@@ -185,7 +210,6 @@ export function CommunityList() {
         onChange={setQ}
         className="sm:max-w-xs"
       />
-      {loading && <ListSkeleton />}
       {nothing && (
         <EmptyState
           title={q.trim() === "" ? "No communities yet" : "No matches"}

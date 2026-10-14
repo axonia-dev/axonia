@@ -73,22 +73,35 @@ beforeEach(() => {
 });
 
 describe("CommunityList", () => {
-  it("shows skeleton placeholders while loading", () => {
+  it("holds each section's place with its own skeleton, so a section that lands first never moves", () => {
     // given
-    mockUseCommunities.mockReturnValue({
-      isLoading: true,
-      isError: false,
-      errorUpdateCount: 0,
-      data: undefined,
-    } as never);
+    mockUseCommunities.mockImplementation(
+      (params) =>
+        (params.membership === "JOINED"
+          ? {
+              data: pageOf([{ ...community, role: "MEMBER" }]),
+              isLoading: false,
+              isError: false,
+              errorUpdateCount: 0,
+            }
+          : {
+              data: undefined,
+              isLoading: true,
+              isError: false,
+              errorUpdateCount: 0,
+            }) as never,
+    );
 
     // when
-    const { container } = renderList();
+    renderList();
 
     // then
+    const joined = screen.getByRole("region", { name: "Joined" });
+    expect(screen.queryByTestId("Joined-skeleton")).toBeNull();
     expect(
-      container.querySelectorAll("[aria-hidden='true']").length,
-    ).toBeGreaterThan(0);
+      joined.compareDocumentPosition(screen.getByTestId("Explore-skeleton")) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it("lists joined communities as tiles above the ones to explore", () => {
