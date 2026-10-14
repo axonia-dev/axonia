@@ -42,7 +42,10 @@ export function answerPlace({
       panelGivesWay: matched,
     };
   }
-  const repeats = matchedAreas.length === 1 && matchedAreas[0] === selectedTag;
+  const repeats =
+    selectedTag !== null &&
+    matchedAreas.length === 1 &&
+    matchedAreas.includes(selectedTag);
   return {
     inPanel: NONE,
     underDrawing: repeats ? NONE : matchedAreas,
