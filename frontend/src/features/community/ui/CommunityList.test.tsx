@@ -1,13 +1,17 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useCommunities } from "@/features/community/api/use-communities";
+import type { CommunityListing } from "@/features/community/domain/community";
 import { CommunityList } from "@/features/community/ui/CommunityList";
 
 vi.mock("@/features/community/api/use-communities", () => ({
   useCommunities: vi.fn(),
+}));
+vi.mock("@/features/community/ui/ExploreJoinButton", () => ({
+  ExploreJoinButton: () => <button type="button">Join</button>,
 }));
 
 const mockUseCommunities = vi.mocked(useCommunities);
@@ -20,18 +24,46 @@ function renderList() {
   );
 }
 
-const community = {
+const community: CommunityListing = {
   id: 1,
   slug: "backend-guild",
   name: "Backend Guild",
   kindId: 2,
   kind: "Guild",
   description: "A guild",
-  status: "ACTIVE" as const,
+  status: "ACTIVE",
   memberCount: 3,
+  role: null,
   createdAt: "2026-05-31T10:00:00Z",
   updatedAt: "2026-05-31T10:00:00Z",
 };
+
+function pageOf(content: CommunityListing[], totalPages = 1) {
+  return {
+    content,
+    number: 0,
+    totalPages,
+    totalElements: content.length,
+    size: 20,
+  };
+}
+
+function answer(
+  joined: CommunityListing[],
+  explore: CommunityListing[],
+  totalPages = 1,
+) {
+  mockUseCommunities.mockImplementation((params) => {
+    const content = params.membership === "JOINED" ? joined : explore;
+    return {
+      data: pageOf(content, totalPages),
+      isLoading: false,
+      isError: false,
+      errorUpdateCount: 0,
+      refetch: vi.fn(),
+    } as never;
+  });
+}
 
 let user: ReturnType<typeof userEvent.setup>;
 
@@ -46,6 +78,7 @@ describe("CommunityList", () => {
     mockUseCommunities.mockReturnValue({
       isLoading: true,
       isError: false,
+      errorUpdateCount: 0,
       data: undefined,
     } as never);
 
@@ -58,55 +91,34 @@ describe("CommunityList", () => {
     ).toBeGreaterThan(0);
   });
 
-  it("shows an error message", () => {
+  it("lists joined communities as tiles above the ones to explore", () => {
     // given
-    mockUseCommunities.mockReturnValue({
-      isLoading: false,
-      isError: true,
-      data: undefined,
-    } as never);
+    answer(
+      [{ ...community, id: 1, slug: "mine", name: "Mine", role: "MEMBER" }],
+      [{ ...community, id: 2, slug: "theirs", name: "Theirs", role: null }],
+    );
 
     // when
     renderList();
 
     // then
-    expect(screen.getByRole("alert")).toBeInTheDocument();
+    const joined = screen.getByRole("region", { name: "Joined" });
+    const explore = screen.getByRole("region", { name: "Explore" });
+    expect(
+      within(joined).getByRole("link", { name: /Mine/ }),
+    ).toBeInTheDocument();
+    expect(
+      within(explore).getByRole("button", { name: "Join" }),
+    ).toBeInTheDocument();
+    expect(
+      joined.compareDocumentPosition(explore) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
-  it("shows an empty state", () => {
+  it("renders an explore row with its member count, badge and kind", () => {
     // given
-    mockUseCommunities.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: {
-        content: [],
-        totalElements: 0,
-        totalPages: 0,
-        number: 0,
-        size: 20,
-      },
-    } as never);
-
-    // when
-    renderList();
-
-    // then
-    expect(screen.getByText(/no communities/i)).toBeInTheDocument();
-  });
-
-  it("renders each community with its member count", () => {
-    // given
-    mockUseCommunities.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: {
-        content: [community],
-        totalElements: 1,
-        totalPages: 1,
-        number: 0,
-        size: 20,
-      },
-    } as never);
+    answer([], [{ ...community, badgeUrl: "https://cdn/pg.png" }]);
 
     // when
     renderList();
@@ -115,125 +127,119 @@ describe("CommunityList", () => {
     expect(
       screen.getByRole("link", { name: /backend guild/i }),
     ).toHaveAttribute("href", "/communities/backend-guild");
-    expect(screen.getByText(/3 members/i)).toBeInTheDocument();
-  });
-
-  it("counts a sole member in the singular", () => {
-    // given
-    mockUseCommunities.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: {
-        content: [{ ...community, memberCount: 1 }],
-        totalElements: 1,
-        totalPages: 1,
-        number: 0,
-        size: 20,
-      },
-    } as never);
-
-    // when
-    renderList();
-
-    // then
-    expect(screen.getByText("1 member")).toBeInTheDocument();
-  });
-
-  it("uses the community accent colour for its row, falling back to the kind hue", () => {
-    // given
-    mockUseCommunities.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: {
-        content: [
-          { ...community, accentColor: "#1aa6a0" },
-          { ...community, id: 2, slug: "no-accent", accentColor: null },
-        ],
-        totalElements: 2,
-        totalPages: 1,
-        number: 0,
-        size: 20,
-      },
-    } as never);
-
-    // when
-    renderList();
-
-    // then
-    const links = screen.getAllByRole("link");
-    const accented = links[0]!;
-    const fallback = links[1]!;
-    expect(accented.style.getPropertyValue("--k")).toBe("#1aa6a0");
-    expect(fallback.style.getPropertyValue("--k")).not.toBe("");
-    expect(fallback.style.getPropertyValue("--k")).not.toBe("#1aa6a0");
-  });
-
-  it("tints the kind badge with the community accent colour", () => {
-    // given
-    mockUseCommunities.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: {
-        content: [{ ...community, accentColor: "#1aa6a0" }],
-        totalElements: 1,
-        totalPages: 1,
-        number: 0,
-        size: 20,
-      },
-    } as never);
-
-    // when
-    renderList();
-
-    // then
-    expect(screen.getByText("Guild").style.getPropertyValue("--k")).toBe(
-      "#1aa6a0",
-    );
-  });
-
-  it("shows the community badge when it has one", () => {
-    // given
-    mockUseCommunities.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: {
-        content: [{ ...community, badgeUrl: "https://cdn/pg.png" }],
-        totalElements: 1,
-        totalPages: 1,
-        number: 0,
-        size: 20,
-      },
-    } as never);
-
-    // when
-    renderList();
-
-    // then
+    expect(screen.getByText("3 members")).toBeInTheDocument();
+    expect(screen.getByText("Guild")).toBeInTheDocument();
     expect(screen.getByRole("img", { name: /backend guild/i })).toHaveAttribute(
       "src",
       "https://cdn/pg.png",
     );
   });
 
-  it("updates the filter input as the user types", async () => {
+  it("tints an explore row with the community accent, falling back to the kind hue", () => {
     // given
-    mockUseCommunities.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: {
-        content: [community],
-        totalElements: 1,
-        totalPages: 1,
-        number: 0,
-        size: 20,
-      },
-    } as never);
+    answer(
+      [],
+      [
+        { ...community, accentColor: "#1aa6a0" },
+        { ...community, id: 2, slug: "no-accent", accentColor: null },
+      ],
+    );
+
+    // when
+    renderList();
+
+    // then
+    const [accented, fallback] = screen.getAllByRole("link");
+    expect(accented?.style.getPropertyValue("--k")).toBe("#1aa6a0");
+    expect(fallback?.style.getPropertyValue("--k")).not.toBe("");
+    expect(fallback?.style.getPropertyValue("--k")).not.toBe("#1aa6a0");
+  });
+
+  it("hides the joined section when nothing is joined", () => {
+    // given
+    answer([], [community]);
+
+    // when
+    renderList();
+
+    // then
+    expect(screen.queryByRole("region", { name: "Joined" })).toBeNull();
+  });
+
+  it("hides the explore section when everything is joined", () => {
+    // given
+    answer([{ ...community, role: "MEMBER" }], []);
+
+    // when
+    renderList();
+
+    // then
+    expect(screen.queryByRole("region", { name: "Explore" })).toBeNull();
+  });
+
+  it("says there is nothing yet in an organization with no community", () => {
+    // given
+    answer([], []);
+
+    // when
+    renderList();
+
+    // then
+    expect(screen.getByText("No communities yet")).toBeInTheDocument();
+  });
+
+  it("searches both sections and says when nothing matches", async () => {
+    // given
+    answer([], []);
     renderList();
 
     // when
-    await user.type(screen.getByLabelText(/filter communities/i), "guild");
+    await user.type(screen.getByLabelText(/filter communities/i), "zzz");
 
     // then
-    expect(screen.getByLabelText(/filter communities/i)).toHaveValue("guild");
+    expect(mockUseCommunities).toHaveBeenCalledWith(
+      expect.objectContaining({ membership: "JOINED", q: "zzz" }),
+    );
+    expect(mockUseCommunities).toHaveBeenCalledWith(
+      expect.objectContaining({ membership: "EXPLORE", q: "zzz" }),
+    );
+    expect(screen.getByText("No matches")).toBeInTheDocument();
+  });
+
+  it("pages each section on its own", async () => {
+    // given
+    answer([{ ...community, role: "MEMBER" }], [], 2);
+    renderList();
+
+    // when
+    await user.click(screen.getByRole("button", { name: "Next" }));
+
+    // then
+    expect(mockUseCommunities).toHaveBeenCalledWith(
+      expect.objectContaining({ membership: "JOINED", page: 1 }),
+    );
+    expect(mockUseCommunities).toHaveBeenCalledWith(
+      expect.objectContaining({ membership: "EXPLORE", page: 0 }),
+    );
+  });
+
+  it("offers to try again when a section could not load", () => {
+    // given
+    mockUseCommunities.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      isFetching: false,
+      errorUpdateCount: 1,
+      refetch: vi.fn(),
+    } as never);
+
+    // when
+    renderList();
+
+    // then
+    expect(
+      screen.getAllByRole("button", { name: "Try again" }).length,
+    ).toBeGreaterThan(0);
   });
 });
