@@ -2,8 +2,9 @@ import { z } from "zod";
 
 export type CeremonyKind = "birth" | "welcome";
 
-const KEY = "axonia.ceremony";
-const MAX_AGE_MS = 60_000;
+/** Also read by the inline first-paint script in index.html and app.html. */
+export const CEREMONY_KEY = "axonia.ceremony";
+export const CEREMONY_MAX_AGE_MS = 60_000;
 
 const handoffSchema = z.object({
   kind: z.enum(["birth", "welcome"]),
@@ -15,7 +16,7 @@ type Handoff = z.infer<typeof handoffSchema>;
 
 function remove(): void {
   try {
-    sessionStorage.removeItem(KEY);
+    sessionStorage.removeItem(CEREMONY_KEY);
   } catch {
     return;
   }
@@ -24,7 +25,7 @@ function remove(): void {
 function read(): Handoff | null {
   let raw: string | null;
   try {
-    raw = sessionStorage.getItem(KEY);
+    raw = sessionStorage.getItem(CEREMONY_KEY);
   } catch {
     return null;
   }
@@ -46,10 +47,26 @@ export function handOffCeremony(
   now = Date.now(),
 ): void {
   try {
-    sessionStorage.setItem(KEY, JSON.stringify({ kind, slug, at: now }));
+    sessionStorage.setItem(
+      CEREMONY_KEY,
+      JSON.stringify({ kind, slug, at: now }),
+    );
   } catch {
     return;
   }
+}
+
+function fresh(now: number): Handoff | null {
+  const handoff = read();
+  if (handoff === null) {
+    return null;
+  }
+  const age = now - handoff.at;
+  if (age < 0 || age > CEREMONY_MAX_AGE_MS) {
+    remove();
+    return null;
+  }
+  return handoff;
 }
 
 /** The ceremony waiting for `slug`, without consuming it. */
@@ -57,16 +74,13 @@ export function pendingCeremony(
   slug: string,
   now = Date.now(),
 ): CeremonyKind | null {
-  const handoff = read();
-  if (handoff === null) {
-    return null;
-  }
-  const age = now - handoff.at;
-  if (age < 0 || age > MAX_AGE_MS) {
-    remove();
-    return null;
-  }
-  return handoff.slug === slug ? handoff.kind : null;
+  const handoff = fresh(now);
+  return handoff?.slug === slug ? handoff.kind : null;
+}
+
+/** The community a ceremony is waiting for, without consuming it. */
+export function pendingCeremonySlug(now = Date.now()): string | null {
+  return fresh(now)?.slug ?? null;
 }
 
 export function consumeCeremony(slug: string): void {

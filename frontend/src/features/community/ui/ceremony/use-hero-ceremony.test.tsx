@@ -1,7 +1,8 @@
 import { act, renderHook } from "@testing-library/react";
 import { StrictMode } from "react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
+import { raiseCurtain } from "@/components/patterns/ceremony/curtain";
 import {
   handOffCeremony,
   pendingCeremony,
@@ -14,7 +15,39 @@ const community = {
   memberCount: 43,
 };
 
+function curtain(): Element | null {
+  return document.querySelector("[data-ceremony-curtain]");
+}
+
+afterEach(() => {
+  curtain()?.remove();
+});
+
 describe("useHeroCeremony", () => {
+  it("lifts the arrival curtain when no ceremony waits for this community", () => {
+    // given
+    handOffCeremony("welcome", "design-circle");
+    raiseCurtain();
+
+    // when
+    renderHook(() => useHeroCeremony(community));
+
+    // then
+    expect(curtain()).toBeNull();
+  });
+
+  it("leaves the arrival curtain for its own ceremony's stage", () => {
+    // given
+    handOffCeremony("welcome", "backend-guild");
+    raiseCurtain();
+
+    // when
+    renderHook(() => useHeroCeremony(community));
+
+    // then
+    expect(curtain()).not.toBeNull();
+  });
+
   it("plays nothing without a handoff", () => {
     // when
     const { result } = renderHook(() => useHeroCeremony(community));

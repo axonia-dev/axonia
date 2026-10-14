@@ -1,5 +1,6 @@
 import { useCallback, useDeferredValue, useEffect, useState } from "react";
 
+import { liftCurtain } from "@/components/patterns/ceremony/curtain";
 import {
   type CeremonyKind,
   consumeCeremony,
@@ -50,7 +51,9 @@ export function useHeroCeremony(community: HeroCommunity) {
   const announcement = useDeferredValue(state.announcement, "");
 
   useEffect(() => {
-    if (state.active !== null) {
+    if (state.active === null) {
+      liftCurtain();
+    } else {
       consumeCeremony(slug);
     }
   }, [slug, state.active]);

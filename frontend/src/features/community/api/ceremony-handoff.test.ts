@@ -4,6 +4,7 @@ import {
   consumeCeremony,
   handOffCeremony,
   pendingCeremony,
+  pendingCeremonySlug,
 } from "@/features/community/api/ceremony-handoff";
 
 const KEY = "axonia.ceremony";
@@ -105,5 +106,28 @@ describe("ceremony handoff", () => {
     // then
     expect(actual).toBeNull();
     expect(sessionStorage.getItem(KEY)).toBeNull();
+  });
+
+  it("names the community a fresh entry waits for", () => {
+    // given
+    handOffCeremony("welcome", "backend-guild", 1_000);
+
+    // when
+    const actual = pendingCeremonySlug(2_000);
+
+    // then
+    expect(actual).toBe("backend-guild");
+    expect(sessionStorage.getItem(KEY)).not.toBeNull();
+  });
+
+  it("names no community once the entry is older than a minute", () => {
+    // given
+    handOffCeremony("welcome", "backend-guild", 1_000);
+
+    // when
+    const actual = pendingCeremonySlug(61_001);
+
+    // then
+    expect(actual).toBeNull();
   });
 });
