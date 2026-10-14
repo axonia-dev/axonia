@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
-import { expect, test, vi } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
 
 import type {
   TopicLink,
@@ -85,6 +85,21 @@ vi.mock("@/features/expertise/ui/MapDrawing", () => ({
   MapDrawing: () => <div data-testid="drawing" />,
 }));
 
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+function tooNarrowForBoth() {
+  const real = window.matchMedia;
+  vi.spyOn(window, "matchMedia").mockImplementation((query) => ({
+    ...real(query),
+    matches: false,
+  }));
+}
+
+const panel = () =>
+  screen.getByRole("complementary", { name: "Topic readings" });
+
 async function renderMap() {
   render(
     <QueryClientProvider client={new QueryClient()}>
@@ -141,5 +156,30 @@ test("an area with nothing drawn lists who knows it without waiting for an echo"
 
   expect(
     await screen.findByRole("heading", { name: "Who knows kafka" }),
+  ).toBeInTheDocument();
+});
+
+/** Stacked, the readings sit away from the box: the answer comes under the drawing, and the readings never move. */
+test("lists the answer under the drawing while the readings are stacked", async () => {
+  tooNarrowForBoth();
+  const user = userEvent.setup({ delay: null });
+  await renderMap();
+
+  await search(user, "kafka");
+
+  await screen.findByRole("heading", { name: "Who knows kafka" });
+  expect(
+    within(panel()).queryByRole("heading", { name: "Who knows kafka" }),
+  ).not.toBeInTheDocument();
+});
+
+test("lists the answer in the readings once they stand beside the drawing", async () => {
+  const user = userEvent.setup({ delay: null });
+  await renderMap();
+
+  await search(user, "kafka");
+
+  expect(
+    await within(panel()).findByRole("heading", { name: "Who knows kafka" }),
   ).toBeInTheDocument();
 });

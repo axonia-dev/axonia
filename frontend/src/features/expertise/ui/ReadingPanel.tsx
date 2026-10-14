@@ -6,15 +6,14 @@ import type {
   TopicNode,
 } from "@/features/expertise/domain/expertise";
 import { compareTags } from "@/features/expertise/ui/compare-tags";
-import { ECHO } from "@/features/expertise/ui/echo-timeline";
 import {
   type Reading,
   READING_OPTIONS,
   type ReadingId,
 } from "@/features/expertise/ui/expertise-readings";
-import { MatchedAreasLine } from "@/features/expertise/ui/MatchedAreasLine";
 import type { DrawnGroup } from "@/features/expertise/ui/named-area-grouping";
 import { NeighbourhoodSummary } from "@/features/expertise/ui/NeighbourhoodSummary";
+import { TermAnswer } from "@/features/expertise/ui/TermAnswer";
 import { WhoKnowsSection } from "@/features/expertise/ui/WhoKnowsSection";
 import { plural, pluralWord } from "@/lib/plural";
 
@@ -44,7 +43,8 @@ interface Props {
   /** Null asks for the neighbourhood summary back, which is the one way out of an area's own page. */
   onSelectTag: (tag: string | null) => void;
   onSeeWhoKnows: (tag: string) => void;
-  /** The areas the settled search term names; one lists who knows it, several are offered as a choice. */
+  /** The areas the settled search term names, when the answer is listed here; one lists who knows it, several are
+   *  offered as a choice. */
   matchedAreas: readonly string[];
   slug: string;
   onChooseMatchedArea: (tag: string) => void;
@@ -70,7 +70,7 @@ export function ReadingPanel({
   return (
     <aside
       aria-label="Topic readings"
-      className="border-border bg-surface flex flex-col gap-4 p-4 md:border-l"
+      className="border-border bg-surface flex flex-col gap-4 p-4 md:border-t xl:border-t-0 xl:border-l"
     >
       <div className="flex flex-col gap-1.5">
         <Select
@@ -101,18 +101,13 @@ export function ReadingPanel({
       ) : (
         <ReadingRows built={built} />
       )}
-      {matchedAreas.length === 1 && (
-        <WhoKnowsSection
-          key={matchedAreas[0]}
-          slug={slug}
-          tag={matchedAreas[0]!}
-          onOpenSearch={onSeeWhoKnows}
-          cueMs={echoing ? ECHO.panelCueMs : 0}
-        />
-      )}
-      {matchedAreas.length > 1 && (
-        <MatchedAreasLine tags={matchedAreas} onChoose={onChooseMatchedArea} />
-      )}
+      <TermAnswer
+        slug={slug}
+        matchedAreas={matchedAreas}
+        onSeeWhoKnows={onSeeWhoKnows}
+        onChooseMatchedArea={onChooseMatchedArea}
+        echoing={echoing}
+      />
     </aside>
   );
 }

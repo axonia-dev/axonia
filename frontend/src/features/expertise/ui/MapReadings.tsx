@@ -1,4 +1,10 @@
-import { type PointerEvent, useMemo, useRef, useState } from "react";
+import {
+  type PointerEvent,
+  type ReactNode,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import { useMapContributions } from "@/features/expertise/api/use-map-contributions";
 import type {
@@ -31,6 +37,10 @@ import { panPerPixel } from "@/features/expertise/ui/terrain-camera";
 import { markPxFor } from "@/features/expertise/ui/terrain-mark-size";
 import { layoutTopics } from "@/features/expertise/ui/topic-graph-layout";
 import {
+  type EchoReport,
+  useDrawnHighlight,
+} from "@/features/expertise/ui/use-drawn-highlight";
+import {
   type GraphSize,
   useGraphSize,
 } from "@/features/expertise/ui/use-graph-size";
@@ -41,10 +51,6 @@ import {
 } from "@/features/expertise/ui/use-terrain-navigation";
 import { useTerrainScene } from "@/features/expertise/ui/use-terrain-scene";
 import { useTerrainZoom } from "@/features/expertise/ui/use-terrain-zoom";
-import {
-  type EchoReport,
-  useDrawnHighlight,
-} from "@/features/expertise/ui/use-drawn-highlight";
 import { cn } from "@/lib/cn";
 
 /** Turning is the globe's answer to its own far side; every other picture is flat and is carried about instead. */
@@ -75,6 +81,7 @@ export function MapReadings({
   onTermChange,
   settled,
   onEchoesChange,
+  answer,
 }: Readonly<{
   slug: string;
   topics: TopicNode[];
@@ -89,6 +96,8 @@ export function MapReadings({
   /** Whether a settled term plays an echo, which needs a lit mark to drop from: an area offered and never practised
    *  only fades, and the people beside the map have no echo to wait for. */
   onEchoesChange: (played: EchoReport) => void;
+  /** What the term answers, when the readings are stacked out of its sight: listed under the drawing instead. */
+  answer: ReactNode;
 }>) {
   const [picture, setPicture] = useState<MapReading>("terrain");
   const [projection, setProjection] = useState<Projection>("globe");
@@ -203,7 +212,7 @@ export function MapReadings({
       {/* A fixed share of the viewport, and the drawing takes whatever the controls above it leave. Fixed, not
           content-sized: the canvas is sized from this box, so a box that grew with its contents would chase itself.
           Keeping the strip and the cap note OUTSIDE it is what stops a click on a mark from resizing the scene. */}
-      <div className="flex h-[60vh] min-h-[440px] flex-col gap-2 md:h-[78vh] md:min-h-[520px]">
+      <div className="flex h-[60vh] min-h-[440px] flex-col gap-2 xl:h-[78vh] xl:min-h-[520px]">
         <MapReadingToggle
           reading={picture}
           onReadingChange={choosePicture}
@@ -244,6 +253,7 @@ export function MapReadings({
           )}
         </div>
       </div>
+      <div className="mt-3 empty:hidden">{answer}</div>
       {data?.truncated === true && (
         <p className="text-muted-foreground mt-2 text-xs">
           Showing the most recent 5,000 contributions. Older activity is not

@@ -110,3 +110,27 @@ test("one matched area lists who knows it, and an author matches none", async ({
   await type(page, "grace");
   await expect(page.getByText(/^Who knows /)).toHaveCount(0);
 });
+
+// Stacked, the readings sit above the map on a phone and under it on a tablet: either way the answer to a term is
+// listed under the drawing, in sight of the box, and nothing above the box moves while the term is typed.
+for (const width of [412, 768]) {
+  test(`at ${width}px the answer to a term shows under the drawing, and the box stays put`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 892 });
+    const canvas = await open(page);
+    // Where a reader using the map holds it: the whole drawing in sight.
+    await canvas.evaluate((el) => el.scrollIntoView({ block: "center" }));
+    const search = page.getByLabel("Find on the map");
+    const before = (await search.boundingBox())!.y;
+
+    await type(page, "kafka");
+    const heading = page.getByRole("heading", { name: "Who knows kafka" });
+    await expect(heading).toBeInViewport();
+    expect((await search.boundingBox())!.y).toBe(before);
+    expect((await heading.boundingBox())!.y).toBeGreaterThan(
+      (await canvas.boundingBox())!.y,
+    );
+    expect((await canvas.boundingBox())!.width).toBeGreaterThan(width / 2);
+  });
+}
