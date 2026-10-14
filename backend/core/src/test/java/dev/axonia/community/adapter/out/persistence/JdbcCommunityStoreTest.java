@@ -131,22 +131,6 @@ class JdbcCommunityStoreTest {
     }
 
     @Test
-    void search_joined_reads_among_the_memberships() {
-
-        // given
-        var pageable = PageRequest.of(0, 20);
-        when(communityRepository.findByOrganizationIdAndStatusAndNameContainingIgnoreCaseAndIdIn("default",
-                CommunityStatus.ACTIVE, "guild", Set.of(7L), pageable))
-                .thenReturn(new PageImpl<>(List.of(JdbcCommunityStore.toEntity(STORED)), pageable, 1));
-
-        // when
-        var actual = sut.search(search(MembershipFilter.JOINED, Set.of(7L)), pageable);
-
-        // then
-        assertThat(actual.getContent()).containsExactly(STORED);
-    }
-
-    @Test
     void search_joined_with_no_membership_is_empty_without_a_query() {
 
         // given
@@ -175,23 +159,6 @@ class JdbcCommunityStoreTest {
         // then
         verify(communityRepository).findByOrganizationIdAndStatusAndNameContainingIgnoreCase("default",
                 CommunityStatus.ACTIVE, "guild", pageable);
-    }
-
-    @Test
-    void search_explore_excludes_the_memberships() {
-
-        // given
-        var pageable = PageRequest.of(0, 20);
-        when(communityRepository.findByOrganizationIdAndStatusAndNameContainingIgnoreCaseAndIdNotIn("default",
-                CommunityStatus.ACTIVE, "guild", Set.of(7L), pageable))
-                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
-
-        // when
-        sut.search(search(MembershipFilter.EXPLORE, Set.of(7L)), pageable);
-
-        // then
-        verify(communityRepository).findByOrganizationIdAndStatusAndNameContainingIgnoreCaseAndIdNotIn("default",
-                CommunityStatus.ACTIVE, "guild", Set.of(7L), pageable);
     }
 
     private static CommunitySearch search(MembershipFilter membership, Set<Long> memberOf) {

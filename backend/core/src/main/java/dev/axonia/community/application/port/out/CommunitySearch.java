@@ -9,4 +9,8 @@ import lombok.Builder;
 @Builder
 public record CommunitySearch(String organizationId, CommunityStatus status, String name, MembershipFilter membership,
         Set<Long> memberOf) {
+
+    public CommunitySearch {
+        memberOf = Set.copyOf(memberOf);
+    }
 }

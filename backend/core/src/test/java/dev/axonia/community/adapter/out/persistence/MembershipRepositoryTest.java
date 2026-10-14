@@ -9,6 +9,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jdbc.core.JdbcAggregateTemplate;
 
 import dev.axonia.AssertjAssertions;
 import dev.axonia.CoreJdbcTestSupport;
@@ -30,6 +31,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class MembershipRepositoryTest extends CoreJdbcTestSupport {
+
+    @Autowired
+    private JdbcAggregateTemplate jdbcAggregateTemplate;
 
     @Autowired
     private MembershipRepository membershipRepository;
@@ -248,7 +252,7 @@ class MembershipRepositoryTest extends CoreJdbcTestSupport {
         when(organizationContext.organizationId()).thenReturn("default");
         var memberDirectory = new MemberDirectoryService(new JdbcMembershipLedger(membershipRepository),
                 mock(UserDirectory.class), organizationContext);
-        var service = new MembershipService(new JdbcCommunityStore(communityRepository),
+        var service = new MembershipService(new JdbcCommunityStore(communityRepository, jdbcAggregateTemplate),
                 new JdbcMembershipLedger(membershipRepository), mock(MembershipAuthorizer.class),
                 mock(CurrentUser.class), organizationContext, mock(ApplicationEventPublisher.class),
                 mock(OrganizationOwners.class), memberDirectory);

@@ -2,10 +2,18 @@ package dev.axonia.community.adapter.out.persistence;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jdbc.core.JdbcAggregateTemplate;
+import org.springframework.data.relational.core.dialect.Escaper;
+import org.springframework.data.relational.core.query.Criteria;
+import org.springframework.data.relational.core.query.Query;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,7 +29,10 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class JdbcCommunityStore implements CommunityStore {
 
+    private static final Pattern SNAKE_CASE = Pattern.compile("_([a-z])");
+
     private final CommunityRepository communityRepository;
+    private final JdbcAggregateTemplate jdbcAggregateTemplate;
 
     @Override
     @Transactional(readOnly = true)
@@ -74,12 +85,27 @@ public class JdbcCommunityStore implements CommunityStore {
         if (search.memberOf().isEmpty()) {
             return Page.empty(pageable);
         }
-        var page = search.membership() == MembershipFilter.JOINED
-                ? communityRepository.findByOrganizationIdAndStatusAndNameContainingIgnoreCaseAndIdIn(
-                        search.organizationId(), search.status(), search.name(), search.memberOf(), pageable)
-                : communityRepository.findByOrganizationIdAndStatusAndNameContainingIgnoreCaseAndIdNotIn(
-                        search.organizationId(), search.status(), search.name(), search.memberOf(), pageable);
+        var page = jdbcAggregateTemplate.findAll(Query.query(criteria(search)), CommunityEntity.class,
+                byProperty(pageable));
         return page.map(JdbcCommunityStore::toRecord);
+    }
+
+    private static Pageable byProperty(Pageable pageable) {
+
+        var orders = pageable.getSort().stream().map(order -> order.withProperty(
+                SNAKE_CASE.matcher(order.getProperty()).replaceAll(match -> match.group(1).toUpperCase(Locale.ROOT))))
+                .toList();
+        return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by(orders));
+    }
+
+    private static Criteria criteria(CommunitySearch search) {
+
+        var scoped = Criteria.where("organizationId").is(search.organizationId()).and("status")
+                .is(search.status().name()).and("name").like("%" + Escaper.DEFAULT.escape(search.name()) + "%")
+                .ignoreCase(true).and("id");
+        return search.membership() == MembershipFilter.JOINED
+                ? scoped.in(search.memberOf())
+                : scoped.notIn(search.memberOf());
     }
 
     @Override

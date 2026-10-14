@@ -5,6 +5,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.jdbc.core.JdbcAggregateTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import dev.axonia.access.api.AuthorizationGate;
@@ -117,7 +118,7 @@ class MessageSubjectPolicyAdapterRunsWithNoJwtTest {
     private MessageSubjectPolicyAdapter buildSut() {
 
         var organizationContext = communityOrganizationContext();
-        var communityStore = new JdbcCommunityStore(communityRepository);
+        var communityStore = new JdbcCommunityStore(communityRepository, mock(JdbcAggregateTemplate.class));
         var membershipLedger = new JdbcMembershipLedger(membershipRepository);
         var communities = new CommunityLookup(communityStore);
         var communityService = new CommunityService(communityStore,
