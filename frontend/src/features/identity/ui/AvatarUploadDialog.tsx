@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { DialogFooter } from "@/components/ui/DialogFooter";
 import {
+  ACCEPTED_IMAGE_TYPES,
   firstDroppedImage,
   imageDropOperation,
   PickImageFile,
@@ -15,12 +16,15 @@ import {
   useSetAvatar,
 } from "@/features/identity/api/use-avatar";
 import { serverMessage } from "@/lib/server-message";
+import { useImageFit } from "@/lib/use-image-fit";
 import { useObjectUrl } from "@/lib/use-object-url";
 
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
+const AVATAR_LIMITS = { maxEdge: 512, maxBytes: MAX_AVATAR_BYTES };
 const SIZE_HINT = "PNG, JPEG or WebP, up to 2 MB";
 const BROWSE_HINT = "Drag an image here, or browse";
 const SIZE_ERROR = "Picture is over the 2 MB limit.";
+const TYPE_ERROR = "Unsupported image type. Use PNG, JPEG or WebP.";
 const SAVE_ERROR = "Could not save the picture. Try again.";
 const REMOVE_ERROR = "Could not remove the picture. Try again.";
 
@@ -151,8 +155,17 @@ function AvatarUploadForm({
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const previewUrl = useObjectUrl(file);
+  const imageFit = useImageFit(AVATAR_LIMITS);
 
-  function handleSelect(chosen: File) {
+  async function handleSelect(picked: File) {
+    if (!ACCEPTED_IMAGE_TYPES.includes(picked.type)) {
+      imageFit.discard();
+      setFile(null);
+      setError(TYPE_ERROR);
+      return;
+    }
+    const chosen = await imageFit.fit(picked);
+    if (chosen === null) return;
     if (chosen.size > MAX_AVATAR_BYTES) {
       setFile(null);
       setError(SIZE_ERROR);
@@ -181,7 +194,8 @@ function AvatarUploadForm({
     });
   }
 
-  const isBusy = setAvatar.isPending || clearAvatar.isPending;
+  const isBusy =
+    imageFit.fitting || setAvatar.isPending || clearAvatar.isPending;
 
   return (
     <div className="flex flex-col gap-4">
@@ -190,7 +204,7 @@ function AvatarUploadForm({
         fileName={file?.name ?? null}
         currentUrl={currentUrl}
         isDisabled={isBusy}
-        onSelect={handleSelect}
+        onSelect={(picked) => void handleSelect(picked)}
       />
 
       {error !== null && (

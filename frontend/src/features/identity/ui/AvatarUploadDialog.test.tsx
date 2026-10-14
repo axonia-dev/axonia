@@ -201,14 +201,11 @@ describe("AvatarUploadDialog", () => {
     } as unknown as ReturnType<typeof useSetAvatar>);
     renderDialog();
 
-    // applyAccept: false mirrors the OS file dialog letting a .gif past `accept` (an "All
-    // Files" filter, say) - the exact case the server-side rejection has to cover.
-    const osFileDialog = user.setup({ applyAccept: false });
-    await osFileDialog.upload(
+    await user.upload(
       pictureInput(),
-      new File(["bytes"], "me.gif", { type: "image/gif" }),
+      new File(["bytes"], "me.png", { type: "image/png" }),
     );
-    await osFileDialog.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(screen.getByRole("alert")).toHaveTextContent(
       "Unsupported image type. Use PNG, JPEG or WebP",

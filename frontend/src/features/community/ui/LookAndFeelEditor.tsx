@@ -11,6 +11,7 @@ import {
   useSetFocalPoint,
 } from "@/features/community/api/use-look-and-feel";
 import { useManagementAccess } from "@/features/community/api/use-management-access";
+import type { LookAndFeelAsset } from "@/features/community/domain/community-gateway";
 import {
   LazyWelcomePreview,
   preloadWelcomePreview,
@@ -24,6 +25,20 @@ import {
   BannerEditZone,
 } from "@/features/community/ui/look-and-feel-controls";
 import { OrganizerPage } from "@/features/community/ui/OrganizerPage";
+import { serverMessage } from "@/lib/server-message";
+
+const IMAGE_ERROR = "Image could not be saved.";
+
+function ImageError({ error }: Readonly<{ error: unknown }>) {
+  if (error == null) {
+    return null;
+  }
+  return (
+    <p role="alert" className="text-danger text-sm">
+      {serverMessage(error) ?? IMAGE_ERROR}
+    </p>
+  );
+}
 
 export function LookAndFeelEditor() {
   const [previewing, setPreviewing] = useState(false);
@@ -37,6 +52,14 @@ export function LookAndFeelEditor() {
   const removeAsset = useRemoveAsset(slug);
   const setFocalPoint = useSetFocalPoint(slug);
   useCommunityCrumbs([{ label: "Look & feel" }]);
+  const add = (asset: LookAndFeelAsset, file: File) => {
+    removeAsset.reset();
+    addAsset.mutate({ asset, file });
+  };
+  const remove = (asset: LookAndFeelAsset) => {
+    addAsset.reset();
+    removeAsset.mutate(asset);
+  };
 
   return (
     <OrganizerPage
@@ -76,8 +99,8 @@ export function LookAndFeelEditor() {
                   <BannerEditZone
                     hasImage={community.heroUrl != null}
                     busy={busy}
-                    onAdd={(file) => addAsset.mutate({ asset: "hero", file })}
-                    onRemove={() => removeAsset.mutate("hero")}
+                    onAdd={(file) => add("hero", file)}
+                    onRemove={() => remove("hero")}
                     reposition={
                       community.heroUrl != null && (
                         <FocalPointControl
@@ -95,8 +118,8 @@ export function LookAndFeelEditor() {
                   <BadgeEditZone
                     hasImage={community.badgeUrl != null}
                     busy={busy}
-                    onAdd={(file) => addAsset.mutate({ asset: "badge", file })}
-                    onRemove={() => removeAsset.mutate("badge")}
+                    onAdd={(file) => add("badge", file)}
+                    onRemove={() => remove("badge")}
                     reposition={
                       community.badgeUrl != null && (
                         <FocalPointControl
@@ -126,6 +149,7 @@ export function LookAndFeelEditor() {
                 }
               />
             </div>
+            <ImageError error={addAsset.error ?? removeAsset.error} />
             {previewing && (
               <StageBackdrop>
                 <Suspense fallback={null}>

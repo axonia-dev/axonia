@@ -3,7 +3,11 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { httpCommunityGateway } from "@/features/community/adapters/http-community-gateway";
 import { communityKeys } from "@/features/community/api/query-keys";
 import type { FocalPoint } from "@/features/community/domain/community";
-import type { LookAndFeelAsset } from "@/features/community/domain/community-gateway";
+import {
+  ASSET_LIMITS,
+  type LookAndFeelAsset,
+} from "@/features/community/domain/community-gateway";
+import { fitImage } from "@/lib/fit-image";
 
 const gateway = httpCommunityGateway;
 
@@ -29,8 +33,12 @@ export function useSetAccent(slug: string) {
 export function useAddAsset(slug: string) {
   const refresh = useRefresh(slug);
   return useMutation({
-    mutationFn: (vars: { asset: LookAndFeelAsset; file: File }) =>
-      gateway.addAsset(slug, vars.asset, vars.file),
+    mutationFn: async (vars: { asset: LookAndFeelAsset; file: File }) =>
+      gateway.addAsset(
+        slug,
+        vars.asset,
+        await fitImage(vars.file, ASSET_LIMITS[vars.asset]),
+      ),
     onSuccess: refresh,
   });
 }

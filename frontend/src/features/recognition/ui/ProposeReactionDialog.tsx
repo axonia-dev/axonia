@@ -10,11 +10,13 @@ import { useCurrentOrganization } from "@/features/admin/api/use-current-organiz
 import { useProposeReaction } from "@/features/recognition/api/use-reactions";
 import { MyProposals } from "@/features/recognition/ui/MyProposals";
 import { serverMessage } from "@/lib/server-message";
+import { useImageFit } from "@/lib/use-image-fit";
 import { useObjectUrl } from "@/lib/use-object-url";
 
 const MIN_NAME_LENGTH = 2;
 const MAX_NAME_LENGTH = 32;
 const MAX_IMAGE_BYTES = 128 * 1024;
+const IMAGE_LIMITS = { maxEdge: 256, maxBytes: MAX_IMAGE_BYTES };
 
 const NAME_HELP =
   "2 to 32 characters. This is the word members read when they pick it.";
@@ -90,13 +92,17 @@ function ProposeReactionForm({
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const previewUrl = useObjectUrl(file);
+  const imageFit = useImageFit(IMAGE_LIMITS);
 
-  function handleSelect(chosen: File) {
-    if (!ACCEPTED_IMAGE_TYPES.includes(chosen.type)) {
+  async function handleSelect(picked: File) {
+    if (!ACCEPTED_IMAGE_TYPES.includes(picked.type)) {
+      imageFit.discard();
       setFile(null);
       setError(TYPE_ERROR);
       return;
     }
+    const chosen = await imageFit.fit(picked);
+    if (chosen === null) return;
     if (chosen.size > MAX_IMAGE_BYTES) {
       setFile(null);
       setError(SIZE_ERROR);
@@ -120,7 +126,10 @@ function ProposeReactionForm({
   }
 
   const canPropose =
-    isValidName(name) && file !== null && !proposeReaction.isPending;
+    isValidName(name) &&
+    file !== null &&
+    !imageFit.fitting &&
+    !proposeReaction.isPending;
 
   return (
     <div className="flex flex-col gap-4">
@@ -171,7 +180,7 @@ function ProposeReactionForm({
           onChange={(event) => {
             const chosen = event.target.files?.[0];
             if (chosen) {
-              handleSelect(chosen);
+              void handleSelect(chosen);
             }
             event.target.value = "";
           }}

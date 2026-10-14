@@ -16,6 +16,7 @@ import type {
   Membership,
 } from "@/features/community/domain/membership";
 import type { Page } from "@/features/community/domain/page";
+import type { ImageLimits } from "@/lib/fit-image";
 
 export interface ListParams {
   page?: number;
@@ -36,6 +37,12 @@ export interface CommunityInput {
 }
 
 export type LookAndFeelAsset = "badge" | "hero";
+
+/** What each asset may weigh and measure, the same limits the server enforces. */
+export const ASSET_LIMITS: Record<LookAndFeelAsset, ImageLimits> = {
+  hero: { maxEdge: 2560, maxBytes: 5 * 1024 * 1024 },
+  badge: { maxEdge: 512, maxBytes: 2 * 1024 * 1024 },
+};
 
 export interface CommunityGateway {
   list(params: ListParams): Promise<Page<Community>>;

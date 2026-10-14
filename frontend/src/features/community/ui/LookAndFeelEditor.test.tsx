@@ -13,6 +13,7 @@ import {
 import { useManagementAccess } from "@/features/community/api/use-management-access";
 import type { Community } from "@/features/community/domain/community";
 import { LookAndFeelEditor } from "@/features/community/ui/LookAndFeelEditor";
+import { ApiError } from "@/lib/api-client";
 
 vi.mock("@/features/community/api/use-management-access", () => ({
   useManagementAccess: vi.fn(),
@@ -79,6 +80,7 @@ beforeEach(() => {
   const mutation = {
     mutate: vi.fn(),
     mutateAsync: vi.fn(),
+    reset: vi.fn(),
     isPending: false,
   } as never;
   vi.mocked(useSetAccent).mockReturnValue(mutation);
@@ -114,6 +116,66 @@ describe("LookAndFeelEditor", () => {
       screen.getByRole("button", { name: /add logo/i }),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /accent/i })).toBeInTheDocument();
+  });
+
+  it("shows why an image was refused", () => {
+    // given
+    vi.mocked(useAddAsset).mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+      error: new ApiError(
+        400,
+        "Image exceeds the maximum of 2560 pixels on its longest side",
+        "IMAGE_TOO_LARGE",
+      ),
+    } as never);
+
+    // when
+    renderEditor();
+
+    // then
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Image exceeds the maximum of 2560 pixels on its longest side",
+    );
+  });
+
+  it("clears a refused upload's reason once the image is removed", async () => {
+    // given
+    const user = userEvent.setup();
+    const addAsset = { mutate: vi.fn(), reset: vi.fn(), isPending: false };
+    const removeAsset = { mutate: vi.fn(), reset: vi.fn(), isPending: false };
+    vi.mocked(useAddAsset).mockReturnValue(addAsset as never);
+    vi.mocked(useRemoveAsset).mockReturnValue(removeAsset as never);
+    vi.mocked(useCommunity).mockReturnValue({
+      data: { ...community, heroUrl: "https://cdn.example/hero.png" },
+      isPending: false,
+      isError: false,
+    } as never);
+    renderEditor();
+
+    // when
+    await user.click(screen.getByRole("button", { name: "Remove banner" }));
+
+    // then
+    expect(addAsset.reset).toHaveBeenCalledOnce();
+    expect(removeAsset.mutate).toHaveBeenCalledWith("hero");
+  });
+
+  it("says an image could not be saved when the failure carries no reason", () => {
+    // given
+    vi.mocked(useRemoveAsset).mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+      error: new Error("network"),
+    } as never);
+
+    // when
+    renderEditor();
+
+    // then
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Image could not be saved.",
+    );
   });
 
   it("plays the welcome on demand", async () => {

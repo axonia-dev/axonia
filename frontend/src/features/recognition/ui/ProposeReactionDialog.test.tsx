@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -11,6 +11,7 @@ import {
 } from "@/features/recognition/api/use-reactions";
 import { ProposeReactionDialog } from "@/features/recognition/ui/ProposeReactionDialog";
 import { ApiError } from "@/lib/api-client";
+import { fitImage } from "@/lib/fit-image";
 
 vi.mock("@/features/admin/api/use-current-organization", () => ({
   useCurrentOrganization: vi.fn(),
@@ -20,6 +21,10 @@ vi.mock("@/features/recognition/api/use-reactions", () => ({
   useMyReactionProposals: vi.fn(),
   useReactionEligibility: vi.fn(),
   useRemoveReaction: vi.fn(),
+}));
+
+vi.mock("@/lib/fit-image", () => ({
+  fitImage: vi.fn((file: File) => Promise.resolve(file)),
 }));
 
 const PNG = new File([new Uint8Array([137, 80, 78, 71])], "y.png", {
@@ -126,6 +131,67 @@ describe("ProposeReactionDialog", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(/128 KB/);
   });
 
+  it("shrinks the image to 256 pixels before the size check, so a large image that fits is sent", async () => {
+    // given
+    const mutate = stubProposeReaction(vi.fn());
+    const large = new File([new Uint8Array(129 * 1024)], "big.png", {
+      type: "image/png",
+    });
+    vi.mocked(fitImage).mockResolvedValueOnce(PNG);
+    render(<ProposeReactionDialog isOpen onOpenChange={vi.fn()} />);
+    await user.type(screen.getByLabelText(/name/i), "campfire");
+
+    // when
+    await user.upload(screen.getByLabelText(/image/i), large);
+    await user.click(screen.getByRole("button", { name: /propose/i }));
+
+    // then
+    expect(fitImage).toHaveBeenCalledWith(large, {
+      maxEdge: 256,
+      maxBytes: 128 * 1024,
+    });
+    expect(vi.mocked(mutate).mock.calls[0]?.[0].file).toBe(PNG);
+  });
+
+  it("holds Propose while the image is being fitted", async () => {
+    // given
+    vi.mocked(fitImage).mockReturnValueOnce(new Promise<File>(() => {}));
+    render(<ProposeReactionDialog isOpen onOpenChange={vi.fn()} />);
+    await user.type(screen.getByLabelText(/name/i), "campfire");
+
+    // when
+    await user.upload(screen.getByLabelText(/image/i), PNG);
+
+    // then
+    expect(screen.getByRole("button", { name: /propose/i })).toBeDisabled();
+  });
+
+  it("keeps the latest pick when an earlier one finishes fitting after it", async () => {
+    // given
+    let finishFirst: (file: File) => void = () => {};
+    vi.mocked(fitImage).mockReturnValueOnce(
+      new Promise<File>((settle) => {
+        finishFirst = settle;
+      }),
+    );
+    const mutate = stubProposeReaction(vi.fn());
+    const second = new File(["second"], "second.png", { type: "image/png" });
+    render(<ProposeReactionDialog isOpen onOpenChange={vi.fn()} />);
+    await user.type(screen.getByLabelText(/name/i), "campfire");
+    await user.upload(screen.getByLabelText(/image/i), PNG);
+    await user.upload(screen.getByLabelText(/image/i), second);
+
+    // when
+    await act(async () => {
+      finishFirst(PNG);
+      await Promise.resolve();
+    });
+    await user.click(screen.getByRole("button", { name: /propose/i }));
+
+    // then
+    expect(vi.mocked(mutate).mock.calls[0]?.[0].file).toBe(second);
+  });
+
   it("previews the chip as it will render", async () => {
     render(<ProposeReactionDialog isOpen onOpenChange={vi.fn()} />);
 
@@ -138,7 +204,8 @@ describe("ProposeReactionDialog", () => {
 
   it("sends the proposal and closes on success", async () => {
     const succeed: Mutate = (_variables, opts) => opts?.onSuccess?.();
-    const mutate = stubProposeReaction(vi.fn(succeed));
+    const mutate = vi.fn(succeed);
+    stubProposeReaction(mutate);
     const onOpenChange = vi.fn();
     render(<ProposeReactionDialog isOpen onOpenChange={onOpenChange} />);
 
@@ -146,10 +213,9 @@ describe("ProposeReactionDialog", () => {
     await user.upload(screen.getByLabelText(/image/i), PNG);
     await user.click(screen.getByRole("button", { name: /propose/i }));
 
-    expect(mutate).toHaveBeenCalledWith(
-      { name: "campfire", file: PNG },
-      expect.objectContaining({ onSuccess: expect.any(Function) as unknown }),
-    );
+    const [variables] = mutate.mock.calls[0]!;
+    expect(variables.name).toBe("campfire");
+    expect(variables.file).toBe(PNG);
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
