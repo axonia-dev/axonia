@@ -167,6 +167,63 @@ describe("TerrainCanvas echo", () => {
     expect(frames.size).toBe(0);
   });
 
+  /** A refined term carries on from the picture on screen: nothing goes back towards the whole map first. */
+  it("carries a refine mid-echo on from where the ground got to", () => {
+    const target = settledIn({ highlight: lit, transition: "snap" });
+    const { rerender } = render(<TerrainCanvas {...props} />);
+    rerender(
+      <TerrainCanvas
+        {...props}
+        drawn={{ highlight: lit, transition: "echo" }}
+      />,
+    );
+    advance(1000);
+    let shown = groundColours();
+
+    const refined = { tags: new Set(lit.tags), marks: new Set(lit.marks) };
+    rerender(
+      <TerrainCanvas
+        {...props}
+        drawn={{ highlight: refined, transition: "echo" }}
+      />,
+    );
+    for (let frame = 0; frame < 6; frame++) {
+      advance(250);
+      const next = groundColours();
+      const backwards = next.some(
+        (value, i) =>
+          Math.abs(value - target[i]!) >
+          Math.abs(shown[i]! - target[i]!) + 1e-6,
+      );
+      expect(backwards).toBe(false);
+      shown = next;
+    }
+  });
+
+  it("disposes its rings and twinkles when it goes away mid-echo", () => {
+    const dispose = vi.spyOn(THREE.BufferGeometry.prototype, "dispose");
+    const { rerender, unmount } = render(<TerrainCanvas {...props} />);
+    rerender(
+      <TerrainCanvas
+        {...props}
+        drawn={{ highlight: lit, transition: "echo" }}
+      />,
+    );
+    advance(500);
+    groundColours();
+    const drawn = gpu.scene!.children.filter(
+      (c): c is THREE.LineLoop | THREE.Points =>
+        c instanceof THREE.LineLoop || c instanceof THREE.Points,
+    );
+    expect(drawn.some((c) => c instanceof THREE.LineLoop && c.visible)).toBe(
+      true,
+    );
+
+    unmount();
+    const disposed = new Set(dispose.mock.contexts);
+    expect(drawn.every((c) => disposed.has(c.geometry))).toBe(true);
+  });
+
   it("settles at once when the ground is rebuilt mid-echo, rings and all", () => {
     const target = settledIn({ highlight: lit, transition: "snap" });
     const echoing = { highlight: lit, transition: "echo" } as const;

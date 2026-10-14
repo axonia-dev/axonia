@@ -99,6 +99,6 @@ describe("TerrainCanvas faces", () => {
 
     // A tint holds float32, which is what the GPU reads the uniform as anyway.
     expect(opacities[0]).toBe(1);
-    expect(opacities[1]).toBeCloseTo(FACE_SET_BACK_OPACITY, 6);
+    expect(opacities[1]).toBe(Math.fround(FACE_SET_BACK_OPACITY));
   });
 });

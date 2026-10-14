@@ -54,7 +54,7 @@ const inside = (b: Bounds, x: number, y: number) =>
   x >= b.minX && x <= b.maxX && y >= b.minY && y <= b.maxY;
 
 /**
- * A fixed pool of rings, rewritten in place every frame: an echo is seconds of frames, and none of them allocates.
+ * A fixed pool of rings, rewritten in place every frame: an echo is seconds of frames, and the loops are reused.
  *
  * `within`, where given, is the only part of the plane a ring is drawn over. The globe wraps the plane once round
  * and stops short of its poles, so a ring wider than the plane would lap the planet and knot itself over the caps;
