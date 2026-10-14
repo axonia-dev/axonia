@@ -18,8 +18,13 @@ import { centredPlacement, SETTLE_SECONDS, settlePhase } from "./stage-motion";
 import { StageBackdrop, useStageBackdrop } from "./StageBackdrop";
 
 const SLOW_FRAME_MS = 50;
-const SLOW_FRAMES_TO_FINISH = 3;
+const SLOW_FRAMES_TO_BAIL = 3;
 const WARMUP_MS = 250;
+const BAIL_FADE: KeyframeAnimationOptions = {
+  duration: 250,
+  easing: "ease-out",
+  fill: "forwards",
+};
 
 export interface CeremonyStageProps {
   /** Seconds of choreography before the stage settles. */
@@ -66,6 +71,22 @@ interface Playback {
   finish: () => void;
 }
 
+/** Fades the stage away on the compositor, which keeps running where the main thread cannot keep up. */
+function fadeAway(
+  elements: readonly (HTMLElement | null)[],
+  done: () => void,
+): void {
+  const fades = elements.flatMap((element) => {
+    const fade = element?.animate?.([{ opacity: 0 }], BAIL_FADE);
+    return fade === undefined ? [] : [fade.finished];
+  });
+  if (fades.length === 0) {
+    done();
+    return;
+  }
+  void Promise.all(fades).then(done, done);
+}
+
 /** Runs the frame loop; answers the function that stops it. */
 function play({
   card,
@@ -87,6 +108,7 @@ function play({
   let last = start;
   let slow = 0;
   let handle = 0;
+  let stopped = false;
 
   const draw = (t: number) => {
     props.current.onFrame(card, Math.min(t, length));
@@ -99,13 +121,28 @@ function play({
     paintFrame(canvas, props.current.paint, t, card);
   };
 
+  const bail = () => {
+    if (props.current.settle === "morph") {
+      target.reveal();
+    }
+    fadeAway([card.parentElement, backdrop.current], () => {
+      if (!stopped) {
+        finish();
+      }
+    });
+  };
+
   const tick = () => {
     const now = clock.now();
     const warm = now - start >= WARMUP_MS;
     slow = warm && now - last > SLOW_FRAME_MS ? slow + 1 : 0;
     last = now;
     const t = (now - start) / 1000;
-    if (slow >= SLOW_FRAMES_TO_FINISH || t >= length + settleSeconds) {
+    if (slow >= SLOW_FRAMES_TO_BAIL) {
+      bail();
+      return;
+    }
+    if (t >= length + settleSeconds) {
       finish();
       return;
     }
@@ -116,6 +153,7 @@ function play({
   draw(0);
   handle = clock.request(tick);
   return () => {
+    stopped = true;
     clock.cancel(handle);
     target.restore();
   };
@@ -177,7 +215,7 @@ function Stage({
         ref={card}
         data-ceremony-card
         inert
-        className="theme-dark text-foreground absolute top-0 left-0 origin-top-left"
+        className="theme-dark text-foreground absolute top-0 left-0 origin-top-left [&_img]:will-change-transform"
       >
         {children}
       </div>
