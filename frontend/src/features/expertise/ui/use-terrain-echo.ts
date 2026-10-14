@@ -12,7 +12,7 @@ import {
   type RingLayer,
   ringLayer,
 } from "@/features/expertise/ui/echo-rings";
-import { ECHO } from "@/features/expertise/ui/echo-timeline";
+import { type Bounds, ECHO } from "@/features/expertise/ui/echo-timeline";
 import type { DrawnHighlight } from "@/features/expertise/ui/echo-transition";
 import {
   type TwinkleLayer,
@@ -32,6 +32,13 @@ const RING_LIFT = 1;
 const RINGS_ORDER = -0.5;
 /** Over the marks a twinkle opens round, and under the one a reader chose. */
 const TWINKLES_ORDER = 1.5;
+
+const planeOf = ({ size }: Surface): Bounds => ({
+  minX: 0,
+  minY: 0,
+  maxX: size.width,
+  maxY: size.height,
+});
 
 /** The ring an answer's twinkle is drawn in: the first area's echo, or the map's own ring with no area to take. */
 function twinkleInk(drawn: DrawnHighlight, marks: PlacedContribution[]) {
@@ -75,8 +82,11 @@ export function useTerrainEcho({
     const rings = ringLayer({
       place: placeAt(surface, RING_LIFT),
       capacity: ECHO.ringLagsMs.length * MAX_DROPS,
+      ...(surface.projection === "globe" ? { within: planeOf(surface) } : {}),
     });
-    standOnGround(rings.objects);
+    // A ring runs past the land, and the flat map's sea beyond the ground is only its clear colour: stood on the
+    // ground there, it is cut at a line nobody can see. The globe has a limb, and there the cut is the point.
+    if (surface.projection === "globe") standOnGround(rings.objects);
     for (const loop of rings.objects) {
       loop.renderOrder = RINGS_ORDER;
       gpu.scene.add(loop);
@@ -123,12 +133,7 @@ export function useTerrainEcho({
     const stage: EchoStage = {
       tints: [...tintsRef.current],
       marks,
-      bounds: {
-        minX: 0,
-        minY: 0,
-        maxX: surface.size.width,
-        maxY: surface.size.height,
-      },
+      bounds: planeOf(surface),
       rings,
       twinkles,
       request: gpu.request,

@@ -189,6 +189,30 @@ describe("TerrainCanvas echo", () => {
     expect(rings).toHaveLength(0);
   });
 
+  it("lets a ring run past the flat map's land, and cuts it at the globe's limb", () => {
+    const ringFuncs = () => {
+      act(() => gpu.frame?.());
+      return new Set(
+        gpu
+          .scene!.children.filter((c) => c instanceof THREE.LineLoop)
+          .map(
+            (c) =>
+              ((c as THREE.LineLoop).material as THREE.Material).stencilFunc,
+          ),
+      );
+    };
+    const { rerender } = render(<TerrainCanvas {...props} />);
+    expect(ringFuncs().has(THREE.EqualStencilFunc)).toBe(false);
+
+    rerender(
+      <TerrainCanvas
+        {...props}
+        surface={{ ...props.surface, projection: "globe" }}
+      />,
+    );
+    expect(ringFuncs()).toStrictEqual(new Set([THREE.EqualStencilFunc]));
+  });
+
   it("never starts an echo because it mounted", () => {
     render(
       <TerrainCanvas

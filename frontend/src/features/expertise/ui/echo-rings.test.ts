@@ -31,6 +31,18 @@ describe("ringLayer", () => {
     expect(position.getZ(0)).toBeCloseTo(0, 6);
   });
 
+  it("fades a ring out past the edge it is drawn within", () => {
+    const layer = ringLayer({
+      place,
+      capacity: 1,
+      within: { minX: -20, minY: -20, maxX: 5, maxY: 20 },
+    });
+    layer.show([ring]);
+    const shown = layer.objects[0]!.geometry.getAttribute("color");
+    expect(shown.getW(0)).toBe(0);
+    expect(shown.getW(48)).toBe(1);
+  });
+
   it("hides every ring when none is shown", () => {
     const layer = ringLayer({ place, capacity: 6 });
     layer.show([ring, { ...ring, radius: 20 }]);
