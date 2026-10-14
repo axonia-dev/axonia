@@ -203,6 +203,10 @@ describe("TerrainCanvas echo", () => {
   it("disposes its rings and twinkles when it goes away mid-echo", () => {
     const dispose = vi.spyOn(THREE.BufferGeometry.prototype, "dispose");
     const { rerender, unmount } = render(<TerrainCanvas {...props} />);
+    groundColours();
+    const pointsAt = () =>
+      gpu.scene!.children.filter((c) => c instanceof THREE.Points).length;
+    const atRest = pointsAt();
     rerender(
       <TerrainCanvas
         {...props}
@@ -218,6 +222,7 @@ describe("TerrainCanvas echo", () => {
     expect(drawn.some((c) => c instanceof THREE.LineLoop && c.visible)).toBe(
       true,
     );
+    expect(pointsAt()).toBe(atRest + 1);
 
     unmount();
     const disposed = new Set(dispose.mock.contexts);

@@ -169,24 +169,40 @@ describe("StreamCanvas rings", () => {
     const bands = drawn(THREE.Mesh);
     const rings = drawn(THREE.LineLoop);
 
+    const stencilOf = (o: THREE.Mesh | THREE.LineLoop) => {
+      const m = o.material as THREE.Material;
+      return [m.stencilWrite, m.stencilRef, m.stencilFunc, m.stencilZPass];
+    };
     expect(gpu.stencil).toBe(true);
-    expect(
-      bands.map((b) => (b.material as THREE.Material).stencilZPass),
-    ).toStrictEqual(bands.map(() => THREE.ReplaceStencilOp));
     expect(rings.length).toBeGreaterThan(0);
-    expect(
-      new Set(rings.map((r) => (r.material as THREE.Material).stencilFunc)),
-    ).toStrictEqual(new Set([THREE.EqualStencilFunc]));
+    const ref = (bands[0]!.material as THREE.Material).stencilRef;
+    expect(new Set(bands.map((b) => stencilOf(b).join()))).toStrictEqual(
+      new Set([
+        [true, ref, THREE.AlwaysStencilFunc, THREE.ReplaceStencilOp].join(),
+      ]),
+    );
+    expect(new Set(rings.map((r) => stencilOf(r).join()))).toStrictEqual(
+      new Set([
+        [true, ref, THREE.EqualStencilFunc, THREE.KeepStencilOp].join(),
+      ]),
+    );
   });
 
   it("disposes its rings and twinkles when it goes away mid-echo", () => {
     const dispose = vi.spyOn(THREE.BufferGeometry.prototype, "dispose");
-    const { unmount } = echoing();
-    const points = drawn(THREE.Points);
+    const allPoints = () =>
+      gpu.scene!.children.filter((c) => c instanceof THREE.Points);
+    const { rerender, unmount } = render(<StreamCanvas {...props} />);
+    act(() => gpu.frame?.());
+    const atRest = allPoints().length;
+    rerender(<StreamCanvas {...props} drawn={kafka} />);
+    advance(100);
+    act(() => gpu.frame?.());
+    const points = allPoints();
     const rings = gpu.scene!.children.filter(
       (c) => c instanceof THREE.LineLoop,
     );
-    expect(points.length).toBeGreaterThan(0);
+    expect(points).toHaveLength(atRest + 1);
 
     unmount();
     const disposed = new Set(dispose.mock.contexts);
