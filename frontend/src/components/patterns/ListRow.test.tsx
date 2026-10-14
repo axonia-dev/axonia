@@ -12,6 +12,26 @@ beforeEach(() => {
 });
 
 describe("ListRow", () => {
+  it("renders the action beside the link, not inside it", () => {
+    // given
+    render(
+      <MemoryRouter>
+        <ListRow
+          href="/communities/a"
+          title="A"
+          action={<button type="button">Join</button>}
+        />
+      </MemoryRouter>,
+    );
+
+    // when
+    const link = screen.getByRole("link", { name: /A/ });
+    const join = screen.getByRole("button", { name: "Join" });
+
+    // then
+    expect(link.contains(join)).toBe(false);
+  });
+
   it("links to its href with the title as the accessible name", () => {
     // when
     render(

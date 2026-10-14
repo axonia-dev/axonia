@@ -8,6 +8,7 @@ interface ListRowBaseProps {
   meta?: string;
   leading?: ReactNode;
   trailing?: ReactNode;
+  action?: ReactNode;
   accent?: string;
   className?: string;
 }
@@ -46,6 +47,7 @@ export function ListRow({
   meta,
   leading,
   trailing,
+  action,
   accent = "var(--primary)",
   className,
   ...activation
@@ -55,25 +57,32 @@ export function ListRow({
     <Body title={title} meta={meta} leading={leading} trailing={trailing} />
   );
 
-  if ("href" in activation) {
-    return (
-      <Link
-        to={activation.href}
-        style={style}
-        className={cn(ROW_CLASS, className)}
-      >
+  const rowClass = cn(ROW_CLASS, action !== undefined && "pr-28", className);
+  const row =
+    "href" in activation ? (
+      <Link to={activation.href} style={style} className={rowClass}>
         {body}
       </Link>
+    ) : (
+      <button
+        type="button"
+        onClick={activation.onPress}
+        style={style}
+        className={rowClass}
+      >
+        {body}
+      </button>
     );
+
+  if (action === undefined) {
+    return row;
   }
   return (
-    <button
-      type="button"
-      onClick={activation.onPress}
-      style={style}
-      className={cn(ROW_CLASS, className)}
-    >
-      {body}
-    </button>
+    <div className="relative">
+      {row}
+      <div className="absolute inset-y-0 right-4 flex items-center">
+        {action}
+      </div>
+    </div>
   );
 }
