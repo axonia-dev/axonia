@@ -50,4 +50,16 @@ describe("OpenToQuestionsMarker", () => {
     // then
     expect(onRemove).not.toHaveBeenCalled();
   });
+
+  it("shows a full-strength spinner while removing, keeping its name", () => {
+    // when
+    render(<OpenToQuestionsMarker tag="kafka" onRemove={vi.fn()} isRemoving />);
+
+    // then
+    const button = screen.getByRole("button", {
+      name: "Stop being open to questions on kafka",
+    });
+    expect(button.querySelector("[data-button-spinner]")).not.toBeNull();
+    expect(button.className).not.toContain("data-[pending]:opacity-50");
+  });
 });

@@ -74,16 +74,18 @@ describe("IconButton", () => {
     expect(button.className).toContain("disabled:pointer-events-none");
   });
 
-  it("dims while pending, as a disabled button does", () => {
+  it("swaps its icon for a full-strength spinner while pending, keeping its name", () => {
     render(
       <IconButton label="Delete Acme" isPending>
-        <Trash2 />
+        <Trash2 data-testid="icon" />
       </IconButton>,
     );
 
     const button = screen.getByRole("button", { name: "Delete Acme" });
     expect(button).toHaveAttribute("data-pending", "true");
-    expect(button.className).toContain("data-[pending]:opacity-50");
+    expect(button.querySelector("[data-button-spinner]")).not.toBeNull();
+    expect(screen.queryByTestId("icon")).not.toBeInTheDocument();
+    expect(button.className).not.toContain("data-[pending]:opacity-50");
   });
 
   it("answers hover in the danger token for a danger tone", () => {

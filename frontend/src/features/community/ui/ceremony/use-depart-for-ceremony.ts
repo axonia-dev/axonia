@@ -27,8 +27,9 @@ export function useDepartForCeremony(): (
   return useCallback(
     async (kind, slug) => {
       const from = here.current;
+      if (from === null) return;
       await departForCeremony(kind, slug);
-      if (from !== null && here.current === from) {
+      if (here.current === from) {
         await navigate(`/communities/${slug}`);
         return;
       }

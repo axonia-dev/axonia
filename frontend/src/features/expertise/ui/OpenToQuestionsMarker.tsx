@@ -1,7 +1,7 @@
 import { X } from "lucide-react";
 import { Button } from "react-aria-components";
 
-import { iconButtonClass } from "@/components/ui/IconButton";
+import { iconButtonClass, IconButtonPending } from "@/components/ui/IconButton";
 import { TierBadge } from "@/features/expertise/ui/TierBadge";
 import { cn } from "@/lib/cn";
 
@@ -26,7 +26,11 @@ export function OpenToQuestionsMarker({
           onPress={() => onRemove(tag)}
           className={cn(iconButtonClass("danger"), "size-6 [&_svg]:size-3.5")}
         >
-          <X aria-hidden />
+          {({ isPending }) => (
+            <IconButtonPending isPending={isPending}>
+              <X aria-hidden />
+            </IconButtonPending>
+          )}
         </Button>
       )}
     </span>

@@ -1,3 +1,4 @@
+import { Loader2 } from "lucide-react";
 import type { ReactNode } from "react";
 import {
   Button as AriaButton,
@@ -23,9 +24,24 @@ export function iconButtonClass(tone: IconButtonTone = "default"): string {
   return cn(
     "text-muted-foreground inline-flex size-8 flex-none cursor-pointer items-center justify-center rounded-lg transition-colors duration-150 outline-none",
     "focus-visible:ring-focus-ring focus-visible:ring-offset-background focus-visible:ring-2 focus-visible:ring-offset-2",
-    "disabled:pointer-events-none disabled:opacity-50 data-[pending]:opacity-50",
+    "disabled:pointer-events-none disabled:opacity-50",
     "[&_svg]:size-4",
     tones[tone],
+  );
+}
+
+export function IconButtonPending({
+  isPending,
+  children,
+}: Readonly<{ isPending: boolean; children: ReactNode }>) {
+  return isPending ? (
+    <Loader2
+      data-button-spinner
+      aria-hidden
+      className="motion-safe:animate-spin"
+    />
+  ) : (
+    children
   );
 }
 
@@ -46,7 +62,9 @@ export function IconButton({
 }: Readonly<IconButtonProps>) {
   return (
     <AriaButton {...props} aria-label={label} className={iconButtonClass(tone)}>
-      {children}
+      {({ isPending }) => (
+        <IconButtonPending isPending={isPending}>{children}</IconButtonPending>
+      )}
     </AriaButton>
   );
 }

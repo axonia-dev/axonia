@@ -1,5 +1,6 @@
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useEffect } from "react";
 import {
   Link,
   MemoryRouter,
@@ -25,9 +26,13 @@ const mockDepart = vi.mocked(departForCeremony);
 
 let user: ReturnType<typeof userEvent.setup>;
 let dark: () => void;
+const departed: { fn?: ReturnType<typeof useDepartForCeremony> } = {};
 
 function Departing() {
   const depart = useDepartForCeremony();
+  useEffect(() => {
+    departed.fn = depart;
+  }, [depart]);
   return (
     <button
       type="button"
@@ -124,5 +129,20 @@ describe("useDepartForCeremony", () => {
     // then
     expect(screen.getByTestId("where")).toHaveTextContent("/elsewhere");
     expect(pendingCeremony("backend-guild")).toBeNull();
+  });
+
+  it("raises no curtain when the page went away before the departure began", async () => {
+    // given
+    renderDeparting({ unmountOnLeave: true });
+    await user.click(screen.getByRole("link", { name: "elsewhere" }));
+
+    // when
+    await act(() => departed.fn?.("welcome", "backend-guild"));
+
+    // then
+    expect(mockDepart).not.toHaveBeenCalled();
+    expect(curtain()).toBeNull();
+    expect(pendingCeremony("backend-guild")).toBeNull();
+    expect(screen.getByTestId("where")).toHaveTextContent("/elsewhere");
   });
 });
