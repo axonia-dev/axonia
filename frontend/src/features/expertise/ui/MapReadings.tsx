@@ -22,7 +22,7 @@ import {
 import { facedSignalIds } from "@/features/expertise/ui/face-gate";
 import type { Projection } from "@/features/expertise/ui/globe-projection";
 import { withSearch } from "@/features/expertise/ui/map-highlight";
-import { searchMap } from "@/features/expertise/ui/map-search";
+import { matchSummary, searchMap } from "@/features/expertise/ui/map-search";
 import { MapDrawing } from "@/features/expertise/ui/MapDrawing";
 import {
   type MapReading,
@@ -228,13 +228,8 @@ export function MapReadings({
           onProjectionChange={chooseProjection}
           zoom={zoom}
           onZoom={setZoom}
-          search={
-            <MapSearchField
-              term={term}
-              onTermChange={onTermChange}
-              found={found}
-            />
-          }
+          search={<MapSearchField term={term} onTermChange={onTermChange} />}
+          count={found === null ? null : matchSummary(found)}
         />
         <div
           ref={wrapperRef}

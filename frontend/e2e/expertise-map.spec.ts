@@ -212,10 +212,41 @@ for (const width of [1440, 412]) {
     await expect(page.getByText("No matches")).toBeVisible();
     expect(await drawingHeight()).toBe(empty);
     await search.fill("e");
-    await expect(page.getByText(/\d+ areas?/)).toBeVisible();
+    await expect(page.getByText("areas, ")).toBeVisible();
+    expect(await drawingHeight()).toBe(empty);
+    await search.fill("kafka");
+    await expect(page.getByText("1 area", { exact: true })).toBeVisible();
     expect(await drawingHeight()).toBe(empty);
   });
 }
+
+test("at 1440px the hint shows and the count takes its place on one row", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(`/communities/${SLUG}/expertise?view=map`);
+  const canvas = page.locator("canvas").first();
+  await expect(canvas).toBeVisible();
+  const search = page.getByRole("searchbox", { name: "Find on the map" });
+  const middle = async (box: { y: number; height: number } | null) =>
+    box!.y + box!.height / 2;
+  const sameLine = async () =>
+    expect(
+      await middle(
+        await page.getByRole("button", { name: "Zoom in" }).boundingBox(),
+      ),
+    ).toBe(await middle(await search.boundingBox()));
+
+  await expect(page.getByText("Drag to turn, wheel to zoom")).toBeVisible();
+  await sameLine();
+  const withHint = (await canvas.locator("..").boundingBox())!.height;
+
+  await search.fill("e");
+  await expect(page.getByText("areas, ")).toBeVisible();
+  await expect(page.getByText("Drag to turn, wheel to zoom")).toBeHidden();
+  await sameLine();
+  expect((await canvas.locator("..").boundingBox())!.height).toBe(withHint);
+});
 
 /** A literal in three.js's own WebGL renderer, which survives minification because it is a string. */
 const THREE_JS = "Error creating WebGL context";

@@ -31,7 +31,7 @@ function ZoomControls({
   onZoom,
 }: Readonly<{ zoom: number; onZoom: (next: number) => void }>) {
   return (
-    <div className="flex items-center gap-1">
+    <div className="ml-auto flex items-center gap-1">
       <IconButton
         label="Zoom out"
         isDisabled={zoom <= ZOOM_MIN}
@@ -63,6 +63,7 @@ export function MapReadingToggle({
   zoom,
   onZoom,
   search,
+  count,
 }: Readonly<{
   reading: MapReading;
   onReadingChange: (next: MapReading) => void;
@@ -73,38 +74,42 @@ export function MapReadingToggle({
   /** The box that picks things out of the drawing. A control of the map like the rest, and so in the row with
    *  them, but it knows what is drawn and these buttons deliberately do not. */
   search: ReactNode;
+  /** What the search found, in words, or null while the box is empty. */
+  count: string | null;
 }>) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2">
-      <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
+      <SegmentedControl
+        label="Picture"
+        hideLabel
+        value={reading}
+        options={READINGS}
+        onChange={(next) => onReadingChange(next as MapReading)}
+      />
+      {reading === "terrain" && (
         <SegmentedControl
-          label="Picture"
+          label="Projection"
           hideLabel
-          value={reading}
-          options={READINGS}
-          onChange={(next) => onReadingChange(next as MapReading)}
+          value={projection}
+          options={PROJECTIONS}
+          onChange={(next) => onProjectionChange(next as Projection)}
         />
-        {reading === "terrain" && (
-          <SegmentedControl
-            label="Projection"
-            hideLabel
-            value={projection}
-            options={PROJECTIONS}
-            onChange={(next) => onProjectionChange(next as Projection)}
-          />
+      )}
+      {search}
+      {/* One slot of fixed width for one quiet line: what the search found, or else how the drawing moves, since
+          the globe hides a hemisphere and the wheel is not labelled. The drawing below is sized from what the row
+          leaves, so a line that changed the row's width would rebuild the scene mid-animation. */}
+      <div className="text-muted-foreground h-4 w-44 min-w-0 text-xs whitespace-nowrap">
+        <p role="status">{count}</p>
+        {count === null && (
+          <p className="hidden lg:block">
+            {reading === "terrain" && projection === "globe"
+              ? "Drag to turn, wheel to zoom"
+              : "Drag to move, wheel to zoom"}
+          </p>
         )}
-        {search}
       </div>
-      <div className="flex items-center gap-3">
-        {/* The globe hides a hemisphere and the wheel is not labelled, so both are said once, quietly, beside the
-            buttons rather than floating over the drawing. Hidden where the row would wrap onto itself. */}
-        <p className="text-muted-foreground hidden text-xs 2xl:block">
-          {reading === "terrain" && projection === "globe"
-            ? "Drag to turn, wheel to zoom"
-            : "Drag to move, wheel to zoom"}
-        </p>
-        <ZoomControls zoom={zoom} onZoom={onZoom} />
-      </div>
+      <ZoomControls zoom={zoom} onZoom={onZoom} />
     </div>
   );
 }

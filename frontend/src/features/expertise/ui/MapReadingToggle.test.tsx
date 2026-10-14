@@ -15,6 +15,7 @@ function draw(overrides: Partial<Parameters<typeof MapReadingToggle>[0]> = {}) {
       zoom={1}
       onZoom={vi.fn()}
       search={null}
+      count={null}
       {...overrides}
     />,
   );
@@ -98,12 +99,22 @@ describe("MapReadingToggle", () => {
         projection="flat"
         onProjectionChange={vi.fn()}
         search={null}
+        count={null}
         zoom={1}
         onZoom={vi.fn()}
       />,
     );
 
     expect(screen.getByText("Drag to move, wheel to zoom")).toBeInTheDocument();
+  });
+
+  it("says what the search found in the hint's place", () => {
+    draw({ count: "1 area" });
+
+    expect(screen.getByRole("status")).toHaveTextContent("1 area");
+    expect(
+      screen.queryByText("Drag to turn, wheel to zoom"),
+    ).not.toBeInTheDocument();
   });
 
   it("unwraps the globe", async () => {
