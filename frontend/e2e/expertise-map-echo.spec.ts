@@ -10,7 +10,7 @@ const SAME = 40;
 const ECHO_WINDOW_MS = 3500;
 const SETTLED_MS = 8000;
 
-// Tall enough that the whole canvas is on screen: an echo only plays on a map that is.
+// Tall enough that the whole canvas fits the viewport, so a screenshot of it never scrolls the page mid-echo.
 const VIEWPORT = { width: 1280, height: 1000 };
 test.use({ viewport: VIEWPORT });
 
