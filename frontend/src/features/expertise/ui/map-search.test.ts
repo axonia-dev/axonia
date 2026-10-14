@@ -6,6 +6,7 @@ import type {
   TopicNode,
 } from "@/features/expertise/domain/expertise";
 import {
+  areasMatching,
   type MapContents,
   matchSummary,
   searchMap,
@@ -139,5 +140,26 @@ describe("matchSummary", () => {
 
   it("says so in words when nothing matched", () => {
     expect(matchSummary(found(0, 0))).toBe("No matches");
+  });
+});
+
+describe("areasMatching", () => {
+  const topics = [topic("kafka"), topic("kafka-streams"), topic("react")];
+
+  it("names the areas a term matches, in topic order", () => {
+    expect(areasMatching("kaf", topics)).toStrictEqual([
+      "kafka",
+      "kafka-streams",
+    ]);
+  });
+
+  it("matches nothing for an empty term", () => {
+    expect(areasMatching("", topics)).toStrictEqual([]);
+  });
+
+  it("is the set searchMap reports as tags", () => {
+    const found = searchMap("kaf", { topics, items: [], people: new Map() });
+
+    expect([...found!.tags]).toStrictEqual(areasMatching("kaf", topics));
   });
 });

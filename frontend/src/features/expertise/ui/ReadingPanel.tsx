@@ -41,6 +41,8 @@ interface Props {
   /** Null asks for the neighbourhood summary back, which is the one way out of an area's own page. */
   onSelectTag: (tag: string | null) => void;
   onSeeWhoKnows: (tag: string) => void;
+  /** The areas the settled search term names; not yet rendered. */
+  matchedAreas?: readonly string[];
 }
 
 export function ReadingPanel({

@@ -6,13 +6,19 @@ import { useExpertiseMap } from "@/features/expertise/api/use-expertise-map";
 import { storeViewMode } from "@/features/expertise/ui/expertise-preferences";
 import { buildReading } from "@/features/expertise/ui/expertise-readings";
 import { highlightFor } from "@/features/expertise/ui/map-highlight";
+import { areasMatching } from "@/features/expertise/ui/map-search";
 import { MapReadings } from "@/features/expertise/ui/MapReadings";
 import { groupsFor } from "@/features/expertise/ui/named-area-grouping";
 import {
   type PanelSelection,
   ReadingPanel,
 } from "@/features/expertise/ui/ReadingPanel";
+import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { useNow } from "@/lib/use-wake-at";
+
+/** Long enough that a term is matched once rather than per keystroke: every settled term repaints the ground, which
+ *  is a heightfield of tens of thousands of shaded vertices. */
+const SEARCH_DEBOUNCE_MS = 180;
 
 /**
  * The map and the readings beside it. Below md the readings come first and the drawing follows under them: the lists
@@ -24,6 +30,8 @@ export function ExpertiseMapView() {
   const [, setParams] = useSearchParams();
   const [reading, setReading] = useState<PanelSelection>("neighbourhoods");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [term, setTerm] = useState("");
+  const settled = useDebouncedValue(term, SEARCH_DEBOUNCE_MS);
   const { data, isLoading, isError } = useExpertiseMap(slug);
 
   const topics = useMemo(() => data?.topics ?? [], [data]);
@@ -44,6 +52,11 @@ export function ExpertiseMapView() {
   const highlight = useMemo(
     () => highlightFor(built, selectedTag),
     [built, selectedTag],
+  );
+
+  const matchedAreas = useMemo(
+    () => (settled.trim() === "" ? [] : areasMatching(settled, topics)),
+    [settled, topics],
   );
 
   function seeWhoKnows(tag: string) {
@@ -97,6 +110,7 @@ export function ExpertiseMapView() {
         selectedTag={selectedTag}
         onSelectTag={setSelectedTag}
         onSeeWhoKnows={seeWhoKnows}
+        matchedAreas={matchedAreas}
       />
       <div className="border-border border-t md:order-first md:border-t-0">
         <MapReadings
@@ -105,6 +119,9 @@ export function ExpertiseMapView() {
           links={links}
           groups={groups}
           highlight={highlight}
+          term={term}
+          onTermChange={setTerm}
+          settled={settled}
         />
       </div>
     </div>

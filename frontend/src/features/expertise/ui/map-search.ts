@@ -22,6 +22,18 @@ export interface MapSearch {
   lit: ReadonlySet<number>;
 }
 
+/** The canonical tags of the areas whose name a term matches, in the order the topics come. */
+export function areasMatching(
+  term: string,
+  topics: readonly TopicNode[],
+): string[] {
+  const needle = normalizeTag(term);
+  if (needle === "") return [];
+  return topics
+    .map((topic) => topic.canonicalTag)
+    .filter((tag) => normalizeTag(tag).includes(needle));
+}
+
 /**
  * What a term picks out of the drawing.
  *
@@ -42,9 +54,7 @@ export function searchMap(
   const matches = (text: string | null) =>
     text !== null && normalizeTag(text).includes(needle);
 
-  const tags = new Set(
-    topics.map((topic) => topic.canonicalTag).filter((tag) => matches(tag)),
-  );
+  const tags = new Set(areasMatching(term, topics));
   const hits = new Set<number>();
   const lit = new Set<number>();
 

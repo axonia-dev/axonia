@@ -15,7 +15,10 @@ import {
 } from "@/features/expertise/ui/contribution-picking";
 import { placeContributions } from "@/features/expertise/ui/contribution-placement";
 import { ContributionStrip } from "@/features/expertise/ui/ContributionStrip";
-import type { DrawnHighlight } from "@/features/expertise/ui/echo-transition";
+import {
+  type DrawnHighlight,
+  transitionFor,
+} from "@/features/expertise/ui/echo-transition";
 import { facedSignalIds } from "@/features/expertise/ui/face-gate";
 import type { Projection } from "@/features/expertise/ui/globe-projection";
 import { withSearch } from "@/features/expertise/ui/map-highlight";
@@ -43,11 +46,7 @@ import {
 import { useTerrainScene } from "@/features/expertise/ui/use-terrain-scene";
 import { useTerrainZoom } from "@/features/expertise/ui/use-terrain-zoom";
 import { cn } from "@/lib/cn";
-import { useDebouncedValue } from "@/lib/use-debounced-value";
-
-/** Long enough that a term is matched once rather than per keystroke: every settled term repaints the ground, which
- *  is a heightfield of tens of thousands of shaded vertices. */
-const SEARCH_DEBOUNCE_MS = 180;
+import { useMediaQuery } from "@/lib/use-media-query";
 
 /** Turning is the globe's answer to its own far side; every other picture is flat and is carried about instead. */
 function modeFor(picture: MapReading, projection: Projection): NavigationMode {
@@ -73,6 +72,9 @@ export function MapReadings({
   links,
   groups,
   highlight,
+  term,
+  onTermChange,
+  settled,
 }: Readonly<{
   slug: string;
   topics: TopicNode[];
@@ -80,12 +82,15 @@ export function MapReadings({
   groups: DrawnGroup[];
   /** The areas the panel beside the map is about, or null when it is about the whole map. */
   highlight: ReadonlySet<string> | null;
+  /** What the box says now, and what it said once typing paused: only the settled one is searched. */
+  term: string;
+  onTermChange: (next: string) => void;
+  settled: string;
 }>) {
   const [picture, setPicture] = useState<MapReading>("terrain");
   const [projection, setProjection] = useState<Projection>("globe");
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [term, setTerm] = useState("");
-  const settled = useDebouncedValue(term, SEARCH_DEBOUNCE_MS);
+  const reduced = useMediaQuery("(prefers-reduced-motion: reduce)");
   const wrapperRef = useRef<HTMLDivElement>(null);
   const size = useGraphSize(wrapperRef);
   const { zoom, setZoom, zoomBy } = useTerrainZoom(wrapperRef);
@@ -122,10 +127,26 @@ export function MapReadings({
   );
   // Memoised because the two canvases rebuild what they draw when it moves, and a drag renders this per pointer event.
   const lit = useMemo(() => withSearch(highlight, found), [highlight, found]);
-  const drawn = useMemo<DrawnHighlight>(
-    () => ({ highlight: lit, transition: "snap" }),
-    [lit],
-  );
+  // The previous term is kept in state rather than a ref so the transition is decided in render, from what was shown.
+  const [shown, setShown] = useState<{ term: string; drawn: DrawnHighlight }>({
+    term: settled,
+    drawn: { highlight: lit, transition: "snap" },
+  });
+  if (shown.drawn.highlight !== lit) {
+    setShown({
+      term: settled,
+      drawn: {
+        highlight: lit,
+        transition: transitionFor({
+          from: shown.term,
+          to: settled,
+          found,
+          reduced,
+        }),
+      },
+    });
+  }
+  const { drawn } = shown;
   const labels = useMemo(() => labelsFor(items, people), [items, people]);
   const scene = useTerrainScene({
     marks,
@@ -208,7 +229,11 @@ export function MapReadings({
           zoom={zoom}
           onZoom={setZoom}
           search={
-            <MapSearchField term={term} onTermChange={setTerm} found={found} />
+            <MapSearchField
+              term={term}
+              onTermChange={onTermChange}
+              found={found}
+            />
           }
         />
         <div
