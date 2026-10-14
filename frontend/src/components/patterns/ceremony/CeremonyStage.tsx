@@ -13,18 +13,20 @@ import { useMediaQuery } from "@/lib/use-media-query";
 import { browserClock, type CeremonyClock } from "./clock";
 import type { Painter } from "./paint";
 import { viewportField } from "./paint";
-import { paintFrame, placeCard, revealer, stagedSize } from "./stage-frame";
+import {
+  clipTo,
+  fadeAway,
+  paintFrame,
+  placeCard,
+  revealer,
+  stagedSize,
+} from "./stage-frame";
 import { centredPlacement, SETTLE_SECONDS, settlePhase } from "./stage-motion";
 import { StageBackdrop, useStageBackdrop } from "./StageBackdrop";
 
 const SLOW_FRAME_MS = 50;
 const SLOW_FRAMES_TO_BAIL = 3;
 const WARMUP_MS = 250;
-const BAIL_FADE: KeyframeAnimationOptions = {
-  duration: 250,
-  easing: "ease-out",
-  fill: "forwards",
-};
 
 export interface CeremonyStageProps {
   /** Seconds of choreography before the stage settles. */
@@ -39,6 +41,8 @@ export interface CeremonyStageProps {
   paint?: Painter;
   onDone: () => void;
   clock?: CeremonyClock;
+  /** Full screen over a backdrop, or clipped to the target card where it stands. */
+  placement?: "viewport" | "in-place";
   children: ReactNode;
 }
 
@@ -71,22 +75,6 @@ interface Playback {
   finish: () => void;
 }
 
-/** Fades the stage away on the compositor, which keeps running where the main thread cannot keep up. */
-function fadeAway(
-  elements: readonly (HTMLElement | null)[],
-  done: () => void,
-): void {
-  const fades = elements.flatMap((element) => {
-    const fade = element?.animate?.([{ opacity: 0 }], BAIL_FADE);
-    return fade === undefined ? [] : [fade.finished];
-  });
-  if (fades.length === 0) {
-    done();
-    return;
-  }
-  void Promise.all(fades).then(done, done);
-}
-
 /** Runs the frame loop; answers the function that stops it. */
 function play({
   card,
@@ -99,8 +87,11 @@ function play({
 }: Playback): () => void {
   const { length, settleSeconds = SETTLE_SECONDS } = props.current;
   const size = stagedSize(card, box);
+  const inPlace = props.current.placement === "in-place";
   const origin = {
-    from: centredPlacement(size, viewportField()),
+    from: inPlace
+      ? { x: box.left, y: box.top, scale: 1 }
+      : centredPlacement(size, viewportField()),
     width: box.width,
   };
   const target = revealer(props.current.target);
@@ -164,6 +155,7 @@ function Stage({
   ...props
 }: Readonly<CeremonyStageProps & { backdrop: RefObject<HTMLElement | null> }>) {
   const { target, clock = browserClock, children } = props;
+  const stageLayer = useRef<HTMLDivElement>(null);
   const card = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const latest = useLatest(props);
@@ -179,6 +171,12 @@ function Stage({
     ) {
       finish();
       return undefined;
+    }
+    if (
+      latest.current.placement === "in-place" &&
+      stageLayer.current !== null
+    ) {
+      stageLayer.current.style.clipPath = clipTo(box, target.current);
     }
     return play({
       card: card.current,
@@ -204,8 +202,22 @@ function Stage({
     return () => window.removeEventListener("keydown", skip, true);
   }, [finish]);
 
+  const inPlace = props.placement === "in-place";
+  useEffect(() => {
+    if (!inPlace) {
+      return undefined;
+    }
+    window.addEventListener("scroll", finish, { passive: true, capture: true });
+    window.addEventListener("resize", finish);
+    return () => {
+      window.removeEventListener("scroll", finish, { capture: true });
+      window.removeEventListener("resize", finish);
+    };
+  }, [finish, inPlace]);
+
   return createPortal(
     <div
+      ref={stageLayer}
       data-ceremony-stage
       aria-hidden
       className="fixed inset-0 z-[100] cursor-pointer"
@@ -255,15 +267,21 @@ function OnBackdrop(props: Readonly<CeremonyStageProps>) {
   );
 }
 
+const NO_BACKDROP: RefObject<HTMLElement | null> = { current: null };
+
 /**
- * A full-screen moment that plays `onFrame`'s choreography over a dark backdrop, then settles
- * onto `target`. Any click or key finishes it at once, and it never plays under reduced motion.
- * The staged card always wears the dark theme: sparks and sheen only read on dark.
+ * A moment that plays `onFrame`'s choreography, full screen over a dark backdrop or clipped to
+ * `target` in place, then settles onto `target`. Any click or key finishes it at once, and it
+ * never plays under reduced motion. The staged card always wears the dark theme: sparks and
+ * sheen only read on dark.
  */
 export function CeremonyStage(props: Readonly<CeremonyStageProps>) {
   const reduced = useMediaQuery("(prefers-reduced-motion: reduce)");
-  return reduced ? (
-    <ReducedMotion target={props.target} onDone={props.onDone} />
+  if (reduced) {
+    return <ReducedMotion target={props.target} onDone={props.onDone} />;
+  }
+  return props.placement === "in-place" ? (
+    <Stage {...props} backdrop={NO_BACKDROP} />
   ) : (
     <OnBackdrop {...props} />
   );

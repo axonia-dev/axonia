@@ -89,3 +89,32 @@ export function revealer(target: RefObject<HTMLElement | null>) {
     },
   };
 }
+
+const BAIL_FADE: KeyframeAnimationOptions = {
+  duration: 250,
+  easing: "ease-out",
+  fill: "forwards",
+};
+
+/** Fades the stage away on the compositor, which keeps running where the main thread cannot keep up. */
+export function fadeAway(
+  elements: readonly (HTMLElement | null)[],
+  done: () => void,
+): void {
+  const fades = elements.flatMap((element) => {
+    const fade = element?.animate?.([{ opacity: 0 }], BAIL_FADE);
+    return fade === undefined ? [] : [fade.finished];
+  });
+  if (fades.length === 0) {
+    done();
+    return;
+  }
+  void Promise.all(fades).then(done, done);
+}
+
+/** The stage layer's clip onto the target card, rounded like the card. */
+export function clipTo(box: DOMRect, element: HTMLElement | null): string {
+  const field = viewportField();
+  const radius = element === null ? "" : getComputedStyle(element).borderRadius;
+  return `inset(${box.top}px ${field.width - box.right}px ${field.height - box.bottom}px ${box.left}px round ${radius || "0px"})`;
+}
