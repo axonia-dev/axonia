@@ -34,16 +34,20 @@ type Section = ReturnType<typeof useSection>;
 
 function SectionShell({
   label,
+  count,
   children,
-}: Readonly<{ label: string; children: ReactNode }>) {
+}: Readonly<{ label: string; count: number; children: ReactNode }>) {
   const id = useId();
   return (
     <section aria-labelledby={id} className="flex flex-col gap-3">
-      <h2
-        id={id}
-        className="text-muted-foreground text-xs font-bold tracking-widest uppercase"
-      >
-        {label}
+      <h2 className="text-muted-foreground flex items-center gap-2 text-xs font-bold tracking-widest uppercase">
+        <span id={id}>{label}</span>
+        <span
+          data-testid="section-count"
+          className="text-foreground opacity-60"
+        >
+          {count}
+        </span>
       </h2>
       {children}
     </section>
@@ -113,7 +117,10 @@ function JoinedSection({ section }: Readonly<{ section: Section }>) {
         />
       )}
       {rows.length > 0 && (
-        <SectionShell label="Joined">
+        <SectionShell
+          label="Joined"
+          count={section.query.data?.totalElements ?? rows.length}
+        >
           <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {rows.map((community) => (
               <li key={community.id} className="flex">
@@ -140,7 +147,10 @@ function ExploreSection({ section }: Readonly<{ section: Section }>) {
         />
       )}
       {rows.length > 0 && (
-        <SectionShell label="Explore">
+        <SectionShell
+          label="Explore"
+          count={section.query.data?.totalElements ?? rows.length}
+        >
           <ul className="flex flex-col gap-2">
             {rows.map((community) => (
               <li key={community.id}>
@@ -173,7 +183,7 @@ export function CommunityList() {
         placeholder="Search communities"
         value={q}
         onChange={setQ}
-        className="max-w-xs"
+        className="sm:max-w-xs"
       />
       {loading && <ListSkeleton />}
       {nothing && (

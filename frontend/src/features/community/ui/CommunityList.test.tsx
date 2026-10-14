@@ -149,7 +149,9 @@ describe("CommunityList", () => {
     renderList();
 
     // then
-    const [accented, fallback] = screen.getAllByRole("link");
+    const [accented, fallback] = screen
+      .getAllByRole("link")
+      .map((link) => link.parentElement);
     expect(accented?.style.getPropertyValue("--k")).toBe("#1aa6a0");
     expect(fallback?.style.getPropertyValue("--k")).not.toBe("");
     expect(fallback?.style.getPropertyValue("--k")).not.toBe("#1aa6a0");
@@ -241,5 +243,40 @@ describe("CommunityList", () => {
     expect(
       screen.getAllByRole("button", { name: "Try again" }).length,
     ).toBeGreaterThan(0);
+  });
+
+  it("shows each section's total beside its label without changing its name", () => {
+    // given
+    answer(
+      [{ ...community, id: 1, slug: "mine", name: "Mine", role: "MEMBER" }],
+      [
+        { ...community, id: 2, slug: "a", name: "A", role: null },
+        { ...community, id: 3, slug: "b", name: "B", role: null },
+      ],
+    );
+
+    // when
+    renderList();
+
+    // then
+    const explore = screen.getByRole("region", { name: "Explore" });
+    expect(within(explore).getByTestId("section-count")).toHaveTextContent("2");
+    expect(
+      within(screen.getByRole("region", { name: "Joined" })).getByTestId(
+        "section-count",
+      ),
+    ).toHaveTextContent("1");
+  });
+
+  it("gives the search field the full width below sm", () => {
+    // given
+    answer([], [community]);
+
+    // when
+    renderList();
+
+    // then
+    const field = screen.getByRole("searchbox").closest("div");
+    expect(field?.parentElement?.className ?? "").toContain("sm:max-w-xs");
   });
 });

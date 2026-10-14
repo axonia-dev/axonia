@@ -22,6 +22,15 @@ const ROW_CLASS = cn(
   "focus-visible:ring-focus-ring motion-safe:hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-2",
 );
 
+const ACTION_ROW_CLASS = cn(
+  "group border-border bg-surface relative flex w-full flex-wrap items-center gap-x-3 gap-y-1 overflow-hidden rounded-md border pr-4 transition-[transform,box-shadow] duration-150",
+  "before:pointer-events-none before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:bg-[var(--k)] before:opacity-0 before:transition-opacity hover:before:opacity-100",
+  "focus-within:ring-focus-ring motion-safe:hover:-translate-y-0.5 hover:shadow-md focus-within:ring-2",
+);
+
+const ACTION_LINK_CLASS =
+  "flex min-w-0 flex-1 cursor-pointer items-center gap-3 py-3 pl-4 text-left outline-none";
+
 interface BodyProps {
   title: ReactNode;
   meta: string | undefined;
@@ -57,32 +66,40 @@ export function ListRow({
     <Body title={title} meta={meta} leading={leading} trailing={trailing} />
   );
 
-  const rowClass = cn(ROW_CLASS, action !== undefined && "pr-28", className);
-  const row =
-    "href" in activation ? (
-      <Link to={activation.href} style={style} className={rowClass}>
-        {body}
-      </Link>
-    ) : (
-      <button
-        type="button"
-        onClick={activation.onPress}
-        style={style}
-        className={rowClass}
-      >
-        {body}
-      </button>
-    );
-
-  if (action === undefined) {
-    return row;
-  }
-  return (
-    <div className="relative">
-      {row}
-      <div className="absolute inset-y-0 right-4 flex items-center">
-        {action}
+  if (action !== undefined) {
+    return (
+      <div style={style} className={cn(ACTION_ROW_CLASS, className)}>
+        {"href" in activation ? (
+          <Link to={activation.href} className={ACTION_LINK_CLASS}>
+            {body}
+          </Link>
+        ) : (
+          <button
+            type="button"
+            onClick={activation.onPress}
+            className={ACTION_LINK_CLASS}
+          >
+            {body}
+          </button>
+        )}
+        <div className="contents">{action}</div>
       </div>
-    </div>
+    );
+  }
+
+  const rowClass = cn(ROW_CLASS, className);
+  return "href" in activation ? (
+    <Link to={activation.href} style={style} className={rowClass}>
+      {body}
+    </Link>
+  ) : (
+    <button
+      type="button"
+      onClick={activation.onPress}
+      style={style}
+      className={rowClass}
+    >
+      {body}
+    </button>
   );
 }

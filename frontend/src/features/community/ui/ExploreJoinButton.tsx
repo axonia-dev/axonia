@@ -1,3 +1,4 @@
+import { Loader2 } from "lucide-react";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -17,20 +18,32 @@ export function ExploreJoinButton({ slug }: Readonly<{ slug: string }>) {
   useEffect(preloadHeroCeremony, []);
 
   return (
-    <span className="flex items-center gap-2">
-      {join.isError && (
-        <span role="alert" className="text-danger text-sm">
-          {communityErrorMessage(join.error)}
-        </span>
-      )}
+    <>
       <Button
         variant="outline"
         size="sm"
+        className="relative"
         isDisabled={join.isPending}
         onPress={() => join.mutate()}
       >
-        Join
+        <span className={join.isPending ? "opacity-0" : undefined}>Join</span>
+        {join.isPending && (
+          <Loader2
+            data-join-spinner
+            size={14}
+            aria-hidden
+            className="absolute motion-safe:animate-spin"
+          />
+        )}
       </Button>
-    </span>
+      {join.isError && (
+        <span
+          role="alert"
+          className="text-danger order-last basis-full pb-3 pl-4 text-sm"
+        >
+          {communityErrorMessage(join.error)}
+        </span>
+      )}
+    </>
   );
 }

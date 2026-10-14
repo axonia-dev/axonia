@@ -23,7 +23,7 @@ export function CommunityTile({
     >
       <div
         data-tile-banner
-        className="relative h-14 bg-linear-to-br from-[color-mix(in_srgb,var(--community-accent)_45%,var(--surface))] to-(--surface)"
+        className="relative h-14 bg-linear-to-b from-[color-mix(in_srgb,var(--community-accent)_45%,var(--surface))] to-(--surface)"
       >
         {community.heroUrl != null && (
           <img

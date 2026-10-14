@@ -100,4 +100,28 @@ describe("ExploreJoinButton", () => {
     // then
     expect(screen.getByRole("button", { name: "Join" })).toBeDisabled();
   });
+
+  it("shows a spinner and keeps the label while joining", () => {
+    // given
+    mockJoin({ isPending: true });
+
+    // when
+    renderButton();
+
+    // then
+    const button = screen.getByRole("button", { name: "Join" });
+    expect(button.querySelector("[data-join-spinner]")).not.toBeNull();
+  });
+
+  it("shows no spinner when idle", () => {
+    // when
+    renderButton();
+
+    // then
+    expect(
+      screen
+        .getByRole("button", { name: "Join" })
+        .querySelector("[data-join-spinner]"),
+    ).toBeNull();
+  });
 });

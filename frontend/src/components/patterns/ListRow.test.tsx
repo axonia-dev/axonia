@@ -32,6 +32,29 @@ describe("ListRow", () => {
     expect(link.contains(join)).toBe(false);
   });
 
+  it("keeps the action out of the link and lays both out as flex siblings", () => {
+    // given
+    render(
+      <MemoryRouter>
+        <ListRow
+          href="/communities/a"
+          title="A"
+          action={<button type="button">Join</button>}
+        />
+      </MemoryRouter>,
+    );
+
+    // when
+    const link = screen.getByRole("link", { name: /A/ });
+
+    // then
+    expect(link.className).toContain("min-w-0");
+    expect(link.className).toContain("flex-1");
+    expect(link.parentElement?.className).toContain("flex");
+    expect(link.parentElement?.className).not.toMatch(/(^| )absolute/);
+    expect(link.parentElement?.className).not.toContain("pr-28");
+  });
+
   it("links to its href with the title as the accessible name", () => {
     // when
     render(

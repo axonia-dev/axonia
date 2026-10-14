@@ -61,4 +61,14 @@ describe("CommunityTile", () => {
     expect(container.querySelector("img")).toBeNull();
     expect(container.querySelector("[data-tile-banner]")).toBeInTheDocument();
   });
+
+  it("fades the banner vertically into the tile surface", () => {
+    // when
+    const { container } = renderTile();
+
+    // then
+    const banner = container.querySelector("[data-tile-banner]");
+    expect(banner?.className).toContain("bg-linear-to-b");
+    expect(banner?.className).not.toContain("bg-linear-to-br");
+  });
 });
