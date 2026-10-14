@@ -72,6 +72,11 @@ export function ExpertiseMapView() {
     );
   }
 
+  function chooseMatchedArea(tag: string) {
+    setTerm("");
+    setSelectedTag(tag);
+  }
+
   // The selection goes too, including back onto "Neighbourhoods". Kept, it put a reader who chose an area, went to
   // a reading and came back on the area's own page with no way out of it, which is what "no way back" was.
   function chooseReading(next: PanelSelection) {
@@ -111,6 +116,8 @@ export function ExpertiseMapView() {
         onSelectTag={setSelectedTag}
         onSeeWhoKnows={seeWhoKnows}
         matchedAreas={matchedAreas}
+        slug={slug}
+        onChooseMatchedArea={chooseMatchedArea}
       />
       <div className="border-border border-t md:order-first md:border-t-0">
         <MapReadings

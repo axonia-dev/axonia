@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, test, vi } from "vitest";
@@ -9,6 +10,10 @@ import type {
 import { buildReading } from "@/features/expertise/ui/expertise-readings";
 import type { DrawnGroup } from "@/features/expertise/ui/named-area-grouping";
 import { ReadingPanel } from "@/features/expertise/ui/ReadingPanel";
+
+vi.mock("@/features/expertise/adapters/http-expertise-gateway", () => ({
+  httpExpertiseGateway: { search: vi.fn().mockResolvedValue([]) },
+}));
 
 let user: ReturnType<typeof userEvent.setup>;
 
@@ -49,18 +54,23 @@ const GROUPS: DrawnGroup[] = [
 
 function panel(over: Partial<Parameters<typeof ReadingPanel>[0]> = {}) {
   return render(
-    <ReadingPanel
-      topics={TOPICS}
-      links={LINKS}
-      groups={GROUPS}
-      reading="neighbourhoods"
-      built={null}
-      onReadingChange={vi.fn()}
-      selectedTag={null}
-      onSelectTag={vi.fn()}
-      onSeeWhoKnows={vi.fn()}
-      {...over}
-    />,
+    <QueryClientProvider client={new QueryClient()}>
+      <ReadingPanel
+        topics={TOPICS}
+        links={LINKS}
+        groups={GROUPS}
+        reading="neighbourhoods"
+        built={null}
+        onReadingChange={vi.fn()}
+        selectedTag={null}
+        onSelectTag={vi.fn()}
+        onSeeWhoKnows={vi.fn()}
+        matchedAreas={[]}
+        slug="acme"
+        onChooseMatchedArea={vi.fn()}
+        {...over}
+      />
+    </QueryClientProvider>,
   );
 }
 

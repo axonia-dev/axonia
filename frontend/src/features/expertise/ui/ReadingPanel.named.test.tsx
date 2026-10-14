@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, test, vi } from "vitest";
@@ -5,6 +6,10 @@ import { expect, test, vi } from "vitest";
 import type { TopicNode } from "@/features/expertise/domain/expertise";
 import type { DrawnGroup } from "@/features/expertise/ui/named-area-grouping";
 import { ReadingPanel } from "@/features/expertise/ui/ReadingPanel";
+
+vi.mock("@/features/expertise/adapters/http-expertise-gateway", () => ({
+  httpExpertiseGateway: { search: vi.fn().mockResolvedValue([]) },
+}));
 
 function node(canonicalTag: string): TopicNode {
   return {
@@ -37,17 +42,22 @@ function around(tags: string[]): DrawnGroup {
 
 function panel(groups: DrawnGroup[], selectedTag: string | null = null) {
   return render(
-    <ReadingPanel
-      topics={[node("kafka"), node("flink")]}
-      links={[{ a: "flink", b: "kafka", weight: 1 }]}
-      groups={groups}
-      reading="neighbourhoods"
-      built={null}
-      onReadingChange={vi.fn()}
-      selectedTag={selectedTag}
-      onSelectTag={vi.fn()}
-      onSeeWhoKnows={vi.fn()}
-    />,
+    <QueryClientProvider client={new QueryClient()}>
+      <ReadingPanel
+        topics={[node("kafka"), node("flink")]}
+        links={[{ a: "flink", b: "kafka", weight: 1 }]}
+        groups={groups}
+        reading="neighbourhoods"
+        built={null}
+        onReadingChange={vi.fn()}
+        selectedTag={selectedTag}
+        onSelectTag={vi.fn()}
+        onSeeWhoKnows={vi.fn()}
+        matchedAreas={[]}
+        slug="acme"
+        onChooseMatchedArea={vi.fn()}
+      />
+    </QueryClientProvider>,
   );
 }
 

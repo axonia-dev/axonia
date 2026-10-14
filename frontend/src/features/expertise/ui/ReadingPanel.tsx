@@ -12,7 +12,9 @@ import {
   type ReadingId,
 } from "@/features/expertise/ui/expertise-readings";
 import type { DrawnGroup } from "@/features/expertise/ui/named-area-grouping";
+import { MatchedAreasLine } from "@/features/expertise/ui/MatchedAreasLine";
 import { NeighbourhoodSummary } from "@/features/expertise/ui/NeighbourhoodSummary";
+import { WhoKnowsSection } from "@/features/expertise/ui/WhoKnowsSection";
 import { plural, pluralWord } from "@/lib/plural";
 
 /** "neighbourhoods" is the base rendering, not a reading; the select holds both so there is one control, not two. */
@@ -41,8 +43,10 @@ interface Props {
   /** Null asks for the neighbourhood summary back, which is the one way out of an area's own page. */
   onSelectTag: (tag: string | null) => void;
   onSeeWhoKnows: (tag: string) => void;
-  /** The areas the settled search term names; not yet rendered. */
-  matchedAreas?: readonly string[];
+  /** The areas the settled search term names; one lists who knows it, several are offered as a choice. */
+  matchedAreas: readonly string[];
+  slug: string;
+  onChooseMatchedArea: (tag: string) => void;
 }
 
 export function ReadingPanel({
@@ -55,6 +59,9 @@ export function ReadingPanel({
   selectedTag,
   onSelectTag,
   onSeeWhoKnows,
+  matchedAreas,
+  slug,
+  onChooseMatchedArea,
 }: Readonly<Props>) {
   return (
     <aside
@@ -84,9 +91,21 @@ export function ReadingPanel({
           links={links}
           onSelectTag={onSelectTag}
           onSeeWhoKnows={onSeeWhoKnows}
+          slug={slug}
         />
       ) : (
         <ReadingRows built={built} />
+      )}
+      {matchedAreas.length === 1 && (
+        <WhoKnowsSection
+          key={matchedAreas[0]}
+          slug={slug}
+          tag={matchedAreas[0]!}
+          onOpenSearch={onSeeWhoKnows}
+        />
+      )}
+      {matchedAreas.length > 1 && (
+        <MatchedAreasLine tags={matchedAreas} onChoose={onChooseMatchedArea} />
       )}
     </aside>
   );
@@ -99,7 +118,9 @@ function NeighbourhoodPane({
   links,
   onSelectTag,
   onSeeWhoKnows,
+  slug,
 }: Readonly<{
+  slug: string;
   selectedTag: string | null;
   groups: DrawnGroup[];
   topics: TopicNode[];
@@ -125,6 +146,7 @@ function NeighbourhoodPane({
       groups={groups}
       onSelectTag={onSelectTag}
       onSeeWhoKnows={onSeeWhoKnows}
+      slug={slug}
     />
   );
 }
@@ -185,7 +207,9 @@ function TopicDetail({
   groups,
   onSelectTag,
   onSeeWhoKnows,
+  slug,
 }: Readonly<{
+  slug: string;
   tag: string;
   topics: TopicNode[];
   links: TopicLink[];
@@ -241,6 +265,7 @@ function TopicDetail({
           ))}
         </ul>
       </div>
+      <WhoKnowsSection slug={slug} tag={tag} />
       <button
         type="button"
         onClick={() => onSeeWhoKnows(tag)}

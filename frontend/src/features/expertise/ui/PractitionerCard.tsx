@@ -2,47 +2,17 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import { useState } from "react";
 
 import { MemberAvatar } from "@/components/patterns/MemberAvatar";
-import type {
-  Evidence,
-  Practitioner,
-} from "@/features/expertise/domain/expertise";
+import type { Practitioner } from "@/features/expertise/domain/expertise";
 import { EvidenceDetails } from "@/features/expertise/ui/EvidenceDetails";
+import {
+  countSummary,
+  declarationLine,
+} from "@/features/expertise/ui/practitioner-lines";
 import { TierBadge } from "@/features/expertise/ui/TierBadge";
-import { declaredOn } from "@/lib/declared-on";
 import { userHue } from "@/lib/user-hue";
 
 interface Props {
   practitioner: Practitioner;
-}
-
-function countSummary(evidence: Evidence): string {
-  const parts: string[] = [];
-  if (evidence.presentedCount > 0) {
-    parts.push(
-      `hosted ${evidence.presentedCount} ${evidence.presentedCount === 1 ? "session" : "sessions"}`,
-    );
-  }
-  if (evidence.contributedCount > 0) {
-    parts.push(
-      `${evidence.contributedCount} ${evidence.contributedCount === 1 ? "artifact" : "artifacts"}`,
-    );
-  }
-  if (evidence.offeredCount > 0) {
-    parts.push(
-      `offered ${evidence.offeredCount} ${evidence.offeredCount === 1 ? "topic" : "topics"}`,
-    );
-  }
-  return parts.join(" · ");
-}
-
-function declarationLine(practitioner: Practitioner): string | null {
-  if (!practitioner.openToQuestions || practitioner.declaredAt === null) {
-    return null;
-  }
-  const on = declaredOn(practitioner.declaredAt);
-  return practitioner.tier === "OPEN_TO_QUESTIONS"
-    ? `Declared ${on}, no activity yet`
-    : `Open to questions since ${on}`;
 }
 
 export function PractitionerCard({ practitioner }: Readonly<Props>) {
