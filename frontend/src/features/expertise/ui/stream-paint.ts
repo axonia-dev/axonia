@@ -22,7 +22,7 @@ export function bandColour(band: Stacked, lit: boolean): THREE.Color {
 }
 
 /** One vertex's paint, as an RGBA attribute holds it: the colour in the renderer's working space, and how solid. */
-export type Rgba = readonly [number, number, number, number];
+type Rgba = readonly [number, number, number, number];
 
 /** What a band, or its edge, is painted in when it is lit and when it is set back. */
 export interface BandShades {
