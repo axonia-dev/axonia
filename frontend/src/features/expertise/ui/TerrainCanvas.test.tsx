@@ -104,7 +104,10 @@ function propsFor(options: Options = {}): Props {
     topics: options.topics ?? [],
     people: options.people ?? new Map(),
     faced: options.faced ?? new Set(),
-    highlight: options.highlight ?? { tags: null, marks: null },
+    drawn: options.drawn ?? {
+      highlight: { tags: null, marks: null },
+      transition: "snap",
+    },
     // Nothing here is about the chosen mark; `TerrainCanvas.chosen.test.tsx` is.
     chosen: null,
   };

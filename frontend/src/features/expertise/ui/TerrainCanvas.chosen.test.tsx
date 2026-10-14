@@ -73,7 +73,7 @@ function propsFor(options: {
     topics: [],
     people: new Map(),
     faced: new Set(),
-    highlight: { tags: null, marks: null },
+    drawn: { highlight: { tags: null, marks: null }, transition: "snap" },
     chosen: options.chosen ?? null,
   };
 }

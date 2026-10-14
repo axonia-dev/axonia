@@ -58,8 +58,13 @@ const props: Props = {
   marks: [],
   size,
   camera: RESTING_CAMERA,
-  highlight: { tags: null, marks: null },
+  drawn: { highlight: { tags: null, marks: null }, transition: "snap" },
   chosen: null,
+};
+
+const onKafka: Props["drawn"] = {
+  highlight: { tags: new Set(["kafka"]), marks: null },
+  transition: "snap",
 };
 
 function mark(
@@ -198,7 +203,7 @@ describe("what StreamCanvas draws", () => {
         mark(1, 0, { tag: "kafka" }),
         mark(2, DAY, { slot: 1, tag: "rust" }),
       ],
-      highlight: { tags: new Set(["kafka"]), marks: null },
+      drawn: onKafka,
     });
     const [lit, dim] = ribbonsOf(frame());
 
@@ -215,7 +220,7 @@ describe("what StreamCanvas draws", () => {
 
     draw({
       marks: [mark(1, 0, { tag: "kafka" })],
-      highlight: { tags: new Set(["kafka"]), marks: null },
+      drawn: onKafka,
     });
 
     expect(

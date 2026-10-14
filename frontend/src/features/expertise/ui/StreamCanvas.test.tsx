@@ -60,7 +60,7 @@ const props: Props = {
   marks: [],
   size,
   camera: RESTING_CAMERA,
-  highlight: { tags: null, marks: null },
+  drawn: { highlight: { tags: null, marks: null }, transition: "snap" },
   chosen: null,
 };
 

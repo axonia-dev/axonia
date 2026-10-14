@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 
 import type { PlacedContribution } from "@/features/expertise/ui/contribution-placement";
+import { paintNow } from "@/features/expertise/ui/echo-blend";
 import type { Projection } from "@/features/expertise/ui/globe-projection";
 import { groundLayer, placeAt } from "@/features/expertise/ui/terrain-ground";
 import { buildHeightfield } from "@/features/expertise/ui/terrain-heightfield";
@@ -63,6 +64,17 @@ function indexOfHighest(surface: Surface): number {
     if (values[i]! > values[best]!) best = i;
   }
   return best;
+}
+
+/** The heightfield's colours once a highlight on these areas is painted over it. */
+function paintedGround(
+  surface: Surface,
+  marks: PlacedContribution[],
+  tags: ReadonlySet<string> | null,
+): Channels {
+  const layer = groundLayer(surface, topics, marks);
+  paintNow(layer.tint, { tags, marks: null });
+  return layer.meshes[0]!.geometry.getAttribute("color");
 }
 
 /** How high a mesh reaches, which on the globe is how near the pole it gets. */
@@ -192,15 +204,7 @@ describe("groundLayer", () => {
     const surface = surfaceOf("flat", marks);
     const peak = indexOfHighest(surface);
     const colourOf = (highlight: ReadonlySet<string> | null) =>
-      rgbAt(
-        groundLayer(
-          surface,
-          topics,
-          marks,
-          highlight,
-        ).meshes[0]!.geometry.getAttribute("color"),
-        peak,
-      );
+      rgbAt(paintedGround(surface, marks, highlight), peak);
 
     const lit = colourOf(new Set(["kafka"]));
     const dim = colourOf(new Set(["flink"]));
@@ -218,15 +222,7 @@ describe("groundLayer", () => {
     const marks = [mark(200, 150)];
     const surface = surfaceOf("flat", marks);
     const colourAt = (highlight: ReadonlySet<string> | null) =>
-      rgbAt(
-        groundLayer(
-          surface,
-          topics,
-          marks,
-          highlight,
-        ).meshes[0]!.geometry.getAttribute("color"),
-        0,
-      );
+      rgbAt(paintedGround(surface, marks, highlight), 0);
 
     expect(colourAt(new Set(["flink"]))).toStrictEqual(colourAt(null));
   });

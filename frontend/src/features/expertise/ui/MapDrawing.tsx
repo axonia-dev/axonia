@@ -3,7 +3,7 @@ import { lazy, Suspense } from "react";
 import type { MapPerson } from "@/features/expertise/domain/expertise";
 import type { PlacedContribution } from "@/features/expertise/ui/contribution-placement";
 import { ContributionOverlay } from "@/features/expertise/ui/ContributionOverlay";
-import type { MapHighlight } from "@/features/expertise/ui/map-highlight";
+import type { DrawnHighlight } from "@/features/expertise/ui/echo-transition";
 import { MapLabelLayer } from "@/features/expertise/ui/MapLabelLayer";
 import type { MapReading } from "@/features/expertise/ui/MapReadingToggle";
 import type { PlacedTopic } from "@/features/expertise/ui/topic-graph-layout";
@@ -44,7 +44,7 @@ export function MapDrawing({
   people,
   faced,
   labels,
-  highlight,
+  drawn,
   selectedId,
   onSelect,
 }: Readonly<{
@@ -55,7 +55,7 @@ export function MapDrawing({
   people: ReadonlyMap<string, MapPerson>;
   faced: ReadonlySet<number>;
   labels: ReadonlyMap<number, string>;
-  highlight: MapHighlight;
+  drawn: DrawnHighlight;
   selectedId: number | null;
   onSelect: (signalId: number) => void;
 }>) {
@@ -70,7 +70,7 @@ export function MapDrawing({
             topics={topics}
             people={people}
             faced={faced}
-            highlight={highlight}
+            drawn={drawn}
             chosen={selectedId}
           />
         ) : (
@@ -78,12 +78,12 @@ export function MapDrawing({
             marks={marks}
             size={scene.view.size}
             camera={scene.camera}
-            highlight={highlight}
+            drawn={drawn}
             chosen={selectedId}
           />
         )}
       </Suspense>
-      <MapLabelLayer labels={scene.labels} highlight={highlight.tags} />
+      <MapLabelLayer labels={scene.labels} highlight={drawn.highlight.tags} />
       <ContributionOverlay
         spotOf={scene.spotOf}
         size={scene.view.size}

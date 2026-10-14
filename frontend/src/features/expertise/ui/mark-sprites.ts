@@ -1,6 +1,7 @@
 import * as THREE from "three";
 
 import type { PlacedContribution } from "@/features/expertise/ui/contribution-placement";
+import type { Tinted } from "@/features/expertise/ui/echo-blend";
 import { groundPalette } from "@/features/expertise/ui/ground-palette";
 import {
   ATLAS_ORDER,
@@ -9,7 +10,13 @@ import {
 } from "@/features/expertise/ui/mark-atlas";
 import { chosenInk, markInk, setBack } from "@/features/expertise/ui/mark-ink";
 import { type Detail } from "@/features/expertise/ui/mark-lod";
-import type { Rgb } from "@/features/expertise/ui/terrain-shading";
+import {
+  layoutXy,
+  type Linear,
+  linearOf,
+  markTint,
+  type Shades,
+} from "@/features/expertise/ui/mark-tints";
 
 /** Re-exported so the renderer reads a mark's world geometry from one place: `MARK_LIFT` sits beside the camera's
  *  other world constants, which the overlay can read without pulling three.js into the entry chunk. */
@@ -34,6 +41,8 @@ export interface MarkLayer {
   /** The one mark a reader chose, or null while nothing is. A handle on the pair already standing in the two arrays
    *  above, so a renderer that knows only about those still draws it. */
   chosen: Pair | null;
+  /** The colours of every glyph and rim object but the chosen pair's, which is always drawn in the chosen ink. */
+  tints: Tinted[];
   /** How big a mark is drawn is a fact about the camera, so the zoom sets it here rather than rebuilding the layer.
    *  It is the layer's own job because the rim is drawn wider than the glyph and only the layer knows by how much. */
   resize: (markPx: number) => void;
@@ -80,8 +89,6 @@ export interface Look {
    * number a reader actually sees.
    */
   pixelRatio: number;
-  /** Which marks the panel beside the map is about. Absent means all of them, which is the map at rest. */
-  lit?: (mark: PlacedContribution) => boolean;
   /** The signal id of the mark the strip below the drawing is describing, if it is still on the map. */
   chosen?: number;
 }
@@ -102,13 +109,13 @@ const CHOSEN_SCALE = 1.35;
 
 function pointsOf(
   position: THREE.BufferAttribute,
-  colours: number[],
+  colours: Float32Array,
   map: THREE.Texture,
   size: number,
 ): THREE.Points<THREE.BufferGeometry, THREE.PointsMaterial> {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", position);
-  geometry.setAttribute("color", new THREE.Float32BufferAttribute(colours, 3));
+  geometry.setAttribute("color", new THREE.BufferAttribute(colours, 3));
   // Not attenuated: a mark keeps one apparent size however far away it stands, which is what lets zooming
   // separate two marks instead of magnifying both of them equally.
   const material = new THREE.PointsMaterial({
@@ -127,20 +134,26 @@ export function markPoints(
   place: Place,
   look: Look,
 ): MarkLayer {
-  const { atlas, detail, markPx, pixelRatio, lit } = look;
+  const { atlas, detail, markPx, pixelRatio } = look;
   const palette = groundPalette();
   const { ink, halo: rim } = markInk(palette);
   const points: MarkLayer["points"] = [];
   const halos: MarkLayer["points"] = [];
+  const tints: Tinted[] = [];
   const spent: { dispose: () => void }[] = [];
   // What each object's size is a multiple of, so a zoom resizes the chosen mark by the same factor as the rest
   // rather than flattening it back to theirs.
   const scales = new Map<Glyphs, number>();
-  const colour = new THREE.Color();
-
-  const push = (into: number[], { r, g, b }: Rgb) => {
-    colour.setRGB(r, g, b, THREE.SRGBColorSpace);
-    into.push(colour.r, colour.g, colour.b);
+  const shadesOf = (full: typeof ink): Shades => ({
+    full: linearOf(full),
+    back: linearOf(setBack(full, palette)),
+  });
+  const glyphShades = shadesOf(ink);
+  const rimShades = shadesOf(rim);
+  const colours = (count: number, shade: Linear) => {
+    const out = new Float32Array(count * 3);
+    for (let index = 0; index < count; index++) out.set(shade, index * 3);
+    return out;
   };
 
   function pairOf({
@@ -151,8 +164,8 @@ export function markPoints(
     scale,
   }: Readonly<{
     positions: number[];
-    inked: number[];
-    rimmed: number[];
+    inked: Float32Array;
+    rimmed: Float32Array;
     map: THREE.Texture;
     scale: number;
   }>): Pair {
@@ -188,23 +201,35 @@ export function markPoints(
 
   for (const [tile, group] of byTile(rest, detail)) {
     const positions: number[] = [];
-    const inked: number[] = [];
-    const rimmed: number[] = [];
     for (const mark of group) {
       const point = place(mark.x, mark.y);
       positions.push(point.x, point.y, point.z);
-      const dim = lit !== undefined && !lit(mark);
-      push(inked, dim ? setBack(ink, palette) : ink);
-      push(rimmed, dim ? setBack(rim, palette) : rim);
     }
 
     const pair = pairOf({
       positions,
-      inked,
-      rimmed,
+      inked: colours(group.length, glyphShades.full),
+      rimmed: colours(group.length, rimShades.full),
       map: tileTexture(atlas, tile),
       scale: 1,
     });
+    const xy = layoutXy(group);
+    const colourOf = (object: Glyphs) =>
+      object.geometry.getAttribute("color") as THREE.BufferAttribute;
+    tints.push(
+      markTint({
+        marks: group,
+        xy,
+        colour: colourOf(pair.glyph),
+        shades: glyphShades,
+      }),
+      markTint({
+        marks: group,
+        xy,
+        colour: colourOf(pair.rim),
+        shades: rimShades,
+      }),
+    );
     // All four sit at the same depth, so the order they are drawn in is stated rather than left to the sort.
     pair.rim.renderOrder = 0;
     pair.glyph.renderOrder = 1;
@@ -213,14 +238,11 @@ export function markPoints(
   let chosen: Pair | null = null;
   if (chosenMark !== null) {
     const spot = place(chosenMark.x, chosenMark.y);
-    const inked: number[] = [];
-    const rimmed: number[] = [];
-    push(inked, chosenInk(palette).ink);
-    push(rimmed, chosenInk(palette).halo);
+    const { ink: chosenGlyph, halo: chosenRim } = chosenInk(palette);
     chosen = pairOf({
       positions: [spot.x, spot.y, spot.z],
-      inked,
-      rimmed,
+      inked: colours(1, linearOf(chosenGlyph)),
+      rimmed: colours(1, linearOf(chosenRim)),
       map: tileTexture(atlas, tileFor(chosenMark.sourceType, detail)),
       scale: CHOSEN_SCALE,
     });
@@ -232,6 +254,7 @@ export function markPoints(
     points,
     halos,
     chosen,
+    tints,
     resize: (px) => {
       for (const [object, scale] of scales) {
         object.material.size = px * scale * pixelRatio;

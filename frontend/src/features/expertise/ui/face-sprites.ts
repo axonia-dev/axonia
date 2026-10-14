@@ -2,6 +2,12 @@ import * as THREE from "three";
 
 import type { MapPerson } from "@/features/expertise/domain/expertise";
 import type { PlacedContribution } from "@/features/expertise/ui/contribution-placement";
+import type { Tinted } from "@/features/expertise/ui/echo-blend";
+import {
+  type MapHighlight,
+  markLit,
+} from "@/features/expertise/ui/map-highlight";
+import { layoutXy } from "@/features/expertise/ui/mark-tints";
 import type { Place } from "@/features/expertise/ui/mark-sprites";
 
 /** Muted on purpose: a face that out-shouts the terrain turns the map into a gallery of people. */
@@ -72,6 +78,8 @@ export const FACE_SET_BACK_OPACITY = 0.35;
 
 export interface FaceLayer {
   sprites: THREE.Sprite[];
+  /** One opacity per sprite: a face on a mark the map is not about is set back with it. */
+  tint: Tinted;
   dispose: () => void;
 }
 
@@ -80,8 +88,6 @@ interface FaceRequest {
   faced: ReadonlySet<number>;
   people: ReadonlyMap<string, MapPerson>;
   place: Place;
-  /** Whether the map is about this mark; a face on a mark it is not about is set back. Absent, every face is lit. */
-  lit?: (mark: PlacedContribution) => boolean;
   /** Called when a photo lands after the layer was drawn, since nothing else would draw it again. */
   repaint: () => void;
 }
@@ -112,10 +118,32 @@ function faceTexture(
   return texture;
 }
 
+function faceTint(
+  sprites: readonly THREE.Sprite[],
+  marks: readonly PlacedContribution[],
+): Tinted {
+  const values = new Float32Array(sprites.length).fill(1);
+  return {
+    xy: layoutXy(marks),
+    stride: 1,
+    values,
+    targetFor: (highlight: MapHighlight) =>
+      Float32Array.from(marks, (mark) =>
+        markLit(highlight, mark) ? 1 : FACE_SET_BACK_OPACITY,
+      ),
+    commit: () => {
+      sprites.forEach((sprite, index) => {
+        sprite.material.opacity = values[index]!;
+      });
+    },
+  };
+}
+
 /** A face belongs to a contribution, not to a person, so it is placed at the mark and never anywhere else. */
 export function faceSprites(request: Readonly<FaceRequest>): FaceLayer {
-  const { marks, faced, people, place, lit, repaint } = request;
+  const { marks, faced, people, place, repaint } = request;
   const sprites: THREE.Sprite[] = [];
+  const standing: PlacedContribution[] = [];
   const spent: { dispose: () => void }[] = [];
   let alive = true;
 
@@ -133,17 +161,18 @@ export function faceSprites(request: Readonly<FaceRequest>): FaceLayer {
       map: texture,
       sizeAttenuation: false,
       transparent: true,
-      opacity: lit === undefined || lit(mark) ? 1 : FACE_SET_BACK_OPACITY,
     });
     const sprite = new THREE.Sprite(material);
     sprite.position.copy(place(mark.x, mark.y));
 
     sprites.push(sprite);
+    standing.push(mark);
     spent.push(texture, material);
   }
 
   return {
     sprites,
+    tint: faceTint(sprites, standing),
     dispose: () => {
       alive = false;
       for (const item of spent) item.dispose();

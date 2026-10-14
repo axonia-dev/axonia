@@ -6,11 +6,9 @@ import {
   type DrawOnDemand,
   drawOnDemand,
 } from "@/features/expertise/ui/draw-on-demand";
-import {
-  isLit,
-  type MapHighlight,
-  markLit,
-} from "@/features/expertise/ui/map-highlight";
+import { paintNow } from "@/features/expertise/ui/echo-blend";
+import type { DrawnHighlight } from "@/features/expertise/ui/echo-transition";
+import { isLit } from "@/features/expertise/ui/map-highlight";
 import { buildAtlas } from "@/features/expertise/ui/mark-atlas";
 import { detailFor } from "@/features/expertise/ui/mark-lod";
 import { markPoints } from "@/features/expertise/ui/mark-sprites";
@@ -44,8 +42,8 @@ interface Props {
   marks: PlacedContribution[];
   size: GraphSize;
   camera: StreamCamera;
-  /** What the drawing is about: the panel's areas, and the marks a term picked out of them. */
-  highlight: MapHighlight;
+  /** What the drawing is about - the panel's areas, and the marks a term picked out of them - and how it gets there. */
+  drawn: DrawnHighlight;
   /** The mark the strip below the drawing is describing, or null while nothing is chosen. */
   chosen: number | null;
 }
@@ -151,7 +149,7 @@ export function StreamCanvas({
   marks,
   size,
   camera,
-  highlight,
+  drawn,
   chosen,
 }: Readonly<Props>) {
   const hostRef = useRef<HTMLDivElement>(null);
@@ -207,6 +205,7 @@ export function StreamCanvas({
     if (scene === null) return undefined;
 
     const stacked = stack(layout, size);
+    const { highlight } = drawn;
     const bands = ribbons(stacked, size, highlight.tags);
     const atlas = new THREE.CanvasTexture(buildAtlas());
     const glyphs = markPoints(
@@ -217,10 +216,11 @@ export function StreamCanvas({
         detail: detailFor(markPx),
         markPx,
         pixelRatio: rendererPixelRatio(),
-        lit: (mark) => markLit(highlight, mark),
         ...(chosen === null ? {} : { chosen }),
       },
     );
+
+    for (const tint of glyphs.tints) paintNow(tint, highlight);
 
     const objects = [...bands.objects, ...glyphs.halos, ...glyphs.points];
     for (const object of objects) scene.add(object);
@@ -232,7 +232,7 @@ export function StreamCanvas({
       glyphs.dispose();
       atlas.dispose();
     };
-  }, [layout, marks, size, markPx, highlight, chosen, supported, painted]);
+  }, [layout, marks, size, markPx, drawn, chosen, supported, painted]);
 
   // The frame the camera holds, moved in place: zooming and panning must not rebuild a history.
   useEffect(() => {

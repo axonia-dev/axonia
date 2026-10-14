@@ -15,6 +15,7 @@ import {
 } from "@/features/expertise/ui/contribution-picking";
 import { placeContributions } from "@/features/expertise/ui/contribution-placement";
 import { ContributionStrip } from "@/features/expertise/ui/ContributionStrip";
+import type { DrawnHighlight } from "@/features/expertise/ui/echo-transition";
 import { facedSignalIds } from "@/features/expertise/ui/face-gate";
 import type { Projection } from "@/features/expertise/ui/globe-projection";
 import { withSearch } from "@/features/expertise/ui/map-highlight";
@@ -121,6 +122,10 @@ export function MapReadings({
   );
   // Memoised because the two canvases rebuild what they draw when it moves, and a drag renders this per pointer event.
   const lit = useMemo(() => withSearch(highlight, found), [highlight, found]);
+  const drawn = useMemo<DrawnHighlight>(
+    () => ({ highlight: lit, transition: "snap" }),
+    [lit],
+  );
   const labels = useMemo(() => labelsFor(items, people), [items, people]);
   const scene = useTerrainScene({
     marks,
@@ -229,7 +234,7 @@ export function MapReadings({
               people={people}
               faced={faced}
               labels={labels}
-              highlight={lit}
+              drawn={drawn}
               selectedId={selectedId}
               onSelect={setSelectedId}
             />

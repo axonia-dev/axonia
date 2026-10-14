@@ -52,7 +52,7 @@ const props: Props = {
   marks,
   size: { width: 800, height: 500 },
   camera: RESTING_CAMERA,
-  highlight: { tags: null, marks: null },
+  drawn: { highlight: { tags: null, marks: null }, transition: "snap" },
   chosen: null,
 };
 

@@ -3,16 +3,10 @@ import * as THREE from "three";
 
 import type { MapPerson } from "@/features/expertise/domain/expertise";
 import type { PlacedContribution } from "@/features/expertise/ui/contribution-placement";
-import {
-  type DrawOnDemand,
-  drawOnDemand,
-} from "@/features/expertise/ui/draw-on-demand";
+import { paintNow, type Tinted } from "@/features/expertise/ui/echo-blend";
+import type { DrawnHighlight } from "@/features/expertise/ui/echo-transition";
 import { faceSprites } from "@/features/expertise/ui/face-sprites";
 import { groundPalette } from "@/features/expertise/ui/ground-palette";
-import {
-  type MapHighlight,
-  markLit,
-} from "@/features/expertise/ui/map-highlight";
 import { buildAtlas } from "@/features/expertise/ui/mark-atlas";
 import { detailFor } from "@/features/expertise/ui/mark-lod";
 import {
@@ -22,11 +16,8 @@ import {
 import { haloLoops } from "@/features/expertise/ui/offer-halo";
 import {
   cameraEye,
-  FAR,
-  FOV,
   fovOf,
   MARK_LIFT,
-  NEAR,
   targetOf,
   type TerrainView,
 } from "@/features/expertise/ui/terrain-camera";
@@ -40,6 +31,7 @@ import {
   markPxAt,
   spriteScaleFor,
 } from "@/features/expertise/ui/terrain-mark-size";
+import { type Gpu, openGpu } from "@/features/expertise/ui/terrain-gpu";
 import { groundColourAt } from "@/features/expertise/ui/terrain-shading";
 import { standOnGround } from "@/features/expertise/ui/terrain-stencil";
 import type { Surface } from "@/features/expertise/ui/terrain-surface";
@@ -60,19 +52,28 @@ interface Props {
   topics: PlacedTopic[];
   people: ReadonlyMap<string, MapPerson>;
   faced: ReadonlySet<number>;
-  /** What the drawing is about: the panel's areas, and the marks a term picked out of them. */
-  highlight: MapHighlight;
+  /** What the drawing is about - the panel's areas, and the marks a term picked out of them - and how it gets there. */
+  drawn: DrawnHighlight;
   /** The mark the strip below the drawing is describing, or null while nothing is chosen. */
   chosen: number | null;
 }
 
-/** What the scene is drawn with, which outlives every rebuild of what is drawn in it. */
-interface Gpu {
-  renderer: THREE.WebGLRenderer;
-  scene: THREE.Scene;
-  camera: THREE.PerspectiveCamera;
-  /** Asks for the next frame: whatever changes the picture says so, and nothing is drawn otherwise. */
-  request: DrawOnDemand["request"];
+/**
+ * Takes a freshly built layer's colours into the live set, painted in the highlight that stands now, and gives back
+ * what lets them go again when the layer is torn down.
+ */
+function holdLive(
+  live: Set<Tinted>,
+  built: readonly Tinted[],
+  drawn: DrawnHighlight,
+): () => void {
+  for (const tint of built) {
+    live.add(tint);
+    paintNow(tint, drawn.highlight);
+  }
+  return () => {
+    for (const tint of built) live.delete(tint);
+  };
 }
 
 export function TerrainCanvas({
@@ -82,7 +83,7 @@ export function TerrainCanvas({
   topics,
   people,
   faced,
-  highlight,
+  drawn,
   chosen,
 }: Readonly<Props>) {
   const hostRef = useRef<HTMLDivElement>(null);
@@ -92,6 +93,10 @@ export function TerrainCanvas({
   // at three.js's default of one, which unattenuated draws a face as big as the globe, and the camera has not moved.
   const faceScaleRef = useRef(1);
   const resizeGlyphsRef = useRef<MarkLayer["resize"]>(() => {});
+  // The highlight as it stands, read by a layer built after it moved, so a rebuilt layer starts in today's colours.
+  const drawnRef = useRef(drawn);
+  // Every colour the layers on screen hold, so a highlight repaints them in place rather than rebuilding them.
+  const tintsRef = useRef(new Set<Tinted>());
   const supported = hasWebGl2();
   const painted = useThemePaint();
   const { size } = view;
@@ -100,59 +105,16 @@ export function TerrainCanvas({
   // click of the wheel: keying the layer on the size would rebuild it a dozen times on the way in for nothing.
   const detail = detailFor(markPx);
 
-  /**
-   * The renderer, and nothing that depends on where the camera stands or on what the contributions are.
-   *
-   * A WebGL context is a scarce resource - a browser keeps about sixteen of them alive and starts losing the oldest
-   * past that - so one is taken per box, not per rebuild, and it is handed straight back on the way out. Built on a
-   * zoom, which is a dozen wheel clicks from one end of the range to the other, a renderer per rebuild spends the
-   * whole budget in seconds and the context lost is the one on screen.
-   */
+  // The renderer, taken once per box: see `openGpu` for why a context is never taken per rebuild.
   useEffect(() => {
     const host = hostRef.current;
     if (host === null || !supported) return undefined;
 
-    const renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      alpha: true,
-      stencil: true,
-    });
-    renderer.setPixelRatio(rendererPixelRatio());
-    renderer.setSize(size.width, size.height);
-    host.append(renderer.domElement);
-
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(
-      FOV,
-      size.width / size.height,
-      NEAR,
-      FAR,
-    );
-
-    // Intensities are in the renderer's own units, which are physical: since three r155 a light is no longer a
-    // plain multiplier on the albedo, and it is short by a factor of PI. Read as multipliers, 0.86 and 0.4 drew
-    // the globe at under half the colour the ramp asked for - a grey smudge where the flat reading, which is
-    // unlit, was a map. Stated this way the two sum to the full colour at the brightest face, and the globe keeps
-    // the gradient that tells a sphere from a disc.
-    const FULL = Math.PI;
-    scene.add(new THREE.AmbientLight(0xffffff, 0.88 * FULL));
-    const key = new THREE.DirectionalLight(0xffffff, 0.12 * FULL);
-    key.position.set(-0.4, 0.86, 0.32);
-    scene.add(key);
-
-    const drawing = drawOnDemand(renderer, host, () =>
-      renderer.render(scene, camera),
-    );
-    gpuRef.current = { renderer, scene, camera, request: drawing.request };
-
+    const { gpu, close } = openGpu(host, size);
+    gpuRef.current = gpu;
     return () => {
-      drawing.stop();
       gpuRef.current = null;
-      // `dispose` frees what three.js allocated and leaves the context itself to the collector, which may be a
-      // second or a minute away. Losing it on purpose gives it back now, which is the point of taking only one.
-      renderer.forceContextLoss();
-      renderer.dispose();
-      renderer.domElement.remove();
+      close();
     };
   }, [size, supported]);
 
@@ -175,25 +137,29 @@ export function TerrainCanvas({
     gpu.request();
   }, [surface.projection, size, supported, painted]);
 
+  // Before the layer effects, so a layer rebuilt in the same commit as a highlight moved starts in the new one.
+  useEffect(() => {
+    drawnRef.current = drawn;
+  }, [drawn]);
+
   /**
    * The ground and what stands on it other than the contributions themselves.
    *
    * Where the camera stands is deliberately absent: a drag moves it every pointer event and a zoom every wheel
    * click, and rebuilding a heightfield of tens of thousands of shaded vertices at that rate is not a drag, it is a
    * slideshow. So is the mark a reader chose, which is why the glyphs are built by an effect of their own below:
-   * choosing one must not cost a heightfield.
+   * choosing one must not cost a heightfield. Nor is the highlight: it only repaints what is already built.
    */
   useEffect(() => {
     const gpu = gpuRef.current;
     if (gpu === null) return undefined;
 
-    const ground = groundLayer(surface, topics, marks, highlight.tags);
+    const ground = groundLayer(surface, topics, marks);
     const faces = faceSprites({
       marks,
       faced,
       people,
       place: placeAt(surface, FACE_LIFT),
-      lit: (mark) => markLit(highlight, mark),
       repaint: gpu.request,
     });
     const scale = faceScaleRef.current;
@@ -204,16 +170,22 @@ export function TerrainCanvas({
     const objects = [...ground.meshes, ...faces.sprites, ...halos.loops];
     for (const object of objects) gpu.scene.add(object);
     facesRef.current = faces.sprites;
+    const release = holdLive(
+      tintsRef.current,
+      [ground.tint, faces.tint],
+      drawnRef.current,
+    );
     gpu.request();
 
     return () => {
       for (const object of objects) object.removeFromParent();
       facesRef.current = [];
+      release();
       ground.dispose();
       faces.dispose();
       halos.dispose();
     };
-  }, [surface, marks, topics, people, faced, highlight, supported, painted]);
+  }, [surface, marks, topics, people, faced, supported, painted]);
 
   /** The contributions themselves, and the one of them the strip below is describing. */
   useEffect(() => {
@@ -226,7 +198,6 @@ export function TerrainCanvas({
       detail,
       markPx,
       pixelRatio: rendererPixelRatio(),
-      lit: (mark) => markLit(highlight, mark),
       ...(chosen === null ? {} : { chosen }),
     });
 
@@ -234,18 +205,29 @@ export function TerrainCanvas({
     standOnGround(objects);
     for (const object of objects) gpu.scene.add(object);
     resizeGlyphsRef.current = glyphs.resize;
+    const release = holdLive(tintsRef.current, glyphs.tints, drawnRef.current);
     gpu.request();
 
     return () => {
       for (const object of objects) object.removeFromParent();
       resizeGlyphsRef.current = () => {};
+      release();
       glyphs.dispose();
       atlas.dispose();
     };
     // `markPx` is read above and deliberately absent: it is the size the layer starts at, and the effect below
     // keeps it current without rebuilding anything.
     // oxlint-disable-next-line react/exhaustive-deps
-  }, [surface, marks, detail, highlight, chosen, supported, painted]);
+  }, [surface, marks, detail, chosen, supported, painted]);
+
+  // A highlight moved: what is on screen is repainted in place, and drawn in the next frame.
+  useEffect(() => {
+    const gpu = gpuRef.current;
+    if (gpu === null) return;
+
+    for (const tint of tintsRef.current) paintNow(tint, drawn.highlight);
+    gpu.request();
+  }, [drawn]);
 
   // Where the camera stands and how wide its lens is, moved in place rather than rebuilt, and drawn in the next frame.
   // This runs after the two effects above on mount, and before any frame they asked for, so nothing is ever drawn

@@ -59,7 +59,7 @@ const props: Props = {
   topics: [],
   people: new Map(),
   faced: new Set(),
-  highlight: { tags: null, marks: null },
+  drawn: { highlight: { tags: null, marks: null }, transition: "snap" },
   chosen: null,
 };
 
@@ -119,7 +119,10 @@ describe("TerrainCanvas draws on demand", () => {
       <TerrainCanvas
         {...props}
         chosen={1}
-        highlight={{ tags: new Set(["kafka"]), marks: null }}
+        drawn={{
+          highlight: { tags: new Set(["kafka"]), marks: null },
+          transition: "snap",
+        }}
       />,
     );
     frames();

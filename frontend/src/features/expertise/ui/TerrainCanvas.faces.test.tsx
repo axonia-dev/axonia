@@ -82,7 +82,10 @@ describe("TerrainCanvas faces", () => {
           ])
         }
         faced={new Set([1, 2])}
-        highlight={{ tags: new Set(["kafka"]), marks: new Set([1]) }}
+        drawn={{
+          highlight: { tags: new Set(["kafka"]), marks: new Set([1]) },
+          transition: "snap",
+        }}
         chosen={null}
       />,
     );
@@ -94,6 +97,8 @@ describe("TerrainCanvas faces", () => {
     sprites.sort((a, b) => a.position.x - b.position.x);
     const opacities = sprites.map((s) => s.material.opacity);
 
-    expect(opacities).toEqual([1, FACE_SET_BACK_OPACITY]);
+    // A tint holds float32, which is what the GPU reads the uniform as anyway.
+    expect(opacities[0]).toBe(1);
+    expect(opacities[1]).toBeCloseTo(FACE_SET_BACK_OPACITY, 6);
   });
 });

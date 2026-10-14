@@ -7,13 +7,19 @@ import {
 } from "@/features/expertise/ui/globe-projection";
 import { groundPalette } from "@/features/expertise/ui/ground-palette";
 import { accentHexOf } from "@/features/expertise/ui/group-accents";
-import { isLit } from "@/features/expertise/ui/map-highlight";
+import type { Tinted } from "@/features/expertise/ui/echo-blend";
+import {
+  isLit,
+  type MapHighlight,
+  WHOLE_MAP,
+} from "@/features/expertise/ui/map-highlight";
 import type { Place } from "@/features/expertise/ui/mark-sprites";
 import {
   groundColourAt,
   type GroundPalette,
   nearestRegion,
   type RegionSeed,
+  type Rgb,
   regionSeeds,
 } from "@/features/expertise/ui/terrain-shading";
 import { stampGround } from "@/features/expertise/ui/terrain-stencil";
@@ -81,9 +87,13 @@ const scratch = new THREE.Color();
  * The shading module answers in sRGB, which is the space the accent tokens and the mark atlas are written in, so the
  * conversion into the renderer's working space is named here rather than left to three.js's default.
  */
-function pushColour(into: number[], r: number, g: number, b: number): void {
+export function pushColour(
+  into: Float32Array,
+  vertex: number,
+  { r, g, b }: Rgb,
+): void {
   scratch.setRGB(r, g, b, THREE.SRGBColorSpace);
-  into.push(scratch.r, scratch.g, scratch.b);
+  into.set([scratch.r, scratch.g, scratch.b], vertex * 3);
 }
 
 /** Resolved once per neighbourhood, not once per vertex: `accentHexOf` reads the live cascade, and a heightfield
@@ -97,44 +107,94 @@ function accentsFor(seeds: RegionSeed[]): Map<number, string> {
   );
 }
 
+/** What a vertex is painted from, apart from the highlight: worked out once per layer, read on every repaint. */
+interface GroundVertex {
+  height: number;
+  accent: string | null;
+  nearness: number;
+  /** The area that claims the vertex, or null where none does. */
+  tag: string | null;
+}
+
+function groundVertices(surface: Surface, seeds: RegionSeed[]): GroundVertex[] {
+  const { field } = surface;
+  const accents = accentsFor(seeds);
+  const vertices: GroundVertex[] = [];
+  for (let row = 0; row < field.rows; row++) {
+    for (let col = 0; col < field.cols; col++) {
+      const region = nearestRegion(seeds, col * field.cell, row * field.cell);
+      vertices.push({
+        height: field.values[row * field.cols + col]!,
+        accent: region === null ? null : (accents.get(region.slot) ?? null),
+        nearness: region?.nearness ?? 0,
+        tag: region?.tag ?? null,
+      });
+    }
+  }
+  return vertices;
+}
+
 /**
  * Open water and land no area claims are never dimmed. They carry no neighbourhood's colour to turn down, so the only
  * thing dimming them would do is darken the map around a reading rather than pick anything out of it.
  */
 function vertexColours(
-  surface: Surface,
-  seeds: RegionSeed[],
-  highlight: ReadonlySet<string> | null,
+  vertices: GroundVertex[],
+  highlight: MapHighlight,
   palette: GroundPalette,
-): number[] {
-  const { field } = surface;
-  const accents = accentsFor(seeds);
-  const colours: number[] = [];
+): Float32Array {
+  const colours = new Float32Array(vertices.length * 3);
+  vertices.forEach(({ height, accent, nearness, tag }, vertex) => {
+    const dim = tag !== null && !isLit(highlight.tags, [tag]);
+    pushColour(
+      colours,
+      vertex,
+      groundColourAt({ height, accent, nearness, dim }, palette),
+    );
+  });
+  return colours;
+}
 
+function gridXy({ field }: Surface): Float32Array {
+  const xy = new Float32Array(field.cols * field.rows * 2);
   for (let row = 0; row < field.rows; row++) {
     for (let col = 0; col < field.cols; col++) {
-      const height = field.values[row * field.cols + col]!;
-      const region = nearestRegion(seeds, col * field.cell, row * field.cell);
-      const { r, g, b } = groundColourAt(
-        {
-          height,
-          accent: region === null ? null : (accents.get(region.slot) ?? null),
-          nearness: region?.nearness ?? 0,
-          dim: region !== null && !isLit(highlight, [region.tag]),
-        },
-        palette,
+      xy.set(
+        [col * field.cell, row * field.cell],
+        (row * field.cols + col) * 2,
       );
-      pushColour(colours, r, g, b);
     }
   }
-  return colours;
+  return xy;
+}
+
+/** The ground's colours as a thing a highlight repaints in place: the heightfield itself is never rebuilt for one. */
+function groundTint(
+  surface: Surface,
+  seeds: RegionSeed[],
+  palette: GroundPalette,
+): { tint: Tinted; colour: THREE.BufferAttribute } {
+  const vertices = groundVertices(surface, seeds);
+  const targetFor = (highlight: MapHighlight) =>
+    vertexColours(vertices, highlight, palette);
+  const colour = new THREE.BufferAttribute(targetFor(WHOLE_MAP), 3);
+  return {
+    colour,
+    tint: {
+      xy: gridXy(surface),
+      stride: 3,
+      values: colour.array as Float32Array,
+      targetFor,
+      commit: () => {
+        colour.needsUpdate = true;
+      },
+    },
+  };
 }
 
 function heightfieldMesh(
   surface: Surface,
-  seeds: RegionSeed[],
-  highlight: ReadonlySet<string> | null,
-  palette: GroundPalette,
+  colour: THREE.BufferAttribute,
 ): THREE.Mesh {
   const { field } = surface;
   const positions: number[] = [];
@@ -170,13 +230,7 @@ function heightfieldMesh(
     "position",
     new THREE.Float32BufferAttribute(positions, 3),
   );
-  geometry.setAttribute(
-    "color",
-    new THREE.Float32BufferAttribute(
-      vertexColours(surface, seeds, highlight, palette),
-      3,
-    ),
-  );
+  geometry.setAttribute("color", colour);
   geometry.setIndex(indices);
   geometry.computeVertexNormals();
   return new THREE.Mesh(geometry, groundMaterial(surface.projection));
@@ -195,20 +249,19 @@ function polarCap(surface: Surface, palette: GroundPalette): THREE.Mesh {
     CAP_SEGMENTS.down,
   );
   const deep = groundColourAt(DEEPEST, palette);
-  const colours: number[] = [];
-  for (
-    let vertex = 0;
-    vertex < geometry.getAttribute("position").count;
-    vertex++
-  ) {
-    pushColour(colours, deep.r, deep.g, deep.b);
+  const count = geometry.getAttribute("position").count;
+  const colours = new Float32Array(count * 3);
+  for (let vertex = 0; vertex < count; vertex++) {
+    pushColour(colours, vertex, deep);
   }
-  geometry.setAttribute("color", new THREE.Float32BufferAttribute(colours, 3));
+  geometry.setAttribute("color", new THREE.BufferAttribute(colours, 3));
   return new THREE.Mesh(geometry, groundMaterial("globe"));
 }
 
 export interface GroundLayer {
   meshes: THREE.Mesh[];
+  /** The heightfield's colours. The polar cap is open water, which no highlight ever dims, so it has none. */
+  tint: Tinted;
   dispose: () => void;
 }
 
@@ -217,11 +270,14 @@ export function groundLayer(
   surface: Surface,
   topics: PlacedTopic[],
   marks: PlacedContribution[],
-  highlight: ReadonlySet<string> | null = null,
 ): GroundLayer {
-  const seeds = regionSeeds(topics, marks);
   const palette = groundPalette();
-  const ground = heightfieldMesh(surface, seeds, highlight, palette);
+  const { tint, colour } = groundTint(
+    surface,
+    regionSeeds(topics, marks),
+    palette,
+  );
+  const ground = heightfieldMesh(surface, colour);
   const meshes =
     surface.projection === "globe"
       ? [polarCap(surface, palette), ground]
@@ -230,6 +286,7 @@ export function groundLayer(
 
   return {
     meshes,
+    tint,
     dispose: () => {
       for (const mesh of meshes) {
         mesh.geometry.dispose();

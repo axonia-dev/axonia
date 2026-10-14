@@ -2,7 +2,12 @@ import * as THREE from "three";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { PlacedContribution } from "@/features/expertise/ui/contribution-placement";
+import { paintNow } from "@/features/expertise/ui/echo-blend";
 import { groundPalette } from "@/features/expertise/ui/ground-palette";
+import {
+  type MapHighlight,
+  WHOLE_MAP,
+} from "@/features/expertise/ui/map-highlight";
 import {
   ATLAS_ORDER,
   ATLAS_TILE,
@@ -151,6 +156,7 @@ describe("markPoints", () => {
   ];
 
   const place: Place = (x, y) => new THREE.Vector3(x, 0, y);
+  const NO_MARK: MapHighlight = { tags: null, marks: new Set() };
 
   function layerAt(zoom: number, pixelRatio = 1) {
     const atlas = new THREE.CanvasTexture(document.createElement("canvas"));
@@ -171,15 +177,15 @@ describe("markPoints", () => {
 
   /** A `PointsMaterial` has one opacity for the whole layer, so a mark a reading is not about gives up its colour
    *  rather than its presence. */
-  function colourOf(lit?: (mark: PlacedContribution) => boolean) {
+  function colourOf(highlight?: MapHighlight) {
     const atlas = new THREE.CanvasTexture(document.createElement("canvas"));
     const layer = markPoints(marks, place, {
       atlas,
       detail: "icon",
       markPx: 10,
       pixelRatio: 1,
-      ...(lit === undefined ? {} : { lit }),
     });
+    if (highlight !== undefined) paintNow(layer.tints[0]!, highlight);
     const colour = layer.points[0]!.geometry.getAttribute("color");
     return [colour.getX(0), colour.getY(0), colour.getZ(0)];
   }
@@ -198,7 +204,7 @@ describe("markPoints", () => {
   }
 
   it("draws every mark the same when the panel is about the whole map", () => {
-    expect(colourOf()).toStrictEqual(colourOf(() => true));
+    expect(colourOf()).toStrictEqual(colourOf(WHOLE_MAP));
   });
 
   /**
@@ -231,11 +237,8 @@ describe("markPoints", () => {
   it("sets back a mark the reading is not about, without erasing it", () => {
     const palette = groundPalette();
 
-    expectColour(
-      colourOf(() => false),
-      setBack(markInk(palette).ink, palette),
-    );
-    expect(colourOf(() => false)).not.toStrictEqual(colourOf(() => true));
+    expectColour(colourOf(NO_MARK), setBack(markInk(palette).ink, palette));
+    expect(colourOf(NO_MARK)).not.toStrictEqual(colourOf(WHOLE_MAP));
   });
 
   /**

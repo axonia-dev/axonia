@@ -15,6 +15,9 @@ export interface MapHighlight {
   marks: ReadonlySet<number> | null;
 }
 
+/** The map at rest, about everything on it: what a layer is built in before any highlight is painted over it. */
+export const WHOLE_MAP: MapHighlight = { tags: null, marks: null };
+
 /**
  * The areas the panel beside the map is pointing at, or null when it is pointing at the whole map.
  *
