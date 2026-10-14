@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 
 import { SLUG, stubbedMap, unstubbed } from "./expertise-map-data";
@@ -8,17 +8,35 @@ const URL = `/communities/${SLUG}/expertise?view=map`;
 // Frames of a live canvas never match exactly; below this many differing pixels two pictures are the same one.
 const SAME = 40;
 const ECHO_WINDOW_MS = 3500;
-const SETTLED_MS = 8000;
+const SETTLE_TIMEOUT_MS = 15_000;
 
 // Tall enough that the whole canvas fits the viewport, so a screenshot of it never scrolls the page mid-echo.
 const VIEWPORT = { width: 1280, height: 1000 };
 test.use({ viewport: VIEWPORT });
 
+async function still(page: Page, canvas: Locator): Promise<Buffer> {
+  let last = await canvas.screenshot();
+  let stable = 0;
+  await expect
+    .poll(
+      async () => {
+        const next = await canvas.screenshot();
+        stable =
+          (await differingPixels(next, last, page)) < SAME ? stable + 1 : 0;
+        last = next;
+        return stable;
+      },
+      { timeout: SETTLE_TIMEOUT_MS },
+    )
+    .toBeGreaterThanOrEqual(2);
+  return last;
+}
+
 async function open(page: Page) {
   await page.goto(URL);
   const canvas = page.locator("canvas").first();
   await expect(canvas).toBeVisible();
-  await page.waitForTimeout(1500);
+  await still(page, canvas);
   return canvas;
 }
 
@@ -32,6 +50,17 @@ test("a term echoes across the map and settles on the reduced-motion picture", a
   page,
   browser,
 }) => {
+  const calm = await browser.newPage({
+    reducedMotion: "reduce",
+    viewport: VIEWPORT,
+  });
+  await stubbedMap({ page: calm });
+  const calmCanvas = await open(calm);
+  await type(calm, "kafka");
+  await expect(calm.getByText("Who knows kafka")).toBeVisible();
+  const reduced = await still(calm, calmCanvas);
+  await calm.close();
+
   const canvas = await open(page);
   const before = await canvas.screenshot();
 
@@ -43,28 +72,22 @@ test("a term echoes across the map and settles on the reduced-motion picture", a
   while (Date.now() - started < ECHO_WINDOW_MS) {
     during.push(await canvas.screenshot());
   }
-  await page.waitForTimeout(Math.max(0, SETTLED_MS - (Date.now() - started)));
-  const settled = await canvas.screenshot();
+  await expect
+    .poll(
+      async () => differingPixels(await canvas.screenshot(), reduced, page),
+      {
+        timeout: SETTLE_TIMEOUT_MS,
+      },
+    )
+    .toBeLessThan(SAME);
 
   const apart = async (shot: Buffer) =>
     Math.min(
       await differingPixels(shot, before, page),
-      await differingPixels(shot, settled, page),
+      await differingPixels(shot, reduced, page),
     );
   const gaps = await Promise.all(during.map(apart));
   expect(Math.max(...gaps)).toBeGreaterThan(SAME);
-
-  const calm = await browser.newPage({
-    reducedMotion: "reduce",
-    viewport: VIEWPORT,
-  });
-  await stubbedMap({ page: calm });
-  const calmCanvas = await open(calm);
-  await type(calm, "kafka");
-  await calm.waitForTimeout(1000);
-  const reduced = await calmCanvas.screenshot();
-  expect(await differingPixels(settled, reduced, page)).toBeLessThan(SAME);
-  await calm.close();
 
   expect([...unstubbed]).toEqual([]);
 });

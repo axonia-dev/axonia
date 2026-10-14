@@ -228,14 +228,12 @@ test("at 1440px the hint shows and the count takes its place on one row", async 
   const canvas = page.locator("canvas").first();
   await expect(canvas).toBeVisible();
   const search = page.getByRole("searchbox", { name: "Find on the map" });
-  const middle = async (box: { y: number; height: number } | null) =>
+  const middle = (box: { y: number; height: number } | null) =>
     box!.y + box!.height / 2;
   const sameLine = async () =>
     expect(
-      await middle(
-        await page.getByRole("button", { name: "Zoom in" }).boundingBox(),
-      ),
-    ).toBe(await middle(await search.boundingBox()));
+      middle(await page.getByRole("button", { name: "Zoom in" }).boundingBox()),
+    ).toBe(middle(await search.boundingBox()));
 
   await expect(page.getByText("Drag to turn, wheel to zoom")).toBeVisible();
   await sameLine();

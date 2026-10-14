@@ -107,7 +107,7 @@ describe("the ground's tint", () => {
     const { field } = surface;
 
     expect(tint.stride).toBe(3);
-    expect(tint.xy.length).toBe(field.cols * field.rows * 2);
+    expect(tint.xy).toHaveLength(field.cols * field.rows * 2);
     expect([
       tint.xy[(field.cols + 1) * 2],
       tint.xy[(field.cols + 1) * 2 + 1],

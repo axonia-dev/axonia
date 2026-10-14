@@ -1,13 +1,13 @@
 import * as THREE from "three";
 
 import type { PlacedContribution } from "@/features/expertise/ui/contribution-placement";
+import type { Tinted } from "@/features/expertise/ui/echo-blend";
 import {
   LATITUDE_SPAN,
   type Projection,
 } from "@/features/expertise/ui/globe-projection";
 import { groundPalette } from "@/features/expertise/ui/ground-palette";
 import { accentHexOf } from "@/features/expertise/ui/group-accents";
-import type { Tinted } from "@/features/expertise/ui/echo-blend";
 import {
   isLit,
   type MapHighlight,
@@ -19,8 +19,8 @@ import {
   type GroundPalette,
   nearestRegion,
   type RegionSeed,
-  type Rgb,
   regionSeeds,
+  type Rgb,
 } from "@/features/expertise/ui/terrain-shading";
 import { stampGround } from "@/features/expertise/ui/terrain-stencil";
 import {

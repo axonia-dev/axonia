@@ -47,14 +47,14 @@ export async function differingPixels(
         ctx.drawImage(bitmap, 0, 0);
         return ctx.getImageData(0, 0, board.width, board.height).data;
       }
-      const [x, y] = await Promise.all([decode(first!), decode(second!)]);
+      const [x, y] = await Promise.all([decode(first), decode(second)]);
       if (x.length !== y.length) return x.length;
       let count = 0;
       for (let i = 0; i < x.length; i += 4) {
         const moved =
-          Math.abs(x[i]! - y[i]!) > 8 ||
-          Math.abs(x[i + 1]! - y[i + 1]!) > 8 ||
-          Math.abs(x[i + 2]! - y[i + 2]!) > 8;
+          Math.abs(x[i] - y[i]) > 8 ||
+          Math.abs(x[i + 1] - y[i + 1]) > 8 ||
+          Math.abs(x[i + 2] - y[i + 2]) > 8;
         if (moved) count++;
       }
       return count;

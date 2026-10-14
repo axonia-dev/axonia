@@ -7,8 +7,8 @@ import {
   type MapHighlight,
   markLit,
 } from "@/features/expertise/ui/map-highlight";
-import { layoutXy } from "@/features/expertise/ui/mark-tints";
 import type { Place } from "@/features/expertise/ui/mark-sprites";
+import { layoutXy } from "@/features/expertise/ui/mark-tints";
 
 /** Muted on purpose: a face that out-shouts the terrain turns the map into a gallery of people. */
 const AVATAR_COLOURS = [

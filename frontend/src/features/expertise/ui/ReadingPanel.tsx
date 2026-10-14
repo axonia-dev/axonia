@@ -6,14 +6,14 @@ import type {
   TopicNode,
 } from "@/features/expertise/domain/expertise";
 import { compareTags } from "@/features/expertise/ui/compare-tags";
+import { ECHO } from "@/features/expertise/ui/echo-timeline";
 import {
   type Reading,
   READING_OPTIONS,
   type ReadingId,
 } from "@/features/expertise/ui/expertise-readings";
-import type { DrawnGroup } from "@/features/expertise/ui/named-area-grouping";
-import { ECHO } from "@/features/expertise/ui/echo-timeline";
 import { MatchedAreasLine } from "@/features/expertise/ui/MatchedAreasLine";
+import type { DrawnGroup } from "@/features/expertise/ui/named-area-grouping";
 import { NeighbourhoodSummary } from "@/features/expertise/ui/NeighbourhoodSummary";
 import { WhoKnowsSection } from "@/features/expertise/ui/WhoKnowsSection";
 import { plural, pluralWord } from "@/lib/plural";
