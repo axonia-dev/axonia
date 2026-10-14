@@ -10,11 +10,11 @@ export interface Heightfield {
 
 /** The grid the ground is built on, in layout pixels. Finer than the eye needs at rest, because zooming magnifies
  *  the cell along with everything else and a coastline is where a cell's own edges start to show. */
-const CELL_PX = 3;
+const CELL_PX = 6;
 
 /** Past this many cells from a contribution the gaussian is under a thousandth of its peak: cheaper to treat as zero. */
-const KERNEL_CELLS = 10;
-const SIGMA_CELLS = 3.8;
+const KERNEL_CELLS = 5;
+const SIGMA_CELLS = 1.9;
 
 /**
  * How many overlapping kernels it takes to reach about two thirds of the maximum height. It sets where the coast
