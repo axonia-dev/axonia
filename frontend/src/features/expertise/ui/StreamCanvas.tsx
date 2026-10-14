@@ -116,6 +116,8 @@ export function StreamCanvas({
   const supported = hasWebGl2();
   const painted = useThemePaint();
   const markPx = markPxFor(size, camera.zoom);
+  const detail = detailFor(markPx);
+  const resizeGlyphsRef = useRef<(px: number) => void>(() => {});
   // The axis needs the span in the document while the scene needs the bands on the GPU, and both must be the same
   // reading of the same contributions; building it twice would also rebuild the whole scene on every render.
   const layout = useMemo(
@@ -203,7 +205,7 @@ export function StreamCanvas({
       (x, y) => new THREE.Vector3(x, y, MARK_LIFT),
       {
         atlas,
-        detail: detailFor(markPx),
+        detail,
         markPx,
         pixelRatio: rendererPixelRatio(),
         ...(chosen === null ? {} : { chosen }),
@@ -212,16 +214,26 @@ export function StreamCanvas({
 
     const objects = [...glyphs.halos, ...glyphs.points];
     for (const object of objects) gpu.scene.add(object);
+    resizeGlyphsRef.current = glyphs.resize;
     const release = holdLive(tintsRef.current, glyphs.tints, drawnRef.current);
     gpu.request();
 
     return () => {
       for (const object of objects) object.removeFromParent();
+      resizeGlyphsRef.current = () => {};
       release();
       glyphs.dispose();
       atlas.dispose();
     };
-  }, [seated, markPx, chosen, supported, painted]);
+    // `markPx` is the size the layer starts at; the effect below keeps it current without rebuilding, so a wheel
+    // click neither rebuilds five thousand marks nor ends an echo, as on the terrain.
+    // oxlint-disable-next-line react/exhaustive-deps
+  }, [seated, detail, chosen, supported, painted]);
+
+  useEffect(() => {
+    resizeGlyphsRef.current(markPx);
+    gpuRef.current?.request();
+  }, [markPx]);
 
   // A highlight moved: the bands and the marks are carried to it in place, and drawn frame by frame while they move.
   useMapEcho({

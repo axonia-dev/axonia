@@ -179,6 +179,26 @@ describe("StreamCanvas echo", () => {
     expect(colours()).toStrictEqual(target);
   });
 
+  /** On the terrain a wheel click only resizes the marks; on the stream it must not end the echo either. */
+  it("keeps echoing through a zoom", () => {
+    const { rerender } = render(<StreamCanvas {...props} />);
+    rerender(<StreamCanvas {...props} drawn={echoing} />);
+    advance(500);
+
+    const zoomed = { ...RESTING_CAMERA, zoom: 1.2 };
+    rerender(<StreamCanvas {...props} drawn={echoing} camera={zoomed} />);
+    advance(ECHO.durationMs / 2 - 500);
+
+    expect(frames.size).toBe(1);
+    const between = bands()
+      .flatMap(alphasOf)
+      .some(
+        (alpha) =>
+          alpha > Math.fround(DIM_OPACITY) && alpha < Math.fround(BAND_OPACITY),
+      );
+    expect(between).toBe(true);
+  });
+
   it("leaves no frame queued when it goes away mid-echo", () => {
     const { rerender, unmount } = render(<StreamCanvas {...props} />);
     rerender(<StreamCanvas {...props} drawn={echoing} />);
