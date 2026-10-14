@@ -98,8 +98,9 @@ export function MapReadingToggle({
       {search}
       {/* One slot of fixed width for one quiet line: what the search found, or else how the drawing moves, since
           the globe hides a hemisphere and the wheel is not labelled. The drawing below is sized from what the row
-          leaves, so a line that changed the row's width would rebuild the scene mid-animation. */}
-      <div className="text-muted-foreground h-4 w-44 min-w-0 text-xs whitespace-nowrap">
+          leaves, so a line that changed the row's width would rebuild the scene mid-animation. Wide enough for the
+          longest count a capped map can give, "199 areas, 4999 contributions" at 170px, with room for a wider face. */}
+      <div className="text-muted-foreground h-4 w-48 min-w-0 text-xs whitespace-nowrap">
         <p role="status">{count}</p>
         {count === null && (
           <p className="hidden lg:block">
