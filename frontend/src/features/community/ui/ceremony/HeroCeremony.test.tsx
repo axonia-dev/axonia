@@ -24,7 +24,7 @@ const community = {
 function renderCeremony(kind: "birth" | "welcome") {
   return render(
     <HeroCeremony
-      ceremony={{ kind, countFrom: 42, countTo: 43 }}
+      ceremony={{ kind, countFrom: 42, countTo: 43, placement: "viewport" }}
       community={community}
       faces={[]}
       target={{ current: null }}

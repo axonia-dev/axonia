@@ -24,12 +24,14 @@ vi.mock("@/features/community/ui/CommunityMenu", () => ({
 vi.mock("@/features/community/ui/ceremony/HeroCeremony", () => ({
   HeroCeremony: ({
     ceremony,
+    placement,
     onDone,
   }: {
     ceremony: { kind: string; countFrom: number; countTo: number };
+    placement?: string;
     onDone: () => void;
   }) => (
-    <div>
+    <div data-placement={placement}>
       ceremony {ceremony.kind} {ceremony.countFrom} to {ceremony.countTo}
       <button onClick={onDone}>end ceremony</button>
     </div>
@@ -124,6 +126,41 @@ describe("IdentityHero ceremonies", () => {
     expect(screen.getByRole("status")).toHaveTextContent(
       "Joined Backend Guild",
     );
+  });
+
+  it("plays a join made on the page inside the card, with no backdrop", async () => {
+    // given
+    renderHero();
+
+    // when
+    await userEvent.click(screen.getByRole("button", { name: "Join" }));
+
+    // then
+    const stage = await screen.findByText("ceremony welcome 42 to 43");
+    expect(stage).toHaveAttribute("data-placement", "in-place");
+    expect(document.querySelector("[data-ceremony-backdrop]")).toBeNull();
+  });
+
+  it("plays a handed-off welcome on the full-screen backdrop", async () => {
+    // given
+    handOffCeremony("welcome", "backend-guild");
+
+    // when
+    renderHero();
+
+    // then
+    const stage = await screen.findByText("ceremony welcome 41 to 42");
+    expect(stage).toHaveAttribute("data-placement", "viewport");
+    expect(document.querySelector("[data-ceremony-backdrop]")).not.toBeNull();
+  });
+
+  it("rounds the card's frame like the card, so an in-place stage clips to its corners", () => {
+    // when
+    renderHero();
+
+    // then
+    const card = screen.getByLabelText("Community identity");
+    expect(card.parentElement).toHaveClass("rounded-lg");
   });
 
   it("hides the page's own card while the ceremony plays", async () => {

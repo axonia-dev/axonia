@@ -1,5 +1,6 @@
 import { Share2 } from "lucide-react";
 import {
+  type ReactNode,
   type RefObject,
   Suspense,
   useDeferredValue,
@@ -20,7 +21,10 @@ import {
 import { useMyMembership } from "@/features/community/api/use-membership";
 import { type Community } from "@/features/community/domain/community";
 import { LazyHeroCeremony } from "@/features/community/ui/ceremony/lazy-ceremonies";
-import { useHeroCeremony } from "@/features/community/ui/ceremony/use-hero-ceremony";
+import {
+  type ActiveCeremony,
+  useHeroCeremony,
+} from "@/features/community/ui/ceremony/use-hero-ceremony";
 import { CommunityHeroCard } from "@/features/community/ui/CommunityHeroCard";
 import { CommunityMenu } from "@/features/community/ui/CommunityMenu";
 import { JoinAction } from "@/features/community/ui/JoinAction";
@@ -121,6 +125,18 @@ function Announcement({ text }: Readonly<{ text: string }>) {
   );
 }
 
+/** A welcome played in place stands on the page itself; any other is raised over a full-screen backdrop. */
+function CeremonyBackdrop({
+  placement,
+  children,
+}: Readonly<{ placement: ActiveCeremony["placement"]; children: ReactNode }>) {
+  return placement === "in-place" ? (
+    <>{children}</>
+  ) : (
+    <StageBackdrop>{children}</StageBackdrop>
+  );
+}
+
 /**
  * The community's front door: the shared hero card with the primary Join call-to-action.
  * Self-serve hubs get a quiet share glyph in the card's top-right corner for whoever the
@@ -171,7 +187,10 @@ export function IdentityHero({ community, slug }: Readonly<IdentityHeroProps>) {
 
   return (
     <>
-      <div ref={hero} className={cn(playing && !reduced && "invisible")}>
+      <div
+        ref={hero}
+        className={cn("rounded-lg", playing && !reduced && "invisible")}
+      >
         <CommunityHeroCard
           community={community}
           meta={meta}
@@ -180,7 +199,7 @@ export function IdentityHero({ community, slug }: Readonly<IdentityHeroProps>) {
         />
       </div>
       {ceremony.active !== null && (
-        <StageBackdrop>
+        <CeremonyBackdrop placement={ceremony.active.placement}>
           <Suspense fallback={null}>
             <LazyHeroCeremony
               ceremony={ceremony.active}
@@ -190,10 +209,11 @@ export function IdentityHero({ community, slug }: Readonly<IdentityHeroProps>) {
               cornerControl={cornerControl}
               target={hero}
               settle="morph"
+              placement={ceremony.active.placement}
               onDone={ceremony.finish}
             />
           </Suspense>
-        </StageBackdrop>
+        </CeremonyBackdrop>
       )}
       <Announcement
         key={ceremony.announcementKey}

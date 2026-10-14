@@ -12,6 +12,7 @@ export interface ActiveCeremony {
   readonly kind: CeremonyKind;
   readonly countFrom: number;
   readonly countTo: number;
+  readonly placement: "viewport" | "in-place";
 }
 
 type HeroCommunity = Pick<Community, "slug" | "name" | "memberCount">;
@@ -38,7 +39,12 @@ function fromHandoff(community: HeroCommunity): State {
       ? Math.max(0, community.memberCount - 1)
       : community.memberCount;
   return {
-    active: { kind, countFrom, countTo: community.memberCount },
+    active: {
+      kind,
+      countFrom,
+      countTo: community.memberCount,
+      placement: "viewport",
+    },
     announcement: announcementFor(kind, community.name),
     joins: 0,
   };
@@ -64,6 +70,7 @@ export function useHeroCeremony(community: HeroCommunity) {
         kind: "welcome",
         countFrom: memberCount,
         countTo: memberCount + 1,
+        placement: "in-place",
       },
       announcement: announcementFor("welcome", name),
       joins: current.joins + 1,

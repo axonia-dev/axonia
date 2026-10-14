@@ -68,6 +68,7 @@ describe("useHeroCeremony", () => {
       kind: "welcome",
       countFrom: 42,
       countTo: 43,
+      placement: "viewport",
     });
     expect(result.current.announcement).toBe("Joined Backend Guild");
   });
@@ -84,6 +85,7 @@ describe("useHeroCeremony", () => {
       kind: "birth",
       countFrom: 43,
       countTo: 43,
+      placement: "viewport",
     });
     expect(result.current.announcement).toBe("Backend Guild created");
   });
@@ -124,7 +126,30 @@ describe("useHeroCeremony", () => {
       kind: "welcome",
       countFrom: 43,
       countTo: 44,
+      placement: "in-place",
     });
+  });
+
+  it("plays a join made on the page in place", () => {
+    // given
+    const { result } = renderHook(() => useHeroCeremony(community));
+
+    // when
+    act(() => result.current.welcome());
+
+    // then
+    expect(result.current.active?.placement).toBe("in-place");
+  });
+
+  it("plays a handed-off welcome full screen", () => {
+    // given
+    handOffCeremony("welcome", community.slug);
+
+    // when
+    const { result } = renderHook(() => useHeroCeremony(community));
+
+    // then
+    expect(result.current.active?.placement).toBe("viewport");
   });
 
   it("keeps the announcement once the ceremony is over", () => {

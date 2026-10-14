@@ -48,6 +48,7 @@ export function WelcomeCeremony({
   cornerControl,
   target,
   settle,
+  placement = "viewport",
   onDone,
   clock,
 }: Readonly<WelcomeCeremonyProps>) {
@@ -78,6 +79,7 @@ export function WelcomeCeremony({
       target={target}
       settle={settle}
       settleSeconds={WELCOME_SETTLE}
+      placement={placement}
       onFrame={onFrame}
       paint={paint}
       onDone={onDone}

@@ -11,6 +11,7 @@ export interface CeremonyCardProps {
   cornerControl?: ReactNode;
   target: RefObject<HTMLElement | null>;
   settle: "morph" | "fade";
+  placement?: "viewport" | "in-place";
   onDone: () => void;
   clock?: CeremonyClock;
 }

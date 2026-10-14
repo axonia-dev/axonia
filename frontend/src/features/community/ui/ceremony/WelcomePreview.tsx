@@ -23,6 +23,7 @@ export function WelcomePreview({
         kind: "welcome",
         countFrom: community.memberCount,
         countTo: community.memberCount,
+        placement: "viewport",
       }}
       community={community}
       faces={faces}

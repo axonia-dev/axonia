@@ -41,7 +41,12 @@ describe("WelcomePreview", () => {
     const actual = props()?.ceremony;
 
     // then
-    expect(actual).toEqual({ kind: "welcome", countFrom: 120, countTo: 120 });
+    expect(actual).toEqual({
+      kind: "welcome",
+      countFrom: 120,
+      countTo: 120,
+      placement: "viewport",
+    });
   });
 
   it("fades in place rather than morphing onto a card that is not the same", () => {
