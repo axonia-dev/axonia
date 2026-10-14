@@ -31,6 +31,12 @@ public interface CommunityRepository
     Page<CommunityEntity> findByOrganizationIdAndStatusAndNameContainingIgnoreCase(String organizationId,
             CommunityStatus status, String name, Pageable pageable);
 
+    Page<CommunityEntity> findByOrganizationIdAndStatusAndNameContainingIgnoreCaseAndIdIn(String organizationId,
+            CommunityStatus status, String name, Collection<Long> ids, Pageable pageable);
+
+    Page<CommunityEntity> findByOrganizationIdAndStatusAndNameContainingIgnoreCaseAndIdNotIn(String organizationId,
+            CommunityStatus status, String name, Collection<Long> ids, Pageable pageable);
+
     /**
      * One organization's communities of a status, whole and ordered by name. Unpaged on purpose: an organization-wide
      * reader wants every one of them, and would immediately concatenate the pages a paged search handed it.

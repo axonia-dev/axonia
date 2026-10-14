@@ -2,6 +2,7 @@ package dev.axonia.community.adapter.out.persistence;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -136,6 +137,39 @@ class CommunityRepositoryTest extends CoreJdbcTestSupport {
         // then
         assertThat(actual.getContent()).hasSize(1);
         assertThat(actual.getContent().getFirst().getName()).isEqualTo("Frontend Guild");
+    }
+
+    @Test
+    void findByOrganizationIdAndStatusAndNameContainingIgnoreCaseAndIdIn() {
+
+        // given
+        var joined = communityRepository.save(CommunityEntityMother.any().kindId(kindId).build());
+        communityRepository
+                .save(CommunityEntityMother.any().kindId(kindId).slug("other-guild").name("Other Guild").build());
+
+        // when
+        var actual = communityRepository.findByOrganizationIdAndStatusAndNameContainingIgnoreCaseAndIdIn("default",
+                CommunityStatus.ACTIVE, "guild", List.of(joined.getId()), PageRequest.of(0, 20));
+
+        // then
+        assertThat(actual.getContent()).extracting(CommunityEntity::getId).containsExactly(joined.getId());
+        assertThat(actual.getTotalElements()).isEqualTo(1);
+    }
+
+    @Test
+    void findByOrganizationIdAndStatusAndNameContainingIgnoreCaseAndIdNotIn() {
+
+        // given
+        var joined = communityRepository.save(CommunityEntityMother.any().kindId(kindId).build());
+        var other = communityRepository
+                .save(CommunityEntityMother.any().kindId(kindId).slug("other-guild").name("Other Guild").build());
+
+        // when
+        var actual = communityRepository.findByOrganizationIdAndStatusAndNameContainingIgnoreCaseAndIdNotIn("default",
+                CommunityStatus.ACTIVE, "guild", List.of(joined.getId()), PageRequest.of(0, 20));
+
+        // then
+        assertThat(actual.getContent()).extracting(CommunityEntity::getId).containsExactly(other.getId());
     }
 
     @Test

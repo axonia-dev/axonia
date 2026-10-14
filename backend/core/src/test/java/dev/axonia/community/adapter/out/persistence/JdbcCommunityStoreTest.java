@@ -3,6 +3,7 @@ package dev.axonia.community.adapter.out.persistence;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -13,6 +14,8 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
 import dev.axonia.community.api.CommunityStatus;
+import dev.axonia.community.api.MembershipFilter;
+import dev.axonia.community.application.port.out.CommunitySearch;
 import dev.axonia.community.api.TopicManagementPolicy;
 import dev.axonia.community.domain.CommunityRecord;
 import dev.axonia.community.domain.KindCommunityCount;
@@ -20,6 +23,7 @@ import dev.axonia.community.domain.KindCommunityCount;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @MockitoSettings
@@ -108,6 +112,92 @@ class JdbcCommunityStoreTest {
 
         // then
         assertThat(actual.getContent()).containsExactly(STORED);
+    }
+
+    @Test
+    void search_unfiltered_reads_every_community() {
+
+        // given
+        var pageable = PageRequest.of(0, 20);
+        when(communityRepository.findByOrganizationIdAndStatusAndNameContainingIgnoreCase("default",
+                CommunityStatus.ACTIVE, "guild", pageable))
+                .thenReturn(new PageImpl<>(List.of(JdbcCommunityStore.toEntity(STORED)), pageable, 1));
+
+        // when
+        var actual = sut.search(search(null, Set.of(7L)), pageable);
+
+        // then
+        assertThat(actual.getContent()).containsExactly(STORED);
+    }
+
+    @Test
+    void search_joined_reads_among_the_memberships() {
+
+        // given
+        var pageable = PageRequest.of(0, 20);
+        when(communityRepository.findByOrganizationIdAndStatusAndNameContainingIgnoreCaseAndIdIn("default",
+                CommunityStatus.ACTIVE, "guild", Set.of(7L), pageable))
+                .thenReturn(new PageImpl<>(List.of(JdbcCommunityStore.toEntity(STORED)), pageable, 1));
+
+        // when
+        var actual = sut.search(search(MembershipFilter.JOINED, Set.of(7L)), pageable);
+
+        // then
+        assertThat(actual.getContent()).containsExactly(STORED);
+    }
+
+    @Test
+    void search_joined_with_no_membership_is_empty_without_a_query() {
+
+        // given
+        var pageable = PageRequest.of(0, 20);
+
+        // when
+        var actual = sut.search(search(MembershipFilter.JOINED, Set.of()), pageable);
+
+        // then
+        assertThat(actual.getContent()).isEmpty();
+        assertThat(actual.getTotalElements()).isZero();
+        verifyNoInteractions(communityRepository);
+    }
+
+    @Test
+    void search_explore_with_no_membership_reads_every_community() {
+
+        // given
+        var pageable = PageRequest.of(0, 20);
+        when(communityRepository.findByOrganizationIdAndStatusAndNameContainingIgnoreCase("default",
+                CommunityStatus.ACTIVE, "guild", pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // when
+        sut.search(search(MembershipFilter.EXPLORE, Set.of()), pageable);
+
+        // then
+        verify(communityRepository).findByOrganizationIdAndStatusAndNameContainingIgnoreCase("default",
+                CommunityStatus.ACTIVE, "guild", pageable);
+    }
+
+    @Test
+    void search_explore_excludes_the_memberships() {
+
+        // given
+        var pageable = PageRequest.of(0, 20);
+        when(communityRepository.findByOrganizationIdAndStatusAndNameContainingIgnoreCaseAndIdNotIn("default",
+                CommunityStatus.ACTIVE, "guild", Set.of(7L), pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // when
+        sut.search(search(MembershipFilter.EXPLORE, Set.of(7L)), pageable);
+
+        // then
+        verify(communityRepository).findByOrganizationIdAndStatusAndNameContainingIgnoreCaseAndIdNotIn("default",
+                CommunityStatus.ACTIVE, "guild", Set.of(7L), pageable);
+    }
+
+    private static CommunitySearch search(MembershipFilter membership, Set<Long> memberOf) {
+
+        return CommunitySearch.builder().organizationId("default").status(CommunityStatus.ACTIVE).name("guild")
+                .membership(membership).memberOf(memberOf).build();
     }
 
     @Test

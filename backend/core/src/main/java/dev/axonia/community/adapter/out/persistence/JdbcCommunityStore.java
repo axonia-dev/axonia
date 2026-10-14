@@ -10,6 +10,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import dev.axonia.community.api.CommunityStatus;
+import dev.axonia.community.api.MembershipFilter;
+import dev.axonia.community.application.port.out.CommunitySearch;
 import dev.axonia.community.application.port.out.CommunityStore;
 import dev.axonia.community.domain.CommunityRecord;
 import dev.axonia.community.domain.KindCommunityCount;
@@ -58,6 +60,26 @@ public class JdbcCommunityStore implements CommunityStore {
         return communityRepository
                 .findByOrganizationIdAndStatusAndNameContainingIgnoreCase(organizationId, status, name, pageable)
                 .map(JdbcCommunityStore::toRecord);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<CommunityRecord> search(CommunitySearch search, Pageable pageable) {
+
+        var unfiltered = search.membership() == null
+                || search.membership() == MembershipFilter.EXPLORE && search.memberOf().isEmpty();
+        if (unfiltered) {
+            return searchByName(search.organizationId(), search.status(), search.name(), pageable);
+        }
+        if (search.memberOf().isEmpty()) {
+            return Page.empty(pageable);
+        }
+        var page = search.membership() == MembershipFilter.JOINED
+                ? communityRepository.findByOrganizationIdAndStatusAndNameContainingIgnoreCaseAndIdIn(
+                        search.organizationId(), search.status(), search.name(), search.memberOf(), pageable)
+                : communityRepository.findByOrganizationIdAndStatusAndNameContainingIgnoreCaseAndIdNotIn(
+                        search.organizationId(), search.status(), search.name(), search.memberOf(), pageable);
+        return page.map(JdbcCommunityStore::toRecord);
     }
 
     @Override
