@@ -193,6 +193,7 @@ export function TerrainCanvas({
       faced,
       people,
       place: placeAt(surface, FACE_LIFT),
+      lit: (mark) => markLit(highlight, mark),
       repaint: gpu.request,
     });
     const scale = faceScaleRef.current;
@@ -212,16 +213,7 @@ export function TerrainCanvas({
       faces.dispose();
       halos.dispose();
     };
-  }, [
-    surface,
-    marks,
-    topics,
-    people,
-    faced,
-    highlight.tags,
-    supported,
-    painted,
-  ]);
+  }, [surface, marks, topics, people, faced, highlight, supported, painted]);
 
   /** The contributions themselves, and the one of them the strip below is describing. */
   useEffect(() => {

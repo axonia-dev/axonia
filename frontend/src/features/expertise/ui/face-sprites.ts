@@ -67,6 +67,9 @@ export function drawFace(
 
 const FACE_TEXTURE_PX = 64;
 
+/** A face on ground the map is not about is set back like the mark it stands on, or it reads as a match. */
+export const FACE_SET_BACK_OPACITY = 0.35;
+
 export interface FaceLayer {
   sprites: THREE.Sprite[];
   dispose: () => void;
@@ -77,6 +80,8 @@ interface FaceRequest {
   faced: ReadonlySet<number>;
   people: ReadonlyMap<string, MapPerson>;
   place: Place;
+  /** Whether the map is about this mark; a face on a mark it is not about is set back. Absent, every face is lit. */
+  lit?: (mark: PlacedContribution) => boolean;
   /** Called when a photo lands after the layer was drawn, since nothing else would draw it again. */
   repaint: () => void;
 }
@@ -109,7 +114,7 @@ function faceTexture(
 
 /** A face belongs to a contribution, not to a person, so it is placed at the mark and never anywhere else. */
 export function faceSprites(request: Readonly<FaceRequest>): FaceLayer {
-  const { marks, faced, people, place, repaint } = request;
+  const { marks, faced, people, place, lit, repaint } = request;
   const sprites: THREE.Sprite[] = [];
   const spent: { dispose: () => void }[] = [];
   let alive = true;
@@ -127,6 +132,8 @@ export function faceSprites(request: Readonly<FaceRequest>): FaceLayer {
     const material = new THREE.SpriteMaterial({
       map: texture,
       sizeAttenuation: false,
+      transparent: true,
+      opacity: lit === undefined || lit(mark) ? 1 : FACE_SET_BACK_OPACITY,
     });
     const sprite = new THREE.Sprite(material);
     sprite.position.copy(place(mark.x, mark.y));
