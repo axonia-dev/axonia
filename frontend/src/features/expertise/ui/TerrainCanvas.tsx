@@ -36,6 +36,7 @@ import { groundColourAt } from "@/features/expertise/ui/terrain-shading";
 import { standOnGround } from "@/features/expertise/ui/terrain-stencil";
 import type { Surface } from "@/features/expertise/ui/terrain-surface";
 import type { PlacedTopic } from "@/features/expertise/ui/topic-graph-layout";
+import { useTerrainEcho } from "@/features/expertise/ui/use-terrain-echo";
 import { useThemePaint } from "@/features/expertise/ui/use-theme-paint";
 import {
   hasWebGl2,
@@ -220,14 +221,12 @@ export function TerrainCanvas({
     // oxlint-disable-next-line react/exhaustive-deps
   }, [surface, marks, detail, chosen, supported, painted]);
 
-  // A highlight moved: what is on screen is repainted in place, and drawn in the next frame.
-  useEffect(() => {
-    const gpu = gpuRef.current;
-    if (gpu === null) return;
-
-    for (const tint of tintsRef.current) paintNow(tint, drawn.highlight);
-    gpu.request();
-  }, [drawn]);
+  // A highlight moved: what is on screen is carried to it in place, and drawn frame by frame while it moves.
+  useTerrainEcho({
+    gpuRef,
+    tintsRef,
+    layer: { surface, marks, drawn, markPx, supported, painted },
+  });
 
   // Where the camera stands and how wide its lens is, moved in place rather than rebuilt, and drawn in the next frame.
   // This runs after the two effects above on mount, and before any frame they asked for, so nothing is ever drawn

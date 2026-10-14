@@ -37,7 +37,7 @@ describe("echoFor", () => {
 describe("amountAt", () => {
   it("is 0 everywhere before the echo starts and 1 everywhere once it ends", () => {
     expect(amountAt(one, 100, 100, 0)).toBe(0);
-    expect(amountAt(one, 800, 600, ECHO.durationMs)).toBeCloseTo(1, 12);
+    expect(amountAt(one, 800, 600, ECHO.durationMs)).toBe(1);
     expect(amountAt(one, 100, 100, ECHO.durationMs)).toBe(1);
   });
   it("takes a near point before a far one", () => {

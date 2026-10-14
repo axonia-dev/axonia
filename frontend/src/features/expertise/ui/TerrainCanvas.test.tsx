@@ -254,8 +254,12 @@ describe("TerrainCanvas", () => {
     expect(standing!.map((m) => m.stencilFunc)).toStrictEqual(
       standing!.map(() => THREE.EqualStencilFunc),
     );
-    // The cap and the heightfield; a mark's rim and glyph, its face and the offered ring.
-    expect([ground!.length, standing!.length]).toStrictEqual([2, 4]);
+    // The cap and the heightfield; a mark's rim and glyph, its face and the offered ring. The echo's rings stand on
+    // the ground too, hidden until a term echoes.
+    const shown = scene.children.filter(
+      (c) => "material" in c && !(c instanceof THREE.Mesh) && c.visible,
+    );
+    expect([ground!.length, shown.length]).toStrictEqual([2, 4]);
   });
 
   it("draws only while the map is on screen", () => {

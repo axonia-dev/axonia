@@ -68,6 +68,17 @@ function progressOf(wave: Wave, elapsedMs: number, lagMs = 0): number {
   return clamp01((elapsedMs - wave.delayMs - lagMs) / ECHO.durationMs);
 }
 
+/** How far one wave has carried a point. A finished wave has taken all of its reach, stated exactly: worked out, the
+ *  far corner comes to a hair under 1, and a settled frame must be the new picture and nothing near it. */
+function carried(wave: Wave, x: number, y: number, elapsedMs: number): number {
+  const progress = progressOf(wave, elapsedMs);
+  const distance = Math.hypot(x - wave.x, y - wave.y);
+  if (progress === 1 && distance <= wave.reach) return 1;
+  return clamp01(
+    (easeOutCubic(progress) * wave.reach - distance) / wave.feather,
+  );
+}
+
 /** How far the echo has carried a point into the new picture: 0 untouched, 1 settled. Whichever drop got there first. */
 export function amountAt(
   echo: Echo,
@@ -77,9 +88,7 @@ export function amountAt(
 ): number {
   let amount = 0;
   for (const wave of echo.waves) {
-    const front = easeOutCubic(progressOf(wave, elapsedMs)) * wave.reach;
-    const distance = Math.hypot(x - wave.x, y - wave.y);
-    amount = Math.max(amount, clamp01((front - distance) / wave.feather));
+    amount = Math.max(amount, carried(wave, x, y, elapsedMs));
   }
   return amount;
 }
