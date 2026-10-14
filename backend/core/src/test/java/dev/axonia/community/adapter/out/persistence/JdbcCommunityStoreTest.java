@@ -15,8 +15,8 @@ import org.springframework.data.domain.PageRequest;
 
 import dev.axonia.community.api.CommunityStatus;
 import dev.axonia.community.api.MembershipFilter;
-import dev.axonia.community.application.port.out.CommunitySearch;
 import dev.axonia.community.api.TopicManagementPolicy;
+import dev.axonia.community.application.port.out.CommunitySearch;
 import dev.axonia.community.domain.CommunityRecord;
 import dev.axonia.community.domain.KindCommunityCount;
 

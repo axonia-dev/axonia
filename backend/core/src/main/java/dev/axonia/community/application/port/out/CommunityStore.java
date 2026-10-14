@@ -24,7 +24,6 @@ public interface CommunityStore {
 
     Page<CommunityRecord> searchByName(String organizationId, CommunityStatus status, String name, Pageable pageable);
 
-    /** Narrowed to, or away from, the caller's communities when `membership` is set. */
     Page<CommunityRecord> search(CommunitySearch search, Pageable pageable);
 
     long countOfKind(String organizationId, Long kindId);

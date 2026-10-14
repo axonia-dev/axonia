@@ -22,8 +22,8 @@ import dev.axonia.community.api.CommunityListing;
 import dev.axonia.community.api.CommunityRole;
 import dev.axonia.community.api.CommunityStatus;
 import dev.axonia.community.api.MembershipFilter;
-import dev.axonia.community.application.port.out.CommunitySearch;
 import dev.axonia.community.application.port.out.CommunityKindStore;
+import dev.axonia.community.application.port.out.CommunitySearch;
 import dev.axonia.community.application.port.out.CommunityStore;
 import dev.axonia.community.application.port.out.CurrentUser;
 import dev.axonia.community.application.port.out.MembershipLedger;
@@ -463,6 +463,26 @@ class CommunityServiceTest {
         // then
         verify(communityStore).search(CommunitySearch.builder().organizationId("default").status(CommunityStatus.ACTIVE)
                 .name("").membership(MembershipFilter.EXPLORE).memberOf(Set.of(7L)).build(), pageable);
+    }
+
+    @Test
+    void listing_joined_asks_the_store_among_the_callers_communities() {
+
+        // given
+        when(currentUser.userId()).thenReturn("dev-user");
+        when(membershipLedger.findAllOf("default", "dev-user"))
+                .thenReturn(List.of(MembershipRecordMother.any().communityId(7L).role(CommunityRole.MEMBER).build()));
+        var pageable = PageRequest.of(0, 10);
+        var joined = CommunityRecordMother.any().id(7L).build();
+        when(communityStore.search(any(), eq(pageable))).thenReturn(new PageImpl<>(List.of(joined), pageable, 1));
+
+        // when
+        var actual = sut.listing("guild", MembershipFilter.JOINED, pageable);
+
+        // then
+        verify(communityStore).search(CommunitySearch.builder().organizationId("default").status(CommunityStatus.ACTIVE)
+                .name("guild").membership(MembershipFilter.JOINED).memberOf(Set.of(7L)).build(), pageable);
+        assertThat(actual.getContent()).extracting(CommunityListing::role).containsExactly(CommunityRole.MEMBER);
     }
 
     @Test
