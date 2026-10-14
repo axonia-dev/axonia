@@ -14,7 +14,10 @@ import { httpExpertiseGateway } from "@/features/expertise/adapters/http-experti
 
 const gateway = vi.mocked(httpExpertiseGateway);
 
-function person(userId: string, over: Partial<Practitioner> = {}) {
+function person(
+  userId: string,
+  over: Partial<Practitioner> = {},
+): Practitioner {
   return {
     userId,
     displayName: userId,
@@ -30,7 +33,7 @@ function person(userId: string, over: Partial<Practitioner> = {}) {
     openToQuestions: false,
     declaredAt: null,
     ...over,
-  } as Practitioner;
+  };
 }
 
 function renderSection(onOpenSearch?: (tag: string) => void, cueMs?: number) {
