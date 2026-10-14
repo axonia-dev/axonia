@@ -195,6 +195,28 @@ test("the detail strip stays inside the viewport", async ({ page }) => {
   expect(box.y + box.height).toBeLessThanOrEqual(viewport.height + 1);
 });
 
+for (const width of [1440, 412]) {
+  test(`a longer match count does not resize the drawing at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(`/communities/${SLUG}/expertise?view=map`);
+    const canvas = page.locator("canvas").first();
+    await expect(canvas).toBeVisible();
+    const search = page.getByRole("searchbox", { name: "Find on the map" });
+    const drawingHeight = async () =>
+      (await canvas.locator("..").boundingBox())!.height;
+
+    const empty = await drawingHeight();
+    await search.fill("zzzz");
+    await expect(page.getByText("No matches")).toBeVisible();
+    expect(await drawingHeight()).toBe(empty);
+    await search.fill("e");
+    await expect(page.getByText(/\d+ areas?/)).toBeVisible();
+    expect(await drawingHeight()).toBe(empty);
+  });
+}
+
 /** A literal in three.js's own WebGL renderer, which survives minification because it is a string. */
 const THREE_JS = "Error creating WebGL context";
 

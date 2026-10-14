@@ -98,7 +98,7 @@ export function MapReadingToggle({
       <div className="flex items-center gap-3">
         {/* The globe hides a hemisphere and the wheel is not labelled, so both are said once, quietly, beside the
             buttons rather than floating over the drawing. Hidden where the row would wrap onto itself. */}
-        <p className="text-muted-foreground hidden text-xs lg:block">
+        <p className="text-muted-foreground hidden text-xs 2xl:block">
           {reading === "terrain" && projection === "globe"
             ? "Drag to turn, wheel to zoom"
             : "Drag to move, wheel to zoom"}
