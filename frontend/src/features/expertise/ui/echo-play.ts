@@ -1,10 +1,14 @@
 import type { CeremonyClock } from "@/components/patterns/ceremony/clock";
-import { blendOf, type Tinted } from "@/features/expertise/ui/echo-blend";
-import { type DropSource, dropsFor } from "@/features/expertise/ui/echo-drops";
+import {
+  type Blend,
+  blendOf,
+  type Tinted,
+} from "@/features/expertise/ui/echo-blend";
+import { dropsFor, type DropSource } from "@/features/expertise/ui/echo-drops";
+import { type EchoField, echoField } from "@/features/expertise/ui/echo-field";
 import type { RingLayer } from "@/features/expertise/ui/echo-rings";
 import { runFor } from "@/features/expertise/ui/echo-run";
 import {
-  amountAt,
   type Bounds,
   type Drop,
   ECHO,
@@ -29,11 +33,16 @@ export interface EchoStage {
   rings: RingLayer;
   twinkles: (points: readonly TwinklePoint[]) => TwinkleLayer;
   request: () => void;
+  /** Whether anyone can see the map: a frame nobody sees is not worked out, only the settled one at the end. */
+  onScreen: () => boolean;
 }
 
-type Amount = (x: number, y: number) => number;
+interface Painted {
+  tint: Tinted;
+  blend: Blend;
+}
 
-const SETTLED: Amount = () => 1;
+const SETTLED = 1;
 const NOTHING_TO_STOP = () => {};
 
 function twinklesOf(
@@ -43,7 +52,24 @@ function twinklesOf(
 ): TwinklePoint[] {
   return marks
     .filter((mark) => lit.has(mark.signalId))
-    .map(({ x, y }) => ({ x, y, reachedAtMs: reachedAt(echo, x, y) }));
+    .map(({ x, y, slot }) => ({
+      x,
+      y,
+      slot,
+      reachedAtMs: reachedAt(echo, x, y),
+    }));
+}
+
+/**
+ * One field per set of positions rather than per tint: a mark's glyph and rim share their positions, so the amount
+ * at each mark is worked out once a frame and given to both.
+ */
+function fieldsOf(echo: Echo, painted: readonly Painted[]) {
+  const fields = new Map<Float32Array, EchoField>();
+  for (const { tint } of painted) {
+    if (!fields.has(tint.xy)) fields.set(tint.xy, echoField(echo, tint.xy));
+  }
+  return fields;
 }
 
 function echoed({
@@ -51,16 +77,17 @@ function echoed({
   clock,
   drops,
   lit,
-  paint,
+  painted,
 }: Readonly<{
   stage: EchoStage;
   clock: CeremonyClock;
   drops: readonly Drop[];
   lit: ReadonlySet<number>;
-  paint: (amount: Amount) => void;
+  painted: readonly Painted[];
 }>): () => void {
   const echo = echoFor(drops, stage.bounds);
   const lengthMs = echoLength(echo);
+  const fields = fieldsOf(echo, painted);
   let twinkles: TwinkleLayer | null = stage.twinkles(
     twinklesOf(echo, stage.marks, lit),
   );
@@ -76,12 +103,18 @@ function echoed({
     step: (ms) => {
       if (ms >= lengthMs) {
         clear();
-        paint(SETTLED);
+        for (const { blend } of painted) blend.apply(SETTLED);
+        stage.request();
         return;
       }
+      if (!stage.onScreen()) return;
       stage.rings.show(ringsAt(echo, ms));
       twinkles?.at(ms);
-      paint((x, y) => amountAt(echo, x, y, ms));
+      for (const field of fields.values()) field.at(ms);
+      for (const { tint, blend } of painted) {
+        blend.apply(fields.get(tint.xy)!.amounts);
+      }
+      stage.request();
     },
   });
   return () => {
@@ -105,11 +138,12 @@ export function play({
   drawn: DrawnHighlight;
   clock: CeremonyClock;
 }>): () => void {
-  const blends = stage.tints.map((tint) =>
-    blendOf(tint, tint.targetFor(drawn.highlight)),
-  );
-  const paint = (amount: Amount) => {
-    for (const blend of blends) blend.apply(amount);
+  const painted = stage.tints.map((tint) => ({
+    tint,
+    blend: blendOf(tint, tint.targetFor(drawn.highlight)),
+  }));
+  const paint = (amount: number) => {
+    for (const { blend } of painted) blend.apply(amount);
     stage.request();
   };
 
@@ -119,14 +153,14 @@ export function play({
   }
   const lit = drawn.highlight.marks ?? new Set<number>();
   const drops = drawn.transition === "echo" ? dropsFor(stage.marks, lit) : [];
-  if (drops.length > 0) return echoed({ stage, clock, drops, lit, paint });
+  if (drops.length > 0) return echoed({ stage, clock, drops, lit, painted });
 
   return runFor({
     clock,
     lengthMs: ECHO.fadeMs,
     step: (ms) => {
-      const k = ms >= ECHO.fadeMs ? 1 : fadeAmount(ms);
-      paint(() => k);
+      if (ms < ECHO.fadeMs && !stage.onScreen()) return;
+      paint(ms >= ECHO.fadeMs ? SETTLED : fadeAmount(ms));
     },
   });
 }

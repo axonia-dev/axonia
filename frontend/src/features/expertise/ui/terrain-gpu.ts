@@ -15,6 +15,7 @@ export interface Gpu {
   camera: THREE.PerspectiveCamera;
   /** Asks for the next frame: whatever changes the picture says so, and nothing is drawn otherwise. */
   request: DrawOnDemand["request"];
+  onScreen: DrawOnDemand["onScreen"];
 }
 
 /**
@@ -62,7 +63,13 @@ export function openGpu(
   );
 
   return {
-    gpu: { renderer, scene, camera, request: drawing.request },
+    gpu: {
+      renderer,
+      scene,
+      camera,
+      request: drawing.request,
+      onScreen: drawing.onScreen,
+    },
     close: () => {
       drawing.stop();
       // `dispose` frees what three.js allocated and leaves the context itself to the collector, which may be a

@@ -1,15 +1,12 @@
 import * as THREE from "three";
 
 import type { Bounds, Ring } from "@/features/expertise/ui/echo-timeline";
-import { accentHexOf } from "@/features/expertise/ui/group-accents";
 import { groundPalette } from "@/features/expertise/ui/ground-palette";
+import { accentHexOf } from "@/features/expertise/ui/group-accents";
 import type { Place } from "@/features/expertise/ui/mark-sprites";
 import { cast, mix, toRgb } from "@/features/expertise/ui/terrain-shading";
 
 const SEGMENTS = 96;
-
-/** More drops than this is a term matching most of the map, where one more ring says nothing the others have not. */
-export const MAX_DROPS = 24;
 
 export interface RingLayer {
   objects: THREE.LineLoop[];

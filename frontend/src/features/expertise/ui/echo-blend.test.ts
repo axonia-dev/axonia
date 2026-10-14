@@ -25,13 +25,13 @@ describe("blendOf", () => {
     const t = tinted([0, 0.5]);
     const blend = blendOf(t, new Float32Array([1, 1]));
     t.values[0] = 0.9; // a later write must not move the blend's starting point
-    blend.apply((x) => (x === 0 ? 0.5 : 0));
+    blend.apply(new Float64Array([0.5, 0]));
     expect([...t.values]).toEqual([0.5, 0.5]);
     expect(t.commits).toBe(1);
   });
   it("lands exactly on the target at 1", () => {
     const t = tinted([0.2, 0.3]);
-    blendOf(t, new Float32Array([0.7, 0.1])).apply(() => 1);
+    blendOf(t, new Float32Array([0.7, 0.1])).apply(1);
     expect([...t.values].map((v) => +v.toFixed(5))).toEqual([0.7, 0.1]);
   });
 });

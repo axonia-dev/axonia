@@ -3,8 +3,8 @@ import * as THREE from "three";
 
 import type { PlacedContribution } from "@/features/expertise/ui/contribution-placement";
 import { drawOnDemand } from "@/features/expertise/ui/draw-on-demand";
-import type { Tinted } from "@/features/expertise/ui/echo-blend";
-import { MAX_DROPS, ringLayer } from "@/features/expertise/ui/echo-rings";
+import { MAX_DROPS } from "@/features/expertise/ui/echo-drops";
+import { ringLayer } from "@/features/expertise/ui/echo-rings";
 import { ECHO } from "@/features/expertise/ui/echo-timeline";
 import type { DrawnHighlight } from "@/features/expertise/ui/echo-transition";
 import { twinkleLayer } from "@/features/expertise/ui/echo-twinkles";
@@ -28,6 +28,7 @@ import {
   type EchoGpu,
   type EchoGround,
   holdLive,
+  liveTints,
   useMapEcho,
 } from "@/features/expertise/ui/use-map-echo";
 import { useThemePaint } from "@/features/expertise/ui/use-theme-paint";
@@ -73,13 +74,12 @@ function streamGround(
         place: (x, y) => new THREE.Vector3(x, y, RING_LIFT),
         capacity: ECHO.ringLagsMs.length * MAX_DROPS,
       }),
-    twinkles: ({ points, colour, markPx }) => {
+    twinkles: ({ points, markPx }) => {
       const made = twinkleLayer({
         points,
         place: (x, y) => new THREE.Vector3(x, y, MARK_LIFT),
         markPx,
         pixelRatio: rendererPixelRatio(),
-        colour,
       });
       made.object.renderOrder = TWINKLES_ORDER;
       return made;
@@ -105,7 +105,7 @@ export function StreamCanvas({
   // The highlight as it stands, read by a layer built after it moved, so a rebuilt layer starts in today's colours.
   const drawnRef = useRef(drawn);
   // Every colour the layers on screen hold, so a highlight repaints them in place rather than rebuilding them.
-  const tintsRef = useRef(new Set<Tinted>());
+  const tintsRef = useRef(liveTints());
   const supported = hasWebGl2();
   const painted = useThemePaint();
   const markPx = markPxFor(size, camera.zoom);
@@ -142,7 +142,11 @@ export function StreamCanvas({
     const drawing = drawOnDemand(renderer, host, () =>
       renderer.render(scene, view),
     );
-    gpuRef.current = { scene, request: drawing.request };
+    gpuRef.current = {
+      scene,
+      request: drawing.request,
+      onScreen: drawing.onScreen,
+    };
 
     return () => {
       drawing.stop();

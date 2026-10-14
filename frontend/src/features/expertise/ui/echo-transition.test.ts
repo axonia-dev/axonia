@@ -35,9 +35,20 @@ describe("transitionFor", () => {
       transitionFor({ from: "", to: "kafka", found: hit, reduced: true }),
     ).toBe("fade");
   });
-  it("snaps a term that matched nothing, since the map does not change", () => {
+  it("snaps a first term that matched nothing, since the map does not change", () => {
     expect(
       transitionFor({ from: "", to: "zzz", found: none, reduced: false }),
     ).toBe("snap");
+  });
+  /** The term before it may still be mid-echo: going back to the whole map is undoing a search, which fades. */
+  it("fades a term that stopped matching", () => {
+    expect(
+      transitionFor({
+        from: "kafka",
+        to: "kafkaz",
+        found: none,
+        reduced: false,
+      }),
+    ).toBe("fade");
   });
 });

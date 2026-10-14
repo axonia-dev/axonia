@@ -82,6 +82,19 @@ describe("drawOnDemand", () => {
     expect(draw).toHaveBeenCalledTimes(2);
   });
 
+  /** What moves frame by frame can skip the work while nobody can see it. */
+  it("says whether the map is on screen", () => {
+    const { drawing } = setUp();
+    expect(drawing.onScreen()).toBe(true);
+
+    screen.notify([{ isIntersecting: false }]);
+    expect(drawing.onScreen()).toBe(false);
+
+    screen.notify([{ isIntersecting: true }]);
+    drawing.stop();
+    expect(drawing.onScreen()).toBe(false);
+  });
+
   it("does not draw for coming back on screen when nothing changed", () => {
     const { draw, frames } = setUp();
     frames(1);

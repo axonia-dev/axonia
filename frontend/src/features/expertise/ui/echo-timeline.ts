@@ -64,7 +64,8 @@ export function echoFor(drops: readonly Drop[], bounds: Bounds): Echo {
   return { waves, local: waves.length > 1 };
 }
 
-function progressOf(wave: Wave, elapsedMs: number, lagMs = 0): number {
+/** How far through its run a wave is, 0 before it drops and 1 once it has run its course. */
+export function progressOf(wave: Wave, elapsedMs: number, lagMs = 0): number {
   return clamp01((elapsedMs - wave.delayMs - lagMs) / ECHO.durationMs);
 }
 

@@ -4,21 +4,35 @@ import * as THREE from "three";
 import { browserClock } from "@/components/patterns/ceremony/clock";
 import type { PlacedContribution } from "@/features/expertise/ui/contribution-placement";
 import { paintNow, type Tinted } from "@/features/expertise/ui/echo-blend";
-import { dropsFor } from "@/features/expertise/ui/echo-drops";
 import { type EchoStage, play } from "@/features/expertise/ui/echo-play";
-import { echoInk, type RingLayer } from "@/features/expertise/ui/echo-rings";
+import type { RingLayer } from "@/features/expertise/ui/echo-rings";
 import type { Bounds } from "@/features/expertise/ui/echo-timeline";
 import type { DrawnHighlight } from "@/features/expertise/ui/echo-transition";
 import type {
   TwinkleLayer,
   TwinklePoint,
 } from "@/features/expertise/ui/echo-twinkles";
-import { groundPalette } from "@/features/expertise/ui/ground-palette";
 
 /** What an echo is drawn into: a scene, and the way to ask for its next frame. */
 export interface EchoGpu {
   scene: THREE.Scene;
   request: () => void;
+  onScreen: () => boolean;
+}
+
+/**
+ * Every colour the layers on screen hold, so a highlight repaints them in place rather than rebuilding them, and how
+ * to end the echo moving them at once on its final picture.
+ */
+export interface LiveTints {
+  tints: Set<Tinted>;
+  settle: () => void;
+}
+
+const NOTHING_TO_SETTLE = () => {};
+
+export function liveTints(): LiveTints {
+  return { tints: new Set(), settle: NOTHING_TO_SETTLE };
 }
 
 /**
@@ -30,41 +44,28 @@ export interface EchoGround {
   marks: readonly PlacedContribution[];
   rings: () => RingLayer;
   twinkles: (
-    made: Readonly<{
-      points: readonly TwinklePoint[];
-      colour: THREE.Color;
-      markPx: number;
-    }>,
+    made: Readonly<{ points: readonly TwinklePoint[]; markPx: number }>,
   ) => TwinkleLayer;
 }
 
 /**
  * Takes a freshly built layer's colours into the live set, painted in the highlight that stands now, and gives back
- * what lets them go again when the layer is torn down.
+ * what lets them go again when the layer is torn down. A layer is built settled, so an echo still moving the others
+ * ends with them on the same picture: a mark chosen mid-echo must not leave the marks ahead of the ground.
  */
 export function holdLive(
-  live: Set<Tinted>,
+  live: LiveTints,
   built: readonly Tinted[],
   drawn: DrawnHighlight,
 ): () => void {
+  live.settle();
   for (const tint of built) {
-    live.add(tint);
+    live.tints.add(tint);
     paintNow(tint, drawn.highlight);
   }
   return () => {
-    for (const tint of built) live.delete(tint);
+    for (const tint of built) live.tints.delete(tint);
   };
-}
-
-/** The ring an answer's twinkle is drawn in: the first area's echo, or the map's own ring with no area to take. */
-function twinkleInk(
-  drawn: DrawnHighlight,
-  marks: readonly PlacedContribution[],
-) {
-  const first = dropsFor(marks, drawn.highlight.marks ?? new Set())[0];
-  return first === undefined
-    ? new THREE.Color(groundPalette().ring)
-    : echoInk(first.slot);
 }
 
 /**
@@ -78,7 +79,7 @@ export function useMapEcho({
   layer,
 }: Readonly<{
   gpuRef: RefObject<EchoGpu | null>;
-  tintsRef: RefObject<Set<Tinted>>;
+  tintsRef: RefObject<LiveTints>;
   layer: Readonly<{
     ground: EchoGround;
     drawn: DrawnHighlight;
@@ -90,25 +91,24 @@ export function useMapEcho({
   const { ground, drawn, markPx, supported, painted } = layer;
   const ringsRef = useRef<RingLayer | null>(null);
   const twinklesRef = useRef<TwinkleLayer | null>(null);
-  const stopRef = useRef<() => void>(() => {});
   const playedRef = useRef(drawn);
 
   useEffect(() => {
     const gpu = gpuRef.current;
     if (gpu === null) return undefined;
 
+    const live = tintsRef.current;
     const rings = ground.rings();
     for (const loop of rings.objects) gpu.scene.add(loop);
     ringsRef.current = rings;
     return () => {
-      // The layers this echo was moving are rebuilt in the same commit and painted settled, so it ends with them.
-      stopRef.current();
-      stopRef.current = () => {};
+      // The layers this echo was moving are rebuilt in the same commit and come back settled: it ends there too.
+      live.settle();
       ringsRef.current = null;
       for (const loop of rings.objects) loop.removeFromParent();
       rings.dispose();
     };
-  }, [gpuRef, ground, supported, painted]);
+  }, [gpuRef, tintsRef, ground, supported, painted]);
 
   useEffect(() => {
     const gpu = gpuRef.current;
@@ -118,11 +118,7 @@ export function useMapEcho({
     const again = playedRef.current === drawn;
     playedRef.current = drawn;
     const twinkles = (points: readonly TwinklePoint[]): TwinkleLayer => {
-      const made = ground.twinkles({
-        points,
-        colour: twinkleInk(drawn, ground.marks),
-        markPx,
-      });
+      const made = ground.twinkles({ points, markPx });
       gpu.scene.add(made.object);
       twinklesRef.current = made;
       return {
@@ -134,22 +130,29 @@ export function useMapEcho({
         },
       };
     };
+    const live = tintsRef.current;
     const stage: EchoStage = {
-      tints: [...tintsRef.current],
+      tints: [...live.tints],
       marks: ground.marks,
       bounds: ground.bounds,
       rings,
       twinkles,
       request: gpu.request,
+      onScreen: gpu.onScreen,
     };
     const stop = play({
       stage,
       drawn: again ? { ...drawn, transition: "snap" } : drawn,
       clock: browserClock,
     });
-    stopRef.current = stop;
+    live.settle = () => {
+      live.settle = NOTHING_TO_SETTLE;
+      stop();
+      for (const tint of live.tints) paintNow(tint, drawn.highlight);
+      gpu.request();
+    };
     return () => {
-      stopRef.current = () => {};
+      live.settle = NOTHING_TO_SETTLE;
       stop();
     };
     // Only a new highlight plays: the layers it plays on are read as they stand when it arrives.

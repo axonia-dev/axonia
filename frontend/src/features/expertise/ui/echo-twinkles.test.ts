@@ -1,19 +1,19 @@
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 
+import { echoInk } from "@/features/expertise/ui/echo-rings";
 import { ECHO } from "@/features/expertise/ui/echo-timeline";
 import { twinkleLayer } from "@/features/expertise/ui/echo-twinkles";
 
 const layer = () =>
   twinkleLayer({
     points: [
-      { x: 10, y: 20, reachedAtMs: 300 },
-      { x: 40, y: 50, reachedAtMs: 900 },
+      { x: 10, y: 20, reachedAtMs: 300, slot: 0 },
+      { x: 40, y: 50, reachedAtMs: 900, slot: 3 },
     ],
     place: (x, y) => new THREE.Vector3(x, 0, y),
     markPx: 6,
     pixelRatio: 2,
-    colour: new THREE.Color(1, 0, 0),
   });
 
 const uniformsOf = (points: THREE.Points) =>
@@ -40,5 +40,13 @@ describe("twinkleLayer", () => {
     expect(uniformsOf(twinkles.object)["uPx"]!.value).toBe(12);
     twinkles.resize(8);
     expect(uniformsOf(twinkles.object)["uPx"]!.value).toBe(16);
+  });
+  /** A twinkle on a graphql mark in kafka's ink would say the answer was somewhere it is not. */
+  it("draws each twinkle in its own area's ink", () => {
+    const colour = layer().object.geometry.getAttribute("aColour");
+    const inkAt = (i: number) =>
+      new THREE.Color().fromBufferAttribute(colour, i).getHexString();
+    expect(inkAt(0)).toBe(echoInk(0).getHexString());
+    expect(inkAt(1)).toBe(echoInk(3).getHexString());
   });
 });

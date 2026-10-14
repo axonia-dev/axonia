@@ -1,8 +1,8 @@
 import { type RefObject, useMemo } from "react";
 
 import type { PlacedContribution } from "@/features/expertise/ui/contribution-placement";
-import type { Tinted } from "@/features/expertise/ui/echo-blend";
-import { MAX_DROPS, ringLayer } from "@/features/expertise/ui/echo-rings";
+import { MAX_DROPS } from "@/features/expertise/ui/echo-drops";
+import { ringLayer } from "@/features/expertise/ui/echo-rings";
 import { type Bounds, ECHO } from "@/features/expertise/ui/echo-timeline";
 import type { DrawnHighlight } from "@/features/expertise/ui/echo-transition";
 import { twinkleLayer } from "@/features/expertise/ui/echo-twinkles";
@@ -13,6 +13,7 @@ import { standOnGround } from "@/features/expertise/ui/terrain-stencil";
 import type { Surface } from "@/features/expertise/ui/terrain-surface";
 import {
   type EchoGround,
+  type LiveTints,
   useMapEcho,
 } from "@/features/expertise/ui/use-map-echo";
 import { rendererPixelRatio } from "@/features/expertise/ui/webgl-support";
@@ -50,13 +51,12 @@ function terrainGround(
       for (const loop of rings.objects) loop.renderOrder = RINGS_ORDER;
       return rings;
     },
-    twinkles: ({ points, colour, markPx }) => {
+    twinkles: ({ points, markPx }) => {
       const made = twinkleLayer({
         points,
         place: placeAt(surface, MARK_LIFT),
         markPx,
         pixelRatio: rendererPixelRatio(),
-        colour,
       });
       made.object.renderOrder = TWINKLES_ORDER;
       standOnGround([made.object]);
@@ -72,7 +72,7 @@ export function useTerrainEcho({
   layer,
 }: Readonly<{
   gpuRef: RefObject<Gpu | null>;
-  tintsRef: RefObject<Set<Tinted>>;
+  tintsRef: RefObject<LiveTints>;
   layer: Readonly<{
     surface: Surface;
     marks: PlacedContribution[];

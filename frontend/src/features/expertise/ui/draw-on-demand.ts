@@ -3,6 +3,8 @@ import type { WebGLRenderer } from "three";
 export interface DrawOnDemand {
   /** Asks for one frame. Any number of requests before it is drawn are the same frame. */
   request: () => void;
+  /** Whether the map is on screen, so what moves frame by frame can skip the work while nobody can see it. */
+  onScreen: () => boolean;
   stop: () => void;
 }
 
@@ -54,6 +56,7 @@ export function drawOnDemand(
 
   return {
     request,
+    onScreen: () => visible && !stopped,
     stop: () => {
       stopped = true;
       observer.disconnect();

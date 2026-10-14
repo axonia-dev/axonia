@@ -189,6 +189,19 @@ describe("TerrainCanvas echo", () => {
     expect(rings).toHaveLength(0);
   });
 
+  /** A mark chosen mid-echo rebuilds the glyphs, which come back settled: the rest of the map must not lag behind. */
+  it("settles the whole map when only the marks are rebuilt mid-echo", () => {
+    const target = settledIn({ highlight: lit, transition: "snap" });
+    const echoing = { highlight: lit, transition: "echo" } as const;
+    const { rerender } = render(<TerrainCanvas {...props} />);
+    rerender(<TerrainCanvas {...props} drawn={echoing} />);
+    advance(500);
+
+    rerender(<TerrainCanvas {...props} drawn={echoing} chosen={1} />);
+    expect(frames.size).toBe(0);
+    expect(groundColours()).toStrictEqual(target);
+  });
+
   it("lets a ring run past the flat map's land, and cuts it at the globe's limb", () => {
     const ringFuncs = () => {
       act(() => gpu.frame?.());

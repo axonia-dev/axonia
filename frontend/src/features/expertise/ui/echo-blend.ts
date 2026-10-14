@@ -12,7 +12,8 @@ export interface Tinted {
 }
 
 export interface Blend {
-  apply: (amount: (x: number, y: number) => number) => void;
+  /** One amount for every item, or each item's own, in the order of `xy`: 0 is where it started, 1 the target. */
+  apply: (amount: number | ArrayLike<number>) => void;
 }
 
 /**
@@ -24,8 +25,9 @@ export function blendOf(tinted: Tinted, to: Float32Array): Blend {
   const { xy, stride, values } = tinted;
   return {
     apply: (amount) => {
+      const everywhere = typeof amount === "number";
       for (let item = 0; item < xy.length / 2; item++) {
-        const k = amount(xy[item * 2]!, xy[item * 2 + 1]!);
+        const k = everywhere ? amount : amount[item]!;
         for (let c = 0; c < stride; c++) {
           const at = item * stride + c;
           values[at] = from[at]! + (to[at]! - from[at]!) * k;

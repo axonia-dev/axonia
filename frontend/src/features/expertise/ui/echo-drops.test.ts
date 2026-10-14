@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { dropsFor } from "@/features/expertise/ui/echo-drops";
+import { dropsFor, MAX_DROPS } from "@/features/expertise/ui/echo-drops";
 import { ECHO } from "@/features/expertise/ui/echo-timeline";
 
 const at = (
@@ -37,5 +37,16 @@ describe("dropsFor", () => {
   });
   it("has no drop when nothing lit is drawn", () => {
     expect(dropsFor([at(1, "kafka", 0, 0)], new Set([9]))).toEqual([]);
+  });
+  it("drops from the biggest areas only, past the cap, and keeps every match lit", () => {
+    const marks = Array.from({ length: MAX_DROPS + 6 }, (_, area) =>
+      Array.from({ length: area + 1 }, (_, n) =>
+        at(area * 100 + n, `area-${area}`, area, 0, area),
+      ),
+    ).flat();
+    const drops = dropsFor(marks, new Set(marks.map((m) => m.signalId)));
+    expect(drops).toHaveLength(MAX_DROPS);
+    expect(drops[0]!.slot).toBe(MAX_DROPS + 5);
+    expect(Math.min(...drops.map((d) => d.slot))).toBe(6);
   });
 });

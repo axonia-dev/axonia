@@ -1,13 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import type { Tinted } from "@/features/expertise/ui/echo-blend";
+import { MAX_DROPS } from "@/features/expertise/ui/echo-drops";
 import { type EchoStage, play } from "@/features/expertise/ui/echo-play";
-import type { TwinklePoint } from "@/features/expertise/ui/echo-twinkles";
 import { ECHO, type Ring } from "@/features/expertise/ui/echo-timeline";
 import type {
   DrawnHighlight,
   MapTransition,
 } from "@/features/expertise/ui/echo-transition";
+import type { TwinklePoint } from "@/features/expertise/ui/echo-twinkles";
 
 function fakeClock() {
   let now = 0;
@@ -42,7 +43,13 @@ function tinted(): Tinted {
   };
 }
 
-function fakeStage(tint: Tinted) {
+const TWO_AREAS: EchoStage["marks"] = [
+  { signalId: 1, tag: "kafka", slot: 0, x: 10, y: 10 },
+  { signalId: 2, tag: "rust", slot: 1, x: 80, y: 80 },
+];
+
+function fakeStage(tint: Tinted, marks: EchoStage["marks"] = TWO_AREAS) {
+  const screen = { on: true };
   const shown: Ring[][] = [];
   const twinkles = {
     points: [] as TwinklePoint[],
@@ -52,10 +59,7 @@ function fakeStage(tint: Tinted) {
   let requests = 0;
   const stage: EchoStage = {
     tints: [tint],
-    marks: [
-      { signalId: 1, tag: "kafka", slot: 0, x: 10, y: 10 },
-      { signalId: 2, tag: "rust", slot: 1, x: 80, y: 80 },
-    ],
+    marks,
     bounds: { minX: 0, minY: 0, maxX: 100, maxY: 100 },
     rings: {
       objects: [],
@@ -76,8 +80,9 @@ function fakeStage(tint: Tinted) {
     request: () => {
       requests += 1;
     },
+    onScreen: () => screen.on,
   };
-  return { stage, shown, twinkles, requests: () => requests };
+  return { stage, shown, twinkles, screen, requests: () => requests };
 }
 
 const drawnOf = (
@@ -124,7 +129,7 @@ describe("play", () => {
     clock.tick(500);
     expect(shown.at(-1)!.length).toBeGreaterThan(0);
     expect(tint.values[0]).toBeGreaterThan(tint.values[1]!);
-    expect(twinkles.points).toHaveLength(2);
+    expect(twinkles.points.map((p) => p.slot)).toEqual([0, 1]);
     expect(twinkles.at.at(-1)).toBe(500);
 
     clock.tick(echoMs);
@@ -180,5 +185,44 @@ describe("play", () => {
     expect(lowest[0]).toBeGreaterThanOrEqual(reached[0]!);
     expect(lowest[1]).toBeGreaterThanOrEqual(reached[1]!);
     expect([...tint.values]).toEqual([1, 1]);
+  });
+
+  it("computes nothing while the map is off screen, and still ends on exactly the target", () => {
+    const tint = tinted();
+    const clock = fakeClock();
+    const { stage, screen } = fakeStage(tint);
+    play({ stage, drawn: drawnOf("echo"), clock });
+    screen.on = false;
+    clock.tick(500);
+    clock.tick(500);
+    expect([...tint.values]).toEqual([0, 0]);
+
+    clock.tick(echoMs);
+    expect([...tint.values]).toEqual([1, 1]);
+    expect(clock.pending()).toBe(0);
+  });
+
+  it("never echoes from more than MAX_DROPS origins", () => {
+    const marks = Array.from({ length: MAX_DROPS + 8 }, (_, area) => ({
+      signalId: area,
+      tag: `area-${area}`,
+      slot: area,
+      x: area * 3,
+      y: 50,
+    }));
+    const clock = fakeClock();
+    const { stage, shown } = fakeStage(tinted(), marks);
+    play({
+      stage,
+      drawn: drawnOf(
+        "echo",
+        marks.map((m) => m.signalId),
+      ),
+      clock,
+    });
+    for (let at = 0; at < 20_000; at += 100) clock.tick(100);
+
+    const origins = new Set(shown.flat().map((ring) => ring.x));
+    expect(origins.size).toBe(MAX_DROPS);
   });
 });

@@ -167,6 +167,18 @@ describe("StreamCanvas echo", () => {
     expect(frames.size).toBe(0);
   });
 
+  /** A mark chosen mid-echo rebuilds the glyphs, which come back settled: the bands must not lag behind. */
+  it("settles every band when only the marks are rebuilt mid-echo", () => {
+    const target = settledIn({ ...echoing, transition: "snap" });
+    const { rerender } = render(<StreamCanvas {...props} />);
+    rerender(<StreamCanvas {...props} drawn={echoing} />);
+    advance(500);
+
+    rerender(<StreamCanvas {...props} drawn={echoing} chosen={1} />);
+    expect(frames.size).toBe(0);
+    expect(colours()).toStrictEqual(target);
+  });
+
   it("leaves no frame queued when it goes away mid-echo", () => {
     const { rerender, unmount } = render(<StreamCanvas {...props} />);
     rerender(<StreamCanvas {...props} drawn={echoing} />);

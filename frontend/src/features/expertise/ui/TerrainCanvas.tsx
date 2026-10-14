@@ -3,7 +3,6 @@ import * as THREE from "three";
 
 import type { MapPerson } from "@/features/expertise/domain/expertise";
 import type { PlacedContribution } from "@/features/expertise/ui/contribution-placement";
-import type { Tinted } from "@/features/expertise/ui/echo-blend";
 import type { DrawnHighlight } from "@/features/expertise/ui/echo-transition";
 import { faceSprites } from "@/features/expertise/ui/face-sprites";
 import { groundPalette } from "@/features/expertise/ui/ground-palette";
@@ -36,7 +35,7 @@ import { groundColourAt } from "@/features/expertise/ui/terrain-shading";
 import { standOnGround } from "@/features/expertise/ui/terrain-stencil";
 import type { Surface } from "@/features/expertise/ui/terrain-surface";
 import type { PlacedTopic } from "@/features/expertise/ui/topic-graph-layout";
-import { holdLive } from "@/features/expertise/ui/use-map-echo";
+import { holdLive, liveTints } from "@/features/expertise/ui/use-map-echo";
 import { useTerrainEcho } from "@/features/expertise/ui/use-terrain-echo";
 import { useThemePaint } from "@/features/expertise/ui/use-theme-paint";
 import {
@@ -80,7 +79,7 @@ export function TerrainCanvas({
   // The highlight as it stands, read by a layer built after it moved, so a rebuilt layer starts in today's colours.
   const drawnRef = useRef(drawn);
   // Every colour the layers on screen hold, so a highlight repaints them in place rather than rebuilding them.
-  const tintsRef = useRef(new Set<Tinted>());
+  const tintsRef = useRef(liveTints());
   const supported = hasWebGl2();
   const painted = useThemePaint();
   const { size } = view;
