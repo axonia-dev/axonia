@@ -6,6 +6,10 @@ import { useExpertiseMap } from "@/features/expertise/api/use-expertise-map";
 import { storeViewMode } from "@/features/expertise/ui/expertise-preferences";
 import { buildReading } from "@/features/expertise/ui/expertise-readings";
 import { highlightFor } from "@/features/expertise/ui/map-highlight";
+import {
+  answerPlace,
+  type MapLayout,
+} from "@/features/expertise/ui/answer-place";
 import { areasMatching } from "@/features/expertise/ui/map-search";
 import { MapReadings } from "@/features/expertise/ui/MapReadings";
 import { groupsFor } from "@/features/expertise/ui/named-area-grouping";
@@ -27,15 +31,21 @@ const SEARCH_DEBOUNCE_MS = 180;
  *  and 414px at 1024. */
 const BESIDE = "(min-width: 1280px)";
 
-const NO_AREAS: readonly string[] = [];
+/** Where the readings stop leading the page: from here the map comes first and the readings follow under it. */
+const MAP_FIRST = "(min-width: 768px)";
 
 /**
  * The map and the readings beside it. Below md the readings come first and the drawing follows under them: the lists
  * carry every fact, so a phone opens on an answer, and the map stays one scroll away rather than out of reach. The
  * panel leads in the source as well, so a keyboard reaches it before the overlay's buttons; md lifts the map above
  * them, and xl stands them side by side. While they are stacked, what a term answers is listed under the drawing,
- * below the box it was typed in, and the readings above stay as they were.
+ * below the box it was typed in; see `answerPlace`.
  */
+function layoutOf(beside: boolean, mapFirst: boolean): MapLayout {
+  if (beside) return "beside";
+  return mapFirst ? "under" : "above";
+}
+
 export function ExpertiseMapView() {
   const { slug = "" } = useParams();
   const [, setParams] = useSearchParams();
@@ -44,6 +54,7 @@ export function ExpertiseMapView() {
   const [term, setTerm] = useState("");
   const reduced = useMediaQuery("(prefers-reduced-motion: reduce)");
   const beside = useMediaQuery(BESIDE);
+  const mapFirst = useMediaQuery(MAP_FIRST);
   const [played, setPlayed] = useState<EchoReport | null>(null);
   const settled = useDebouncedValue(term, SEARCH_DEBOUNCE_MS);
   const { data, isLoading, isError } = useExpertiseMap(slug);
@@ -124,10 +135,16 @@ export function ExpertiseMapView() {
     );
   }
 
+  const place = answerPlace({
+    layout: layoutOf(beside, mapFirst),
+    matchedAreas,
+    selectedTag,
+  });
+
   const answer = (
     <TermAnswer
       slug={slug}
-      matchedAreas={matchedAreas}
+      matchedAreas={place.underDrawing}
       onSeeWhoKnows={seeWhoKnows}
       onChooseMatchedArea={chooseMatchedArea}
       echoing={echoing}
@@ -146,7 +163,8 @@ export function ExpertiseMapView() {
         selectedTag={selectedTag}
         onSelectTag={setSelectedTag}
         onSeeWhoKnows={seeWhoKnows}
-        matchedAreas={beside ? matchedAreas : NO_AREAS}
+        matchedAreas={place.inPanel}
+        termActive={place.panelGivesWay}
         slug={slug}
         echoing={echoing}
         onChooseMatchedArea={chooseMatchedArea}
@@ -162,7 +180,7 @@ export function ExpertiseMapView() {
           onTermChange={setTerm}
           settled={settled}
           onEchoesChange={setPlayed}
-          answer={beside ? null : answer}
+          answer={answer}
         />
       </div>
     </div>

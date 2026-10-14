@@ -48,6 +48,9 @@ interface Props {
   matchedAreas: readonly string[];
   slug: string;
   onChooseMatchedArea: (tag: string) => void;
+  /** Whether a chosen area's own people give way to a term's answer listed elsewhere on the page. Defaults to
+   *  whether the panel itself answers a term. */
+  termActive?: boolean;
   /** True while the map plays an echo for the settled term, which the people listed beside it wait for. */
   echoing: boolean;
 }
@@ -66,6 +69,7 @@ export function ReadingPanel({
   slug,
   onChooseMatchedArea,
   echoing,
+  termActive = matchedAreas.length > 0,
 }: Readonly<Props>) {
   return (
     <aside
@@ -96,7 +100,7 @@ export function ReadingPanel({
           onSelectTag={onSelectTag}
           onSeeWhoKnows={onSeeWhoKnows}
           slug={slug}
-          termActive={matchedAreas.length > 0}
+          termActive={termActive}
         />
       ) : (
         <ReadingRows built={built} />

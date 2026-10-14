@@ -89,12 +89,16 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function tooNarrowForBoth() {
+/** A window this wide: every `min-width` query up to it matches, and nothing else does. */
+function windowOf(width: number) {
   const real = window.matchMedia;
-  vi.spyOn(window, "matchMedia").mockImplementation((query) => ({
-    ...real(query),
-    matches: false,
-  }));
+  vi.spyOn(window, "matchMedia").mockImplementation((query) => {
+    const least = /min-width: (\d+)px/.exec(query)?.[1];
+    return {
+      ...real(query),
+      matches: least !== undefined && Number(least) <= width,
+    };
+  });
 }
 
 const panel = () =>
@@ -161,7 +165,7 @@ test("an area with nothing drawn lists who knows it without waiting for an echo"
 
 /** Stacked, the readings sit away from the box: the answer comes under the drawing, and the readings never move. */
 test("lists the answer under the drawing while the readings are stacked", async () => {
-  tooNarrowForBoth();
+  windowOf(412);
   const user = userEvent.setup({ delay: null });
   await renderMap();
 
@@ -183,3 +187,21 @@ test("lists the answer in the readings once they stand beside the drawing", asyn
     await within(panel()).findByRole("heading", { name: "Who knows kafka" }),
   ).toBeInTheDocument();
 });
+
+for (const width of [412, 768]) {
+  test(`at ${width}px a chosen area and a term naming it list its people once`, async () => {
+    windowOf(width);
+    const user = userEvent.setup({ delay: null });
+    await renderMap();
+    await search(user, "f");
+    await user.click(screen.getByRole("button", { name: "flink" }));
+
+    await search(user, "flink");
+
+    await screen.findAllByRole("heading", { name: "Who knows flink" });
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+    expect(
+      screen.getAllByRole("heading", { name: "Who knows flink" }),
+    ).toHaveLength(1);
+  });
+}
