@@ -41,10 +41,10 @@ function run(checkout: string, ...args: string[]) {
 
 describe("edition.mjs", () => {
   it("runs the Cloud's script in a checkout holding src/cloud", () => {
-    const result = run(CLOUD, "dev", "--port", "3001");
+    const result = run(CLOUD, "dev", "--port", "3000");
 
     expect(result.status).toBe(0);
-    expect(result.stdout.trim()).toBe("run dev:cloud --port 3001");
+    expect(result.stdout.trim()).toBe("run dev:cloud --port 3000");
   });
 
   it("runs the Self-hosted script in a checkout without src/cloud", () => {
