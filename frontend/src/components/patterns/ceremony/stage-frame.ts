@@ -118,3 +118,14 @@ export function clipTo(box: DOMRect, element: HTMLElement | null): string {
   const radius = element === null ? "" : getComputedStyle(element).borderRadius;
   return `inset(${box.top}px ${field.width - box.right}px ${field.height - box.bottom}px ${box.left}px round ${radius || "0px"})`;
 }
+
+/** Whether a scroll moved the target, which a fixed clip no longer matches. */
+export function scrollMovesTarget(
+  scroller: EventTarget | null,
+  target: HTMLElement | null,
+): boolean {
+  if (!(scroller instanceof Node) || scroller === document) {
+    return true;
+  }
+  return target !== null && scroller.contains(target);
+}

@@ -19,6 +19,7 @@ import {
   paintFrame,
   placeCard,
   revealer,
+  scrollMovesTarget,
   stagedSize,
 } from "./stage-frame";
 import { centredPlacement, SETTLE_SECONDS, settlePhase } from "./stage-motion";
@@ -189,31 +190,41 @@ function Stage({
     });
   }, [backdrop, clock, finish, latest, target]);
 
+  const inPlace = props.placement === "in-place";
   useEffect(() => {
     const skip = (event: KeyboardEvent) => {
       if (event.ctrlKey || event.metaKey) {
         return;
       }
-      event.preventDefault();
-      event.stopPropagation();
+      if (!inPlace) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
       finish();
     };
     window.addEventListener("keydown", skip, true);
     return () => window.removeEventListener("keydown", skip, true);
-  }, [finish]);
+  }, [finish, inPlace]);
 
-  const inPlace = props.placement === "in-place";
   useEffect(() => {
     if (!inPlace) {
       return undefined;
     }
-    window.addEventListener("scroll", finish, { passive: true, capture: true });
+    const scrolled = (event: Event) => {
+      if (scrollMovesTarget(event.target, target.current)) {
+        finish();
+      }
+    };
+    window.addEventListener("scroll", scrolled, {
+      passive: true,
+      capture: true,
+    });
     window.addEventListener("resize", finish);
     return () => {
-      window.removeEventListener("scroll", finish, { capture: true });
+      window.removeEventListener("scroll", scrolled, { capture: true });
       window.removeEventListener("resize", finish);
     };
-  }, [finish, inPlace]);
+  }, [finish, inPlace, target]);
 
   return createPortal(
     <div
