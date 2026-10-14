@@ -85,8 +85,7 @@ vi.mock("@/features/expertise/ui/MapDrawing", () => ({
   MapDrawing: () => <div data-testid="drawing" />,
 }));
 
-test("choosing a matched area inside a reading leaves the reading and opens the area", async () => {
-  const user = userEvent.setup({ delay: null });
+async function renderMap() {
   render(
     <QueryClientProvider client={new QueryClient()}>
       <MemoryRouter>
@@ -95,18 +94,52 @@ test("choosing a matched area inside a reading leaves the reading and opens the 
     </QueryClientProvider>,
   );
   await screen.findByTestId("drawing");
+}
+
+async function search(user: ReturnType<typeof userEvent.setup>, term: string) {
+  await user.type(
+    screen.getByRole("searchbox", { name: /find on the map/i }),
+    term,
+  );
+  await act(() => new Promise((resolve) => setTimeout(resolve, 260)));
+}
+
+test("choosing a matched area inside a reading leaves the reading and opens the area", async () => {
+  const user = userEvent.setup({ delay: null });
+  await renderMap();
   await user.click(screen.getByRole("button", { name: /reading/i }));
   await user.click(screen.getByRole("option", { name: "Not yet presented" }));
 
-  await user.type(
-    screen.getByRole("searchbox", { name: /find on the map/i }),
-    "f",
-  );
-  await act(() => new Promise((resolve) => setTimeout(resolve, 260)));
+  await search(user, "f");
   await user.click(screen.getByRole("button", { name: "flink" }));
 
   expect(
     await screen.findByRole("heading", { name: "Who knows flink" }),
   ).toBeInTheDocument();
   expect(screen.getByRole("heading", { name: "flink" })).toBeInTheDocument();
+});
+
+/** The chips and the area page swap in one step: the term the box no longer holds is no longer matched. */
+test("choosing a matched area puts the chips away at once", async () => {
+  const user = userEvent.setup({ delay: null });
+  await renderMap();
+  await search(user, "f");
+  expect(screen.getByText(/^Matches \d+ areas/)).toBeInTheDocument();
+
+  await user.click(screen.getByRole("button", { name: "flink" }));
+
+  expect(screen.queryByText(/^Matches \d+ areas/)).not.toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "flink" })).toBeInTheDocument();
+});
+
+/** Nothing of this area is drawn, so the map only fades: its people have no echo to wait for. */
+test("an area with nothing drawn lists who knows it without waiting for an echo", async () => {
+  const user = userEvent.setup({ delay: null });
+  await renderMap();
+
+  await search(user, "kafka");
+
+  expect(
+    await screen.findByRole("heading", { name: "Who knows kafka" }),
+  ).toBeInTheDocument();
 });

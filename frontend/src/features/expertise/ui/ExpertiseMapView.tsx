@@ -13,6 +13,7 @@ import {
   type PanelSelection,
   ReadingPanel,
 } from "@/features/expertise/ui/ReadingPanel";
+import type { EchoReport } from "@/features/expertise/ui/use-drawn-highlight";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { useNow } from "@/lib/use-wake-at";
@@ -33,6 +34,7 @@ export function ExpertiseMapView() {
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [term, setTerm] = useState("");
   const reduced = useMediaQuery("(prefers-reduced-motion: reduce)");
+  const [played, setPlayed] = useState<EchoReport | null>(null);
   const settled = useDebouncedValue(term, SEARCH_DEBOUNCE_MS);
   const { data, isLoading, isError } = useExpertiseMap(slug);
 
@@ -56,10 +58,16 @@ export function ExpertiseMapView() {
     [built, selectedTag],
   );
 
+  // A box cleared, or emptied by choosing one of the areas, matches nothing at once rather than a debounce later.
+  const cleared = term.trim() === "" || settled.trim() === "";
   const matchedAreas = useMemo(
-    () => (settled.trim() === "" ? [] : areasMatching(settled, topics)),
-    [settled, topics],
+    () => (cleared ? [] : areasMatching(settled, topics)),
+    [cleared, settled, topics],
   );
+
+  // Until the map has decided for this term, the people wait as if it echoes: a wait cut short reads better than rows
+  // that jump in ahead of the picture.
+  const echoing = played?.term === settled ? played.echoes : !reduced;
 
   function seeWhoKnows(tag: string) {
     storeViewMode("search");
@@ -120,7 +128,7 @@ export function ExpertiseMapView() {
         onSeeWhoKnows={seeWhoKnows}
         matchedAreas={matchedAreas}
         slug={slug}
-        echoing={!reduced}
+        echoing={echoing}
         onChooseMatchedArea={chooseMatchedArea}
       />
       <div className="border-border border-t md:order-first md:border-t-0">
@@ -133,6 +141,7 @@ export function ExpertiseMapView() {
           term={term}
           onTermChange={setTerm}
           settled={settled}
+          onEchoesChange={setPlayed}
         />
       </div>
     </div>
