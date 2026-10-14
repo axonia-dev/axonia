@@ -1,5 +1,8 @@
 package dev.axonia.community.adapter.out.persistence;
 
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.util.Map;
 import java.util.Set;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -8,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jdbc.core.JdbcAggregateTemplate;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 import dev.axonia.CoreJdbcTestSupport;
 import dev.axonia.community.api.CommunityStatus;
@@ -27,6 +31,9 @@ class JdbcCommunityStoreIntegrationTest extends CoreJdbcTestSupport {
 
     @Autowired
     private JdbcAggregateTemplate jdbcAggregateTemplate;
+
+    @Autowired
+    private NamedParameterJdbcTemplate jdbc;
 
     private JdbcCommunityStore sut;
 
@@ -61,12 +68,28 @@ class JdbcCommunityStoreIntegrationTest extends CoreJdbcTestSupport {
 
         // when
         var actual = sut.search(search(MembershipFilter.JOINED, Set.of(joinedGuild, joinedCircle, joinedSecondGuild)),
-                PageRequest.of(0, 1, Sort.by(Sort.Direction.DESC, "created_at")));
+                PageRequest.of(0, 1));
 
         // then
         assertThat(actual.getContent()).hasSize(1);
         assertThat(actual.getContent().getFirst().getId()).isIn(joinedGuild, joinedSecondGuild);
         assertThat(actual.getTotalElements()).isEqualTo(2);
+    }
+
+    @Test
+    void joined_orders_newest_first_by_creation() {
+
+        // given
+        createdAt(joinedGuild, "2026-06-02T00:00:00Z");
+        createdAt(joinedSecondGuild, "2026-06-01T00:00:00Z");
+
+        // when
+        var actual = sut.search(search(MembershipFilter.JOINED, Set.of(joinedGuild, joinedSecondGuild)),
+                PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "created_at")));
+
+        // then
+        assertThat(actual.getContent()).extracting(CommunityRecord::getId).containsExactly(joinedGuild,
+                joinedSecondGuild);
     }
 
     @Test
@@ -120,6 +143,12 @@ class JdbcCommunityStoreIntegrationTest extends CoreJdbcTestSupport {
 
         return communityRepository.save(CommunityEntityMother.any().organizationId(organizationId).kindId(kindId)
                 .slug(slug).name(name).status(status).build()).getId();
+    }
+
+    private void createdAt(Long id, String instant) {
+
+        jdbc.update("UPDATE communities SET created_at = :createdAt WHERE id = :id",
+                Map.of("createdAt", Timestamp.from(Instant.parse(instant)), "id", id));
     }
 
     private static CommunitySearch search(MembershipFilter membership, Set<Long> memberOf) {

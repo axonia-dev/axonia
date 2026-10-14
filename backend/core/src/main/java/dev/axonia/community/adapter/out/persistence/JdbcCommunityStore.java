@@ -2,9 +2,8 @@ package dev.axonia.community.adapter.out.persistence;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
-import java.util.regex.Pattern;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -29,7 +28,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class JdbcCommunityStore implements CommunityStore {
 
-    private static final Pattern SNAKE_CASE = Pattern.compile("_([a-z])");
+    private static final Map<String, String> SORT_PROPERTIES = Map.of("created_at", "createdAt");
 
     private final CommunityRepository communityRepository;
     private final JdbcAggregateTemplate jdbcAggregateTemplate;
@@ -92,8 +91,8 @@ public class JdbcCommunityStore implements CommunityStore {
 
     private static Pageable byProperty(Pageable pageable) {
 
-        var orders = pageable.getSort().stream().map(order -> order.withProperty(
-                SNAKE_CASE.matcher(order.getProperty()).replaceAll(match -> match.group(1).toUpperCase(Locale.ROOT))))
+        var orders = pageable.getSort().stream().map(
+                order -> order.withProperty(SORT_PROPERTIES.getOrDefault(order.getProperty(), order.getProperty())))
                 .toList();
         return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by(orders));
     }
