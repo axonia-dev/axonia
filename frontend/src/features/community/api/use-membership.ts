@@ -80,6 +80,7 @@ export function useJoin(slug: string, onJoined?: () => void) {
         queryClient.invalidateQueries({
           queryKey: learningKeys.community(slug),
         }),
+        queryClient.invalidateQueries({ queryKey: communityKeys.lists() }),
       ]);
     },
   });
@@ -108,6 +109,7 @@ export function useLeave(slug: string) {
       void queryClient.invalidateQueries({
         queryKey: learningKeys.community(slug),
       });
+      void queryClient.invalidateQueries({ queryKey: communityKeys.lists() });
     },
   });
 }

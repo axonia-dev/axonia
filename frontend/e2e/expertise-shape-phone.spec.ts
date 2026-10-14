@@ -156,7 +156,7 @@ async function stubReads(page: Page): Promise<void> {
     [`/axonia/communities/${SLUG}`]: community,
     [`/axonia/communities/${SLUG}/members/me`]: member,
     [`/axonia/communities/${SLUG}/management-policy`]: {},
-    "/axonia/communities": paged([community]),
+    "/axonia/communities": paged([{ ...community, role: "MEMBER" }]),
     "/axonia/me/onboarding": { state: "COMPLETED" },
   };
   await page.route("**/axonia/**", (route) => {

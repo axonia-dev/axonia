@@ -8,7 +8,10 @@ import {
 import type { CommunicationSettings } from "@/features/community/domain/communication-settings";
 import { communicationSettingsSchema } from "@/features/community/domain/communication-settings";
 import type { FocalPoint } from "@/features/community/domain/community";
-import { communitySchema } from "@/features/community/domain/community";
+import {
+  communityListingSchema,
+  communitySchema,
+} from "@/features/community/domain/community";
 import type {
   CommunityGateway,
   CommunityInput,
@@ -29,7 +32,7 @@ import { pageSchema } from "@/features/community/domain/page";
 import { ApiError, apiFetch, apiFetchVoid } from "@/lib/api-client";
 import { buildQuery as query } from "@/lib/query";
 
-const communityPageSchema = pageSchema(communitySchema);
+const communityPageSchema = pageSchema(communityListingSchema);
 const membershipPageSchema = pageSchema(membershipSchema);
 const communityMemberListSchema = z.array(communityMemberSchema);
 const communityKindListSchema = z.array(communityKindSchema);

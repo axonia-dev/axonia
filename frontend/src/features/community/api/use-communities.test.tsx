@@ -57,7 +57,7 @@ describe("useCommunities", () => {
   it("returns the directory page", async () => {
     // given
     gateway.list.mockResolvedValue({
-      content: [community],
+      content: [{ ...community, role: null }],
       totalElements: 1,
       totalPages: 1,
       number: 0,

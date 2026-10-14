@@ -61,7 +61,9 @@ describe("httpCommunityGateway", () => {
 
   it("list parses the directory page and encodes the query", async () => {
     // given
-    fetchSpy.mockResolvedValue(jsonResponse(page([community])));
+    fetchSpy.mockResolvedValue(
+      jsonResponse(page([{ ...community, role: null }])),
+    );
 
     // when
     const actual = await httpCommunityGateway.list({
@@ -75,6 +77,21 @@ describe("httpCommunityGateway", () => {
     const [url] = fetchSpy.mock.calls[0] ?? [];
     expect(urlOf(url)).toContain("/axonia/communities?");
     expect(urlOf(url)).toContain("q=guild");
+  });
+
+  it("lists with the membership filter and parses the caller's role", async () => {
+    // given
+    fetchSpy.mockResolvedValue(
+      jsonResponse(page([{ ...community, role: "ORGANIZER" }])),
+    );
+
+    // when
+    const actual = await httpCommunityGateway.list({ membership: "JOINED" });
+
+    // then
+    const [url] = fetchSpy.mock.calls[0] ?? [];
+    expect(urlOf(url)).toContain("membership=JOINED");
+    expect(actual.content[0]?.role).toBe("ORGANIZER");
   });
 
   it("getBySlug parses a community", async () => {

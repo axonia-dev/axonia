@@ -5,6 +5,7 @@ import type {
 import type { CommunicationSettings } from "@/features/community/domain/communication-settings";
 import type {
   Community,
+  CommunityListing,
   FocalPoint,
 } from "@/features/community/domain/community";
 import type { CommunityKind } from "@/features/community/domain/community-kind";
@@ -18,10 +19,13 @@ import type {
 import type { Page } from "@/features/community/domain/page";
 import type { ImageLimits } from "@/lib/fit-image";
 
+export type MembershipFilter = "JOINED" | "EXPLORE";
+
 export interface ListParams {
   page?: number;
   size?: number;
   q?: string;
+  membership?: MembershipFilter;
 }
 
 export interface MemberListParams {
@@ -45,7 +49,7 @@ export const ASSET_LIMITS: Record<LookAndFeelAsset, ImageLimits> = {
 };
 
 export interface CommunityGateway {
-  list(params: ListParams): Promise<Page<Community>>;
+  list(params: ListParams): Promise<Page<CommunityListing>>;
   getBySlug(slug: string): Promise<Community>;
   create(input: CommunityInput): Promise<Community>;
   update(slug: string, input: CommunityInput): Promise<Community>;

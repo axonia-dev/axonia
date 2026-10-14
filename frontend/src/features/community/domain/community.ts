@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { communityRoleSchema } from "@/features/community/domain/membership";
+
 const communityStatusSchema = z.enum(["ACTIVE", "ARCHIVED"]);
 
 const focalPointSchema = z.object({ x: z.number(), y: z.number() });
@@ -25,6 +27,12 @@ export const communitySchema = z.object({
 });
 
 export type Community = z.infer<typeof communitySchema>;
+
+export const communityListingSchema = communitySchema.extend({
+  role: communityRoleSchema.nullable(),
+});
+
+export type CommunityListing = z.infer<typeof communityListingSchema>;
 
 export function isArchived(community: Community): boolean {
   return community.status === "ARCHIVED";
