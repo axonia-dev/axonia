@@ -163,4 +163,20 @@ describe("CommunityHeroCard", () => {
       ]),
     );
   });
+
+  it("draws a backdrop inside the card, beneath the identity", () => {
+    // when
+    render(
+      <CommunityHeroCard
+        community={base}
+        backdrop={<div data-testid="backdrop" />}
+      />,
+    );
+
+    // then
+    const surface = screen.getByTestId("backdrop").parentElement!;
+    expect(surface).toHaveAttribute("data-ceremony-part", "surface");
+    const identity = surface.querySelector('[data-ceremony-part="identity"]')!;
+    expect(identity).toHaveClass("z-[1]");
+  });
 });

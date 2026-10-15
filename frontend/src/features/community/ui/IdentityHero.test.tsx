@@ -21,6 +21,10 @@ const { useCurrentOrganizationMock } = vi.hoisted(() => ({
   ),
 }));
 
+vi.mock("@/features/community/ui/HeroPulseField", () => ({
+  HeroPulseField: () => null,
+}));
+
 vi.mock("@/features/community/ui/JoinAction", () => ({
   JoinAction: () => <div>join-action</div>,
 }));

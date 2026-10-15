@@ -13,6 +13,7 @@ interface Props {
   bannerOverlay?: ReactNode;
   badgeOverlay?: ReactNode;
   cornerControl?: ReactNode;
+  backdrop?: ReactNode;
 }
 
 export function CommunityHeroCard({
@@ -23,6 +24,7 @@ export function CommunityHeroCard({
   bannerOverlay,
   badgeOverlay,
   cornerControl,
+  backdrop,
 }: Readonly<Props>) {
   const showBanner = community.heroUrl != null || editing;
   const showBadge = community.badgeUrl != null || editing;
@@ -37,6 +39,7 @@ export function CommunityHeroCard({
         data-ceremony-part="surface"
         className="border-border bg-surface relative overflow-hidden rounded-lg border shadow-sm"
       >
+        {backdrop}
         {showBanner && (
           <HeroBanner
             heroUrl={community.heroUrl}

@@ -11,6 +11,10 @@ import type { Community } from "@/features/community/domain/community";
 import { IdentityHero } from "@/features/community/ui/IdentityHero";
 import { useUsers } from "@/features/identity/api/use-users";
 
+vi.mock("@/features/community/ui/HeroPulseField", () => ({
+  HeroPulseField: () => null,
+}));
+
 vi.mock("@/features/community/ui/JoinAction", () => ({
   JoinAction: () => <div>join-action</div>,
 }));

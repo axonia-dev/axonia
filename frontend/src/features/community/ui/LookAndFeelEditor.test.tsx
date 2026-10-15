@@ -35,6 +35,10 @@ vi.mock("@/features/community/ui/community-chrome", () => ({
   useCommunityCrumbs: vi.fn(),
 }));
 
+vi.mock("@/features/community/ui/HeroPulseField", () => ({
+  HeroPulseField: () => <div data-testid="pulse-field" />,
+}));
+
 vi.mock("@/features/community/ui/ceremony/WelcomePreview", () => ({
   WelcomePreview: ({ onDone }: { onDone: () => void }) => (
     <button onClick={onDone}>welcome-preview</button>
@@ -209,5 +213,18 @@ describe("LookAndFeelEditor", () => {
     expect(
       screen.queryByRole("button", { name: "welcome-preview" }),
     ).toBeNull();
+  });
+
+  it("previews the pulse field on the card being edited", () => {
+    renderEditor();
+    expect(screen.getByTestId("pulse-field")).toBeInTheDocument();
+  });
+
+  it("hides the pulse field while the welcome preview plays", async () => {
+    renderEditor();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Preview welcome" }),
+    );
+    expect(screen.queryByTestId("pulse-field")).not.toBeInTheDocument();
   });
 });

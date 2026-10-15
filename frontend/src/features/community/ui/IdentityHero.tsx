@@ -25,6 +25,7 @@ import { LazyHeroCeremony } from "@/features/community/ui/ceremony/lazy-ceremoni
 import { useHeroCeremony } from "@/features/community/ui/ceremony/use-hero-ceremony";
 import { CommunityHeroCard } from "@/features/community/ui/CommunityHeroCard";
 import { CommunityMenu } from "@/features/community/ui/CommunityMenu";
+import { HeroPulseField } from "@/features/community/ui/HeroPulseField";
 import { JoinAction } from "@/features/community/ui/JoinAction";
 import { MembershipChip } from "@/features/community/ui/MembershipChip";
 import {
@@ -192,6 +193,9 @@ export function IdentityHero({ community, slug }: Readonly<IdentityHeroProps>) {
           meta={meta}
           footer={footer}
           cornerControl={cornerControl}
+          backdrop={
+            playing ? undefined : <HeroPulseField community={community} />
+          }
         />
       </div>
       {ceremony.active !== null && (

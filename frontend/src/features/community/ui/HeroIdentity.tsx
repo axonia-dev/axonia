@@ -72,7 +72,7 @@ export function HeroIdentity({
   return (
     <div
       data-ceremony-part="identity"
-      className={cn("relative", hasBanner ? "px-8 pb-8" : "p-8")}
+      className={cn("relative z-[1]", hasBanner ? "px-8 pb-8" : "p-8")}
       style={hasBanner ? IDENTITY_WASH : { backgroundColor: "var(--surface)" }}
     >
       {showBadge && (
