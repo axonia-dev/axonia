@@ -108,6 +108,8 @@ describe("paintFrame", () => {
       2,
     );
     expect(context.operations).toContain("lighter");
+    expect(scratchContext.calls).toContain("clearRect");
+    expect(scratch.width).toBe(0);
   });
 
   it("fades the field down the card", () => {

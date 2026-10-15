@@ -15,6 +15,7 @@ export interface Frame {
   readonly seam: number;
   readonly upper: Ink;
   readonly lower: Ink;
+  /** Sized to the canvas by its owner; cleared, never resized, per frame. */
   readonly scratch: HTMLCanvasElement | null;
   readonly ratio: number;
 }
@@ -120,9 +121,8 @@ function layer(
     return;
   }
   const ink = upper ? frame.upper : frame.lower;
-  scratch.width = Math.round(frame.box.width * frame.ratio);
-  scratch.height = Math.round(frame.box.height * frame.ratio);
   layerContext.setTransform(frame.ratio, 0, 0, frame.ratio, 0, 0);
+  layerContext.clearRect(0, 0, frame.box.width, frame.box.height);
   drawMotes(layerContext, frame.samples, ink);
   mask(layerContext, frame, upper);
   context.save();
