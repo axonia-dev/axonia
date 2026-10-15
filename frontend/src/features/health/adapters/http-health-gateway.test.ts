@@ -124,7 +124,8 @@ describe("activityTrace", () => {
 
     // then
     expect(actual).toEqual(body);
-    expect(String(fetchSpy.mock.calls[0]![0])).toContain(
+    const [url] = fetchSpy.mock.calls[0] ?? [];
+    expect(url instanceof Request ? url.url : String(url)).toContain(
       "/axonia/communities/backend-guild/activity-trace",
     );
   });

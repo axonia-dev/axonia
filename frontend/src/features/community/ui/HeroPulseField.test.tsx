@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { AmbientFieldProps } from "@/components/patterns/ambient-field/AmbientField";
 import type { Community } from "@/features/community/domain/community";
 import {
   HeroPulseField,
@@ -12,12 +13,9 @@ vi.mock("@/features/health/api/use-activity-trace", () => ({
   useActivityTrace: vi.fn(),
 }));
 
-const fieldRenders = vi.fn();
+const fieldRenders = vi.fn<(props: AmbientFieldProps) => void>();
 vi.mock("@/components/patterns/ambient-field/AmbientField", () => ({
-  AmbientField: (props: {
-    lights: unknown[];
-    inks: { upper: string; lower: string };
-  }) => {
+  AmbientField: (props: AmbientFieldProps) => {
     fieldRenders(props);
     return (
       <div
@@ -121,10 +119,12 @@ describe("HeroPulseField", () => {
 
     rerender(<HeroPulseField community={{ ...community }} />);
 
-    const [first, second] = fieldRenders.mock.calls.slice(-2).map(([p]) => p);
-    expect(second.lights).toBe(first.lights);
-    expect(second.inks).toBe(first.inks);
-    expect(second.seam).toBe(first.seam);
+    const [first, second] = fieldRenders.mock.calls
+      .slice(-2)
+      .map(([props]) => props);
+    expect(second?.lights).toBe(first?.lights);
+    expect(second?.inks).toBe(first?.inks);
+    expect(second?.seam).toBe(first?.seam);
   });
 });
 
