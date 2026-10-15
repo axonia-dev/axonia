@@ -1247,4 +1247,15 @@
 		<Class name="dev.axonia.shared.adapter.out.ratelimit.RedisRateLimitStore"/>
 		<Bug pattern="EI_EXPOSE_REP2"/>
 	</Match>
+	<!--
+		ActivityTrace is a record of immutable count series handed straight to the JSON writer; copying them adds nothing.
+	-->
+	<Match>
+		<Class name="dev.axonia.health.domain.ActivityTrace"/>
+		<Bug pattern="EI_EXPOSE_REP"/>
+	</Match>
+	<Match>
+		<Class name="dev.axonia.health.domain.ActivityTrace"/>
+		<Bug pattern="EI_EXPOSE_REP2"/>
+	</Match>
 </FindBugsFilter>

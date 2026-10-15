@@ -8,7 +8,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import dev.axonia.health.application.ActivityTraceService;
 import dev.axonia.health.application.HealthService;
+import dev.axonia.health.domain.ActivityTrace;
 import dev.axonia.health.domain.HealthSnapshot;
 import lombok.RequiredArgsConstructor;
 
@@ -18,11 +20,18 @@ import lombok.RequiredArgsConstructor;
 public class HealthController {
 
     private final HealthService healthService;
+    private final ActivityTraceService activityTraceService;
 
     @GetMapping("/communities/{slug}/health")
     HealthSnapshot snapshot(@PathVariable String slug,
             @RequestParam(defaultValue = "90d") @Pattern(regexp = "[1-9]\\d{0,2}d") String window) {
 
         return healthService.snapshot(slug, Integer.parseInt(window.substring(0, window.length() - 1)));
+    }
+
+    @GetMapping("/communities/{slug}/activity-trace")
+    ActivityTrace activityTrace(@PathVariable String slug) {
+
+        return activityTraceService.trace(slug);
     }
 }

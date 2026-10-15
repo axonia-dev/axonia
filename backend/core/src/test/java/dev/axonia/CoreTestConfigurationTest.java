@@ -20,6 +20,7 @@ import org.springframework.util.ClassUtils;
 
 import dev.axonia.communication.api.spi.MailServer;
 import dev.axonia.health.adapter.in.web.HealthController;
+import dev.axonia.health.application.ActivityTraceService;
 import dev.axonia.health.application.HealthService;
 import dev.axonia.identity.api.spi.IdentityAccounts;
 import dev.axonia.identity.api.spi.OrganizationCardLookSource;
@@ -55,6 +56,9 @@ class CoreTestConfigurationTest {
 
         @MockitoBean
         private HealthService healthService;
+
+        @MockitoBean
+        private ActivityTraceService activityTraceService;
 
         @Test
         void holdsTheControllerAndNeitherARepositoryNorAStandIn() {

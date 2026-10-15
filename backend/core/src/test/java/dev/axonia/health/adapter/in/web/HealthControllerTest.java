@@ -1,6 +1,7 @@
 package dev.axonia.health.adapter.in.web;
 
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -8,7 +9,9 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import dev.axonia.ControllerTestSupport;
 import dev.axonia.CoreWebMvcTest;
+import dev.axonia.health.application.ActivityTraceService;
 import dev.axonia.health.application.HealthService;
+import dev.axonia.health.domain.ActivityTrace;
 import dev.axonia.health.domain.CadenceStatus;
 import dev.axonia.health.domain.Diagnosis;
 import dev.axonia.health.domain.Finding;
@@ -27,6 +30,9 @@ class HealthControllerTest extends ControllerTestSupport {
 
     @MockitoBean
     private HealthService healthService;
+
+    @MockitoBean
+    private ActivityTraceService activityTraceService;
 
     /**
      * A whole snapshot, every field populated. The wire-format test renders this one, so a field left off here is a
@@ -98,5 +104,22 @@ class HealthControllerTest extends ControllerTestSupport {
 
         // then
         actual.assertThat().hasStatus(403);
+    }
+
+    @Test
+    void activityTrace() throws JacksonException {
+
+        // given
+        var trace = new ActivityTrace(90, Collections.nCopies(90, 1L), Collections.nCopies(90, 2L),
+                Collections.nCopies(90, 0L));
+        when(activityTraceService.trace("backend-guild")).thenReturn(trace);
+
+        // when
+        var actual = mvc.get().uri("/axonia/communities/{slug}/activity-trace", "backend-guild");
+
+        // then
+        actual.assertThat().hasStatus2xxSuccessful().bodyJson().isEqualTo(jsonMapper.writeValueAsString(trace));
+        actual.assertThat().bodyJson().extractingPath("$.days").isEqualTo(90);
+        actual.assertThat().bodyJson().extractingPath("$.sessionsHeld.length()").isEqualTo(90);
     }
 }

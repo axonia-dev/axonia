@@ -128,7 +128,7 @@ class PrivacyOwnSignInGuardTest {
     /** A stand-in for any controller outside this module's package - the guard must never act on it. */
     private static HandlerMethod otherModuleControllerHandler() throws NoSuchMethodException {
 
-        return new HandlerMethod(new HealthController(null),
+        return new HandlerMethod(new HealthController(null, null),
                 HealthController.class.getDeclaredMethod("snapshot", String.class, String.class));
     }
 
