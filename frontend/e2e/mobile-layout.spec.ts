@@ -177,7 +177,7 @@ test("the learning page fits a phone, however long an area's name", async ({
   expect(await overflowing(browser)).toEqual([]);
 });
 
-test("the community home fits a phone, its pulse included", async ({
+test("the community home fits a phone, its ambient field included", async ({
   page: browser,
 }) => {
   // given - a community with a busy last quarter

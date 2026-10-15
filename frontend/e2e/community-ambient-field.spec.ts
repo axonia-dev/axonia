@@ -93,7 +93,7 @@ function bitmapAfter(field: Locator, frames: number): Promise<string> {
 const part = (page: Page, name: string) =>
   page.locator(`[data-ceremony-part="${name}"]`).first();
 
-test("the community home carries a living pulse", async ({ page }) => {
+test("the community home carries a living ambient field", async ({ page }) => {
   // given - a community that held a session today
   await visitAliveCommunity(page);
 
@@ -106,7 +106,7 @@ test("the community home carries a living pulse", async ({ page }) => {
   ).toBeVisible();
 });
 
-test("the pulse reaches the screen on a card without a photo, behind the name too", async ({
+test("the ambient field reaches the screen on a card without a photo, behind the name too", async ({
   page,
 }) => {
   // given
@@ -124,7 +124,7 @@ test("the pulse reaches the screen on a card without a photo, behind the name to
   );
 });
 
-test("the pulse reaches the screen over a hero photo and below it", async ({
+test("the ambient field reaches the screen over a hero photo and below it", async ({
   page,
 }) => {
   // given
@@ -146,7 +146,7 @@ test("the pulse reaches the screen over a hero photo and below it", async ({
   );
 });
 
-test("reduced motion still shows the pulse, standing still", async ({
+test("reduced motion still shows the ambient field, standing still", async ({
   page,
 }) => {
   // given

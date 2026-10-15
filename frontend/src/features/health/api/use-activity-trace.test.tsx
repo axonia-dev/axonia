@@ -35,4 +35,16 @@ describe("useActivityTrace", () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(gateway.activityTrace).toHaveBeenCalledWith("backend-guild");
   });
+
+  it("reads nothing while disabled", () => {
+    // when
+    const { result } = renderHook(
+      () => useActivityTrace("backend-guild", { enabled: false }),
+      { wrapper },
+    );
+
+    // then
+    expect(result.current.fetchStatus).toBe("idle");
+    expect(gateway.activityTrace).not.toHaveBeenCalled();
+  });
 });

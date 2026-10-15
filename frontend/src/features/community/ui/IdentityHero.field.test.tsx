@@ -46,8 +46,8 @@ vi.mock("@/features/admin/api/use-current-organization", () => ({
   useCurrentOrganization: () => ({ data: { kind: "ENTERPRISE" } }),
 }));
 vi.mock("@/features/identity/api/use-users", () => ({ useUsers: vi.fn() }));
-vi.mock("@/features/community/ui/HeroPulseField", () => ({
-  HeroPulseField: () => <div data-testid="pulse-field" />,
+vi.mock("@/features/community/ui/HeroAmbientField", () => ({
+  HeroAmbientField: () => <div data-testid="ambient-field" />,
 }));
 
 const community: Community = {
@@ -81,13 +81,13 @@ beforeEach(() => {
   vi.mocked(useManagementAccess).mockReturnValue({ invite: false } as never);
 });
 
-describe("IdentityHero's pulse field", () => {
+describe("IdentityHero's ambient field", () => {
   it("draws the field behind the hero", () => {
     // when
     renderHero();
 
     // then
-    expect(screen.getByTestId("pulse-field")).toBeInTheDocument();
+    expect(screen.getByTestId("ambient-field")).toBeInTheDocument();
   });
 
   it("draws no field while a ceremony plays, and draws it once the ceremony is done", async () => {
@@ -99,9 +99,9 @@ describe("IdentityHero's pulse field", () => {
 
     // then
     await screen.findByText("ceremony birth 42 to 42");
-    expect(screen.queryByTestId("pulse-field")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("ambient-field")).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "end ceremony" }));
-    expect(await screen.findByTestId("pulse-field")).toBeInTheDocument();
+    expect(await screen.findByTestId("ambient-field")).toBeInTheDocument();
   });
 
   it("renders the field before the identity, whose content sits on layer 2", () => {
@@ -109,7 +109,7 @@ describe("IdentityHero's pulse field", () => {
     renderHero();
 
     // then
-    const field = screen.getByTestId("pulse-field");
+    const field = screen.getByTestId("ambient-field");
     const identity = document.querySelector('[data-ceremony-part="identity"]')!;
     expect(
       field.compareDocumentPosition(identity) &

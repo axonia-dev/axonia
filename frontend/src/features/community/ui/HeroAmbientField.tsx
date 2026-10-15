@@ -13,8 +13,7 @@ import { communityHue } from "@/features/community/ui/community-accent";
 import { useActivityTrace } from "@/features/health/api/use-activity-trace";
 import {
   type Act,
-  toActs,
-  visibleActs,
+  visibleActsOf,
 } from "@/features/health/domain/activity-trace";
 import { useIsDarkTheme } from "@/theme/use-is-dark-theme";
 
@@ -31,6 +30,7 @@ const SIZE = { session: "large", addition: "medium", join: "small" } as const;
 
 export function toLight(act: Act, days: number): Light {
   return {
+    key: `${act.kind}:${act.daysAgo}:${act.ordinal}`,
     position: 1 - (act.daysAgo + 0.5) / days,
     freshness: 1 - act.daysAgo / days,
     size: SIZE[act.kind],
@@ -46,10 +46,11 @@ function bannerBottom(host: HTMLElement): number {
   return banner?.offsetHeight ?? 0;
 }
 
-export function HeroPulseField({
+export function HeroAmbientField({
   community,
 }: Readonly<{ community: Community }>) {
-  const { data } = useActivityTrace(community.slug);
+  const archived = isArchived(community);
+  const { data } = useActivityTrace(community.slug, { enabled: !archived });
   const dark = useIsDarkTheme();
   const photo = community.heroUrl != null;
   const inks = useMemo<AmbientFieldProps["inks"]>(
@@ -61,12 +62,10 @@ export function HeroPulseField({
   );
   const lights = useMemo(
     () =>
-      data
-        ? visibleActs(toActs(data)).map((act) => toLight(act, data.days))
-        : [],
+      data ? visibleActsOf(data).map((act) => toLight(act, data.days)) : [],
     [data],
   );
-  if (!data || isArchived(community)) {
+  if (!data || archived) {
     return null;
   }
   return (

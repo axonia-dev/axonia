@@ -9,8 +9,12 @@ import {
 
 const BOX = { width: 720, height: 480 };
 
+let keys = 0;
+
 function light(overrides: Partial<Light> = {}): Light {
+  keys += 1;
   return {
+    key: `act-${keys}`,
     position: 0.5,
     freshness: 0.5,
     size: "medium",
@@ -142,13 +146,43 @@ describe("moteAt", () => {
   });
 
   it("spreads a burst of same-day acts across the card instead of one column", () => {
-    const motes = buildMotes({
-      lights: Array.from({ length: 30 }, () => light({ position: 0.99 })),
-      ambient: 0,
-      seed: 8,
-    });
-    const xs = motes.map((mote) => moteAt(mote, 0, BOX).x);
-    expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(BOX.width * 0.1);
+    for (const seed of [1, 8, 42, 1234, 99_999]) {
+      const motes = buildMotes({
+        lights: Array.from({ length: 30 }, (_, ordinal) =>
+          light({ key: `join:0:${ordinal}`, position: 0.994 }),
+        ),
+        ambient: 0,
+        seed,
+      });
+      const columns = new Map<number, number>();
+      for (const mote of motes) {
+        expect(mote.x).toBeGreaterThanOrEqual(0.02);
+        expect(mote.x).toBeLessThanOrEqual(0.98);
+        const column = Math.floor(mote.x * 100);
+        columns.set(column, (columns.get(column) ?? 0) + 1);
+      }
+      expect(Math.max(...columns.values())).toBeLessThanOrEqual(6);
+    }
+  });
+});
+
+describe("a changing sky", () => {
+  const sky = (lights: readonly Light[]) =>
+    buildMotes({ lights, ambient: 22, seed: 13 });
+
+  it("leaves every mote in place when one act joins", () => {
+    const before = [light(), light({ position: 0.9 }), light()];
+    const after = [light({ position: 0.99 }), ...before];
+
+    const [, ...kept] = sky(after);
+
+    expect(kept).toEqual(sky(before));
+  });
+
+  it("leaves the dust in place however many acts there are", () => {
+    const dustOf = (lights: readonly Light[]) =>
+      sky(lights).slice(lights.length);
+    expect(dustOf([light(), light()])).toEqual(dustOf([]));
   });
 });
 

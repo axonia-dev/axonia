@@ -24,30 +24,49 @@ type ActKind = "session" | "addition" | "join";
 export interface Act {
   readonly kind: ActKind;
   readonly daysAgo: number;
+  /** Which of that day's acts of that kind this is: a stable name for the act. */
+  readonly ordinal: number;
 }
 
 export const VISIBLE_CAP = 44;
 const SATURATION = 22;
 const ALWAYS_SHOWN = 3;
 
-function actsOf(series: readonly number[], kind: ActKind): Act[] {
-  return series.flatMap((perDay, index) =>
-    Array.from({ length: perDay }, () => ({
-      kind,
-      daysAgo: series.length - 1 - index,
-    })),
-  );
+const seriesOf = (trace: ActivityTrace) =>
+  [
+    ["session", trace.sessionsHeld],
+    ["addition", trace.libraryAdditions],
+    ["join", trace.joins],
+  ] as const;
+
+const totalOf = (trace: ActivityTrace) =>
+  seriesOf(trace)
+    .flatMap(([, series]) => series)
+    .reduce((total, perDay) => total + perDay, 0);
+
+/** One act per count in the trace, freshest first, stopping at `limit`. */
+export function toActs(
+  trace: ActivityTrace,
+  limit = Number.POSITIVE_INFINITY,
+): Act[] {
+  const acts: Act[] = [];
+  const kinds = seriesOf(trace);
+  for (let daysAgo = 0; daysAgo < trace.days; daysAgo++) {
+    for (const [kind, series] of kinds) {
+      const perDay = series.at(trace.days - 1 - daysAgo) ?? 0;
+      const take = Math.min(perDay, limit - acts.length);
+      for (let ordinal = 0; ordinal < take; ordinal++) {
+        acts.push({ kind, daysAgo, ordinal });
+      }
+    }
+  }
+  return acts;
 }
 
-/** One act per count in the trace, freshest first. */
-export function toActs(trace: ActivityTrace): Act[] {
-  const acts = [
-    ...actsOf(trace.sessionsHeld, "session"),
-    ...actsOf(trace.libraryAdditions, "addition"),
-    ...actsOf(trace.joins, "join"),
-  ];
-  acts.sort((left, right) => left.daysAgo - right.daysAgo);
-  return acts;
+/** How many of `total` acts get a light: a saturating curve, never more than there are acts. */
+function shownOf(total: number): number {
+  const curve = Math.round(VISIBLE_CAP * (1 - Math.exp(-total / SATURATION)));
+  return Math.min(Math.max(curve, Math.min(total, ALWAYS_SHOWN)), total);
 }
 
 /**
@@ -55,9 +74,10 @@ export function toActs(trace: ActivityTrace): Act[] {
  * community reads as a full sky rather than a blizzard. Never more lights than acts.
  */
 export function visibleActs(acts: readonly Act[]): Act[] {
-  const curve = Math.round(
-    VISIBLE_CAP * (1 - Math.exp(-acts.length / SATURATION)),
-  );
-  const shown = Math.max(curve, Math.min(acts.length, ALWAYS_SHOWN));
-  return acts.slice(0, Math.min(shown, acts.length));
+  return acts.slice(0, shownOf(acts.length));
+}
+
+/** `visibleActs(toActs(trace))`, without one act per count for a community that counts thousands. */
+export function visibleActsOf(trace: ActivityTrace): Act[] {
+  return toActs(trace, shownOf(totalOf(trace)));
 }

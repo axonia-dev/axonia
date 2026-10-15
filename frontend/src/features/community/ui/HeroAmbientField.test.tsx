@@ -2,12 +2,14 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AmbientFieldProps } from "@/components/patterns/ambient-field/AmbientField";
+import { buildMotes } from "@/components/patterns/ambient-field/mote-field";
 import type { Community } from "@/features/community/domain/community";
 import {
-  HeroPulseField,
+  HeroAmbientField,
   toLight,
-} from "@/features/community/ui/HeroPulseField";
+} from "@/features/community/ui/HeroAmbientField";
 import { useActivityTrace } from "@/features/health/api/use-activity-trace";
+import { visibleActsOf } from "@/features/health/domain/activity-trace";
 
 vi.mock("@/features/health/api/use-activity-trace", () => ({
   useActivityTrace: vi.fn(),
@@ -62,10 +64,10 @@ beforeEach(() => {
   document.documentElement.classList.remove("theme-dark");
 });
 
-describe("HeroPulseField", () => {
+describe("HeroAmbientField", () => {
   it("draws one light per visible act", async () => {
     traceIs({ data: trace, isSuccess: true });
-    render(<HeroPulseField community={community} />);
+    render(<HeroAmbientField community={community} />);
     expect(await screen.findByTestId("field")).toHaveAttribute(
       "data-lights",
       "2",
@@ -75,26 +77,29 @@ describe("HeroPulseField", () => {
   it("draws nothing while the trace is loading or failed", () => {
     traceIs({ data: undefined, isPending: true });
     const { container, rerender } = render(
-      <HeroPulseField community={community} />,
+      <HeroAmbientField community={community} />,
     );
     expect(container).toBeEmptyDOMElement();
     traceIs({ data: undefined, isError: true });
-    rerender(<HeroPulseField community={community} />);
+    rerender(<HeroAmbientField community={community} />);
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("draws nothing for an archived community", () => {
+  it("neither reads the trace nor draws for an archived community", () => {
     traceIs({ data: trace, isSuccess: true });
     const { container } = render(
-      <HeroPulseField community={{ ...community, status: "ARCHIVED" }} />,
+      <HeroAmbientField community={{ ...community, status: "ARCHIVED" }} />,
     );
     expect(container).toBeEmptyDOMElement();
+    expect(useActivityTrace).toHaveBeenCalledWith("backend-guild", {
+      enabled: false,
+    });
   });
 
   it("inks a photo in light, the identity in the accent, on the light theme", async () => {
     traceIs({ data: trace, isSuccess: true });
     render(
-      <HeroPulseField
+      <HeroAmbientField
         community={{ ...community, heroUrl: "https://x/y.jpg" }}
       />,
     );
@@ -106,7 +111,7 @@ describe("HeroPulseField", () => {
   it("inks everything in light on the dark theme", async () => {
     document.documentElement.classList.add("theme-dark");
     traceIs({ data: trace, isSuccess: true });
-    render(<HeroPulseField community={community} />);
+    render(<HeroAmbientField community={community} />);
     const field = await screen.findByTestId("field");
     await waitFor(() => expect(field).toHaveAttribute("data-upper", "light"));
     expect(field).toHaveAttribute("data-lower", "light");
@@ -114,10 +119,10 @@ describe("HeroPulseField", () => {
 
   it("hands the field the same references when a re-render changes nothing", async () => {
     traceIs({ data: trace, isSuccess: true });
-    const { rerender } = render(<HeroPulseField community={community} />);
+    const { rerender } = render(<HeroAmbientField community={community} />);
     await screen.findByTestId("field");
 
-    rerender(<HeroPulseField community={{ ...community }} />);
+    rerender(<HeroAmbientField community={{ ...community }} />);
 
     const [first, second] = fieldRenders.mock.calls
       .slice(-2)
@@ -129,21 +134,56 @@ describe("HeroPulseField", () => {
 });
 
 describe("toLight", () => {
-  it("puts today on the right and the window's first day on the left", () => {
-    expect(toLight({ kind: "join", daysAgo: 0 }, 90).position).toBeGreaterThan(
-      0.99,
-    );
-    expect(toLight({ kind: "join", daysAgo: 89 }, 90).position).toBeLessThan(
-      0.01,
+  it("names a light after its act, so it keeps its place as others come and go", () => {
+    expect(toLight({ kind: "addition", daysAgo: 3, ordinal: 2 }, 90).key).toBe(
+      "addition:3:2",
     );
   });
 
+  it("puts today on the right and the window's first day on the left", () => {
+    expect(
+      toLight({ kind: "join", daysAgo: 0, ordinal: 0 }, 90).position,
+    ).toBeGreaterThan(0.99);
+    expect(
+      toLight({ kind: "join", daysAgo: 89, ordinal: 0 }, 90).position,
+    ).toBeLessThan(0.01);
+  });
+
   it("sizes a session large, an addition medium and blooming, a join small", () => {
-    expect(toLight({ kind: "session", daysAgo: 0 }, 90).size).toBe("large");
-    expect(toLight({ kind: "addition", daysAgo: 0 }, 90)).toMatchObject({
+    expect(toLight({ kind: "session", daysAgo: 0, ordinal: 0 }, 90).size).toBe(
+      "large",
+    );
+    expect(
+      toLight({ kind: "addition", daysAgo: 0, ordinal: 0 }, 90),
+    ).toMatchObject({
       size: "medium",
       blooms: true,
     });
-    expect(toLight({ kind: "join", daysAgo: 0 }, 90).size).toBe("small");
+    expect(toLight({ kind: "join", daysAgo: 0, ordinal: 0 }, 90).size).toBe(
+      "small",
+    );
+  });
+});
+
+describe("a new act on the sky", () => {
+  const sky = (joinsToday: number) => {
+    const joins = zeroes();
+    joins[60] = 4;
+    joins[89] = joinsToday;
+    const lights = visibleActsOf({ ...trace, joins }).map((act) =>
+      toLight(act, 90),
+    );
+    const motes = buildMotes({ lights, ambient: 22, seed: 5 });
+    return new Map(lights.map((light, index) => [light.key, motes.at(index)]));
+  };
+
+  it("leaves the motes already shown where they were", () => {
+    const before = sky(2);
+    const after = sky(3);
+
+    expect(after.size).toBe(before.size + 1);
+    for (const [key, mote] of before) {
+      expect(after.get(key)).toEqual(mote);
+    }
   });
 });

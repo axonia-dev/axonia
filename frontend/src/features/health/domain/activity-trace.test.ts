@@ -6,6 +6,7 @@ import {
   toActs,
   VISIBLE_CAP,
   visibleActs,
+  visibleActsOf,
 } from "@/features/health/domain/activity-trace";
 
 function trace(overrides: Partial<ActivityTrace> = {}): ActivityTrace {
@@ -20,9 +21,7 @@ function trace(overrides: Partial<ActivityTrace> = {}): ActivityTrace {
 }
 
 function withDay(day: number, count: number): number[] {
-  const series = Array.from({ length: 90 }, () => 0);
-  series[day] = count;
-  return series;
+  return Array.from({ length: 90 }, (_, index) => (index === day ? count : 0));
 }
 
 describe("toActs", () => {
@@ -35,9 +34,23 @@ describe("toActs", () => {
 
     // then
     expect(actual).toEqual([
-      { kind: "join", daysAgo: 0 },
-      { kind: "join", daysAgo: 0 },
-      { kind: "session", daysAgo: 89 },
+      { kind: "join", daysAgo: 0, ordinal: 0 },
+      { kind: "join", daysAgo: 0, ordinal: 1 },
+      { kind: "session", daysAgo: 89, ordinal: 0 },
+    ]);
+  });
+
+  it("keeps a day's sessions, then additions, then joins, and stops at the limit", () => {
+    const input = trace({
+      sessionsHeld: withDay(89, 1),
+      libraryAdditions: withDay(89, 1),
+      joins: withDay(89, 5),
+    });
+    expect(toActs(input, 4).map((act) => act.kind)).toEqual([
+      "session",
+      "addition",
+      "join",
+      "join",
     ]);
   });
 
@@ -51,6 +64,7 @@ describe("visibleActs", () => {
     Array.from({ length: count }, (_, index) => ({
       kind: "addition" as const,
       daysAgo: index,
+      ordinal: 0,
     }));
 
   it("shows every act while there are only a few", () => {
@@ -80,6 +94,32 @@ describe("visibleActs", () => {
   it("caps a burst day like any other", () => {
     const burst = toActs(trace({ joins: withDay(89, 300) }));
     expect(visibleActs(burst).length).toBeLessThanOrEqual(VISIBLE_CAP);
+  });
+});
+
+describe("visibleActsOf", () => {
+  const busy = trace({
+    sessionsHeld: withDay(80, 2),
+    libraryAdditions: withDay(88, 7),
+    joins: withDay(89, 3),
+  });
+
+  it.each([
+    ["a quiet trace", trace({ joins: withDay(10, 2) })],
+    ["a busy trace", busy],
+    ["a trace of zeroes", trace()],
+  ])("is the visible acts of %s", (_, input) => {
+    expect(visibleActsOf(input)).toEqual(visibleActs(toActs(input)));
+  });
+
+  it("caps a directory group's first-day joins at the freshest few", () => {
+    const actual = visibleActsOf(trace({ joins: withDay(0, 20_000) }));
+    expect(actual).toHaveLength(VISIBLE_CAP);
+    expect(actual.at(-1)).toEqual({
+      kind: "join",
+      daysAgo: 89,
+      ordinal: VISIBLE_CAP - 1,
+    });
   });
 });
 

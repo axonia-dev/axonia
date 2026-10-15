@@ -19,7 +19,7 @@ import {
 import { useCommunityCrumbs } from "@/features/community/ui/community-chrome";
 import { CommunityHeroCard } from "@/features/community/ui/CommunityHeroCard";
 import { FocalPointControl } from "@/features/community/ui/FocalPointControl";
-import { HeroPulseField } from "@/features/community/ui/HeroPulseField";
+import { HeroAmbientField } from "@/features/community/ui/HeroAmbientField";
 import {
   AccentControl,
   BadgeEditZone,
@@ -98,7 +98,7 @@ export function LookAndFeelEditor() {
                 editing
                 backdrop={
                   previewing ? undefined : (
-                    <HeroPulseField community={community} />
+                    <HeroAmbientField community={community} />
                   )
                 }
                 bannerOverlay={

@@ -8,7 +8,13 @@ import {
 import { manualClock } from "@/components/patterns/ceremony/ceremony-stage.test-helpers";
 
 const LIGHTS = [
-  { position: 0.9, freshness: 1, size: "large" as const, blooms: false },
+  {
+    key: "join:0:0",
+    position: 0.9,
+    freshness: 1,
+    size: "large" as const,
+    blooms: false,
+  },
 ];
 const INKS = { upper: "accent", lower: "accent" } as const;
 

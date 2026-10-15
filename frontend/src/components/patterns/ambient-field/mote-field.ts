@@ -1,6 +1,8 @@
 type LightSize = "large" | "medium" | "small";
 
 export interface Light {
+  /** Stable for the act it stands for, so its mote keeps its place when other acts come and go. */
+  readonly key: string;
   readonly position: number;
   readonly freshness: number;
   readonly size: LightSize;
@@ -57,11 +59,20 @@ export function seedOf(text: string): number {
   return hash >>> 0;
 }
 
-const clamp = (value: number) => Math.min(1 - EDGE, Math.max(EDGE, value));
+/** Folds a draw past an edge back inside, so a crowd near the edge spreads instead of piling up on it. */
+function reflect(value: number): number {
+  if (value > 1 - EDGE) return 2 * (1 - EDGE) - value;
+  if (value < EDGE) return 2 * EDGE - value;
+  return value;
+}
 
-function lightMote(light: Light, random: () => number): Mote {
+/** Each mote draws from its own generator, so one mote coming or going leaves the others in place. */
+const randomFor = (seed: number, key: string) => generator(seed ^ seedOf(key));
+
+function lightMote(light: Light, seed: number): Mote {
+  const random = randomFor(seed, `light:${light.key}`);
   return {
-    x: clamp(light.position + (random() - 0.5) * JITTER),
+    x: reflect(light.position + (random() - 0.5) * JITTER),
     y: random(),
     radius: RADIUS[light.size],
     alpha: 0.32 + 0.5 * light.freshness,
@@ -71,7 +82,8 @@ function lightMote(light: Light, random: () => number): Mote {
   };
 }
 
-function dustMote(random: () => number): Mote {
+function dustMote(seed: number, index: number): Mote {
+  const random = randomFor(seed, `dust:${index}`);
   return {
     x: random(),
     y: random(),
@@ -86,9 +98,10 @@ function dustMote(random: () => number): Mote {
 export function buildMotes(
   field: Readonly<{ lights: readonly Light[]; ambient: number; seed: number }>,
 ): Mote[] {
-  const random = generator(field.seed);
-  const lights = field.lights.map((light) => lightMote(light, random));
-  const dust = Array.from({ length: field.ambient }, () => dustMote(random));
+  const lights = field.lights.map((light) => lightMote(light, field.seed));
+  const dust = Array.from({ length: field.ambient }, (_, index) =>
+    dustMote(field.seed, index),
+  );
   return [...lights, ...dust];
 }
 
