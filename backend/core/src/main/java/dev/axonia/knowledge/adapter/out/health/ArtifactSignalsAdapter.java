@@ -3,6 +3,7 @@ package dev.axonia.knowledge.adapter.out.health;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -10,8 +11,10 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import dev.axonia.health.api.BucketedSeries;
 import dev.axonia.health.api.spi.ArtifactSignals;
 import dev.axonia.knowledge.application.port.out.OrganizationContext;
+import dev.axonia.shared.api.persistence.BucketCountQuery;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -42,5 +45,23 @@ class ArtifactSignalsAdapter implements ArtifactSignals {
             counts.put(rs.getString("contributor_user_id"), rs.getLong("acts"));
         });
         return counts;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Long> artifactsPerBucket(long communityId, Instant from, Instant to, int buckets) {
+
+        var sql = """
+                SELECT least(floor(extract(epoch FROM (created_at - :from)) / :bucketSeconds), :lastBucket)::int
+                         AS bucket,
+                       count(*) AS n
+                FROM artifact
+                WHERE organization_id = :organizationId AND community_id = :communityId
+                  AND created_at >= :from AND created_at < :to
+                GROUP BY 1
+                """;
+        var read = BucketedSeries.Read.builder().organizationId(organizationContext.organizationId())
+                .communityId(communityId).from(from).to(to).buckets(buckets).build();
+        return read.series(BucketCountQuery.counts(jdbc.queryForList(sql, read.query().parameters())));
     }
 }
