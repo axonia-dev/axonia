@@ -104,7 +104,7 @@ class EventsSignalsAdapterTest extends CoreJdbcTestSupport {
     }
 
     @Test
-    void heldSessionDates_inWindowNonCancelledOnly() {
+    void heldSessionDates_inWindowNeitherCancelledNorSkipped() {
 
         // given
         var communityId = community("backend-guild");
@@ -112,6 +112,7 @@ class EventsSignalsAdapterTest extends CoreJdbcTestSupport {
         session(seriesId, communityId, "SCHEDULED", INSIDE);
         session(seriesId, communityId, "SCHEDULED", BEFORE);
         session(seriesId, communityId, "CANCELLED", ALSO_INSIDE);
+        session(seriesId, communityId, "SKIPPED", Instant.parse("2026-05-08T18:00:00Z"));
 
         // when
         var actual = sut.heldSessionDates(communityId, FROM, TO);

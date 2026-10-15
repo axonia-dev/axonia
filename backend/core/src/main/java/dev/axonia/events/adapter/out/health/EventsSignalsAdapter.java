@@ -99,7 +99,7 @@ class EventsSignalsAdapter implements EventsSignals {
         var sql = """
                 SELECT scheduled_at FROM community_session
                 WHERE organization_id = :organizationId AND community_id = :communityId
-                  AND status <> 'CANCELLED' AND scheduled_at >= :from AND scheduled_at < :to
+                  AND status NOT IN ('CANCELLED', 'SKIPPED') AND scheduled_at >= :from AND scheduled_at < :to
                 ORDER BY scheduled_at
                 """;
         return jdbc.query(sql, window(communityId, from, to),
