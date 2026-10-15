@@ -72,56 +72,59 @@ export function HeroIdentity({
   return (
     <div
       data-ceremony-part="identity"
-      className={cn("relative z-[1]", hasBanner ? "px-8 pb-8" : "p-8")}
+      className={cn("relative", hasBanner ? "px-8 pb-8" : "p-8")}
       style={hasBanner ? IDENTITY_WASH : { backgroundColor: "var(--surface)" }}
     >
-      {showBadge && (
-        <Badge
-          community={community}
-          hasBanner={hasBanner}
-          editing={editing}
-          overlay={badgeOverlay}
-        />
-      )}
-      <div
-        data-ceremony-part="meta"
-        className="text-muted-foreground flex flex-wrap items-center gap-2 text-sm"
-      >
-        <KindBadge
-          kindId={community.kindId}
-          label={community.kind}
-          accentColor={communityHue(community)}
-        />
-        {meta}
-        <span>
-          <AnimatedCount value={community.memberCount} />{" "}
-          {pluralWord(community.memberCount, "member")}
-        </span>
-      </div>
-      <h1
-        data-ceremony-part="name"
-        className="font-display text-foreground mt-3 text-4xl font-bold tracking-tight"
-      >
-        {community.name}
-      </h1>
-      {community.description && (
-        <p
-          data-ceremony-part="description"
-          className="text-foreground mt-2.5 max-w-prose text-lg"
+      {/* The ground stays under the hero's ambient field; only the content rises over it. */}
+      <div className="relative z-[2]">
+        {showBadge && (
+          <Badge
+            community={community}
+            hasBanner={hasBanner}
+            editing={editing}
+            overlay={badgeOverlay}
+          />
+        )}
+        <div
+          data-ceremony-part="meta"
+          className="text-muted-foreground flex flex-wrap items-center gap-2 text-sm"
         >
-          {community.description}
-        </p>
-      )}
-      {isArchived(community) && (
-        <p className="text-muted-foreground mt-2 text-sm font-medium">
-          Archived
-        </p>
-      )}
-      {footer && (
-        <div data-ceremony-part="footer" className="mt-5">
-          {footer}
+          <KindBadge
+            kindId={community.kindId}
+            label={community.kind}
+            accentColor={communityHue(community)}
+          />
+          {meta}
+          <span>
+            <AnimatedCount value={community.memberCount} />{" "}
+            {pluralWord(community.memberCount, "member")}
+          </span>
         </div>
-      )}
+        <h1
+          data-ceremony-part="name"
+          className="font-display text-foreground mt-3 text-4xl font-bold tracking-tight"
+        >
+          {community.name}
+        </h1>
+        {community.description && (
+          <p
+            data-ceremony-part="description"
+            className="text-foreground mt-2.5 max-w-prose text-lg"
+          >
+            {community.description}
+          </p>
+        )}
+        {isArchived(community) && (
+          <p className="text-muted-foreground mt-2 text-sm font-medium">
+            Archived
+          </p>
+        )}
+        {footer && (
+          <div data-ceremony-part="footer" className="mt-5">
+            {footer}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

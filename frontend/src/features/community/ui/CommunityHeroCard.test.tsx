@@ -164,19 +164,28 @@ describe("CommunityHeroCard", () => {
     );
   });
 
-  it("draws a backdrop inside the card, beneath the identity", () => {
+  it("places the backdrop in an isolated surface and lifts the content and controls to layer 2, leaving the identity's ground unlayered", () => {
     // when
     render(
       <CommunityHeroCard
-        community={base}
+        community={{ ...base, heroUrl: "https://example.com/hero.png" }}
         backdrop={<div data-testid="backdrop" />}
+        bannerOverlay={<button type="button">edit banner</button>}
+        cornerControl={<button type="button">corner</button>}
       />,
     );
 
     // then
     const surface = screen.getByTestId("backdrop").parentElement!;
     expect(surface).toHaveAttribute("data-ceremony-part", "surface");
+    expect(surface).toHaveClass("isolate");
     const identity = surface.querySelector('[data-ceremony-part="identity"]')!;
-    expect(identity).toHaveClass("z-[1]");
+    expect(identity).not.toHaveClass("z-[1]");
+    expect(identity.firstElementChild).toHaveClass("relative", "z-[2]");
+    for (const name of ["edit banner", "corner"]) {
+      expect(screen.getByRole("button", { name }).parentElement).toHaveClass(
+        "z-[2]",
+      );
+    }
   });
 });

@@ -104,7 +104,7 @@ describe("IdentityHero's pulse field", () => {
     expect(await screen.findByTestId("pulse-field")).toBeInTheDocument();
   });
 
-  it("keeps the hero's controls above the field", () => {
+  it("renders the field before the identity, whose content sits on layer 2", () => {
     // when
     renderHero();
 
@@ -115,6 +115,6 @@ describe("IdentityHero's pulse field", () => {
       field.compareDocumentPosition(identity) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-    expect(identity).toHaveClass("z-[1]");
+    expect(identity.firstElementChild).toHaveClass("z-[2]");
   });
 });

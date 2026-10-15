@@ -37,7 +37,7 @@ export function CommunityHeroCard({
     >
       <div
         data-ceremony-part="surface"
-        className="border-border bg-surface relative overflow-hidden rounded-lg border shadow-sm"
+        className="border-border bg-surface relative isolate overflow-hidden rounded-lg border shadow-sm"
       >
         {backdrop}
         {showBanner && (
@@ -57,7 +57,11 @@ export function CommunityHeroCard({
           meta={meta}
           footer={footer}
         />
-        {cornerControl}
+        {cornerControl && (
+          <div className="pointer-events-none absolute inset-0 z-[2] *:pointer-events-auto">
+            {cornerControl}
+          </div>
+        )}
       </div>
     </section>
   );

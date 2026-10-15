@@ -14,6 +14,14 @@ interface HeroBannerProps {
   overlay?: ReactNode;
 }
 
+/** Lifted over the hero's ambient field, so no mote is drawn across an edit control. */
+function BannerOverlay({ overlay }: Readonly<{ overlay: ReactNode }>) {
+  if (overlay == null) {
+    return null;
+  }
+  return <div className="absolute inset-0 z-[2]">{overlay}</div>;
+}
+
 /**
  * A ratio rather than a fixed height: every photograph anyone uploads is roughly 4:3 or 3:2, so
  * the frame's proportion decides how much of the Organizer's image survives at all. A ratio also
@@ -38,7 +46,7 @@ export function HeroBanner({
           editing && "group/banner",
         )}
       >
-        {overlay}
+        <BannerOverlay overlay={overlay} />
       </div>
     );
   }
@@ -63,7 +71,7 @@ export function HeroBanner({
           children and would hide anything the overlay draws. `overlay` is rendered after it
           deliberately. */}
       <div aria-hidden className="absolute inset-0" style={BANNER_SCRIM} />
-      {overlay}
+      <BannerOverlay overlay={overlay} />
     </div>
   );
 }
