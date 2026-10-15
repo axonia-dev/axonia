@@ -16,7 +16,7 @@ export interface Frame {
   readonly upper: Ink;
   readonly lower: Ink;
   /** Sized to the canvas by its owner; cleared, never resized, per frame. */
-  readonly scratch: HTMLCanvasElement | null;
+  readonly scratch: HTMLCanvasElement;
   readonly ratio: number;
 }
 
@@ -116,8 +116,8 @@ function layer(
   upper: boolean,
 ) {
   const scratch = frame.scratch;
-  const layerContext = scratch?.getContext("2d");
-  if (!scratch || !layerContext) {
+  const layerContext = scratch.getContext("2d");
+  if (!layerContext) {
     return;
   }
   const ink = upper ? frame.upper : frame.lower;
@@ -153,7 +153,7 @@ export function paintFrame(
   context: CanvasRenderingContext2D,
   frame: Frame,
 ): void {
-  if (sameInk(frame.upper, frame.lower) || !frame.scratch) {
+  if (sameInk(frame.upper, frame.lower)) {
     drawMotes(context, frame.samples, frame.lower);
   } else {
     layer(context, frame, true);

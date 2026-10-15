@@ -50,8 +50,9 @@ export function watchVisibility(target: Element, loop: Loop): () => void {
     tabVisible = document.visibilityState !== "hidden";
     apply();
   };
-  const observer = new IntersectionObserver(([entry]) => {
-    onScreen = entry?.isIntersecting ?? onScreen;
+  // A busy main thread can batch several crossings, oldest first: the last one is now.
+  const observer = new IntersectionObserver((entries) => {
+    onScreen = entries.at(-1)?.isIntersecting ?? onScreen;
     apply();
   });
   observer.observe(target);

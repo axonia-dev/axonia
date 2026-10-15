@@ -39,6 +39,15 @@ describe("AmbientField off screen", () => {
     expect(frames()).toBeGreaterThan(away);
   });
 
+  it("follows the latest crossing when several arrive at once", () => {
+    const onScreen = captureObserver("IntersectionObserver");
+    const { run, frames } = renderField();
+    onScreen.fire([...intersecting(false), ...intersecting(true)]);
+    const before = frames();
+    run(16 * 2);
+    expect(frames()).toBeGreaterThan(before);
+  });
+
   it("stays paused when the tab returns while the field is still off screen", () => {
     const onScreen = captureObserver("IntersectionObserver");
     const { run, frames } = renderField();
