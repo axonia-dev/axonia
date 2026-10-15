@@ -76,6 +76,38 @@ class ArtifactSignalsAdapterTest extends CoreJdbcTestSupport {
     }
 
     @Test
+    void artifactsPerBucket_includesExactlyFromAndExcludesExactlyTo() {
+
+        // given
+        var from = Instant.parse("2026-03-01T00:00:00Z");
+        var to = from.plus(Duration.ofDays(3));
+        artifact(7L, "alice", from);
+        artifact(7L, "bob", to);
+        artifact(7L, "carol", to.plusSeconds(1));
+
+        // when
+        var actual = sut.artifactsPerBucket(7L, from, to, 3);
+
+        // then
+        assertThat(actual).containsExactly(1L, 0L, 0L);
+    }
+
+    @Test
+    void artifactsPerBucket_doesNotCountArchivedArtifacts() {
+
+        // given
+        var from = Instant.parse("2026-03-01T00:00:00Z");
+        artifact(7L, "alice", from.plus(Duration.ofHours(1)), "ACTIVE");
+        artifact(7L, "bob", from.plus(Duration.ofHours(2)), "ARCHIVED");
+
+        // when
+        var actual = sut.artifactsPerBucket(7L, from, from.plus(Duration.ofDays(3)), 3);
+
+        // then
+        assertThat(actual).containsExactly(1L, 0L, 0L);
+    }
+
+    @Test
     void artifactsPerBucket_ofNothingIsAllZeroes() {
 
         var from = Instant.parse("2026-03-01T00:00:00Z");
@@ -99,12 +131,19 @@ class ArtifactSignalsAdapterTest extends CoreJdbcTestSupport {
 
     private void artifact(long communityId, String contributorUserId, Instant createdAt) {
 
+        artifact(communityId, contributorUserId, createdAt, "ACTIVE");
+    }
+
+    private void artifact(long communityId, String contributorUserId, Instant createdAt, String status) {
+
         jdbc.update("""
                 INSERT INTO artifact (organization_id, community_id, type_id, title, description, url,
                         contributor_user_id, status, search_document, created_at, updated_at, version)
                 VALUES ('default', :communityId, 1, 'T', 'd', 'https://example.com', :contributorUserId,
-                        'ACTIVE', 'doc', :createdAt, now(), 0)
-                """, new MapSqlParameterSource().addValue("communityId", communityId)
-                .addValue("contributorUserId", contributorUserId).addValue("createdAt", Timestamp.from(createdAt)));
+                        :status, 'doc', :createdAt, now(), 0)
+                """,
+                new MapSqlParameterSource().addValue("communityId", communityId)
+                        .addValue("contributorUserId", contributorUserId).addValue("status", status)
+                        .addValue("createdAt", Timestamp.from(createdAt)));
     }
 }

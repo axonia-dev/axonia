@@ -9,12 +9,19 @@ import dev.axonia.health.api.Buckets;
 
 /**
  * A community's raw signs of life: how many sessions were held, artifacts added to the Library and members joined on
- * each of the last {@code days} days, oldest first. Counts only, nothing that names anyone, and no reading of them:
- * this is not the health snapshot and is not gated like it.
+ * each of the last {@code days} days, oldest first. A day is a rolling 24-hour span, the last one ending now; there is
+ * no calendar alignment or time zone. Counts only, nothing that names anyone, and no reading of them: this is not the
+ * health snapshot and is not gated like it.
  */
 public record ActivityTrace(int days, List<Long> sessionsHeld, List<Long> libraryAdditions, List<Long> joins) {
 
     public static final int DAYS = 90;
+
+    public ActivityTrace {
+        sessionsHeld = List.copyOf(sessionsHeld);
+        libraryAdditions = List.copyOf(libraryAdditions);
+        joins = List.copyOf(joins);
+    }
 
     /** Per-day counts of {@code dates} over [from, from + days), oldest first, zero-filled. */
     public static List<Long> daysOf(List<Instant> dates, Instant from, int days) {

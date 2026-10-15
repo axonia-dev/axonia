@@ -56,7 +56,7 @@ class ArtifactSignalsAdapter implements ArtifactSignals {
                          AS bucket,
                        count(*) AS n
                 FROM artifact
-                WHERE organization_id = :organizationId AND community_id = :communityId
+                WHERE organization_id = :organizationId AND community_id = :communityId AND status = 'ACTIVE'
                   AND created_at >= :from AND created_at < :to
                 GROUP BY 1
                 """;

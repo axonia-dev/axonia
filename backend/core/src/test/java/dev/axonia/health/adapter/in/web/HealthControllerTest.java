@@ -18,6 +18,7 @@ import dev.axonia.health.domain.Finding;
 import dev.axonia.health.domain.HealthSnapshot;
 import dev.axonia.health.domain.Trend;
 import dev.axonia.shared.api.error.ForbiddenException;
+import dev.axonia.shared.api.error.NotFoundException;
 import tools.jackson.core.JacksonException;
 
 import static org.mockito.Mockito.verify;
@@ -121,5 +122,18 @@ class HealthControllerTest extends ControllerTestSupport {
         actual.assertThat().hasStatus2xxSuccessful().bodyJson().isEqualTo(jsonMapper.writeValueAsString(trace));
         actual.assertThat().bodyJson().extractingPath("$.days").isEqualTo(90);
         actual.assertThat().bodyJson().extractingPath("$.sessionsHeld.length()").isEqualTo(90);
+    }
+
+    @Test
+    void activityTrace_unknownSlugIs404() {
+
+        // given
+        when(activityTraceService.trace("nope")).thenThrow(new NotFoundException("Community not found"));
+
+        // when
+        var actual = mvc.get().uri("/axonia/communities/{slug}/activity-trace", "nope");
+
+        // then
+        actual.assertThat().hasStatus(404);
     }
 }

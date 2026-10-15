@@ -19,7 +19,7 @@ class ActivityTraceTest {
     void daysOf_bucketsHeldDatesPerDayOldestFirst() {
 
         // given one session on the first day, two on the last, one on day 45
-        var dates = List.of(FROM.plusSeconds(60), FROM.plus(Duration.ofDays(45)).plusSeconds(1), NOW.minusSeconds(60),
+        var dates = List.of(FROM, FROM.plus(Duration.ofDays(45)).plusSeconds(1), NOW.minusSeconds(60),
                 NOW.minusSeconds(3600));
 
         // when

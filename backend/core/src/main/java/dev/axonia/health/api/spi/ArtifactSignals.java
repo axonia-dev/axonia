@@ -14,8 +14,9 @@ public interface ArtifactSignals {
     Map<String, Long> artifactCounts(long communityId, Instant from, Instant to);
 
     /**
-     * Artifacts captured per bucket over [from, to), zero-filled, one grouped query. Counts capture acts regardless of
-     * later archival, like {@link #artifactCounts}.
+     * Active artifacts captured per bucket over [from, to), zero-filled, one grouped query. Archived artifacts are not
+     * counted, since members no longer see them in the Library; {@link #artifactCounts} keeps counting them. Buckets
+     * are equal spans ending at {@code to}, so with a day per bucket each is a rolling 24 hours, not a calendar day.
      */
     List<Long> artifactsPerBucket(long communityId, Instant from, Instant to, int buckets);
 }
