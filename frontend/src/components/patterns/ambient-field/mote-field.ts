@@ -1,4 +1,4 @@
-export type LightSize = "large" | "medium" | "small";
+type LightSize = "large" | "medium" | "small";
 
 export interface Light {
   readonly position: number;

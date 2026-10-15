@@ -1,12 +1,15 @@
-import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 
-import { E2E_USER_ID, stubShell } from "./api";
+import { E2E_USER_ID } from "./api";
+import {
+  activityTrace,
+  member,
+  paged,
+  shellOfCommunity,
+  SLUG,
+  stubReads,
+} from "./community-home";
 import { overflowing } from "./overflow";
-import { signedIn } from "./session";
-
-const apiGlob = "**/axonia/**";
-const SLUG = "backend-guild";
 
 // A phone, emulated as a phone. This is the one width the rest of the suite cannot speak for:
 // a desktop Chrome window does not go below roughly 500px, so a row that only bursts its
@@ -18,40 +21,6 @@ test.use({
   isMobile: true,
   hasTouch: true,
 });
-
-function paged<T>(content: T[]) {
-  return {
-    content,
-    page: {
-      totalElements: content.length,
-      totalPages: 1,
-      number: 0,
-      size: 50,
-    },
-  };
-}
-
-const community = {
-  id: 1,
-  slug: SLUG,
-  name: "La communauté de l'anneau",
-  kindId: 1,
-  kind: "Guild",
-  description: "We backend",
-  status: "ACTIVE",
-  memberCount: 3,
-  createdAt: "2026-05-31T10:00:00Z",
-  updatedAt: "2026-05-31T10:00:00Z",
-};
-
-const member = {
-  id: 9,
-  communityId: 1,
-  userId: E2E_USER_ID,
-  role: "ORGANIZER",
-  joinedAt: "2026-05-31T10:00:00Z",
-  updatedAt: "2026-05-31T10:00:00Z",
-};
 
 const contributor = {
   id: E2E_USER_ID,
@@ -105,35 +74,6 @@ const topic = {
   createdAt: "2026-08-28T10:00:00Z",
   updatedAt: "2026-08-28T10:00:00Z",
 };
-
-/** The community shell's own reads, shared by both pages under test. */
-const shellOfCommunity: Record<string, unknown> = {
-  [`/axonia/communities/${SLUG}`]: community,
-  [`/axonia/communities/${SLUG}/members/me`]: member,
-  [`/axonia/communities/${SLUG}/management-policy`]: {},
-  "/axonia/communities": paged([{ ...community, role: "ORGANIZER" }]),
-  "/axonia/me/onboarding": { state: "COMPLETED" },
-};
-
-/** Answers keyed by exact pathname, so `/artifacts` and `/artifacts/stats` cannot shadow each
- *  other the way a prefix table lets them. Anything unlisted is a 404, which every read here
- *  degrades to an empty surface rather than a broken one. */
-async function stubReads(
-  page: Page,
-  answers: Record<string, unknown>,
-): Promise<void> {
-  await page.route(apiGlob, (route) => {
-    const { pathname } = new URL(route.request().url());
-    const body = answers[pathname];
-    return route.fulfill({
-      status: body === undefined ? 404 : 200,
-      contentType: "application/json",
-      body: JSON.stringify(body ?? {}),
-    });
-  });
-  await signedIn(page);
-  await stubShell(page);
-}
 
 test("the library fits a phone, however long an artifact's provenance", async ({
   page: browser,
@@ -234,6 +174,31 @@ test("the learning page fits a phone, however long an area's name", async ({
 
   // then - the learners are on screen, and nothing on the page reaches past its right edge
   await expect(browser.getByText(contributor.displayName)).toBeVisible();
+  expect(await overflowing(browser)).toEqual([]);
+});
+
+test("the community home fits a phone, its pulse included", async ({
+  page: browser,
+}) => {
+  // given - a community with a busy last quarter
+  await stubReads(browser, {
+    ...shellOfCommunity,
+    [`/axonia/communities/${SLUG}/members`]: paged([member]),
+    [`/axonia/communities/${SLUG}/activity-trace`]: activityTrace({
+      sessionsHeld: [0, 7, 30, 60],
+      libraryAdditions: [1, 2, 3, 45],
+      joins: [0, 5, 80],
+    }),
+  });
+
+  // when
+  await browser.goto(`/communities/${SLUG}`);
+  await expect(browser.locator("[data-ambient-field]")).toHaveAttribute(
+    "data-painted",
+    "true",
+  );
+
+  // then
   expect(await overflowing(browser)).toEqual([]);
 });
 

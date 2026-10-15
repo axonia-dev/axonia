@@ -19,7 +19,7 @@ export const activityTraceSchema = z
 
 export type ActivityTrace = z.infer<typeof activityTraceSchema>;
 
-export type ActKind = "session" | "addition" | "join";
+type ActKind = "session" | "addition" | "join";
 
 export interface Act {
   readonly kind: ActKind;
