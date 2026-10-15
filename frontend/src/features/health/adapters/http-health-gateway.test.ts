@@ -101,3 +101,31 @@ describe("httpHealthGateway", () => {
     expect(snapshot.heldSessionDates).toEqual(["2026-05-02T17:00:00Z"]);
   });
 });
+
+describe("activityTrace", () => {
+  it("fetches and parses a community's activity trace", async () => {
+    // given
+    const zeroes = Array.from({ length: 90 }, () => 0);
+    const body = {
+      days: 90,
+      sessionsHeld: zeroes,
+      libraryAdditions: zeroes,
+      joins: zeroes,
+    };
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+
+    // when
+    const actual = await httpHealthGateway.activityTrace("backend-guild");
+
+    // then
+    expect(actual).toEqual(body);
+    expect(String(fetchSpy.mock.calls[0]![0])).toContain(
+      "/axonia/communities/backend-guild/activity-trace",
+    );
+  });
+});

@@ -2,4 +2,6 @@ export const healthKeys = {
   all: ["health"] as const,
   snapshot: (slug: string, window: string) =>
     [...healthKeys.all, slug, window] as const,
+  activityTrace: (slug: string) =>
+    [...healthKeys.all, slug, "activity-trace"] as const,
 };
