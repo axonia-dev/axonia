@@ -7,6 +7,7 @@ import java.util.Map;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import dev.axonia.recognition.api.ContributionType;
 import dev.axonia.recognition.application.port.out.LoveTallies;
@@ -30,6 +31,7 @@ class JdbcLoveTallies implements LoveTallies {
     private final NamedParameterJdbcTemplate jdbc;
 
     @Override
+    @Transactional(readOnly = true)
     public Map<Long, Long> countFor(String organizationId, ContributionType contributionType,
             Collection<Long> contributionIds) {
 
