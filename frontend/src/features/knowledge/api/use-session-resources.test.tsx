@@ -3,6 +3,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { scheduleKeys } from "@/features/events/api/query-keys";
 import { artifactKeys } from "@/features/knowledge/api/query-keys";
 import {
   useAttachResource,
@@ -94,5 +95,25 @@ describe("session-resource hooks", () => {
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: artifactKeys.community("eng"),
     });
+  });
+
+  it("marks the memories stale, leaving a schedule window alone", async () => {
+    gateway.detachResource.mockResolvedValue(undefined);
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const memories = scheduleKeys.memories("eng");
+    const window = scheduleKeys.community("eng", "a", "b");
+    client.setQueryData(memories, {});
+    client.setQueryData(window, {});
+    const { result } = renderHook(() => useDetachResource("eng", 100), {
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <QueryClientProvider client={client}>{children}</QueryClientProvider>
+      ),
+    });
+    result.current.mutate({ artifactId: 9, segmentId: 7 });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(client.getQueryState(memories)?.isInvalidated).toBe(true);
+    expect(client.getQueryState(window)?.isInvalidated).toBe(false);
   });
 });

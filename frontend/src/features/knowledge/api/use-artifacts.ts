@@ -72,8 +72,11 @@ export function useRemoveArtifact(slug: string) {
   return useMutation({
     mutationFn: (id: number) => gateway.remove(id),
     onSuccess: () =>
-      queryClient.invalidateQueries({
-        queryKey: artifactKeys.community(slug),
-      }),
+      Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: artifactKeys.community(slug),
+        }),
+        invalidateMemories(queryClient),
+      ]),
   });
 }

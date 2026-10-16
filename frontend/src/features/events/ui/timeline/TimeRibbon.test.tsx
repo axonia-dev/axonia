@@ -85,6 +85,19 @@ describe("TimeRibbon", () => {
     expect(nowLine?.style.left).toBe(`${fractionOf(NOW, SPAN) * 100}%`);
   });
 
+  it("paints the now line and the ticks above a see-through lens", () => {
+    // when
+    const { container } = setup();
+    // then
+    const lens = container.querySelector<HTMLElement>(".border-foreground");
+    const marks = container.querySelector<HTMLElement>("[data-ribbon-marks]");
+    expect(lens?.className).toContain("z-10");
+    expect(lens?.className).not.toMatch(/\bbg-/);
+    expect(marks?.className).toContain("z-20");
+    expect(marks?.querySelector("[data-now-line]")).not.toBeNull();
+    expect(marks?.querySelectorAll("[data-kind]")).toHaveLength(IN_SPAN.length);
+  });
+
   it.each([
     ["{ArrowRight}", stepTick(IN_SPAN, LENS, 1)],
     ["{ArrowLeft}", stepTick(IN_SPAN, LENS, -1)],

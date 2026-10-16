@@ -63,7 +63,8 @@ test("opens with the Today marker in the upper third of the page", async ({
   const area = (await main(page).boundingBox())!;
   const today = (await page.getByText("Today", { exact: true }).boundingBox())!;
   const ratio = (today.y - area.y) / area.height;
-  expect(ratio).toBeGreaterThanOrEqual(0.25);
+  const ribbon = (await page.locator("[data-time-ribbon]").boundingBox())!;
+  expect(today.y).toBeGreaterThanOrEqual(ribbon.y + ribbon.height);
   expect(ratio).toBeLessThanOrEqual(0.42);
   await expect(page.getByRole("link", { name: /^Retro 112/ })).toBeAttached();
   expect(await topOf(rowAt(page, newest.entry.scheduledAt))).toBeLessThan(

@@ -43,16 +43,13 @@ export function useLocalClock(stepMs: number, active: boolean): Date {
   useEffect(() => {
     if (!active) return;
     let timer = 0;
-    const arm = () => {
-      timer = window.setTimeout(
-        () => {
-          setNow(new Date());
-          arm();
-        },
-        stepMs - (Date.now() % stepMs),
-      );
+    const arm = (delayMs: number) => {
+      timer = window.setTimeout(() => {
+        setNow(new Date());
+        arm(stepMs - (Date.now() % stepMs));
+      }, delayMs);
     };
-    arm();
+    arm(0);
     return () => window.clearTimeout(timer);
   }, [stepMs, active]);
   return now.getTime() > pageNow.getTime() ? now : pageNow;

@@ -236,4 +236,24 @@ describe("useRemoveArtifact", () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(gateway.remove.mock.calls[0]).toEqual([1]);
   });
+
+  it("marks the memories stale, leaving a schedule window alone", async () => {
+    // given
+    const memories = scheduleKeys.memories("backend-guild");
+    const window = scheduleKeys.community("backend-guild", "a", "b");
+    client.setQueryData(memories, {});
+    client.setQueryData(window, {});
+    gateway.remove.mockResolvedValue(undefined);
+    const { result } = renderHook(() => useRemoveArtifact("backend-guild"), {
+      wrapper,
+    });
+
+    // when
+    result.current.mutate(1);
+
+    // then
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(client.getQueryState(memories)?.isInvalidated).toBe(true);
+    expect(client.getQueryState(window)?.isInvalidated).toBe(false);
+  });
 });

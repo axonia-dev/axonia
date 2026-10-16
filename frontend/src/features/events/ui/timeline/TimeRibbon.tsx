@@ -224,6 +224,16 @@ export function TimeRibbon({
                 className="bg-primary/7 absolute inset-y-0 right-0"
                 style={{ left: percent(nowFraction) }}
               />
+            </div>
+            <span
+              aria-hidden="true"
+              style={{ left: lensLeft(fractionOf(lensMs, span)) }}
+              className="border-foreground pointer-events-none absolute inset-y-0 z-10 w-[46px] -translate-x-1/2 rounded-lg border-2 motion-safe:transition-[left] motion-safe:duration-75"
+            />
+            <div
+              data-ribbon-marks=""
+              className="pointer-events-none absolute inset-x-0 top-[5px] z-20 h-[34px] overflow-hidden rounded-lg"
+            >
               {shown.map((tick, index) => (
                 <span
                   key={`${tick.kind}-${tick.at}-${index}`}
@@ -243,11 +253,6 @@ export function TimeRibbon({
                 className="bg-primary absolute inset-y-0 w-0.5 -translate-x-1/2"
               />
             </div>
-            <span
-              aria-hidden="true"
-              style={{ left: lensLeft(fractionOf(lensMs, span)) }}
-              className="border-foreground bg-foreground/5 pointer-events-none absolute inset-y-0 w-[46px] -translate-x-1/2 rounded-lg border-2 motion-safe:transition-[left] motion-safe:duration-75"
-            />
           </div>
           <MonthLabels span={span} nowMs={nowMs} />
         </div>

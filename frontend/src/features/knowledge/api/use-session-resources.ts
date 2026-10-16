@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { invalidateMemories } from "@/features/events/api/invalidate-memories";
 import { httpKnowledgeGateway } from "@/features/knowledge/adapters/http-knowledge-gateway";
 import { artifactKeys } from "@/features/knowledge/api/query-keys";
 import type {
@@ -34,8 +35,11 @@ export function useDetachResource(slug: string, sessionId: number) {
     mutationFn: (input: DetachResourceInput) =>
       gateway.detachResource(slug, sessionId, input),
     onSuccess: () =>
-      queryClient.invalidateQueries({
-        queryKey: artifactKeys.community(slug),
-      }),
+      Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: artifactKeys.community(slug),
+        }),
+        invalidateMemories(queryClient),
+      ]),
   });
 }

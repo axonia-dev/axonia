@@ -15,6 +15,7 @@ import { useTimelineScroll } from "@/features/events/ui/timeline/use-timeline-sc
 interface Given {
   ready: boolean;
   count: number;
+  ribbonTop?: number;
 }
 
 const ROWS = [
@@ -23,7 +24,7 @@ const ROWS = [
   { at: 3000, top: 300 },
 ];
 
-function Timeline({ ready, count }: Readonly<Given>) {
+function Timeline({ ready, count, ribbonTop }: Readonly<Given>) {
   const rootRef = useRef<HTMLDivElement>(null);
   const todayRef = useRef<HTMLDivElement>(null);
   const { lensMs, scrollToAt } = useTimelineScroll({
@@ -37,6 +38,9 @@ function Timeline({ ready, count }: Readonly<Given>) {
       {ROWS.map((row) => (
         <p key={row.at} data-at={row.at} data-top={row.top} />
       ))}
+      {ribbonTop !== undefined && (
+        <div data-time-ribbon="" data-top={ribbonTop} />
+      )}
       <div ref={todayRef} data-top="900" />
       <output>{lensMs ?? "none"}</output>
       <button type="button" onClick={() => scrollToAt(2900)}>
@@ -105,6 +109,24 @@ describe("useTimelineScroll", () => {
     update({ ready: false, count: 0 });
     update({ ready: true, count: 0 });
     expect(main.scrollTop).toBe(5);
+  });
+
+  it("rounds an opening target short of the ribbon to the ribbon's top", () => {
+    // given: the target would be 600, the ribbon sits 700 into main (800 - 100)
+    const { main, update } = setup({ ready: false, count: 0, ribbonTop: 800 });
+    // when
+    update({ ready: true, count: 0, ribbonTop: 800 });
+    // then
+    expect(main.scrollTop).toBe(700);
+  });
+
+  it("keeps an opening target at or past the ribbon's top", () => {
+    // given
+    const { main, update } = setup({ ready: false, count: 0, ribbonTop: 300 });
+    // when
+    update({ ready: true, count: 0, ribbonTop: 300 });
+    // then
+    expect(main.scrollTop).toBe(600);
   });
 
   it("leaves a position the back step restored alone", () => {
