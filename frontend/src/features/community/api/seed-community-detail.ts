@@ -12,13 +12,16 @@ export function useSeedCommunityDetail(): (
 ) => Promise<void> {
   const queryClient = useQueryClient();
   return useCallback(
-    async (listing: CommunityListing) => {
-      const key = communityKeys.detail(listing.slug);
-      if (queryClient.getQueryData(key) !== undefined) return;
-      queryClient.setQueryData(key, communitySchema.parse(listing), {
-        updatedAt: 0,
-      });
-    },
+    (listing: CommunityListing) =>
+      new Promise<void>((resolve) => {
+        const key = communityKeys.detail(listing.slug);
+        if (queryClient.getQueryData(key) === undefined) {
+          queryClient.setQueryData(key, communitySchema.parse(listing), {
+            updatedAt: 0,
+          });
+        }
+        resolve();
+      }),
     [queryClient],
   );
 }

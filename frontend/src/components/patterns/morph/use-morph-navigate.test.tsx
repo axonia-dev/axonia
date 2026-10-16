@@ -48,10 +48,11 @@ function Source({
 }
 
 function Where() {
-  const { pathname, state } = useLocation();
+  const location = useLocation();
+  const state: unknown = location.state;
   return (
     <output data-state={JSON.stringify(state)} data-testid="where">
-      {pathname}
+      {location.pathname}
     </output>
   );
 }

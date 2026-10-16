@@ -4,7 +4,11 @@ import {
   useLayoutEffect,
   useRef,
 } from "react";
-import { useLocation, useNavigationType } from "react-router-dom";
+import {
+  NavigationType,
+  useLocation,
+  useNavigationType,
+} from "react-router-dom";
 
 const positions = new Map<string, number>();
 
@@ -20,7 +24,7 @@ export function useMainScroll(): {
   useLayoutEffect(() => {
     const main = ref.current;
     if (main === null) return;
-    if (navigationType === "POP") {
+    if (navigationType === NavigationType.Pop) {
       main.scrollTop = positions.get(key) ?? 0;
     } else {
       if (shownPath.current !== pathname) main.scrollTop = 0;

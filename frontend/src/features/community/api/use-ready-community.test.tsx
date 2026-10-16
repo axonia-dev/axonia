@@ -46,7 +46,7 @@ describe("useReadyCommunity", () => {
     const { client, community } = setup();
     client.setQueryData(
       communityKeys.detail("guild"),
-      { slug: "guild" } as never,
+      { slug: "guild" },
       { updatedAt: 0 },
     );
 

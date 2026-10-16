@@ -1,5 +1,5 @@
 import { addTransitionType, startTransition } from "react";
-import { UNSAFE_createBrowserHistory } from "react-router-dom";
+import { NavigationType, UNSAFE_createBrowserHistory } from "react-router-dom";
 
 export const MORPH = "morph";
 export const MORPH_BACK = "morph-back";
@@ -84,8 +84,8 @@ type Update = Parameters<Listener>[0];
 
 function record(update: Update, from: string): void {
   const to = update.location.key;
-  if (update.action === "REPLACE") rekey(from, to);
-  if (update.action === "PUSH" && armed) remember([from, to]);
+  if (update.action === NavigationType.Replace) rekey(from, to);
+  if (update.action === NavigationType.Push && armed) remember([from, to]);
 }
 
 function morphAware(history: BrowserHistory, listener: Listener) {
@@ -100,7 +100,8 @@ function morphAware(history: BrowserHistory, listener: Listener) {
     const from = current;
     current = update.location.key;
     record(update, from);
-    const types = update.action === "POP" ? replayTypes(from, current) : [];
+    const types =
+      update.action === NavigationType.Pop ? replayTypes(from, current) : [];
     if (types.length === 0) {
       listener(update);
       return;
@@ -131,7 +132,9 @@ export function createMorphHistory(): BrowserHistory {
         };
       }
       const value: unknown = Reflect.get(target, key, target);
-      return typeof value === "function" ? value.bind(target) : value;
+      if (typeof value !== "function") return value;
+      const method = value as (...args: unknown[]) => unknown;
+      return method.bind(target);
     },
   });
 }
