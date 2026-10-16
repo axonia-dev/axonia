@@ -34,13 +34,10 @@ function Timeline({ ready, count, ribbonTop }: Readonly<Given>) {
     memoryCount: count,
   });
   return (
-    <div ref={rootRef}>
+    <div ref={rootRef} data-top={ribbonTop}>
       {ROWS.map((row) => (
         <p key={row.at} data-at={row.at} data-top={row.top} />
       ))}
-      {ribbonTop !== undefined && (
-        <div data-time-ribbon="" data-top={ribbonTop} />
-      )}
       <div ref={todayRef} data-top="900" />
       <output>{lensMs ?? "none"}</output>
       <button type="button" onClick={() => scrollToAt(2900)}>
@@ -111,13 +108,13 @@ describe("useTimelineScroll", () => {
     expect(main.scrollTop).toBe(5);
   });
 
-  it("rounds an opening target short of the ribbon to the ribbon's top", () => {
+  it("opens at the top when the target falls short of the ribbon", () => {
     // given: the target would be 600, the ribbon sits 700 into main (800 - 100)
     const { main, update } = setup({ ready: false, count: 0, ribbonTop: 800 });
     // when
     update({ ready: true, count: 0, ribbonTop: 800 });
     // then
-    expect(main.scrollTop).toBe(700);
+    expect(main.scrollTop).toBe(0);
   });
 
   it("keeps an opening target at or past the ribbon's top", () => {

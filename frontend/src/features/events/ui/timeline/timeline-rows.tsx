@@ -35,7 +35,7 @@ export function MonthRow({ label }: Readonly<{ label: string }>) {
       aria-hidden="true"
       className={cn("timeline-row pt-1 pb-2", rowGridClass)}
     >
-      <span className="font-display text-muted-foreground justify-self-end text-[11px] font-bold tracking-widest uppercase">
+      <span className="font-display text-muted-foreground justify-self-end text-[11px] font-bold tracking-widest uppercase max-sm:col-start-3 max-sm:justify-self-start">
         {label}
       </span>
     </li>

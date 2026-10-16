@@ -60,16 +60,21 @@ test("opens with the Today marker in the upper third of the page", async ({
   await open(page);
 
   // then
+  const todayLabel = page.getByText("Today", { exact: true });
+  const ribbon = page.locator("[data-time-ribbon]");
   const area = (await main(page).boundingBox())!;
-  const today = (await page.getByText("Today", { exact: true }).boundingBox())!;
-  const ratio = (today.y - area.y) / area.height;
-  const ribbon = (await page.locator("[data-time-ribbon]").boundingBox())!;
-  expect(today.y).toBeGreaterThanOrEqual(ribbon.y + ribbon.height);
-  expect(ratio).toBeLessThanOrEqual(0.42);
+  await expect
+    .poll(
+      async () => ((await todayLabel.boundingBox())!.y - area.y) / area.height,
+    )
+    .toBeLessThanOrEqual(0.42);
+  const today = (await todayLabel.boundingBox())!;
+  const ribbonBox = (await ribbon.boundingBox())!;
+  expect(today.y).toBeGreaterThanOrEqual(ribbonBox.y + ribbonBox.height);
   await expect(page.getByRole("link", { name: /^Retro 112/ })).toBeAttached();
-  expect(await topOf(rowAt(page, newest.entry.scheduledAt))).toBeLessThan(
-    today.y,
-  );
+  const memoryTop = await topOf(rowAt(page, newest.entry.scheduledAt));
+  expect(memoryTop).toBeGreaterThanOrEqual(ribbonBox.y + ribbonBox.height);
+  expect(memoryTop).toBeLessThan(today.y);
 });
 
 /** Records the row's top at the very commit that grows the list, before any scroll can follow. */

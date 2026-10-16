@@ -44,7 +44,7 @@ const labelPlace = (fraction: number): CSSProperties => ({
 
 /** The lens stays whole inside the track at either end. */
 const lensLeft = (fraction: number) =>
-  `clamp(23px, ${percent(fraction)}, calc(100% - 23px))`;
+  `clamp(24px, ${percent(fraction)}, calc(100% - 24px))`;
 
 type KeyStep = (ticks: RibbonTick[], from: number) => RibbonTick | null;
 
@@ -72,7 +72,7 @@ function keyTarget(
 
 function tickStyle(tick: RibbonTick, span: RibbonSpan, nowMs: number) {
   const style: CSSProperties = {
-    left: percent(fractionOf(msOf(tick) ?? 0, span)),
+    left: `clamp(2px, ${percent(fractionOf(msOf(tick) ?? 0, span))}, calc(100% - 2px))`,
   };
   if (tick.kind !== "UPCOMING") return style;
   const strength = upcomingGlow(tick.at, new Date(nowMs));
@@ -191,7 +191,7 @@ export function TimeRibbon({
   return (
     <div
       data-time-ribbon=""
-      className="bg-background/90 border-border sticky top-0 z-10 mb-3 border-b px-1 pt-2 pb-1.5 backdrop-blur"
+      className="bg-background border-border sticky top-0 z-10 -mx-6 mb-3 border-b px-7 pt-2 pb-1.5"
     >
       <div className="flex items-center gap-2">
         {onFurtherBack && (

@@ -31,20 +31,19 @@ function readingLine(scroller: HTMLElement): number {
   return scroller.getBoundingClientRect().top + ribbonHeight + READING_GAP_PX;
 }
 
-/** The ribbon's natural top inside `<main>`'s content, or 0 with no ribbon. */
-function ribbonTopIn(main: HTMLElement): number {
-  const ribbon = main.querySelector("[data-time-ribbon]");
-  if (ribbon === null) return 0;
+/** The ribbon's natural top inside `<main>`'s content: the ribbon opens the root, and unlike the ribbon the root never sticks. */
+function ribbonTopIn(main: HTMLElement, root: HTMLElement | null): number {
+  if (root === null) return 0;
   return (
-    ribbon.getBoundingClientRect().top -
+    root.getBoundingClientRect().top -
     main.getBoundingClientRect().top +
     main.scrollTop
   );
 }
 
-/** A target above the ribbon's top would leave the page controls half cut: it lands flush on the ribbon instead. */
+/** A target short of the ribbon's top would leave the page controls half cut: it opens at the top instead, so they show whole. */
 function openingTop(target: number, ribbonTop: number): number {
-  return target > 0 && target < ribbonTop ? ribbonTop : target;
+  return target > 0 && target < ribbonTop ? 0 : target;
 }
 
 function rowsOf(root: HTMLElement | null): HTMLElement[] {
@@ -121,9 +120,9 @@ export function useTimelineScroll({
       main.scrollTop;
     main.scrollTop = openingTop(
       todayTop - main.clientHeight / 3,
-      ribbonTopIn(main),
+      ribbonTopIn(main, rootRef.current),
     );
-  }, [ready, restored, scroller, todayRef]);
+  }, [ready, restored, rootRef, scroller, todayRef]);
 
   // Memories landing above the row being read (an older page, a session that just ended) would
   // push it down; moving `<main>` by the same amount keeps the reader's place. It only reads
