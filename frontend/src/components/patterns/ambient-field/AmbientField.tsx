@@ -97,6 +97,7 @@ function startField(field: Field): () => void {
     const { box, ratio, seam } = geometry;
     context.setTransform(ratio, 0, 0, ratio, 0, 0);
     context.clearRect(0, 0, box.width, box.height);
+    if (box.width === 0 || box.height === 0) return;
     const samples = field.motes.map((mote) => moteAt(mote, seconds, box));
     paintFrame(context, { samples, box, seam, ...field.ink, scratch, ratio });
   };

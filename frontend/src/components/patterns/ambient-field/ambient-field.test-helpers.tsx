@@ -64,8 +64,17 @@ export function hideTab(hidden: boolean) {
 }
 
 /** Renders a field in a host, on a clock the test advances by hand. */
-export function renderField(props: Partial<AmbientFieldProps> = {}) {
+export function renderField(
+  props: Partial<AmbientFieldProps> = {},
+  size = { width: 320, height: 180 },
+) {
   const context = stubContext();
+  vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(
+    size.width,
+  );
+  vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(
+    size.height,
+  );
   const { clock, run } = manualClock();
   const field = (overrides: Partial<AmbientFieldProps>) => (
     <div data-testid="host" style={{ position: "relative" }}>

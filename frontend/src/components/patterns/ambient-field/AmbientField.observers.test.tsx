@@ -74,6 +74,16 @@ describe("AmbientField on resize", () => {
     expect(canvas?.height).toBe(300);
   });
 
+  it("paints nothing while its host has no size, then paints once it has one", () => {
+    reducedMotion(true);
+    const resized = captureObserver("ResizeObserver");
+    const { frames } = renderField({}, { width: 320, height: 0 });
+    expect(frames()).toBe(0);
+    sizeHost(320, 180);
+    resized.fire([]);
+    expect(frames()).toBeGreaterThan(0);
+  });
+
   it("leaves the frame alone when the size did not change", () => {
     reducedMotion(true);
     const resized = captureObserver("ResizeObserver");
