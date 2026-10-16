@@ -27,6 +27,7 @@ interface TimelineGiven {
     pages?: Memory[][];
     hasNextPage?: boolean;
     fetchNextPage?: () => Promise<unknown>;
+    isLoading?: boolean;
   };
   ribbon?: { firstSessionAt: string | null; ticks: RibbonTick[] };
   slug?: string;
@@ -47,7 +48,7 @@ function memoriesQueryOf(given: TimelineGiven) {
       pages: pages.map((items) => ({ items, next: null })),
       pageParams: [],
     },
-    isLoading: false,
+    isLoading: given.memories?.isLoading ?? false,
     isError: false,
     hasNextPage: given.memories?.hasNextPage ?? false,
     isFetchingNextPage: false,

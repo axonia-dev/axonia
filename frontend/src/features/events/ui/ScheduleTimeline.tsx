@@ -108,10 +108,11 @@ export function ScheduleTimeline({
     scheduleQuery.data,
   );
   const nowMs = now.getTime();
+  const ready = !scheduleQuery.isLoading && !memoriesQuery.isLoading;
   const { lensMs, scrollToAt, scroller } = useTimelineScroll({
     rootRef,
     todayRef,
-    ready: !scheduleQuery.isLoading && !memoriesQuery.isLoading,
+    ready,
     memoryCount: memories.length,
   });
 
@@ -164,6 +165,7 @@ export function ScheduleTimeline({
         nowMs={nowMs}
         lensMs={lensMs}
         hasContent={items.length > 0 || memories.length > 0}
+        ready={ready}
         oldestShownMs={oldestOf(memories)}
         memoriesQuery={memoriesQuery}
         valueText={ribbonValueText(entriesOf(memories, ahead), {

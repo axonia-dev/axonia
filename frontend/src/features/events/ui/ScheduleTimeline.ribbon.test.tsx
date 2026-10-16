@@ -46,6 +46,7 @@ const pagesOf = (...pages: Memory[][]) => ({
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 describe("ScheduleTimeline ribbon", () => {

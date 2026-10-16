@@ -129,6 +129,27 @@ const heroHeading = (page: Page) =>
 const mainScrollTop = (page: Page) =>
   page.locator("main").evaluate((main) => main.scrollTop);
 
+/**
+ * Points at the session link and clicks once the reads it waits for have answered. A morph only
+ * plays when its destination is ready within the 300 ms budget (use-morph-navigate.ts); a
+ * route-fulfilled read under a loaded parallel run can take longer, and the app then rightly
+ * navigates without morphing. Pointing first is what a reader does, and it starts the same reads.
+ */
+async function openSession(page: Page, reads: string[]): Promise<void> {
+  const link = page.getByRole("link", { name: TITLE });
+  const answered = reads.map((path) =>
+    page.waitForResponse(
+      (response) => new URL(response.url()).pathname === path,
+    ),
+  );
+  await link.hover();
+  await Promise.all(answered);
+  await link.click();
+}
+
+const SESSION_READ = `/axonia/sessions/${SESSION_ID}`;
+const COMMUNITY_READ = `/axonia/communities/${SLUG}`;
+
 async function visitSession(
   page: Page,
   from: string,
@@ -174,7 +195,7 @@ test("a schedule card morphs into its session", async ({ page }) => {
   // when / then
   await groupsDuring(
     page,
-    () => page.getByRole("link", { name: TITLE }).click(),
+    () => openSession(page, [SESSION_READ]),
     sessionGroups,
   );
   await expect(page).toHaveURL(`/communities/${SLUG}/sessions/${SESSION_ID}`);
@@ -191,11 +212,9 @@ test("a schedule card the session page heads otherwise morphs without its title"
   );
 
   // when / then
-  await groupsDuring(
-    page,
-    () => page.getByRole("link", { name: TITLE }).click(),
-    [group("surface", `session-${SESSION_ID}`)],
-  );
+  await groupsDuring(page, () => openSession(page, [SESSION_READ]), [
+    group("surface", `session-${SESSION_ID}`),
+  ]);
   await expect(page).toHaveURL(`/communities/${SLUG}/sessions/${SESSION_ID}`);
   expect(await morphsSeen(page)).not.toContain(
     group("title", `session-${SESSION_ID}`),
@@ -223,7 +242,7 @@ test("a saved session morphs into its session page", async ({ page }) => {
   // when / then
   await groupsDuring(
     page,
-    () => page.getByRole("link", { name: TITLE }).click(),
+    () => openSession(page, [SESSION_READ, COMMUNITY_READ]),
     sessionGroups,
   );
   await expect(page).toHaveURL(`/communities/${SLUG}/sessions/${SESSION_ID}`);

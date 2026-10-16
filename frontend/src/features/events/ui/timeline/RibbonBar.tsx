@@ -26,6 +26,9 @@ interface Props {
   lensMs: number | null;
   /** Something is on the timeline already, so a ribbon is worth drawing even with no ticks. */
   hasContent: boolean;
+  /** The schedule and the first memories page have settled. A scrub before that would find no
+   *  page to load from and be overruled by the opening position, so the ribbon waits for it. */
+  ready: boolean;
   /** The oldest memory the list renders right now, or Infinity with none. */
   oldestShownMs: number;
   memoriesQuery: MemoriesQuery;
@@ -86,9 +89,14 @@ function useScrub(
     query.current = memoriesQuery;
   });
 
-  // A loaded page reaches the list a commit after its promise settles, so the scroll waits for it.
   useLayoutEffect(() => {
     oldestShown.current = oldestShownMs;
+  }, [oldestShownMs]);
+
+  // A loaded page reaches the list a commit after its promise settles, so the scroll waits for it.
+  // A passive effect: the timeline's layout effect first holds the reader's row still against the
+  // prepend by setting `scrollTop`, which would cancel a smooth scroll already under way.
+  useEffect(() => {
     const target = pending.current;
     if (target === null || oldestShownMs > target.reach) return;
     pending.current = null;
@@ -135,6 +143,7 @@ export function RibbonBar({
   nowMs,
   lensMs,
   hasContent,
+  ready,
   oldestShownMs,
   memoriesQuery,
   valueText,
@@ -164,7 +173,8 @@ export function RibbonBar({
     void scrub(nowMs);
   };
 
-  if (!hasContent && ticks.length === 0) return null;
+  const empty = !hasContent && ticks.length === 0;
+  if (!ready || empty) return null;
   return (
     <TimeRibbon
       span={span}
