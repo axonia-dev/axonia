@@ -46,6 +46,9 @@ export const scheduleKeys = {
   community: (slug: string, from: string, to: string) =>
     [...scheduleKeys.all, slug, from, to] as const,
   activity: (slug: string) => [...scheduleKeys.all, slug, "activity"] as const,
+  memories: (slug: string) => [...scheduleKeys.all, slug, "memories"] as const,
+  ribbon: (slug: string, from: string, to: string) =>
+    [...scheduleKeys.all, slug, "ribbon", from, to] as const,
 };
 
 export const calendarSubscriptionKeys = {

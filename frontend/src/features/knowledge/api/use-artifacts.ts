@@ -5,6 +5,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 
+import { invalidateMemories } from "@/features/events/api/invalidate-memories";
 import { expertiseKeys } from "@/features/expertise/api/query-keys";
 import { httpKnowledgeGateway } from "@/features/knowledge/adapters/http-knowledge-gateway";
 import { artifactKeys } from "@/features/knowledge/api/query-keys";
@@ -24,7 +25,8 @@ export function useArtifacts(slug: string, params: ArtifactSearchParams) {
   });
 }
 
-/** Every read that names an artifact's contributor: the library, expertise and My impact. */
+/** Every read that names an artifact's contributor: the library, expertise, My impact and the
+ *  memories carrying its trace. */
 function invalidateCreditReads(queryClient: QueryClient, slug: string) {
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: artifactKeys.community(slug) }),
@@ -32,6 +34,7 @@ function invalidateCreditReads(queryClient: QueryClient, slug: string) {
     queryClient.invalidateQueries({
       queryKey: recognitionKeys.myContributions(),
     }),
+    invalidateMemories(queryClient),
   ]);
 }
 

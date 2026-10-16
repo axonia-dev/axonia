@@ -3,6 +3,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { scheduleKeys } from "@/features/events/api/query-keys";
 import { httpRecognitionGateway } from "@/features/recognition/adapters/http-recognition-gateway";
 import {
   useLove,
@@ -22,10 +23,9 @@ vi.mock("@/features/recognition/adapters/http-recognition-gateway", () => ({
 
 const gateway = vi.mocked(httpRecognitionGateway);
 
+let client: QueryClient;
+
 function wrapper({ children }: { children: ReactNode }) {
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }
 
@@ -34,7 +34,23 @@ const key = {
   contributionId: 9,
 };
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+});
+
+const memoriesKey = scheduleKeys.memories("x");
+const windowKey = scheduleKeys.community("x", "a", "b");
+
+function seedSchedule() {
+  client.setQueryData(memoriesKey, {});
+  client.setQueryData(windowKey, {});
+}
+
+function expectOnlyMemoriesStale() {
+  expect(client.getQueryState(memoriesKey)?.isInvalidated).toBe(true);
+  expect(client.getQueryState(windowKey)?.isInvalidated).toBe(false);
+}
 
 describe("useLoveSummary", () => {
   it("fetches the summary for a contribution", async () => {
@@ -62,6 +78,17 @@ describe("useLove", () => {
     // then
     await waitFor(() => expect(gateway.love.mock.calls).toEqual([[key]]));
   });
+
+  it("marks memories stale, leaving the schedule windows", async () => {
+    seedSchedule();
+    gateway.love.mockResolvedValue({} as never);
+    const { result } = renderHook(() => useLove(key), { wrapper });
+
+    result.current.mutate();
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    await waitFor(() => expectOnlyMemoriesStale());
+  });
 });
 
 describe("useUnlove", () => {
@@ -75,6 +102,17 @@ describe("useUnlove", () => {
 
     // then
     await waitFor(() => expect(gateway.unlove.mock.calls[0]).toEqual([key]));
+  });
+
+  it("marks memories stale, leaving the schedule windows", async () => {
+    seedSchedule();
+    gateway.unlove.mockResolvedValue();
+    const { result } = renderHook(() => useUnlove(key), { wrapper });
+
+    result.current.mutate();
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    await waitFor(() => expectOnlyMemoriesStale());
   });
 });
 

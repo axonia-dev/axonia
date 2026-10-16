@@ -24,6 +24,7 @@ import { buildQuery as query } from "@/lib/query";
 
 import { actionItemEndpoints } from "./http-action-item-endpoints";
 import { calendarSubscriptionEndpoints } from "./http-calendar-subscription-endpoints";
+import { memoryEndpoints } from "./http-memory-endpoints";
 import { slotEndpoints } from "./http-slot-endpoints";
 import { topicEndpoints } from "./http-topic-endpoints";
 
@@ -41,6 +42,7 @@ export const httpEventsGateway: EventsGateway = {
   ...topicEndpoints,
   ...calendarSubscriptionEndpoints,
   ...actionItemEndpoints,
+  ...memoryEndpoints,
 
   async listSectionTypes() {
     const data = await apiFetch<unknown>("/axonia/section-types");

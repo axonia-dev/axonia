@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { invalidateMemories } from "@/features/events/api/invalidate-memories";
 import { httpRecognitionGateway } from "@/features/recognition/adapters/http-recognition-gateway";
 import { recognitionKeys } from "@/features/recognition/api/query-keys";
 import type { ContributionKey } from "@/features/recognition/domain/recognition";
@@ -15,6 +16,7 @@ function useInvalidateRecognition(key: ContributionKey) {
     void queryClient.invalidateQueries({
       queryKey: recognitionKeys.myContributions(),
     });
+    void invalidateMemories(queryClient);
   };
 }
 

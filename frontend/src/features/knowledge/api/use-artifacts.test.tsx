@@ -3,6 +3,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { scheduleKeys } from "@/features/events/api/query-keys";
 import { expertiseKeys } from "@/features/expertise/api/query-keys";
 import { artifactKeys } from "@/features/knowledge/api/query-keys";
 import {
@@ -118,7 +119,10 @@ describe("useCaptureArtifact", () => {
       expertiseKeys.selfView(),
       expertiseKeys.areaEvidence("terraform"),
       recognitionKeys.myContributions(),
+      scheduleKeys.memories("backend-guild"),
     ];
+    const window = scheduleKeys.community("backend-guild", "a", "b");
+    client.setQueryData(window, {});
     for (const queryKey of reads) client.setQueryData(queryKey, {});
     gateway.capture.mockResolvedValue(artifact);
     const { result } = renderHook(() => useCaptureArtifact("backend-guild"), {
@@ -138,6 +142,7 @@ describe("useCaptureArtifact", () => {
     for (const queryKey of reads) {
       expect(client.getQueryState(queryKey)?.isInvalidated).toBe(true);
     }
+    expect(client.getQueryState(window)?.isInvalidated).toBe(false);
   });
 });
 
