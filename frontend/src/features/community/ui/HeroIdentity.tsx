@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { KindBadge } from "@/components/patterns/KindBadge";
+import { MorphPart } from "@/components/patterns/morph/MorphPart";
 import { AnimatedCount } from "@/components/ui/AnimatedCount";
 import {
   type Community,
@@ -22,6 +23,7 @@ interface HeroIdentityProps {
   badgeOverlay?: ReactNode;
   meta?: ReactNode;
   footer?: ReactNode;
+  morphId?: string | undefined;
 }
 
 function Badge({
@@ -29,11 +31,13 @@ function Badge({
   hasBanner,
   editing,
   overlay,
+  morphId,
 }: Readonly<{
   community: Community;
   hasBanner: boolean;
   editing: boolean;
   overlay?: ReactNode;
+  morphId: string | undefined;
 }>) {
   return (
     <div
@@ -47,13 +51,15 @@ function Badge({
       )}
     >
       {community.badgeUrl != null && (
-        <img
-          data-focal-image
-          src={community.badgeUrl}
-          alt={community.name}
-          style={{ objectPosition: focalPosition(community.badgeFocus) }}
-          className="border-surface size-24 rounded-2xl border-4 object-cover shadow-md outline-3 -outline-offset-7 outline-[var(--community-accent)]"
-        />
+        <MorphPart part="badge" id={morphId}>
+          <img
+            data-focal-image
+            src={community.badgeUrl}
+            alt={community.name}
+            style={{ objectPosition: focalPosition(community.badgeFocus) }}
+            className="border-surface size-24 rounded-2xl border-4 object-cover shadow-md outline-3 -outline-offset-7 outline-[var(--community-accent)]"
+          />
+        </MorphPart>
       )}
       {overlay}
     </div>
@@ -68,6 +74,7 @@ export function HeroIdentity({
   badgeOverlay,
   meta,
   footer,
+  morphId,
 }: Readonly<HeroIdentityProps>) {
   return (
     <div
@@ -83,6 +90,7 @@ export function HeroIdentity({
             hasBanner={hasBanner}
             editing={editing}
             overlay={badgeOverlay}
+            morphId={morphId}
           />
         )}
         <div
@@ -104,7 +112,9 @@ export function HeroIdentity({
           data-ceremony-part="name"
           className="font-display text-foreground mt-3 text-4xl font-bold tracking-tight"
         >
-          {community.name}
+          <MorphPart part="name" id={morphId}>
+            <span className="inline-block">{community.name}</span>
+          </MorphPart>
         </h1>
         {community.description && (
           <p

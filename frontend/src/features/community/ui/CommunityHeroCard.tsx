@@ -14,6 +14,7 @@ interface Props {
   badgeOverlay?: ReactNode;
   cornerControl?: ReactNode;
   backdrop?: ReactNode;
+  morphId?: string | undefined;
 }
 
 export function CommunityHeroCard({
@@ -25,6 +26,7 @@ export function CommunityHeroCard({
   badgeOverlay,
   cornerControl,
   backdrop,
+  morphId,
 }: Readonly<Props>) {
   const showBanner = community.heroUrl != null || editing;
   const showBadge = community.badgeUrl != null || editing;
@@ -46,6 +48,7 @@ export function CommunityHeroCard({
             focus={community.heroFocus}
             editing={editing}
             overlay={bannerOverlay}
+            morphId={morphId}
           />
         )}
         <HeroIdentity
@@ -56,6 +59,7 @@ export function CommunityHeroCard({
           badgeOverlay={badgeOverlay}
           meta={meta}
           footer={footer}
+          morphId={morphId}
         />
         {cornerControl && (
           <div className="pointer-events-none absolute inset-0 z-[2] *:pointer-events-auto">

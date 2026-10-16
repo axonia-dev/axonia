@@ -127,4 +127,31 @@ describe("ListRow", () => {
       "flex",
     );
   });
+
+  it.each([
+    { variant: "plain", action: undefined },
+    { variant: "with an action", action: <button type="button">Join</button> },
+  ])(
+    "runs a passed onClick when the $variant row link is clicked",
+    async ({ action }) => {
+      // given
+      const onClick = vi.fn();
+      render(
+        <MemoryRouter>
+          <ListRow
+            href="/communities/a"
+            title="A"
+            linkProps={{ onClick }}
+            {...(action !== undefined && { action })}
+          />
+        </MemoryRouter>,
+      );
+
+      // when
+      await user.click(screen.getByRole("link", { name: /A/ }));
+
+      // then
+      expect(onClick).toHaveBeenCalledOnce();
+    },
+  );
 });

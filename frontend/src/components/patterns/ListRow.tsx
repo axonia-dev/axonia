@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link, type LinkProps } from "react-router-dom";
 
 import { cn } from "@/lib/cn";
 
@@ -11,6 +11,7 @@ interface ListRowBaseProps {
   action?: ReactNode;
   accent?: string;
   className?: string;
+  linkProps?: Pick<LinkProps, "onClick" | "onPointerEnter" | "onFocus">;
 }
 
 type ListRowProps = ListRowBaseProps &
@@ -62,6 +63,7 @@ export function ListRow({
   action,
   accent = "var(--primary)",
   className,
+  linkProps,
   ...activation
 }: Readonly<ListRowProps>) {
   const style = { "--k": accent } as CSSProperties;
@@ -75,6 +77,7 @@ export function ListRow({
         {"href" in activation ? (
           <Link
             to={activation.href}
+            {...linkProps}
             data-row-link
             className={ACTION_LINK_CLASS}
           >
@@ -97,7 +100,12 @@ export function ListRow({
 
   const rowClass = cn(ROW_CLASS, className);
   return "href" in activation ? (
-    <Link to={activation.href} style={style} className={rowClass}>
+    <Link
+      to={activation.href}
+      {...linkProps}
+      style={style}
+      className={rowClass}
+    >
       {body}
     </Link>
   ) : (

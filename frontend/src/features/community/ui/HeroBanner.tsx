@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { MorphPart } from "@/components/patterns/morph/MorphPart";
 import type { FocalPoint } from "@/features/community/domain/community";
 import {
   BANNER_SCRIM,
@@ -12,6 +13,7 @@ interface HeroBannerProps {
   focus: FocalPoint | null | undefined;
   editing: boolean;
   overlay?: ReactNode;
+  morphId?: string | undefined;
 }
 
 /** Lifted over the hero's ambient field, so no mote is drawn across an edit control. */
@@ -36,42 +38,47 @@ export function HeroBanner({
   focus,
   editing,
   overlay,
+  morphId,
 }: Readonly<HeroBannerProps>) {
   if (heroUrl == null) {
     return (
-      <div
-        data-ceremony-part="banner"
-        className={cn(
-          "from-primary/10 to-secondary/10 relative aspect-3/2 bg-linear-to-br sm:aspect-32/9",
-          editing && "group/banner",
-        )}
-      >
-        <BannerOverlay overlay={overlay} />
-      </div>
+      <MorphPart part="banner" id={morphId}>
+        <div
+          data-ceremony-part="banner"
+          className={cn(
+            "from-primary/10 to-secondary/10 relative aspect-3/2 bg-linear-to-br sm:aspect-32/9",
+            editing && "group/banner",
+          )}
+        >
+          <BannerOverlay overlay={overlay} />
+        </div>
+      </MorphPart>
     );
   }
 
   return (
-    <div
-      data-focal-frame
-      data-ceremony-part="banner"
-      className={cn(
-        "relative aspect-3/2 overflow-hidden sm:aspect-32/9",
-        editing && "group/banner",
-      )}
-    >
-      <img
-        data-focal-image
-        src={heroUrl}
-        alt=""
-        className="absolute inset-0 size-full object-cover"
-        style={{ objectPosition: focalPosition(focus) }}
-      />
-      {/* A real element rather than an ::after: a generated pseudo-element paints over its own
-          children and would hide anything the overlay draws. `overlay` is rendered after it
-          deliberately. */}
-      <div aria-hidden className="absolute inset-0" style={BANNER_SCRIM} />
-      <BannerOverlay overlay={overlay} />
-    </div>
+    <MorphPart part="banner" id={morphId}>
+      <div
+        data-focal-frame
+        data-ceremony-part="banner"
+        className={cn(
+          "relative aspect-3/2 overflow-hidden sm:aspect-32/9",
+          editing && "group/banner",
+        )}
+      >
+        <img
+          data-focal-image
+          src={heroUrl}
+          alt=""
+          className="absolute inset-0 size-full object-cover"
+          style={{ objectPosition: focalPosition(focus) }}
+        />
+        {/* A real element rather than an ::after: a generated pseudo-element paints over its own
+            children and would hide anything the overlay draws. `overlay` is rendered after it
+            deliberately. */}
+        <div aria-hidden className="absolute inset-0" style={BANNER_SCRIM} />
+        <BannerOverlay overlay={overlay} />
+      </div>
+    </MorphPart>
   );
 }

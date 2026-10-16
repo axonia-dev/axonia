@@ -38,7 +38,11 @@ describe("BirthCeremony", () => {
 
     // then
     expect(
-      screen.getByText("Platform Engineering", { selector: "h1" }),
+      screen.getByRole("heading", {
+        level: 1,
+        name: "Platform Engineering",
+        hidden: true,
+      }),
     ).toBeInTheDocument();
   });
 

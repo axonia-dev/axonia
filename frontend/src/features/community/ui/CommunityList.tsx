@@ -4,10 +4,16 @@ import { EmptyState } from "@/components/patterns/EmptyState";
 import { KindBadge } from "@/components/patterns/KindBadge";
 import { ListRow } from "@/components/patterns/ListRow";
 import { LoadFailed } from "@/components/patterns/LoadFailed";
+import { useMorphLinkProps } from "@/components/patterns/morph/MorphLink";
+import {
+  communityMorphId,
+  MorphPart,
+} from "@/components/patterns/morph/MorphPart";
 import { Pagination } from "@/components/patterns/Pagination";
 import { Avatar } from "@/components/ui/Avatar";
 import { SearchField } from "@/components/ui/SearchField";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { useSeedCommunityDetail } from "@/features/community/api/seed-community-detail";
 import { useCommunities } from "@/features/community/api/use-communities";
 import type { CommunityListing } from "@/features/community/domain/community";
 import type { MembershipFilter } from "@/features/community/domain/community-gateway";
@@ -70,18 +76,35 @@ function SectionPager({ section }: Readonly<{ section: Section }>) {
 
 function ExploreRow({ community }: Readonly<{ community: CommunityListing }>) {
   const accent = communityHue(community);
+  const id = communityMorphId(community.slug);
+  const seed = useSeedCommunityDetail();
+  const linkProps = useMorphLinkProps(`/communities/${community.slug}`, {
+    ready: () => seed(community),
+  });
   return (
     <ListRow
       href={`/communities/${community.slug}`}
-      title={community.name}
+      linkProps={linkProps}
+      title={
+        <MorphPart part="name" id={id}>
+          <span className="inline-block max-w-full truncate align-bottom">
+            {community.name}
+          </span>
+        </MorphPart>
+      }
       meta={plural(community.memberCount, "member")}
       accent={accent}
       leading={
-        <Avatar
-          name={community.name}
-          hue={accent}
-          src={community.badgeUrl ?? null}
-        />
+        <MorphPart
+          part="badge"
+          id={community.badgeUrl == null ? undefined : id}
+        >
+          <Avatar
+            name={community.name}
+            hue={accent}
+            src={community.badgeUrl ?? null}
+          />
+        </MorphPart>
       }
       trailing={
         <KindBadge

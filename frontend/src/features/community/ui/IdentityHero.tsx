@@ -12,9 +12,11 @@ import {
 import type { StagePlacement } from "@/components/patterns/ceremony/CeremonyStage";
 import { StageBackdrop } from "@/components/patterns/ceremony/StageBackdrop";
 import { MemberFacepile } from "@/components/patterns/MemberFacepile";
+import { communityMorphId } from "@/components/patterns/morph/MorphPart";
 import { Button } from "@/components/ui/Button";
 import { useEdition } from "@/edition-context";
 import { useCurrentOrganization } from "@/features/admin/api/use-current-organization";
+import { pendingCeremonySlug } from "@/features/community/api/ceremony-handoff";
 import {
   type ManagementAccess,
   useManagementAccess,
@@ -22,7 +24,10 @@ import {
 import { useMyMembership } from "@/features/community/api/use-membership";
 import { type Community } from "@/features/community/domain/community";
 import { LazyHeroCeremony } from "@/features/community/ui/ceremony/lazy-ceremonies";
-import { useHeroCeremony } from "@/features/community/ui/ceremony/use-hero-ceremony";
+import {
+  type ActiveCeremony,
+  useHeroCeremony,
+} from "@/features/community/ui/ceremony/use-hero-ceremony";
 import { CommunityHeroCard } from "@/features/community/ui/CommunityHeroCard";
 import { CommunityMenu } from "@/features/community/ui/CommunityMenu";
 import { HeroAmbientField } from "@/features/community/ui/HeroAmbientField";
@@ -121,6 +126,16 @@ function Announcement({ text }: Readonly<{ text: string }>) {
   );
 }
 
+/** Only the live hero names its parts: a ceremony owns the card while one plays or waits. */
+function liveMorphId(
+  slug: string,
+  active: ActiveCeremony | null,
+): string | undefined {
+  return active !== null || pendingCeremonySlug() === slug
+    ? undefined
+    : communityMorphId(slug);
+}
+
 /** An in-place welcome stands on the page; any other ceremony on a full-screen backdrop. */
 function CeremonyBackdrop({
   placement,
@@ -147,6 +162,7 @@ export function IdentityHero({ community, slug }: Readonly<IdentityHeroProps>) {
   const ceremony = useHeroCeremony(community);
   const hero = useRef<HTMLDivElement>(null);
   const playing = ceremony.active !== null;
+  const morphId = liveMorphId(slug, ceremony.active);
   const reduced = useMediaQuery("(prefers-reduced-motion: reduce)");
   const { data: membership } = useMyMembership(slug);
   const markJoined = useFocusFooterAfterJoin(
@@ -190,6 +206,7 @@ export function IdentityHero({ community, slug }: Readonly<IdentityHeroProps>) {
       >
         <CommunityHeroCard
           community={community}
+          morphId={morphId}
           meta={meta}
           footer={footer}
           cornerControl={cornerControl}

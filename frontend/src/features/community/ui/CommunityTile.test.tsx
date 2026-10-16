@@ -1,8 +1,13 @@
-import { render, screen } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 
-import type { CommunityListing } from "@/features/community/domain/community";
+import { communityKeys } from "@/features/community/api/query-keys";
+import type {
+  Community,
+  CommunityListing,
+} from "@/features/community/domain/community";
 import { CommunityTile } from "@/features/community/ui/CommunityTile";
 
 const listing: CommunityListing = {
@@ -22,11 +27,25 @@ const listing: CommunityListing = {
   updatedAt: "2026-05-31T10:00:00Z",
 };
 
-function renderTile(overrides: Partial<CommunityListing> = {}) {
+function renderTile(
+  overrides: Partial<CommunityListing> = {},
+  queryClient = new QueryClient(),
+) {
   return render(
-    <MemoryRouter>
-      <CommunityTile community={{ ...listing, ...overrides }} />
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>
+        <Routes>
+          <Route
+            path="/"
+            element={<CommunityTile community={{ ...listing, ...overrides }} />}
+          />
+          <Route
+            path="/communities/:slug"
+            element={<div data-testid="home" />}
+          />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 
@@ -70,5 +89,22 @@ describe("CommunityTile", () => {
     const banner = container.querySelector("[data-tile-banner]");
     expect(banner?.className).toContain("bg-linear-to-b");
     expect(banner?.className).not.toContain("bg-linear-to-br");
+  });
+
+  it("navigates to the community home on a plain click and seeds its detail", async () => {
+    // given
+    const queryClient = new QueryClient();
+    renderTile({}, queryClient);
+
+    // when
+    fireEvent.click(screen.getByRole("link"), { button: 0 });
+
+    // then
+    expect(await screen.findByTestId("home")).toBeInTheDocument();
+    expect(
+      queryClient.getQueryData<Community>(
+        communityKeys.detail("platform-guild"),
+      )?.name,
+    ).toBe("Platform Guild");
   });
 });
