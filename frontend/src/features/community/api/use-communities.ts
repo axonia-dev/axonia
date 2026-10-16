@@ -1,4 +1,5 @@
 import {
+  queryOptions,
   skipToken,
   useMutation,
   useQuery,
@@ -27,9 +28,17 @@ export function useCommunities(params: ListParams) {
 
 /** No slug reads nothing, for a view shown both inside and outside a community. */
 export function useCommunity(slug: string | undefined) {
-  return useQuery({
-    queryKey: communityKeys.detail(slug ?? ""),
-    queryFn: slug === undefined ? skipToken : () => gateway.getBySlug(slug),
+  return useQuery(
+    slug === undefined
+      ? { queryKey: communityKeys.detail(""), queryFn: skipToken }
+      : communityQuery(slug),
+  );
+}
+
+export function communityQuery(slug: string) {
+  return queryOptions({
+    queryKey: communityKeys.detail(slug),
+    queryFn: () => gateway.getBySlug(slug),
   });
 }
 

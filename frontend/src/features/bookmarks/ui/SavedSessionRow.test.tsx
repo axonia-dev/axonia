@@ -15,6 +15,10 @@ beforeEach(() => {
 });
 
 const unsave = vi.fn();
+const community = { ready: vi.fn(), prefetch: vi.fn() };
+vi.mock("@/features/community/api/use-ready-community", () => ({
+  useReadyCommunity: () => community,
+}));
 vi.mock(
   "@/features/events/api/use-ready-session",
   () => import("@/test/ready-session"),
@@ -142,6 +146,17 @@ describe("SavedSessionRow", () => {
       "morph-surface-session-10",
       "morph-title-session-10",
     ]);
+  });
+
+  it("warms its community's page on intent, since the morph lands outside this shell", async () => {
+    // given
+    renderRow();
+
+    // when
+    await user.hover(screen.getByRole("link", { name: /kafka office hours/i }));
+
+    // then
+    expect(community.prefetch).toHaveBeenCalledWith("backend-guild");
   });
 
   it("names nothing when the community is unresolved", () => {

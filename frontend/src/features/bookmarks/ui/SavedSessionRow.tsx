@@ -12,6 +12,7 @@ import {
   CommunityBadge,
   SavedRowShell,
 } from "@/features/bookmarks/ui/SavedRowShell";
+import { useReadyCommunity } from "@/features/community/api/use-ready-community";
 import { useReadySession } from "@/features/events/api/use-ready-session";
 import { relativeTime } from "@/lib/period";
 import { useNow } from "@/lib/use-wake-at";
@@ -44,6 +45,7 @@ function SessionTitle({
   item: { session, community },
 }: Readonly<{ item: SavedSessionView }>) {
   const readiness = useReadySession();
+  const shell = useReadyCommunity();
   const chevron = (
     <ChevronRight size={14} className="text-muted-foreground shrink-0" />
   );
@@ -59,8 +61,13 @@ function SessionTitle({
   return (
     <MorphLink
       to={`/communities/${community.slug}/sessions/${session.id}`}
-      ready={() => readiness.ready(session.id)}
-      onIntent={() => readiness.prefetch(session.id)}
+      ready={() =>
+        Promise.all([readiness.ready(session.id), shell.ready(community.slug)])
+      }
+      onIntent={() => {
+        readiness.prefetch(session.id);
+        shell.prefetch(community.slug);
+      }}
       className={TITLE_CLASS}
     >
       <MorphPart part="title" id={sessionMorphId(session.id)}>
