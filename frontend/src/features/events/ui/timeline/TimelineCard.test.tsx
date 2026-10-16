@@ -239,6 +239,16 @@ describe("TimelineCard", () => {
     expect(screen.getByRole("link")).toHaveAttribute("href", "/x");
   });
 
+  it("keeps the link a block box so its border wraps the whole card", () => {
+    // when
+    setup(entry({ virtual: true, sessionId: null }));
+    setup(entry({}));
+    // then
+    for (const link of screen.getAllByRole("link")) {
+      expect(link.className.split(" ")).toContain("block");
+    }
+  });
+
   describe("on the clock", () => {
     const NOW = new Date("2026-01-02T10:00:00Z");
     beforeEach(() => {

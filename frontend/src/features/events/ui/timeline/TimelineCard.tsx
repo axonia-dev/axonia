@@ -201,7 +201,7 @@ export function TimelineCard({
         )}
         style={glowOf(entry, now)}
         className={cn(
-          "rounded-md border p-4 transition-[transform,box-shadow,border-color,opacity] duration-200",
+          "block rounded-md border p-4 transition-[transform,box-shadow,border-color,opacity] duration-200",
           "group-hover:border-primary group-hover:shadow-md motion-safe:group-hover:-translate-y-0.5",
           entry.virtual
             ? "border-border-strong group-hover:bg-surface border-dashed bg-transparent opacity-80 group-hover:opacity-100"

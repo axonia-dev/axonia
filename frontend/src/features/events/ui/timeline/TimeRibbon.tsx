@@ -86,7 +86,7 @@ function tickStyle(tick: RibbonTick, span: RibbonSpan, nowMs: number) {
 const TICK_CLASS: Record<RibbonTick["kind"], string> = {
   MEMORY: "bg-ink-sepia-soft h-3 w-1",
   UPCOMING: "bg-primary h-3.5 w-1",
-  PROJECTED: "border-muted-foreground h-2.5 w-[5px] border border-dashed",
+  PROJECTED: "bg-muted-foreground/35 h-2 w-1",
 };
 
 function StepButton({
