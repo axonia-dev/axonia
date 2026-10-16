@@ -58,6 +58,36 @@ class SessionAccessAdapterTest {
     }
 
     @Test
+    void get_fallsBackToTheSessionsOwnTitleWhenNoSlotHasATitle() {
+
+        // given
+        var section = Section.builder().slots(java.util.List.of(Slot.builder().title(" ").build())).build();
+        var session = Session.builder().id(103L).communityId(7L).status(SessionStatus.SCHEDULED)
+                .title("Architecture kata").sections(java.util.List.of(section)).build();
+        when(sessionService.get(103L)).thenReturn(session);
+
+        // when
+        var actual = sut.get(103L);
+
+        // then
+        assertThat(actual.title()).isEqualTo("Architecture kata");
+    }
+
+    @Test
+    void get_fallsBackToGenericTitleWhenNeitherSlotNorSessionHasATitle() {
+
+        // given
+        var session = Session.builder().id(104L).communityId(7L).status(SessionStatus.SCHEDULED).title("  ").build();
+        when(sessionService.get(104L)).thenReturn(session);
+
+        // when
+        var actual = sut.get(104L);
+
+        // then
+        assertThat(actual.title()).isEqualTo("Session");
+    }
+
+    @Test
     void get_fallsBackToGenericTitleWhenNoSlotHasATitle() {
 
         // given sections/slots exist but none carries a non-blank title
