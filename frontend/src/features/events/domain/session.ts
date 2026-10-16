@@ -166,6 +166,11 @@ export function nextSessionMark(
   return marks.find((mark) => mark !== null && mark > now.getTime()) ?? null;
 }
 
+export interface TitledSession {
+  title: string | null;
+  sections: ReadonlyArray<{ slots: ReadonlyArray<{ title: string | null }> }>;
+}
+
 /**
  * What to call a session on screen, in the order a reader would recognise it.
  *
@@ -178,11 +183,6 @@ export function nextSessionMark(
  * "Session". The generic label is the last resort, for a session that is neither shaped nor
  * named.
  */
-export interface TitledSession {
-  title: string | null;
-  sections: ReadonlyArray<{ slots: ReadonlyArray<{ title: string | null }> }>;
-}
-
 export function sessionTitle(session: TitledSession): string {
   for (const section of session.sections) {
     const titled = section.slots.find(

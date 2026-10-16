@@ -4,7 +4,7 @@ import { Link, type LinkProps } from "react-router-dom";
 import { MorphLink } from "@/components/patterns/morph/MorphLink";
 import { useReadySession } from "@/features/events/api/use-ready-session";
 
-export interface ExtraReadiness {
+interface ExtraReadiness {
   ready: () => Promise<unknown>;
   prefetch: () => void;
 }

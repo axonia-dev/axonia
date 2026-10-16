@@ -54,6 +54,8 @@ describe("SessionMorphLink", () => {
     // then
     expect(session.prefetch).toHaveBeenCalledWith(7);
     expect(community.prefetch).toHaveBeenCalled();
+    expect(session.ready).toHaveBeenCalledWith(7);
+    expect(community.ready).toHaveBeenCalled();
     expect(await screen.findByText("Session page")).toBeInTheDocument();
   });
 
