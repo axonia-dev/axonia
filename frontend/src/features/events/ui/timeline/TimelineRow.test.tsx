@@ -1,4 +1,6 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
+import type { ComponentProps } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
@@ -26,20 +28,27 @@ function entry(overrides: Partial<ScheduleEntry>): ScheduleEntry {
   };
 }
 
-function setup(e: ScheduleEntry, nextUp = false) {
+function setup(
+  e: ScheduleEntry,
+  nextUp = false,
+  onContextMenu?: ComponentProps<typeof TimelineRow>["onContextMenu"],
+) {
   render(
-    <MemoryRouter>
-      <ul>
-        <TimelineRow
-          entry={e}
-          nextUp={nextUp}
-          label="Frontend Dojo"
-          href="/x"
-          todayIso={TODAY}
-          users={{}}
-        />
-      </ul>
-    </MemoryRouter>,
+    <QueryClientProvider client={new QueryClient()}>
+      <MemoryRouter>
+        <ul>
+          <TimelineRow
+            entry={e}
+            nextUp={nextUp}
+            label="Frontend Dojo"
+            href="/x"
+            todayIso={TODAY}
+            users={{}}
+            {...(onContextMenu !== undefined && { onContextMenu })}
+          />
+        </ul>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 
@@ -83,21 +92,7 @@ describe("TimelineRow", () => {
 
   it("hands a right-click to its owner instead of the browser", () => {
     const onContextMenu = vi.fn();
-    render(
-      <MemoryRouter>
-        <ul>
-          <TimelineRow
-            entry={entry({})}
-            nextUp={false}
-            label="Frontend Dojo"
-            href="/x"
-            todayIso={TODAY}
-            users={{}}
-            onContextMenu={onContextMenu}
-          />
-        </ul>
-      </MemoryRouter>,
-    );
+    setup(entry({}), false, onContextMenu);
 
     const notPrevented = fireEvent.contextMenu(screen.getByRole("listitem"));
 

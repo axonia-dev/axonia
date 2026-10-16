@@ -1,6 +1,8 @@
 import { type ReactNode, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { useMorphNavigate } from "@/components/patterns/morph/use-morph-navigate";
+import { useReadySession } from "@/features/events/api/use-ready-session";
 import { useSchedule } from "@/features/events/api/use-schedule";
 import { useScheduleActivity } from "@/features/events/api/use-schedule-activity";
 import { useSeriesList } from "@/features/events/api/use-series";
@@ -114,6 +116,8 @@ export function MonthCalendar({
   const [menu, setMenu] = useState<MenuState | null>(null);
   const contextEnabled = canManage || canStartSeries;
   const navigate = useNavigate();
+  const morphTo = useMorphNavigate();
+  const session = useReadySession();
 
   const { fromIso, toIso } = monthWindow(month.year, month.monthIndex0);
   const scheduleQuery = useSchedule(slug, fromIso, toIso);
@@ -145,7 +149,10 @@ export function MonthCalendar({
 
   function openEntry(entry: ScheduleEntry) {
     const href = chipHref(entry, slug);
-    if (href !== null) void navigate(href);
+    if (href === null) return;
+    const { sessionId } = entry;
+    if (sessionId === null) void navigate(href);
+    else void morphTo(href, { ready: () => session.ready(sessionId) });
   }
 
   function nextUpFor(): ScheduleEntry | null {

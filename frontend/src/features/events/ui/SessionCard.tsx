@@ -1,5 +1,6 @@
 import type { ComponentProps, ReactNode } from "react";
 
+import { MorphPart } from "@/components/patterns/morph/MorphPart";
 import type { StatusTone } from "@/components/ui/StatusChip";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { governingZone } from "@/features/events/domain/reschedule-target";
@@ -45,6 +46,9 @@ interface Props {
     section: Section,
     session: Session,
   ) => ReactNode;
+  /** Names the card as the end of a morph. Only the session's own page may, as two parts of one
+   *  name on a page abort the transition. */
+  morphId?: string;
 }
 
 interface FooterProps {
@@ -76,6 +80,7 @@ interface HeaderProps {
   session: Session;
   statusChip: { tone: StatusTone; label: string };
   headerActions?: ReactNode;
+  morphId: string | undefined;
 }
 
 /**
@@ -87,6 +92,7 @@ function SessionCardHeader({
   session,
   statusChip,
   headerActions,
+  morphId,
 }: Readonly<HeaderProps>) {
   const when = {
     scheduledAt: session.scheduledAt,
@@ -96,8 +102,12 @@ function SessionCardHeader({
   return (
     <>
       <header className="flex flex-wrap items-center gap-2">
-        <h2 className="text-foreground font-display min-w-0 text-xl font-bold break-words max-sm:basis-full sm:flex-1 sm:truncate">
-          {sessionTitle(session)}
+        <h2 className="text-foreground font-display min-w-0 text-xl font-bold break-words max-sm:basis-full sm:flex-1">
+          <MorphPart part="title" id={morphId}>
+            <span className="inline-block max-w-full align-top sm:truncate">
+              {sessionTitle(session)}
+            </span>
+          </MorphPart>
         </h2>
         <span className="text-muted-foreground hidden shrink-0 text-sm sm:inline">
           {whenLabel(session)}
@@ -109,9 +119,11 @@ function SessionCardHeader({
           className="max-sm:hidden"
           phaseStatedElsewhere
         />
-        <span className="flex max-sm:me-auto">
-          <StatusChip tone={statusChip.tone} label={statusChip.label} />
-        </span>
+        <MorphPart part="pill" id={morphId}>
+          <span className="flex max-sm:me-auto">
+            <StatusChip tone={statusChip.tone} label={statusChip.label} />
+          </span>
+        </MorphPart>
         {headerActions}
       </header>
       <p className="text-muted-foreground text-sm sm:hidden">
@@ -207,6 +219,7 @@ export function SessionCard(props: Readonly<Props>) {
     mode,
     rail,
     renderSlotActions,
+    morphId,
   } = { ...QUIET, ...props };
   const inPlaceWindow = phase === "upcoming" || phase === "awaiting";
   const sheetProps = {
@@ -219,35 +232,38 @@ export function SessionCard(props: Readonly<Props>) {
     ...(renderSlotActions ? { renderSlotActions } : {}),
   };
   return (
-    <article className="border-border-strong bg-surface flex flex-col gap-3 rounded border p-4 shadow-sm">
-      <SessionCardHeader
-        session={session}
-        statusChip={statusChip}
-        headerActions={headerActions}
-      />
-      <SessionFacts
-        session={session}
-        phase={phase}
-        {...releaseProps(slug, session, phase, canManageMessages)}
-        {...recordingProps(slug, session, canManage)}
-      />
-      {/* Above the run sheet, not below it: where the session meets and how to get in answers a
-          question only worth asking while the session is still ahead. */}
-      {inPlaceWindow && (
-        <SessionPlace
-          place={session.place}
-          scheduledAt={session.scheduledAt}
-          hasTime={session.hasTime}
-          durationMinutes={session.durationMinutes}
-          status={session.status}
-          joinClassName="sm:hidden"
-          joinFullWidth
-          phaseStatedElsewhere
+    <MorphPart part="surface" id={morphId}>
+      <article className="border-border-strong bg-surface flex flex-col gap-3 rounded border p-4 shadow-sm">
+        <SessionCardHeader
+          session={session}
+          statusChip={statusChip}
+          headerActions={headerActions}
+          morphId={morphId}
         />
-      )}
-      <CardFooter slug={slug} session={session} canManage={canManage} />
-      <SessionCardAgenda rail={rail} sheetProps={sheetProps} />
-      {actions && <div>{actions}</div>}
-    </article>
+        <SessionFacts
+          session={session}
+          phase={phase}
+          {...releaseProps(slug, session, phase, canManageMessages)}
+          {...recordingProps(slug, session, canManage)}
+        />
+        {/* Above the run sheet, not below it: where the session meets and how to get in answers a
+          question only worth asking while the session is still ahead. */}
+        {inPlaceWindow && (
+          <SessionPlace
+            place={session.place}
+            scheduledAt={session.scheduledAt}
+            hasTime={session.hasTime}
+            durationMinutes={session.durationMinutes}
+            status={session.status}
+            joinClassName="sm:hidden"
+            joinFullWidth
+            phaseStatedElsewhere
+          />
+        )}
+        <CardFooter slug={slug} session={session} canManage={canManage} />
+        <SessionCardAgenda rail={rail} sheetProps={sheetProps} />
+        {actions && <div>{actions}</div>}
+      </article>
+    </MorphPart>
   );
 }

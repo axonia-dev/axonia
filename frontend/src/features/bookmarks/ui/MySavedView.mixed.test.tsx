@@ -18,6 +18,10 @@ beforeEach(() => {
 
 let items: SavedItem[] = [];
 
+vi.mock(
+  "@/features/events/api/use-ready-session",
+  () => import("@/test/ready-session"),
+);
 vi.mock("@/features/bookmarks/api/use-save", () => ({
   useMySaved: () => ({ data: items, isLoading: false }),
   useMarkHelpful: () => ({ mutate: vi.fn(), isPending: false }),

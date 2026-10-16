@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SavedSessionView } from "@/features/bookmarks/domain/saved";
 import { sessionView } from "@/features/bookmarks/domain/saved-filter-fixture";
 import { SavedSessionRow } from "@/features/bookmarks/ui/SavedSessionRow";
+import { morphNames } from "@/test/morph-names";
 
 let user: ReturnType<typeof userEvent.setup>;
 
@@ -14,6 +15,14 @@ beforeEach(() => {
 });
 
 const unsave = vi.fn();
+vi.mock(
+  "@/features/events/api/use-ready-session",
+  () => import("@/test/ready-session"),
+);
+vi.mock("react", async (original) => ({
+  ...(await original<typeof import("react")>()),
+  ViewTransition: (await import("@/test/morph-names")).ViewTransitionProbe,
+}));
 vi.mock("@/features/bookmarks/api/use-save", () => ({
   useUnsave: () => ({ mutate: unsave, isPending: false }),
 }));
@@ -122,5 +131,27 @@ describe("SavedSessionRow", () => {
     expect(
       screen.queryByRole("link", { name: /backend guild/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it("names its row and title as a morph source", () => {
+    // when
+    const { container } = renderRow();
+
+    // then
+    expect(morphNames(container)).toEqual([
+      "morph-surface-session-10",
+      "morph-title-session-10",
+    ]);
+  });
+
+  it("names nothing when the community is unresolved", () => {
+    // when
+    const { container } = renderRow(sessionView({ community: null }));
+
+    // then
+    expect(morphNames(container)).toEqual([]);
+    expect(
+      screen.getByRole("link", { name: /kafka office hours/i }),
+    ).toHaveAttribute("href", "/");
   });
 });

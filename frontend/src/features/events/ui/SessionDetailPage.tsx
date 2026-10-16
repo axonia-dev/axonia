@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 
+import { sessionMorphId } from "@/components/patterns/morph/MorphPart";
 import { Button } from "@/components/ui/Button";
 import { SaveAction } from "@/features/bookmarks/ui/SaveAction";
 import { useCommunityCrumbs } from "@/features/community/ui/community-chrome";
@@ -200,6 +201,7 @@ export function SessionDetailPage({ slug }: Readonly<{ slug: string }>) {
         session={session}
         phase={phase}
         statusChip={chip}
+        morphId={sessionMorphId(session.id)}
         mode={mode}
         canManage={canManage}
         canManageSchedule={canManageSchedule}

@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { vi } from "vitest";
@@ -85,8 +86,10 @@ export function mockReader() {
 
 export function renderMarquee() {
   return render(
-    <MemoryRouter>
-      <SessionMarquee slug="guild" />
-    </MemoryRouter>,
+    <QueryClientProvider client={new QueryClient()}>
+      <MemoryRouter>
+        <SessionMarquee slug="guild" />
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }

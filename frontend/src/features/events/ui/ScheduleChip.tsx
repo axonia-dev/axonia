@@ -1,3 +1,4 @@
+import { MorphPart } from "@/components/patterns/morph/MorphPart";
 import {
   joinPhase,
   nextPhaseChange,
@@ -42,11 +43,13 @@ function ChipBody({
   label,
   live,
   nextUp,
+  morphId,
 }: Readonly<{
   entry: ScheduleEntry;
   label: string;
   live: boolean;
   nextUp: boolean;
+  morphId: string | undefined;
 }>) {
   const time = timeLabel(entry);
   return (
@@ -66,7 +69,9 @@ function ChipBody({
           {time}
         </span>
       )}
-      <span className="truncate">{label}</span>
+      <MorphPart part="title" id={morphId}>
+        <span className="truncate">{label}</span>
+      </MorphPart>
       {nextUp && (
         <span data-testid="chip-next-up" className="sr-only">
           Up next
@@ -98,6 +103,8 @@ export interface ChipProps {
   onSelect?: () => void;
   /** A double click, which goes through to the session itself. */
   onOpen?: () => void;
+  /** Names the label as a morph source. One chip per session at most, or the morph aborts. */
+  morphId?: string;
 }
 
 /** Whether the session is running right now, and the instant that stops being true. A chip with
@@ -123,6 +130,7 @@ export function Chip({
   panelId,
   onSelect,
   onOpen,
+  morphId,
 }: Readonly<ChipProps>) {
   const label = resolveLabel(entry, seriesList);
   const live = useLivePhase(entry);
@@ -136,7 +144,13 @@ export function Chip({
   );
 
   const body = (
-    <ChipBody entry={entry} label={label} live={live} nextUp={nextUp} />
+    <ChipBody
+      entry={entry}
+      label={label}
+      live={live}
+      nextUp={nextUp}
+      morphId={morphId}
+    />
   );
 
   if (onSelect === undefined && onOpen === undefined) {

@@ -1,7 +1,13 @@
 import { ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 
+import { MorphLink } from "@/components/patterns/morph/MorphLink";
+import {
+  MorphPart,
+  sessionMorphId,
+} from "@/components/patterns/morph/MorphPart";
 import type { NextUp } from "@/features/community/domain/session-recap";
+import { useReadySession } from "@/features/events/api/use-ready-session";
 import { relativeTime } from "@/lib/period";
 import { plural } from "@/lib/plural";
 import { useNow } from "@/lib/use-wake-at";
@@ -38,24 +44,30 @@ function agendaOf(next: NextUp): string {
  */
 export function MarqueeNext({ slug, next }: Readonly<Props>) {
   const now = useNow();
+  const session = useReadySession();
+  const href = `/communities/${slug}/sessions/${next.sessionId}`;
   return (
     <div className="border-border-strong bg-background/40 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t px-5 py-3">
       <p className="text-muted-foreground min-w-0 text-sm">
         <span className="text-foreground font-semibold">Next up</span>
         <span className="mx-1.5">·</span>
-        <Link
-          to={`/communities/${slug}/sessions/${next.sessionId}`}
-          className="hover:text-foreground underline-offset-2 hover:underline"
-        >
-          {next.title}
-        </Link>
+        <MorphPart part="title" id={sessionMorphId(next.sessionId)}>
+          <MorphLink
+            to={href}
+            ready={() => session.ready(next.sessionId)}
+            onIntent={() => session.prefetch(next.sessionId)}
+            className="hover:text-foreground inline-block underline-offset-2 hover:underline"
+          >
+            {next.title}
+          </MorphLink>
+        </MorphPart>
         <span className="mx-1.5">·</span>
         {relativeTime(next.scheduledAt, now)}
         <span className="mx-1.5">·</span>
         {agendaOf(next)}
       </p>
       <Link
-        to={`/communities/${slug}/sessions/${next.sessionId}`}
+        to={href}
         className="text-primary inline-flex shrink-0 items-center gap-1 text-sm font-semibold hover:underline"
       >
         {callToAction(next)}

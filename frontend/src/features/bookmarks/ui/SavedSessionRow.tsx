@@ -1,12 +1,18 @@
 import { Calendar, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
 
+import { MorphLink } from "@/components/patterns/morph/MorphLink";
+import {
+  MorphPart,
+  sessionMorphId,
+} from "@/components/patterns/morph/MorphPart";
 import { useUnsave } from "@/features/bookmarks/api/use-save";
 import type { SavedSessionView } from "@/features/bookmarks/domain/saved";
 import {
   CommunityBadge,
   SavedRowShell,
 } from "@/features/bookmarks/ui/SavedRowShell";
+import { useReadySession } from "@/features/events/api/use-ready-session";
 import { relativeTime } from "@/lib/period";
 import { useNow } from "@/lib/use-wake-at";
 
@@ -31,6 +37,40 @@ function slotSummary(count: number): string {
   return `${count} ${count === 1 ? "slot" : "slots"}`;
 }
 
+const TITLE_CLASS =
+  "text-foreground hover:text-primary inline-flex items-center gap-1 font-semibold underline-offset-2 hover:underline";
+
+function SessionTitle({
+  item: { session, community },
+}: Readonly<{ item: SavedSessionView }>) {
+  const readiness = useReadySession();
+  const chevron = (
+    <ChevronRight size={14} className="text-muted-foreground shrink-0" />
+  );
+  const title = session.title ?? "Session";
+  if (community === null) {
+    return (
+      <Link to="#" className={TITLE_CLASS}>
+        {title}
+        {chevron}
+      </Link>
+    );
+  }
+  return (
+    <MorphLink
+      to={`/communities/${community.slug}/sessions/${session.id}`}
+      ready={() => readiness.ready(session.id)}
+      onIntent={() => readiness.prefetch(session.id)}
+      className={TITLE_CLASS}
+    >
+      <MorphPart part="title" id={sessionMorphId(session.id)}>
+        <span className="inline-block">{title}</span>
+      </MorphPart>
+      {chevron}
+    </MorphLink>
+  );
+}
+
 interface Props {
   item: SavedSessionView;
   /** Resolved display name for the facilitator, if known - the row stays a
@@ -48,48 +88,44 @@ export function SavedSessionRow({
   const { session, community } = item;
   const unsave = useUnsave({ kind: "session", id: session.id });
   const now = useNow();
-  const href = community
-    ? `/communities/${community.slug}/sessions/${session.id}`
-    : "#";
+  const morphId = community ? sessionMorphId(session.id) : undefined;
   const statusLabel = STATUS_LABEL[session.status] ?? session.status;
   const statusTone =
     STATUS_TONE[session.status] ?? "bg-surface-sunken text-muted-foreground";
 
   return (
-    <SavedRowShell
-      icon={
-        <span className="bg-secondary/10 text-secondary flex size-10 items-center justify-center rounded-lg">
-          <Calendar size={20} />
-        </span>
-      }
-      onUnsave={() => unsave.mutate()}
-      unsavePending={unsave.isPending}
-    >
-      <Link
-        to={href}
-        className="text-foreground hover:text-primary inline-flex items-center gap-1 font-semibold underline-offset-2 hover:underline"
+    <MorphPart part="surface" id={morphId}>
+      <SavedRowShell
+        icon={
+          <span className="bg-secondary/10 text-secondary flex size-10 items-center justify-center rounded-lg">
+            <Calendar size={20} />
+          </span>
+        }
+        onUnsave={() => unsave.mutate()}
+        unsavePending={unsave.isPending}
       >
-        {session.title ?? "Session"}
-        <ChevronRight size={14} className="text-muted-foreground shrink-0" />
-      </Link>
-      <div className="mt-1 flex flex-wrap items-center gap-2">
-        <span
-          className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusTone}`}
-        >
-          {statusLabel}
-        </span>
-        <p className="text-muted-foreground text-xs">
-          {relativeTime(session.scheduledAt, now)}
-          {facilitatorName ? ` · ${facilitatorName}` : ""} ·{" "}
-          {slotSummary(session.slotCount)}
-        </p>
-      </div>
-      <div className="mt-1 flex flex-wrap items-center gap-2">
-        {showCommunity && community && <CommunityBadge community={community} />}
-        <p className="text-muted-foreground text-xs">
-          saved {relativeTime(item.savedAt, now)}
-        </p>
-      </div>
-    </SavedRowShell>
+        <SessionTitle item={item} />
+        <div className="mt-1 flex flex-wrap items-center gap-2">
+          <span
+            className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusTone}`}
+          >
+            {statusLabel}
+          </span>
+          <p className="text-muted-foreground text-xs">
+            {relativeTime(session.scheduledAt, now)}
+            {facilitatorName ? ` · ${facilitatorName}` : ""} ·{" "}
+            {slotSummary(session.slotCount)}
+          </p>
+        </div>
+        <div className="mt-1 flex flex-wrap items-center gap-2">
+          {showCommunity && community && (
+            <CommunityBadge community={community} />
+          )}
+          <p className="text-muted-foreground text-xs">
+            saved {relativeTime(item.savedAt, now)}
+          </p>
+        </div>
+      </SavedRowShell>
+    </MorphPart>
   );
 }

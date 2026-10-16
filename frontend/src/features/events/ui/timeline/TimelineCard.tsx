@@ -1,5 +1,12 @@
+import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 
+import { MorphLink } from "@/components/patterns/morph/MorphLink";
+import {
+  MorphPart,
+  sessionMorphId,
+} from "@/components/patterns/morph/MorphPart";
+import { useReadySession } from "@/features/events/api/use-ready-session";
 import type { ScheduleEntry } from "@/features/events/domain/schedule";
 import {
   openSpotLabel,
@@ -80,18 +87,27 @@ function CardTitleRow({
   meta,
   nextUp,
   muted,
-}: Readonly<{ label: string; meta: string; nextUp: boolean; muted: boolean }>) {
+  morphId,
+}: Readonly<{
+  label: string;
+  meta: string;
+  nextUp: boolean;
+  muted: boolean;
+  morphId: string | undefined;
+}>) {
   return (
     <div className="flex items-center justify-between gap-2">
-      <span
-        className={cn(
-          "text-foreground font-medium",
-          nextUp && "font-display font-semibold",
-          muted && "text-muted-foreground",
-        )}
-      >
-        {label}
-      </span>
+      <MorphPart part="title" id={morphId}>
+        <span
+          className={cn(
+            "text-foreground inline-block font-medium",
+            nextUp && "font-display font-semibold",
+            muted && "text-muted-foreground",
+          )}
+        >
+          {label}
+        </span>
+      </MorphPart>
       {meta !== "" && (
         <span className="text-muted-foreground shrink-0 text-xs">{meta}</span>
       )}
@@ -102,7 +118,12 @@ function CardTitleRow({
 function CardFooter({
   entry,
   users,
-}: Readonly<{ entry: ScheduleEntry; users: Record<string, User> }>) {
+  morphId,
+}: Readonly<{
+  entry: ScheduleEntry;
+  users: Record<string, User>;
+  morphId: string | undefined;
+}>) {
   const spots = openSpotLabel(entry);
   const presenterIds = presenterIdsOf(entry);
   const hasChip = spots !== null || entry.virtual || entry.status === "HELD";
@@ -110,10 +131,33 @@ function CardFooter({
   return (
     <div className="mt-2 flex items-center gap-2">
       <PresenterAvatars userIds={presenterIds} users={users} />
-      <span className="ml-auto">
-        <StatusChip entry={entry} spots={spots} />
-      </span>
+      <MorphPart part="pill" id={hasChip ? morphId : undefined}>
+        <span className="ml-auto inline-flex">
+          <StatusChip entry={entry} spots={spots} />
+        </span>
+      </MorphPart>
     </div>
+  );
+}
+
+function CardLink({
+  sessionId,
+  ...props
+}: Readonly<{
+  sessionId: number | null;
+  to: string;
+  "aria-label": string;
+  className: string;
+  children: ReactNode;
+}>) {
+  const session = useReadySession();
+  if (sessionId === null) return <Link {...props} />;
+  return (
+    <MorphLink
+      {...props}
+      ready={() => session.ready(sessionId)}
+      onIntent={() => session.prefetch(sessionId)}
+    />
   );
 }
 
@@ -126,33 +170,39 @@ export function TimelineCard({
 }: Readonly<Props>) {
   const peek = nextUp ? sneakPeek(entry) : null;
   const muted = entry.virtual || entry.status === "HELD";
+  const { sessionId } = entry;
+  const morphId = sessionId === null ? undefined : sessionMorphId(sessionId);
 
   return (
-    <Link
-      to={href}
-      aria-label={accessibleName(entry, label)}
-      className={cn(
-        "rounded-md border p-4 transition-[transform,box-shadow,border-color,opacity] duration-200",
-        "group-hover:border-primary group-hover:shadow-md motion-safe:group-hover:-translate-y-0.5",
-        entry.virtual
-          ? "border-border-strong group-hover:bg-surface border-dashed bg-transparent opacity-80 group-hover:opacity-100"
-          : "bg-surface border-border",
-        nextUp && "border-l-primary border-l-4 shadow-sm",
-      )}
-    >
-      <CardTitleRow
-        label={label}
-        meta={metaLine(entry)}
-        nextUp={nextUp}
-        muted={muted}
-      />
-      {peek !== null && (
-        <p className="text-muted-foreground mt-1 text-sm">
-          {peekLine(peek, users)}
-        </p>
-      )}
-      {entry.virtual && <ProjectedNotice className="mt-1" />}
-      <CardFooter entry={entry} users={users} />
-    </Link>
+    <MorphPart part="surface" id={morphId}>
+      <CardLink
+        sessionId={sessionId}
+        to={href}
+        aria-label={accessibleName(entry, label)}
+        className={cn(
+          "rounded-md border p-4 transition-[transform,box-shadow,border-color,opacity] duration-200",
+          "group-hover:border-primary group-hover:shadow-md motion-safe:group-hover:-translate-y-0.5",
+          entry.virtual
+            ? "border-border-strong group-hover:bg-surface border-dashed bg-transparent opacity-80 group-hover:opacity-100"
+            : "bg-surface border-border",
+          nextUp && "border-l-primary border-l-4 shadow-sm",
+        )}
+      >
+        <CardTitleRow
+          label={label}
+          meta={metaLine(entry)}
+          nextUp={nextUp}
+          muted={muted}
+          morphId={morphId}
+        />
+        {peek !== null && (
+          <p className="text-muted-foreground mt-1 text-sm">
+            {peekLine(peek, users)}
+          </p>
+        )}
+        {entry.virtual && <ProjectedNotice className="mt-1" />}
+        <CardFooter entry={entry} users={users} morphId={morphId} />
+      </CardLink>
+    </MorphPart>
   );
 }

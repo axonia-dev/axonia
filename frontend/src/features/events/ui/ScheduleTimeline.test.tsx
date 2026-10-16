@@ -17,6 +17,10 @@ import {
   SERIES_LIST,
 } from "@/test/timeline-fixtures";
 
+vi.mock(
+  "@/features/events/api/use-ready-session",
+  () => import("@/test/ready-session"),
+);
 vi.mock("@/features/events/api/use-schedule", () => ({ useSchedule: vi.fn() }));
 vi.mock("@/features/events/api/use-series", () => ({ useSeriesList: vi.fn() }));
 vi.mock("@/features/identity/api/use-users", () => ({ useUsers: vi.fn() }));
@@ -82,15 +86,10 @@ function setup() {
 }
 
 describe("ScheduleTimeline", () => {
-  it("labels series entries with the series title", () => {
+  it("labels series entries with the series title, one-offs with their own", () => {
     setup();
     // then
     expect(screen.getAllByText("Backend Guild Series")).toHaveLength(2);
-  });
-
-  it("labels one-off entries with their own title", () => {
-    setup();
-    // then
     expect(screen.getByText("Special Session")).toBeInTheDocument();
   });
 

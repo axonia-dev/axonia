@@ -1,4 +1,5 @@
 import {
+  queryOptions,
   skipToken,
   useMutation,
   useQuery,
@@ -21,6 +22,13 @@ import type {
 
 const gateway = httpEventsGateway;
 
+export function sessionQuery(sessionId: number) {
+  return queryOptions({
+    queryKey: sessionKeys.detail(sessionId),
+    queryFn: () => gateway.getSession(sessionId),
+  });
+}
+
 /**
  * A single session by id, with its full section → slot tree.
  *
@@ -33,11 +41,11 @@ const gateway = httpEventsGateway;
  * a `refetch()` included - that can reach the endpoint with nothing to ask for.
  */
 export function useSession(sessionId: number | null) {
-  return useQuery({
-    queryKey: sessionKeys.detail(sessionId),
-    queryFn:
-      sessionId === null ? skipToken : () => gateway.getSession(sessionId),
-  });
+  return useQuery(
+    sessionId === null
+      ? { queryKey: sessionKeys.detail(null), queryFn: skipToken }
+      : sessionQuery(sessionId),
+  );
 }
 
 function invalidateSessionAndSchedule(

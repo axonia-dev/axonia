@@ -1,12 +1,19 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { EMPTY_PLACE } from "@/features/events/domain/meeting-place";
 import type { ScheduleEntry } from "@/features/events/domain/schedule";
 import type { Slot } from "@/features/events/domain/slot";
 import { TimelineCard } from "@/features/events/ui/timeline/TimelineCard";
 import type { User } from "@/features/identity/domain/user";
+import { morphNames } from "@/test/morph-names";
+
+vi.mock("react", async (original) => ({
+  ...(await original<typeof import("react")>()),
+  ViewTransition: (await import("@/test/morph-names")).ViewTransitionProbe,
+}));
 
 const USERS: Record<string, User> = {
   u1: {
@@ -76,17 +83,20 @@ function sections(slots: Slot[]): ScheduleEntry["sections"] {
 }
 
 function setup(e: ScheduleEntry, nextUp = false) {
-  render(
-    <MemoryRouter>
-      <TimelineCard
-        entry={e}
-        label="Frontend Dojo"
-        href="/x"
-        nextUp={nextUp}
-        users={USERS}
-      />
-    </MemoryRouter>,
+  const { container } = render(
+    <QueryClientProvider client={new QueryClient()}>
+      <MemoryRouter>
+        <TimelineCard
+          entry={e}
+          label="Frontend Dojo"
+          href="/x"
+          nextUp={nextUp}
+          users={USERS}
+        />
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
+  return container;
 }
 
 describe("TimelineCard", () => {
@@ -185,5 +195,26 @@ describe("TimelineCard", () => {
     const link = screen.getByRole("link");
     expect(link.getAttribute("aria-label")).toContain("Frontend Dojo");
     expect(link.getAttribute("aria-label")).toContain("January 9");
+  });
+
+  it("names the surface, title and pill of a real session", () => {
+    // when
+    const container = setup(entry({ sessionId: 42, status: "HELD" }));
+
+    // then
+    expect(morphNames(container)).toEqual([
+      "morph-surface-session-42",
+      "morph-title-session-42",
+      "morph-pill-session-42",
+    ]);
+  });
+
+  it("names nothing on a projected occurrence", () => {
+    // when
+    const container = setup(entry({ sessionId: null, virtual: true }));
+
+    // then
+    expect(morphNames(container)).toEqual([]);
+    expect(screen.getByRole("link")).toHaveAttribute("href", "/x");
   });
 });

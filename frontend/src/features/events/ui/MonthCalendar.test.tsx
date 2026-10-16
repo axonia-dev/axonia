@@ -11,6 +11,10 @@ import type { ScheduleEntry } from "@/features/events/domain/schedule";
 import { MonthCalendar } from "@/features/events/ui/MonthCalendar";
 import { useUsers } from "@/features/identity/api/use-users";
 
+vi.mock(
+  "@/features/events/api/use-ready-session",
+  () => import("@/test/ready-session"),
+);
 vi.mock("@/features/events/api/use-schedule", () => ({ useSchedule: vi.fn() }));
 vi.mock("@/features/events/api/use-schedule-activity", () => ({
   useScheduleActivity: vi.fn(),
@@ -148,15 +152,7 @@ function setupStatus(isLoading: boolean, isError: boolean) {
     isError,
   } as never);
   vi.mocked(useSeriesList).mockReturnValue({ data: undefined } as never);
-  render(
-    <MemoryRouter>
-      <MonthCalendar
-        slug="backend-guild"
-        month={{ year: 2026, monthIndex0: 5 }}
-        onMonthChange={() => {}}
-      />
-    </MemoryRouter>,
-  );
+  renderCalendar();
 }
 
 describe("MonthCalendar", () => {
