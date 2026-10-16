@@ -16,6 +16,7 @@ interface Given {
   ready: boolean;
   count: number;
   ribbonTop?: number;
+  memoryTop?: number;
 }
 
 const ROWS = [
@@ -24,7 +25,7 @@ const ROWS = [
   { at: 3000, top: 300 },
 ];
 
-function Timeline({ ready, count, ribbonTop }: Readonly<Given>) {
+function Timeline({ ready, count, ribbonTop, memoryTop }: Readonly<Given>) {
   const rootRef = useRef<HTMLDivElement>(null);
   const todayRef = useRef<HTMLDivElement>(null);
   const { lensMs, scrollToAt } = useTimelineScroll({
@@ -35,10 +36,17 @@ function Timeline({ ready, count, ribbonTop }: Readonly<Given>) {
   });
   return (
     <div ref={rootRef} data-top={ribbonTop}>
-      {ROWS.map((row) => (
-        <p key={row.at} data-at={row.at} data-top={row.top} />
+      <div data-time-ribbon="" />
+      {ROWS.map((row, index) => (
+        <p
+          key={row.at}
+          data-at={row.at}
+          data-top={
+            index === ROWS.length - 1 ? (memoryTop ?? row.top) : row.top
+          }
+        />
       ))}
-      <div ref={todayRef} data-top="900" />
+      <div ref={todayRef} data-at="5000" data-top="900" />
       <output>{lensMs ?? "none"}</output>
       <button type="button" onClick={() => scrollToAt(2900)}>
         go
@@ -108,14 +116,22 @@ describe("useTimelineScroll", () => {
     expect(main.scrollTop).toBe(5);
   });
 
-  it("opens at the top when the target falls short of the ribbon", () => {
-    // given: the target would be 600, the ribbon sits 700 into main (800 - 100)
-    const { main, update } = setup({ ready: false, count: 0, ribbonTop: 800 });
-    // when
-    update({ ready: true, count: 0, ribbonTop: 800 });
-    // then
-    expect(main.scrollTop).toBe(0);
-  });
+  it.each([
+    ["snaps up to the ribbon when it is nearer", 750, 850, 650],
+    ["snaps down to the top when that is nearer", 1600, 850, 0],
+    ["never snaps up past the newest memory", 750, 700, 0],
+  ])(
+    "a target short of the ribbon %s",
+    (_name, rootTop, memoryTop, expected) => {
+      // given: the target is 600; root top less main top (100) is the ribbon's top
+      const given = { count: 0, ribbonTop: rootTop, memoryTop };
+      const { main, update } = setup({ ...given, ready: false });
+      // when
+      update({ ...given, ready: true });
+      // then
+      expect(main.scrollTop).toBe(expected);
+    },
+  );
 
   it("keeps an opening target at or past the ribbon's top", () => {
     // given

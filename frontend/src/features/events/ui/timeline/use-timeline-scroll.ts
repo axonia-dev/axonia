@@ -41,9 +41,39 @@ function ribbonTopIn(main: HTMLElement, root: HTMLElement | null): number {
   );
 }
 
-/** A target short of the ribbon's top would leave the page controls half cut: it opens at the top instead, so they show whole. */
-function openingTop(target: number, ribbonTop: number): number {
-  return target > 0 && target < ribbonTop ? 0 : target;
+/**
+ * A target short of the ribbon's top would leave the page controls half cut, so it snaps to the
+ * nearer of 0 and the ribbon's top. It never snaps past `memoryLimit`, the scroll that keeps the
+ * newest memory just under the ribbon: hiding that memory loses the history above Today.
+ */
+function openingTop(
+  target: number,
+  ribbonTop: number,
+  memoryLimit: number,
+): number {
+  if (target <= 0 || target >= ribbonTop) return target;
+  const up = target >= ribbonTop / 2 && ribbonTop <= memoryLimit;
+  return up ? ribbonTop : 0;
+}
+
+/** The largest scroll that still shows the memory right above Today under the ribbon, or Infinity with none. */
+function memoryLimitIn(
+  main: HTMLElement,
+  root: HTMLElement | null,
+  today: HTMLElement,
+): number {
+  const rows = rowsOf(root);
+  const newest = rows[rows.indexOf(today) - 1];
+  const ribbon = root?.querySelector("[data-time-ribbon]");
+  if (newest === undefined || ribbon === null || ribbon === undefined) {
+    return Infinity;
+  }
+  return (
+    newest.getBoundingClientRect().top -
+    main.getBoundingClientRect().top +
+    main.scrollTop -
+    ribbon.getBoundingClientRect().height
+  );
 }
 
 function rowsOf(root: HTMLElement | null): HTMLElement[] {
@@ -121,6 +151,7 @@ export function useTimelineScroll({
     main.scrollTop = openingTop(
       todayTop - main.clientHeight / 3,
       ribbonTopIn(main, rootRef.current),
+      memoryLimitIn(main, rootRef.current, today),
     );
   }, [ready, restored, rootRef, scroller, todayRef]);
 

@@ -7,6 +7,7 @@ import type {
 } from "react";
 import { useRef } from "react";
 
+import { PAGE_GUTTER_BLEED_X } from "@/components/patterns/page-gutter";
 import type { RibbonSpan, RibbonTick } from "@/features/events/domain/ribbon";
 import {
   atFraction,
@@ -72,7 +73,7 @@ function keyTarget(
 
 function tickStyle(tick: RibbonTick, span: RibbonSpan, nowMs: number) {
   const style: CSSProperties = {
-    left: `clamp(2px, ${percent(fractionOf(msOf(tick) ?? 0, span))}, calc(100% - 2px))`,
+    left: `clamp(7px, ${percent(fractionOf(msOf(tick) ?? 0, span))}, calc(100% - 7px))`,
   };
   if (tick.kind !== "UPCOMING") return style;
   const strength = upcomingGlow(tick.at, new Date(nowMs));
@@ -191,7 +192,10 @@ export function TimeRibbon({
   return (
     <div
       data-time-ribbon=""
-      className="bg-background border-border sticky top-0 z-10 -mx-6 mb-3 border-b px-7 pt-2 pb-1.5"
+      className={cn(
+        "bg-background border-border sticky top-0 z-10 mb-3 border-b px-7 pt-2 pb-1.5",
+        PAGE_GUTTER_BLEED_X,
+      )}
     >
       <div className="flex items-center gap-2">
         {onFurtherBack && (

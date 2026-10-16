@@ -13,6 +13,7 @@ import { Breadcrumb, type Crumb } from "@/components/patterns/Breadcrumb";
 import { liftCurtain } from "@/components/patterns/ceremony/curtain";
 import { LoadFailed } from "@/components/patterns/LoadFailed";
 import type { NavGroup, NavItem } from "@/components/patterns/nav-types";
+import { PAGE_GUTTER_X } from "@/components/patterns/page-gutter";
 import { ACCOUNT_SETTINGS } from "@/components/patterns/settings-nav";
 import { isGroupActive, owningItem } from "@/components/patterns/shell-nav";
 import type { ShellTab } from "@/components/patterns/ShellTabBar";
@@ -136,7 +137,8 @@ function useLiftCurtainOnFailure(failed: boolean): void {
 
 function mainClass(pathname: string): string {
   return cn(
-    "mx-auto w-full flex-1 px-6 pt-8 pb-24 md:pb-8",
+    "mx-auto w-full flex-1 pt-8 pb-24 md:pb-8",
+    PAGE_GUTTER_X,
     contentMaxWidthClass(pathname),
   );
 }

@@ -53,6 +53,30 @@ async function pressLensAt(page: Page, fraction: number) {
   await page.mouse.up();
 }
 
+async function expectOpeningPosition(page: Page) {
+  const todayLabel = page.getByText("Today", { exact: true });
+  const area = (await main(page).boundingBox())!;
+  const ratioOf = async () =>
+    ((await todayLabel.boundingBox())!.y - area.y) / area.height;
+  await expect.poll(ratioOf).toBeLessThanOrEqual(0.42);
+  expect(await ratioOf()).toBeGreaterThanOrEqual(0.25);
+  const today = (await todayLabel.boundingBox())!;
+  const ribbon = (await page.locator("[data-time-ribbon]").boundingBox())!;
+  const ribbonBottom = ribbon.y + ribbon.height;
+  expect(today.y).toBeGreaterThanOrEqual(ribbonBottom);
+  await expect(page.getByRole("link", { name: /^Retro 112/ })).toBeAttached();
+  const memoryTop = await topOf(rowAt(page, newest.entry.scheduledAt));
+  expect(memoryTop).toBeGreaterThanOrEqual(ribbonBottom);
+  expect(memoryTop).toBeLessThan(today.y);
+  const controls = (await page
+    .getByText("Timeline", { exact: true })
+    .first()
+    .boundingBox())!;
+  const whole = controls.y >= area.y;
+  const scrolledAway = controls.y + controls.height <= area.y;
+  expect(whole || scrolledAway).toBe(true);
+}
+
 test("opens with the Today marker in the upper third of the page", async ({
   page,
 }) => {
@@ -60,21 +84,20 @@ test("opens with the Today marker in the upper third of the page", async ({
   await open(page);
 
   // then
-  const todayLabel = page.getByText("Today", { exact: true });
-  const ribbon = page.locator("[data-time-ribbon]");
-  const area = (await main(page).boundingBox())!;
-  await expect
-    .poll(
-      async () => ((await todayLabel.boundingBox())!.y - area.y) / area.height,
-    )
-    .toBeLessThanOrEqual(0.42);
-  const today = (await todayLabel.boundingBox())!;
-  const ribbonBox = (await ribbon.boundingBox())!;
-  expect(today.y).toBeGreaterThanOrEqual(ribbonBox.y + ribbonBox.height);
-  await expect(page.getByRole("link", { name: /^Retro 112/ })).toBeAttached();
-  const memoryTop = await topOf(rowAt(page, newest.entry.scheduledAt));
-  expect(memoryTop).toBeGreaterThanOrEqual(ribbonBox.y + ribbonBox.height);
-  expect(memoryTop).toBeLessThan(today.y);
+  await expectOpeningPosition(page);
+});
+
+test("opens at phone width with whole controls and the newest memory in view", async ({
+  page,
+}) => {
+  // given
+  await page.setViewportSize({ width: 412, height: 915 });
+
+  // when
+  await open(page);
+
+  // then
+  await expectOpeningPosition(page);
 });
 
 /** Records the row's top at the very commit that grows the list, before any scroll can follow. */
