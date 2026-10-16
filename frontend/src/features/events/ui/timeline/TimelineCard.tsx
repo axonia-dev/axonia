@@ -1,7 +1,13 @@
+import type { CSSProperties } from "react";
+
 import {
   MorphPart,
   sessionMorphId,
 } from "@/components/patterns/morph/MorphPart";
+import {
+  countdownPhase,
+  countdownSpeech,
+} from "@/features/events/domain/next-countdown";
 import type { ScheduleEntry } from "@/features/events/domain/schedule";
 import {
   openSpotLabel,
@@ -9,11 +15,13 @@ import {
   presenterIdsOf,
   timeLabel,
 } from "@/features/events/domain/schedule";
+import { upcomingGlow } from "@/features/events/domain/upcoming-glow";
 import { PresenterAvatars } from "@/features/events/ui/PresenterAvatars";
 import { ProjectedNotice } from "@/features/events/ui/ProjectedNotice";
 import { SessionMorphLink } from "@/features/events/ui/SessionMorphLink";
 import { displayNameOf } from "@/features/events/ui/SlotPresenter";
 import { SpotsPill } from "@/features/events/ui/SpotsPill";
+import { NextCountdown } from "@/features/events/ui/timeline/NextCountdown";
 import type { SneakPeek } from "@/features/events/ui/timeline/timeline";
 import {
   accessibleName,
@@ -21,6 +29,7 @@ import {
 } from "@/features/events/ui/timeline/timeline";
 import type { User } from "@/features/identity/domain/user";
 import { cn } from "@/lib/cn";
+import { useNow } from "@/lib/use-wake-at";
 
 interface Props {
   entry: ScheduleEntry;
@@ -28,6 +37,33 @@ interface Props {
   href: string;
   nextUp: boolean;
   users: Record<string, User>;
+}
+
+export function glowStyle(strength: number): CSSProperties | undefined {
+  if (strength <= 0) return undefined;
+  const pct = (x: number) => `${Math.round(x * strength * 100)}%`;
+  return {
+    boxShadow: `0 0 0 1px color-mix(in oklab, var(--primary) ${pct(0.35)}, transparent), 0 6px ${Math.round(26 * strength)}px color-mix(in oklab, var(--primary) ${pct(0.28)}, transparent)`,
+    borderColor: `color-mix(in oklab, var(--primary) ${pct(0.5)}, var(--border))`,
+  };
+}
+
+function countdownPhrase(
+  entry: ScheduleEntry,
+  nextUp: boolean,
+  now: Date,
+): string | undefined {
+  if (!nextUp) return undefined;
+  const phase = countdownPhase(entry, now);
+  if (phase?.kind === "counting" || phase?.kind === "last-hour") {
+    return countdownSpeech(phase.msLeft);
+  }
+  return undefined;
+}
+
+function glowOf(entry: ScheduleEntry, now: Date): CSSProperties | undefined {
+  if (entry.scheduledAt === null || entry.virtual) return undefined;
+  return glowStyle(upcomingGlow(entry.scheduledAt, now));
 }
 
 function moreTalksLabel(count: number): string {
@@ -144,6 +180,7 @@ export function TimelineCard({
   nextUp,
   users,
 }: Readonly<Props>) {
+  const now = useNow();
   const peek = nextUp ? sneakPeek(entry) : null;
   const muted = entry.virtual || entry.status === "HELD";
   const { sessionId } = entry;
@@ -154,14 +191,19 @@ export function TimelineCard({
       <SessionMorphLink
         sessionId={sessionId}
         to={href}
-        aria-label={accessibleName(entry, label)}
+        aria-label={accessibleName(
+          entry,
+          label,
+          countdownPhrase(entry, nextUp, now),
+        )}
+        style={glowOf(entry, now)}
         className={cn(
           "rounded-md border p-4 transition-[transform,box-shadow,border-color,opacity] duration-200",
           "group-hover:border-primary group-hover:shadow-md motion-safe:group-hover:-translate-y-0.5",
           entry.virtual
             ? "border-border-strong group-hover:bg-surface border-dashed bg-transparent opacity-80 group-hover:opacity-100"
             : "bg-surface border-border",
-          nextUp && "border-l-primary border-l-4 shadow-sm",
+          nextUp && "border-l-primary next-breathe border-l-4 shadow-sm",
         )}
       >
         <CardTitleRow
@@ -171,6 +213,7 @@ export function TimelineCard({
           muted={muted}
           morphId={label === pageTitleOf(entry) ? morphId : undefined}
         />
+        {nextUp && <NextCountdown entry={entry} />}
         {peek !== null && (
           <p className="text-muted-foreground mt-1 text-sm">
             {peekLine(peek, users)}

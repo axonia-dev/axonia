@@ -16,6 +16,10 @@
   --muted-foreground: #786a7e;
   --border: #ede4e9;
   --border-strong: #e2d6de;
+  --paper: #f4eee8;
+  --paper-edge: #e5d9cd;
+  --ink-sepia: #6e5a4b;
+  --ink-sepia-soft: #a08d7e;
 
   --primary: #de3b78;
   --primary-strong: #c32c66;
@@ -114,6 +118,10 @@
   --muted-foreground: #a99cb0;
   --border: #322839;
   --border-strong: #3d3145;
+  --paper: #2b241f;
+  --paper-edge: #3d332b;
+  --ink-sepia: #dccab8;
+  --ink-sepia-soft: #a8957f;
 
   --primary: #ff5c97;
   --primary-strong: #ff7aac;
@@ -186,6 +194,10 @@
   --color-map-ink: var(--map-ink);
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
+  --color-paper: var(--paper);
+  --color-paper-edge: var(--paper-edge);
+  --color-ink-sepia: var(--ink-sepia);
+  --color-ink-sepia-soft: var(--ink-sepia-soft);
   --color-primary: var(--primary);
   --color-primary-strong: var(--primary-strong);
   --color-primary-foreground: var(--primary-foreground);
@@ -457,6 +469,28 @@
   }
   .timeline-beacon {
     animation: signal-pulse 2.2s ease-out infinite;
+  }
+}
+
+@keyframes next-breathe {
+  50% {
+    box-shadow:
+      0 0 0 1px color-mix(in oklab, var(--primary) 45%, transparent),
+      0 8px 34px color-mix(in oklab, var(--primary) 34%, transparent);
+  }
+}
+@keyframes memory-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .next-breathe {
+    animation: next-breathe 3.2s ease-in-out infinite;
+  }
+  .memory-arrive {
+    animation: memory-arrive 0.6s ease-out both;
   }
 }
 

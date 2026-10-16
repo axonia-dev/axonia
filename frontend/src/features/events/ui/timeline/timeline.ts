@@ -169,7 +169,11 @@ export function entryKey(entry: ScheduleEntry, idx: number): string {
     : `${entry.seriesId ?? "x"}-${entry.occurrenceDate ?? idx}`;
 }
 
-export function accessibleName(entry: ScheduleEntry, label: string): string {
+export function accessibleName(
+  entry: ScheduleEntry,
+  label: string,
+  countdown?: string,
+): string {
   const parts = [label];
   const iso = entryDayIso(entry);
   if (iso !== "") {
@@ -188,5 +192,6 @@ export function accessibleName(entry: ScheduleEntry, label: string): string {
   if (spots !== null) parts.push(spots);
   if (entry.virtual) parts.push("projected");
   if (entry.status === "HELD") parts.push("held");
+  if (countdown !== undefined) parts.push(countdown);
   return parts.join(", ");
 }

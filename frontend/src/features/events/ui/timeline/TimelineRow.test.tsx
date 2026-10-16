@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { EMPTY_PLACE } from "@/features/events/domain/meeting-place";
 import type { ScheduleEntry } from "@/features/events/domain/schedule";
@@ -99,5 +99,46 @@ describe("TimelineRow", () => {
     expect(onContextMenu).toHaveBeenCalledOnce();
     // The row hands the event over untouched: swallowing the browser menu is its owner's call.
     expect(notPrevented).toBe(true);
+  });
+
+  describe("join link under the next card", () => {
+    const PLACE = { ...EMPTY_PLACE, joinUrl: "https://meet.example/dojo" };
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("shows while the session is running", () => {
+      // given
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-01-09T12:10:00Z"));
+      // when
+      setup(entry({ place: PLACE }), true);
+      // then
+      expect(
+        document.querySelector('a[href="https://meet.example/dojo"]'),
+      ).not.toBeNull();
+    });
+
+    it("is absent two days ahead", () => {
+      // given
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-01-07T12:00:00Z"));
+      // when
+      setup(entry({ place: PLACE }), true);
+      // then
+      expect(
+        document.querySelector('a[href="https://meet.example/dojo"]'),
+      ).toBeNull();
+    });
+
+    it("is absent without a join URL", () => {
+      // given
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-01-09T12:10:00Z"));
+      // when
+      setup(entry({}), true);
+      // then
+      expect(document.querySelector('a[href^="https://"]')).toBeNull();
+    });
   });
 });

@@ -1,9 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { EMPTY_PLACE } from "@/features/events/domain/meeting-place";
+import { countdownSpeech } from "@/features/events/domain/next-countdown";
 import type { ScheduleEntry } from "@/features/events/domain/schedule";
 import type { Slot } from "@/features/events/domain/slot";
 import { TimelineCard } from "@/features/events/ui/timeline/TimelineCard";
@@ -236,5 +237,40 @@ describe("TimelineCard", () => {
     // then
     expect(morphNames(container)).toEqual([]);
     expect(screen.getByRole("link")).toHaveAttribute("href", "/x");
+  });
+
+  describe("on the clock", () => {
+    const NOW = new Date("2026-01-02T10:00:00Z");
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.setSystemTime(NOW);
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("breathes, counts down and speaks the countdown when next up", () => {
+      // given
+      const e = entry({ scheduledAt: "2026-01-04T10:00:00Z" });
+      // when
+      setup(e, true);
+      // then
+      const link = screen.getByRole("link");
+      expect(link.className).toContain("next-breathe");
+      expect(link.textContent).toContain("2d");
+      expect(link.getAttribute("aria-label")).toMatch(
+        new RegExp(`${countdownSpeech(2 * 86_400_000)}$`),
+      );
+    });
+
+    it("glows a card a week out and leaves one a month out plain", () => {
+      // when
+      setup(entry({ scheduledAt: "2026-01-09T10:00:00Z" }));
+      setup(entry({ scheduledAt: "2026-02-01T10:00:00Z" }));
+      // then
+      const [near, far] = screen.getAllByRole("link");
+      expect(near?.style.boxShadow).not.toBe("");
+      expect(far?.style.boxShadow).toBe("");
+    });
   });
 });
