@@ -22,8 +22,9 @@ export function useMainScroll(): {
     if (main === null) return;
     if (navigationType === "POP") {
       main.scrollTop = positions.get(key) ?? 0;
-    } else if (shownPath.current !== pathname) {
-      main.scrollTop = 0;
+    } else {
+      if (shownPath.current !== pathname) main.scrollTop = 0;
+      positions.set(key, main.scrollTop);
     }
     shownPath.current = pathname;
   }, [key, pathname, navigationType]);

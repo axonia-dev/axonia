@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 
 import type { GroupChrome, NavGroup } from "@/components/patterns/nav-types";
 import { RailLink } from "@/components/patterns/RailLink";
+import type { ShellChrome } from "@/components/patterns/shell-chrome";
 import { useSidebar } from "@/components/patterns/SidebarProvider";
 import { cn } from "@/lib/cn";
 
@@ -32,13 +33,19 @@ export function RailToggleBadge({
 
 interface SideRailProps {
   testId: string;
+  chrome?: ShellChrome;
   children: ReactNode;
 }
 
-export function SideRail({ testId, children }: Readonly<SideRailProps>) {
+export function SideRail({
+  testId,
+  chrome,
+  children,
+}: Readonly<SideRailProps>) {
   const { collapsed } = useSidebar();
   return (
     <aside
+      {...chrome}
       data-testid={testId}
       className={cn(
         "border-border bg-surface-sunken relative hidden min-h-0 shrink-0 flex-col gap-6 overflow-y-auto border-r py-5 md:flex",

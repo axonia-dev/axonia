@@ -14,6 +14,12 @@ function Nav() {
       <button type="button" onClick={() => void navigate(-1)}>
         back
       </button>
+      <button
+        type="button"
+        onClick={() => void navigate("/a?view=month", { replace: true })}
+      >
+        month
+      </button>
     </>
   );
 }
@@ -99,4 +105,21 @@ describe("useMainScroll", () => {
     // then
     expect(screen.getByTestId("main").scrollTop).toBe(400);
   });
+
+  it.each(["month", "a2"])(
+    "keeps the position for back after %s changes only the search",
+    (change) => {
+      // given
+      setup();
+      scrollTo(400);
+      fireEvent.click(screen.getByText(change));
+      fireEvent.click(screen.getByText("b"));
+
+      // when
+      fireEvent.click(screen.getByText("back"));
+
+      // then
+      expect(screen.getByTestId("main").scrollTop).toBe(400);
+    },
+  );
 });

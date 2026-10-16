@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 
 import type { NavGroup } from "@/components/patterns/nav-types";
+import type { ShellChrome } from "@/components/patterns/shell-chrome";
 import {
   groupHeaderClass,
   isItemActive,
@@ -66,10 +67,12 @@ export function ShellTabBar({
   ariaLabel,
   testId,
   tabs,
+  chrome,
 }: Readonly<{
   ariaLabel: string;
   testId: string;
   tabs: ReadonlyArray<ShellTab>;
+  chrome?: ShellChrome;
 }>) {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const menus = tabs.filter((tab): tab is MenuTab => tab.kind === "menu");
@@ -77,6 +80,7 @@ export function ShellTabBar({
   return (
     <>
       <nav
+        {...chrome}
         aria-label={ariaLabel}
         data-testid={testId}
         className="border-border bg-surface fixed inset-x-0 bottom-0 z-10 flex items-center justify-around border-t px-2 py-2 md:hidden"

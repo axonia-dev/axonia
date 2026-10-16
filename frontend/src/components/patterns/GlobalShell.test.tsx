@@ -193,4 +193,21 @@ describe("GlobalShell", () => {
       "/settings/account",
     );
   });
+
+  it("names each piece of its chrome once, for morphs to hold still", () => {
+    // given
+    mockUsePermissions.mockReturnValue(permissionState(() => true));
+
+    // when
+    const { container } = renderShell();
+
+    // then
+    for (const part of ["rail", "header", "topbar", "tabs"]) {
+      const named = container.querySelectorAll(`[data-shell-chrome="${part}"]`);
+      expect(named).toHaveLength(1);
+      expect(
+        (named[0] as HTMLElement).style.getPropertyValue("--shell-chrome"),
+      ).toBe(`shell-${part}-global`);
+    }
+  });
 });

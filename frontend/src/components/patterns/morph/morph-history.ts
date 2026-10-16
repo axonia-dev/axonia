@@ -9,11 +9,13 @@ type Pair = [from: string, to: string];
 
 const STORE = "axonia.morphs";
 const KEPT = 50;
+const TYPES_SELECTOR = "selector(:active-view-transition-type(morph))";
 let armed = false;
 
 export function canMorph(): boolean {
   return (
     typeof document.startViewTransition === "function" &&
+    globalThis.CSS?.supports?.(TYPES_SELECTOR) === true &&
     !globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches
   );
 }
@@ -26,6 +28,15 @@ export function disarmMorph(): void {
   armed = false;
 }
 
+export function liveKey(): string {
+  const state: unknown = globalThis.history.state;
+  const key =
+    typeof state === "object" && state !== null && "key" in state
+      ? state.key
+      : undefined;
+  return typeof key === "string" && key !== "" ? key : "default";
+}
+
 function readPairs(): Pair[] {
   try {
     const parsed: unknown = JSON.parse(sessionStorage.getItem(STORE) ?? "[]");
@@ -35,15 +46,27 @@ function readPairs(): Pair[] {
   }
 }
 
-function remember(pair: Pair): void {
+function writePairs(pairs: Pair[]): void {
   try {
-    sessionStorage.setItem(
-      STORE,
-      JSON.stringify([...readPairs(), pair].slice(-KEPT)),
-    );
+    sessionStorage.setItem(STORE, JSON.stringify(pairs.slice(-KEPT)));
   } catch {
     return;
   }
+}
+
+function remember(pair: Pair): void {
+  writePairs([...readPairs(), pair]);
+}
+
+function rekey(replaced: string, key: string): void {
+  const pairs = readPairs();
+  if (!pairs.some((pair) => pair.includes(replaced))) return;
+  writePairs(
+    pairs.map(([from, to]) => [
+      from === replaced ? key : from,
+      to === replaced ? key : to,
+    ]),
+  );
 }
 
 export function replayTypes(fromKey: string, toKey: string): string[] {
@@ -57,25 +80,40 @@ export function replayTypes(fromKey: string, toKey: string): string[] {
 }
 
 type Listener = Parameters<BrowserHistory["listen"]>[0];
+type Update = Parameters<Listener>[0];
 
-function morphAware(history: BrowserHistory, listener: Listener): Listener {
+function record(update: Update, from: string): void {
+  const to = update.location.key;
+  if (update.action === "REPLACE") rekey(from, to);
+  if (update.action === "PUSH" && armed) remember([from, to]);
+}
+
+function morphAware(history: BrowserHistory, listener: Listener) {
   let current = history.location.key;
-  return (update) => {
+  let pending: ReturnType<typeof setTimeout> | undefined;
+  const cancel = () => {
+    clearTimeout(pending);
+    pending = undefined;
+  };
+  const deliver: Listener = (update) => {
+    cancel();
     const from = current;
     current = update.location.key;
-    if (update.action === "PUSH" && armed) remember([from, current]);
+    record(update, from);
     const types = update.action === "POP" ? replayTypes(from, current) : [];
     if (types.length === 0) {
       listener(update);
       return;
     }
-    setTimeout(() => {
+    pending = setTimeout(() => {
+      pending = undefined;
       startTransition(() => {
         for (const type of types) addTransitionType(type);
         listener(update);
       });
     }, 0);
   };
+  return { deliver, cancel };
 }
 
 export function createMorphHistory(): BrowserHistory {
@@ -83,8 +121,14 @@ export function createMorphHistory(): BrowserHistory {
   return new Proxy(history, {
     get(target, key) {
       if (key === "listen") {
-        return (listener: Listener) =>
-          target.listen(morphAware(target, listener));
+        return (listener: Listener) => {
+          const aware = morphAware(target, listener);
+          const unlisten = target.listen(aware.deliver);
+          return () => {
+            aware.cancel();
+            unlisten();
+          };
+        };
       }
       const value: unknown = Reflect.get(target, key, target);
       return typeof value === "function" ? value.bind(target) : value;

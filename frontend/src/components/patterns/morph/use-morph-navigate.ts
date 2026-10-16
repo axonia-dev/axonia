@@ -1,25 +1,23 @@
-import {
-  addTransitionType,
-  startTransition,
-  useCallback,
-  useEffect,
-  useRef,
-} from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { addTransitionType, startTransition, useCallback } from "react";
+import { type NavigateOptions, useNavigate } from "react-router-dom";
 
 import { isCurtainUp } from "@/components/patterns/ceremony/curtain";
 import {
   armMorph,
   canMorph,
   disarmMorph,
+  liveKey,
   MORPH,
 } from "@/components/patterns/morph/morph-history";
 
 export interface MorphOptions {
-  ready?: () => Promise<unknown>;
+  ready?: (() => Promise<unknown>) | undefined;
+  replace?: boolean | undefined;
+  state?: unknown;
 }
 
 const READY_BUDGET_MS = 300;
+let latestCall = 0;
 
 async function readyInTime(ready: MorphOptions["ready"]): Promise<boolean> {
   if (ready === undefined) return true;
@@ -36,37 +34,42 @@ async function readyInTime(ready: MorphOptions["ready"]): Promise<boolean> {
   }
 }
 
+function navigateOptions({ replace, state }: MorphOptions): NavigateOptions {
+  return { ...(replace !== undefined && { replace }), state };
+}
+
 export function useMorphNavigate(): (
   to: string,
   options?: MorphOptions,
 ) => Promise<void> {
   const navigate = useNavigate();
-  const { key } = useLocation();
-  const here = useRef(key);
-  useEffect(() => {
-    here.current = key;
-  }, [key]);
 
   return useCallback(
     async (to: string, options: MorphOptions = {}) => {
+      const how = navigateOptions(options);
       if (!canMorph()) {
         void options.ready?.().catch(() => undefined);
-        void navigate(to);
+        void navigate(to, how);
         return;
       }
-      const from = here.current;
+      latestCall += 1;
+      const call = latestCall;
+      const from = liveKey();
       const ready = await readyInTime(options.ready);
-      if (here.current !== from) return;
+      if (call !== latestCall || liveKey() !== from) return;
       if (!ready || isCurtainUp()) {
-        void navigate(to);
+        void navigate(to, how);
         return;
       }
       armMorph();
-      startTransition(() => {
-        addTransitionType(MORPH);
-        void navigate(to);
-      });
-      disarmMorph();
+      try {
+        startTransition(() => {
+          addTransitionType(MORPH);
+          void navigate(to, how);
+        });
+      } finally {
+        disarmMorph();
+      }
     },
     [navigate],
   );

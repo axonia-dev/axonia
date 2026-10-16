@@ -2,6 +2,7 @@ import type { CSSProperties, ReactNode } from "react";
 
 import { useMainScroll } from "@/components/patterns/main-scroll";
 import type { NavGroup, NavItem } from "@/components/patterns/nav-types";
+import { shellChrome } from "@/components/patterns/shell-chrome";
 import { type ShellTab, ShellTabBar } from "@/components/patterns/ShellTabBar";
 import { useSidebar } from "@/components/patterns/SidebarProvider";
 import {
@@ -61,9 +62,10 @@ export function AppShell({
   const { collapsed } = useSidebar();
   // Only <main> scrolls, so it keeps and restores its own position.
   const { ref: mainRef, onScroll: onMainScroll } = useMainScroll();
+  const shell = railTestId.replace(/-rail$/, "");
   return (
     <div className="bg-background text-foreground flex h-full flex-col overflow-hidden md:flex-row">
-      <SideRail testId={railTestId}>
+      <SideRail testId={railTestId} chrome={shellChrome("rail", shell)}>
         <div className={cn("relative", collapsed ? "self-center" : "w-full")}>
           {renderSwitcher(collapsed)}
           <RailToggleBadge className="-top-1.5 -right-1.5" />
@@ -77,8 +79,11 @@ export function AppShell({
       </SideRail>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        {mobileTopbar}
+        <div {...shellChrome("topbar", shell)} className="md:hidden">
+          {mobileTopbar}
+        </div>
         <header
+          {...shellChrome("header", shell)}
           data-testid={railTestId.replace("-rail", "-desktop-topbar")}
           className="border-border hidden items-center gap-4 border-b px-6 py-3 md:flex"
         >
@@ -101,7 +106,12 @@ export function AppShell({
         </main>
       </div>
 
-      <ShellTabBar ariaLabel={tabsAriaLabel} testId={tabsTestId} tabs={tabs} />
+      <ShellTabBar
+        ariaLabel={tabsAriaLabel}
+        testId={tabsTestId}
+        tabs={tabs}
+        chrome={shellChrome("tabs", shell)}
+      />
     </div>
   );
 }

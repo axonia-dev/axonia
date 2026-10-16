@@ -619,30 +619,66 @@ html {
     animation-name: morph-fade-in;
     animation-delay: 92ms;
   }
-  ::view-transition-old(.morph-cover),
-  ::view-transition-new(.morph-cover) {
+  /* The chrome of one shell holds still on a morph inside it, and leaves or arrives with the page across shells. */
+  :root:active-view-transition-type(morph) [data-shell-chrome] {
+    view-transition-name: var(--shell-chrome);
+    view-transition-class: shell-chrome;
+  }
+  :root:active-view-transition-type(morph)::view-transition-group(
+      .shell-chrome
+    ) {
+    animation: none;
+  }
+  :root:active-view-transition-type(morph)::view-transition-old(.shell-chrome),
+  :root:active-view-transition-type(morph)::view-transition-new(.shell-chrome) {
+    animation-duration: 160ms;
+  }
+  :root:active-view-transition-type(morph)::view-transition-old(
+      .shell-chrome
+    ):only-child {
+    animation: 160ms ease-out both morph-fade-out;
+  }
+  :root:active-view-transition-type(morph)::view-transition-new(
+      .shell-chrome
+    ):only-child {
+    animation: 276ms cubic-bezier(0.22, 0.8, 0.24, 1) 138ms both morph-rise-in;
+  }
+  :root:active-view-transition-type(morph-back)::view-transition-new(
+      .shell-chrome
+    ):only-child {
+    animation-name: morph-fade-in;
+    animation-delay: 92ms;
+  }
+  :root:active-view-transition-type(morph)::view-transition-old(.morph-cover),
+  :root:active-view-transition-type(morph)::view-transition-new(.morph-cover) {
     width: 100%;
     height: 100%;
     object-fit: cover;
   }
-  ::view-transition-old(.morph-text),
-  ::view-transition-new(.morph-text) {
+  :root:active-view-transition-type(morph)::view-transition-old(.morph-text),
+  :root:active-view-transition-type(morph)::view-transition-new(.morph-text) {
     width: auto;
     height: 100%;
     object-fit: fill;
   }
-  ::view-transition-group(.morph-surface) {
+  :root:active-view-transition-type(morph)::view-transition-group(
+      .morph-surface
+    ) {
     overflow: clip;
     border-radius: var(--radius-lg);
   }
-  ::view-transition-old(.morph-surface),
-  ::view-transition-new(.morph-surface) {
+  :root:active-view-transition-type(morph)::view-transition-old(.morph-surface),
+  :root:active-view-transition-type(morph)::view-transition-new(
+      .morph-surface
+    ) {
     width: 100%;
     height: auto;
     object-fit: none;
     object-position: top left;
   }
-  ::view-transition-old(.morph-surface) {
+  :root:active-view-transition-type(morph)::view-transition-old(
+      .morph-surface
+    ) {
     animation-duration: 138ms;
   }
 }
