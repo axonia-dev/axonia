@@ -53,6 +53,13 @@ describe("ribbonSpan", () => {
     expect(ribbonSpan(window, null, TODAY).fromMs).toBe(ms(TODAY));
   });
 
+  it("starts at today, never later, when every session is still ahead", () => {
+    // given a first session after today
+    const span = ribbonSpan(window, END, TODAY);
+    // then
+    expect(span).toEqual({ fromMs: ms(TODAY), toMs: ms(END), hasOlder: false });
+  });
+
   it("caps at the window and offers older history", () => {
     const span = ribbonSpan(window, "2023-01-01T00:00:00Z", TODAY);
     expect(span.fromMs).toBe(ms(window.fromIso));

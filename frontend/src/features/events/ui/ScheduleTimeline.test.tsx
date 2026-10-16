@@ -1,14 +1,10 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { useSchedule } from "@/features/events/api/use-schedule";
-import { useSeriesList } from "@/features/events/api/use-series";
 import type { ScheduleEntry } from "@/features/events/domain/schedule";
-import type { Series } from "@/features/events/domain/series";
-import { ScheduleTimeline } from "@/features/events/ui/ScheduleTimeline";
 import { useUsers } from "@/features/identity/api/use-users";
+import { renderTimeline } from "@/test/schedule-timeline-harness";
 import {
   cancelledEntry,
   ghostSeriesEntry,
@@ -24,6 +20,11 @@ vi.mock(
 vi.mock("@/features/events/api/use-schedule", () => ({ useSchedule: vi.fn() }));
 vi.mock("@/features/events/api/use-series", () => ({ useSeriesList: vi.fn() }));
 vi.mock("@/features/identity/api/use-users", () => ({ useUsers: vi.fn() }));
+vi.mock("@/features/events/api/use-memories", () => ({ useMemories: vi.fn() }));
+vi.mock("@/features/events/api/use-ribbon", () => ({ useRibbon: vi.fn() }));
+vi.mock("@/features/events/api/invalidate-memories", () => ({
+  invalidateMemories: vi.fn(),
+}));
 vi.mock("@/features/events/ui/ScheduleContextMenu", () => ({
   ScheduleContextMenu: ({
     target,
@@ -31,45 +32,6 @@ vi.mock("@/features/events/ui/ScheduleContextMenu", () => ({
     <div data-testid="entry-menu">{target.label}</div>
   ),
 }));
-
-interface RenderGiven {
-  schedule?: { data?: ScheduleEntry[]; isLoading?: boolean; isError?: boolean };
-  series?: { content: Series[] };
-  users?: Record<string, { id: string; displayName: string }>;
-  slug?: string;
-  fromIso?: string;
-  toIso?: string;
-  canManage?: boolean;
-}
-
-/** A settled schedule query unless the case asks for one still loading or failed. */
-function scheduleQueryOf(given: RenderGiven) {
-  return {
-    data: given.schedule?.data,
-    isLoading: given.schedule?.isLoading ?? false,
-    isError: given.schedule?.isError ?? false,
-  };
-}
-
-/** Wires the three queries and renders ScheduleTimeline with sensible defaults. */
-function renderTimeline(given: RenderGiven = {}) {
-  vi.mocked(useSchedule).mockReturnValue(scheduleQueryOf(given) as never);
-  vi.mocked(useSeriesList).mockReturnValue({ data: given.series } as never);
-  vi.mocked(useUsers).mockReturnValue({ data: given.users } as never);
-  const onShowMore = vi.fn();
-  render(
-    <MemoryRouter>
-      <ScheduleTimeline
-        slug={given.slug ?? "x"}
-        fromIso={given.fromIso ?? "2026-06-01T00:00:00.000Z"}
-        toIso={given.toIso ?? "2026-09-01T00:00:00.000Z"}
-        onShowMore={onShowMore}
-        canManage={given.canManage ?? false}
-      />
-    </MemoryRouter>,
-  );
-  return { onShowMore };
-}
 
 function setup() {
   // given
@@ -84,6 +46,10 @@ function setup() {
     toIso: "2026-08-30T00:00:00.000Z",
   });
 }
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe("ScheduleTimeline", () => {
   it("labels series entries with the series title, one-offs with their own", () => {

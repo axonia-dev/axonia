@@ -2,10 +2,7 @@ import type { Memory } from "@/features/events/domain/memory";
 import { agoLabel, memoryFade } from "@/features/events/domain/memory";
 import { entryDayIso } from "@/features/events/domain/occurrence-day";
 import { MemoryCard } from "@/features/events/ui/timeline/MemoryCard";
-import {
-  dateParts,
-  entrySortKey,
-} from "@/features/events/ui/timeline/timeline";
+import { dateParts, entryAtMs } from "@/features/events/ui/timeline/timeline";
 import {
   DateCell,
   RailDot,
@@ -39,7 +36,7 @@ export function MemoryRow({
         rowGridClass,
         arriving && "memory-arrive",
       )}
-      data-at={new Date(entrySortKey(entry)).getTime()}
+      data-at={entryAtMs(entry)}
     >
       <div className="pt-2.5 pr-1.5 text-right">
         {iso !== "" && (

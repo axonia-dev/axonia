@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const ribbonTickSchema = z.object({
+const ribbonTickSchema = z.object({
   at: z.string(),
   kind: z.enum(["MEMORY", "UPCOMING", "PROJECTED"]),
 });
@@ -55,11 +55,12 @@ export function ribbonSpan(
   todayIso: string,
 ): RibbonSpan {
   const windowFrom = new Date(window.fromIso).getTime();
+  const today = new Date(todayIso).getTime();
   const first =
     firstSessionAt === null ? null : new Date(firstSessionAt).getTime();
   const start =
     window.yearsBack === 0
-      ? Math.max(windowFrom, first ?? new Date(todayIso).getTime())
+      ? Math.max(windowFrom, Math.min(first ?? today, today))
       : windowFrom;
   return {
     fromMs: start,

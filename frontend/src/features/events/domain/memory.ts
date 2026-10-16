@@ -3,13 +3,13 @@ import { z } from "zod";
 import type { ScheduleEntry } from "@/features/events/domain/schedule";
 import { scheduleEntrySchema } from "@/features/events/domain/schedule";
 
-export const memoryTracesSchema = z.object({
+const memoryTracesSchema = z.object({
   loves: z.number(),
   recorded: z.boolean(),
   artifacts: z.number(),
 });
-export const memoryCursorSchema = z.object({ at: z.string(), id: z.number() });
-export const memorySchema = z.object({
+const memoryCursorSchema = z.object({ at: z.string(), id: z.number() });
+const memorySchema = z.object({
   entry: scheduleEntrySchema,
   traces: memoryTracesSchema,
 });

@@ -6,7 +6,7 @@ import type { MemoryCursor } from "@/features/events/domain/memory";
 
 const gateway = httpEventsGateway;
 
-export const MEMORY_PAGE_SIZE = 20;
+const MEMORY_PAGE_SIZE = 20;
 
 export function useMemories(slug: string) {
   return useInfiniteQuery({

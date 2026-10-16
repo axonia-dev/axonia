@@ -39,7 +39,7 @@ interface Props {
   users: Record<string, User>;
 }
 
-export function glowStyle(strength: number): CSSProperties | undefined {
+function glowStyle(strength: number): CSSProperties | undefined {
   if (strength <= 0) return undefined;
   const pct = (x: number) => `${Math.round(x * strength * 100)}%`;
   return {

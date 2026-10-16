@@ -39,6 +39,11 @@ export function entrySortKey(entry: ScheduleEntry): string {
   return entry.scheduledAt ?? entry.occurrenceDate ?? "";
 }
 
+/** The instant a timeline row stands for, as its `data-at` carries it. */
+export function entryAtMs(entry: ScheduleEntry): number {
+  return new Date(entrySortKey(entry)).getTime();
+}
+
 function utcMidnight(iso: string): number {
   const d = new Date(iso);
   return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
@@ -49,7 +54,7 @@ function startOfIsoWeekUtc(iso: string): number {
   return utcMidnight(iso) - mondayOffset * DAY_MS;
 }
 
-function monthKey(iso: string): string {
+export function monthKey(iso: string): string {
   const d = new Date(iso);
   return `${d.getUTCFullYear()}-${d.getUTCMonth()}`;
 }
@@ -95,13 +100,41 @@ export function dateParts(dateIso: string, todayIso: string): EntryDateParts {
   };
 }
 
+export function isShownOnTimeline(entry: ScheduleEntry): boolean {
+  return VISIBLE_STATUSES.has(entry.status);
+}
+
+/** The quiet weeks between two days, or null when they are under two weeks apart. */
+export function quietWeeks(
+  earlierIso: string,
+  laterIso: string,
+): number | null {
+  const gapDays = Math.round(
+    (utcMidnight(laterIso) - utcMidnight(earlierIso)) / DAY_MS,
+  );
+  return gapDays >= QUIET_GAP_DAYS ? Math.round(gapDays / 7) : null;
+}
+
+export function monthLabel(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-US", {
+    month: "long",
+    timeZone: "UTC",
+  });
+}
+
+/** "Sun 18 October": the day a ribbon's value text names. */
+export function ribbonDayLabel(iso: string): string {
+  const { weekdayShort, day } = dateParts(iso, iso);
+  return `${weekdayShort} ${day} ${monthLabel(iso)}`;
+}
+
 /** Orders visible entries and interleaves month markers and quiet-stretch gaps. */
 export function buildTimeline(
   entries: ScheduleEntry[],
   todayIso: string,
 ): TimelineItem[] {
   const dated = entries
-    .filter((e) => VISIBLE_STATUSES.has(e.status))
+    .filter(isShownOnTimeline)
     .flatMap((e) => {
       const iso = entryDayIso(e);
       return iso === "" ? [] : [{ entry: e, iso, sortKey: entrySortKey(e) }];
@@ -115,23 +148,11 @@ export function buildTimeline(
   let nextUpAssigned = false;
 
   for (const { entry, iso } of dated) {
-    if (prevIso !== null) {
-      const gapDays = Math.round(
-        (utcMidnight(iso) - utcMidnight(prevIso)) / DAY_MS,
-      );
-      if (gapDays >= QUIET_GAP_DAYS) {
-        items.push({ kind: "gap", weeks: Math.round(gapDays / 7) });
-      }
-    }
+    const weeks = prevIso === null ? null : quietWeeks(prevIso, iso);
+    if (weeks !== null) items.push({ kind: "gap", weeks });
     const month = monthKey(iso);
     if (month !== monthRef && month !== todayMonth) {
-      items.push({
-        kind: "month",
-        label: new Date(iso).toLocaleDateString("en-US", {
-          month: "long",
-          timeZone: "UTC",
-        }),
-      });
+      items.push({ kind: "month", label: monthLabel(iso) });
     }
     monthRef = month;
     const nextUp: boolean =

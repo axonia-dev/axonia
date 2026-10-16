@@ -9,10 +9,7 @@ import type { Attendance } from "@/features/events/domain/attendance";
 import type { CalendarSubscription } from "@/features/events/domain/calendar-subscription";
 import type { MeetingPlace } from "@/features/events/domain/meeting-place";
 import type { MemberZone } from "@/features/events/domain/member-zone";
-import type {
-  MemoryCursor,
-  MemoryPage,
-} from "@/features/events/domain/memory";
+import type { MemoryCursor, MemoryPage } from "@/features/events/domain/memory";
 import type { Ribbon } from "@/features/events/domain/ribbon";
 import type { ScheduleEntry } from "@/features/events/domain/schedule";
 import type { SectionType } from "@/features/events/domain/section-type";

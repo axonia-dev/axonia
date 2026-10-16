@@ -6,7 +6,7 @@ import type { ScheduleEntry } from "@/features/events/domain/schedule";
 import { JoinControl } from "@/features/events/ui/JoinControl";
 import { stillToHappen } from "@/features/events/ui/SessionPlace";
 import type { EntryDateParts } from "@/features/events/ui/timeline/timeline";
-import { dateParts } from "@/features/events/ui/timeline/timeline";
+import { dateParts, entryAtMs } from "@/features/events/ui/timeline/timeline";
 import { TimelineCard } from "@/features/events/ui/timeline/TimelineCard";
 import type { User } from "@/features/identity/domain/user";
 import { cn } from "@/lib/cn";
@@ -173,6 +173,7 @@ export function TimelineRow({
         "timeline-row group relative pb-3 focus-within:z-10 hover:z-10",
         rowGridClass,
       )}
+      data-at={entryAtMs(entry)}
       {...(onContextMenu === undefined ? {} : { onContextMenu })}
     >
       <div className="pt-2.5 pr-1.5 text-right">

@@ -1,4 +1,4 @@
-export const GLOW_DAYS = 21;
+const GLOW_DAYS = 21;
 
 const DAY_MS = 86_400_000;
 

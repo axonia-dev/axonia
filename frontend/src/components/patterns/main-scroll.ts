@@ -12,6 +12,11 @@ import {
 
 const positions = new Map<string, number>();
 
+/** Whether a back or forward step to this history entry puts `<main>` back where it was left. */
+export function restoresMainScroll(key: string): boolean {
+  return positions.has(key);
+}
+
 export function useMainScroll(): {
   ref: RefObject<HTMLElement | null>;
   onScroll: UIEventHandler<HTMLElement>;

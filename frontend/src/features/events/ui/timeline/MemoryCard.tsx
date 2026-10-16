@@ -66,6 +66,21 @@ function Traces({ traces }: Readonly<{ traces: Memory["traces"] }>) {
   );
 }
 
+function spokenTraces({ loves, recorded, artifacts }: Memory["traces"]) {
+  return [
+    loves > 0 ? counted(loves, "love") : null,
+    recorded ? "recording" : null,
+    artifacts > 0 ? counted(artifacts, "artifact") : null,
+  ].filter((part) => part !== null);
+}
+
+/** The timeline card's name, then the traces a sighted reader sees under it. */
+function memoryName(memory: Memory, label: string): string {
+  const name = accessibleName(memory.entry, label);
+  if (isAwaitingAnswer(memory.entry)) return name;
+  return [name, ...spokenTraces(memory.traces)].join(", ");
+}
+
 function metaLine({ entry }: Memory): string {
   const talks = slotsOf(entry).filter((slot) => !isOpen(slot)).length;
   return [timeLabel(entry), talks > 0 ? counted(talks, "talk") : null]
@@ -91,7 +106,7 @@ export function MemoryCard({
       <SessionMorphLink
         sessionId={sessionId}
         to={href}
-        aria-label={accessibleName(entry, label)}
+        aria-label={memoryName(memory, label)}
         style={{ opacity: fade }}
         className="bg-paper border-paper-edge text-ink-sepia group-hover:border-ink-sepia-soft block rounded-md border p-4 transition-[border-color] duration-200"
       >

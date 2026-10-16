@@ -164,6 +164,45 @@ describe("MemoryCard", () => {
     expect(screen.getByText("Awaiting an answer")).toBeInTheDocument();
   });
 
+  it("speaks the traces after the card's name", () => {
+    // given
+    const e = entry();
+    // when
+    setup({ entry: e, traces: { loves: 9, recorded: true, artifacts: 2 } });
+    // then
+    expect(
+      screen.getByRole("link", {
+        name: `${accessibleName(e, "Frontend Dojo")}, 9 loves, recording, 2 artifacts`,
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("speaks only the traces that are there", () => {
+    // when
+    setup({
+      entry: entry(),
+      traces: { loves: 1, recorded: false, artifacts: 0 },
+    });
+    // then
+    expect(screen.getByRole("link")).toHaveAccessibleName(
+      `${accessibleName(entry(), "Frontend Dojo")}, 1 love`,
+    );
+  });
+
+  it("speaks no traces while the session awaits an answer", () => {
+    // given
+    const awaiting = entry({ status: "SCHEDULED" });
+    // when
+    setup({
+      entry: awaiting,
+      traces: { loves: 3, recorded: true, artifacts: 1 },
+    });
+    // then
+    expect(screen.getByRole("link")).toHaveAccessibleName(
+      accessibleName(awaiting, "Frontend Dojo"),
+    );
+  });
+
   it("links to the session with the full accessible name", () => {
     // given
     const e = entry();
