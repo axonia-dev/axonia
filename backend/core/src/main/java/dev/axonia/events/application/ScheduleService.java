@@ -15,7 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import dev.axonia.events.api.ScheduleEntry;
 import dev.axonia.events.api.Schedules;
-import dev.axonia.events.api.Session;
 import dev.axonia.events.api.SessionStatus;
 import dev.axonia.events.application.port.out.CommunityAccess;
 import dev.axonia.events.application.port.out.OrganizationContext;
@@ -73,7 +72,7 @@ public class ScheduleService implements Schedules {
         var real = sessionListing.page(SessionPageQuery.builder().organizationId(organizationId)
                 .communityId(communityId).from(from).to(to).window(SessionPageQuery.Window.BETWEEN).build());
 
-        var realEntries = real.stream().map(this::toEntry).toList();
+        var realEntries = real.stream().map(ScheduleEntries::of).toList();
 
         // Suppression set: any (seriesId, occurrenceDate) pair with a real row prevents a ghost
         var suppressed = real.stream().filter(s -> s.seriesId() != null && s.occurrenceDate() != null)
@@ -113,15 +112,6 @@ public class ScheduleService implements Schedules {
         var organizationId = organizationContext.organizationId();
         var communityId = communityAccess.communityIdForSlug(slug);
         return sessionStore.findActiveMonths(organizationId, communityId);
-    }
-
-    private ScheduleEntry toEntry(Session session) {
-
-        return ScheduleEntry.builder().sessionId(session.id()).seriesId(session.seriesId()).title(session.title())
-                .occurrenceDate(session.occurrenceDate()).scheduledAt(session.scheduledAt()).hasTime(session.hasTime())
-                .seriesTimeZone(session.seriesTimeZone()).durationMinutes(session.durationMinutes())
-                .status(session.status()).place(session.place()).version(session.version())
-                .updatedAt(session.updatedAt()).virtual(false).sections(session.sections()).build();
     }
 
     /**

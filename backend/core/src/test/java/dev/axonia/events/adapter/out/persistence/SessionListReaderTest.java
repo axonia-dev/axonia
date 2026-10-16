@@ -270,6 +270,83 @@ class SessionListReaderTest extends CoreJdbcTestSupport {
     }
 
     /**
+     * A memories page resumes from the last row it showed, not from an offset: the cursor is the pair
+     * {@code (scheduled_at, id)}, so a session sharing the cursor's instant but with a lower id is still read, and the
+     * cursor row itself is not read twice.
+     */
+    @Test
+    void past_resumesAfterACompoundCursorWithoutLosingATie() {
+
+        // given
+        var communityId = communityId();
+        var tie = Instant.parse("2026-05-01T18:00:00Z");
+        var tieA = save(null, communityId, "SCHEDULED", tie);
+        var tieB = save(null, communityId, "SCHEDULED", tie);
+        var older = save(null, communityId, "SCHEDULED", Instant.parse("2026-04-01T18:00:00Z"));
+        var first = sut.page(past(communityId).pageable(PageRequest.of(0, 1)).build());
+
+        // when
+        var rest = sut.page(
+                past(communityId).to(tie).beforeId(first.getFirst().id()).pageable(PageRequest.of(0, 20)).build());
+
+        // then
+        assertThat(first).extracting(Session::id).containsExactly(Math.max(tieA, tieB));
+        assertThat(rest).extracting(Session::id).containsExactly(Math.min(tieA, tieB), older);
+    }
+
+    @Test
+    void instants_keepTheWindowAndDropCancelledAndSkipped() {
+
+        // given
+        var communityId = communityId();
+        save(null, communityId, "HELD", Instant.parse("2026-05-02T10:00:00Z"));
+        save(null, communityId, "SCHEDULED", Instant.parse("2026-05-01T10:00:00Z"));
+        save(null, communityId, "CANCELLED", Instant.parse("2026-05-03T10:00:00Z"));
+        save(null, communityId, "SKIPPED", Instant.parse("2026-05-04T10:00:00Z"));
+        save(null, communityId, "HELD", Instant.parse("2026-06-01T00:00:00Z"));
+        save(null, communityId, "HELD", Instant.parse("2026-04-30T23:59:59Z"));
+
+        // when
+        var actual = sut.instants("default", communityId, Instant.parse("2026-05-01T00:00:00Z"),
+                Instant.parse("2026-06-01T00:00:00Z"));
+
+        // then
+        assertThat(actual).containsExactly(Instant.parse("2026-05-01T10:00:00Z"),
+                Instant.parse("2026-05-02T10:00:00Z"));
+    }
+
+    @Test
+    void firstSessionAt_isTheEarliestKeptSession() {
+
+        // given
+        var communityId = communityId();
+        save(null, communityId, "CANCELLED", Instant.parse("2025-01-01T10:00:00Z"));
+        save(null, communityId, "SKIPPED", Instant.parse("2025-02-01T10:00:00Z"));
+        save(null, communityId, "HELD", Instant.parse("2025-03-01T10:00:00Z"));
+        save(null, communityId, "SCHEDULED", Instant.parse("2099-01-01T10:00:00Z"));
+
+        // when
+        var actual = sut.firstSessionAt("default", communityId);
+
+        // then
+        assertThat(actual).contains(Instant.parse("2025-03-01T10:00:00Z"));
+    }
+
+    @Test
+    void firstSessionAt_isEmptyForACommunityWithNoKeptSession() {
+
+        // given
+        var communityId = communityId();
+        save(null, communityId, "CANCELLED", Instant.parse("2025-01-01T10:00:00Z"));
+
+        // when
+        var actual = sut.firstSessionAt("default", communityId);
+
+        // then
+        assertThat(actual).isEmpty();
+    }
+
+    /**
      * An unpaged request reads the whole window rather than throwing. {@link Pageable#unpaged()} is a legal value of
      * the parameter's own type - {@code SessionService} hands this reader whatever its caller passed - and Spring
      * Data's {@code Unpaged} throws from {@code getPageSize()}, so without the guard in {@code appendPage} a legal

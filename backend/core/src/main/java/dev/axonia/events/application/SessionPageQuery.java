@@ -25,12 +25,16 @@ import lombok.Builder;
  * defined against it, and {@link Window#BETWEEN} needs none.
  *
  * <p>
+ * {@code beforeId} turns {@code to} into a keyset cursor: sessions strictly before {@code to}, plus those exactly at it
+ * whose id is lower, which is the order {@link Window#PAST} reads in. Null leaves {@code to} a plain exclusive bound.
+ *
+ * <p>
  * {@code status} narrows any window to one status, and null - the usual case - leaves it as the window defines it. It
  * is what lets a caller ask for the occurrences that were actually held rather than for every one whose hour passed.
  */
 @Builder
-public record SessionPageQuery(String organizationId, Long communityId, Instant from, Instant to, Instant now,
-        Window window, SessionStatus status, Pageable pageable) {
+public record SessionPageQuery(String organizationId, Long communityId, Instant from, Instant to, Long beforeId,
+        Instant now, Window window, SessionStatus status, Pageable pageable) {
 
     /** Which sessions a page covers, and in what order they are read. */
     public enum Window {

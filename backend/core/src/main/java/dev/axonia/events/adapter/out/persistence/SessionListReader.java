@@ -11,6 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import org.springframework.data.domain.Pageable;
@@ -139,10 +140,37 @@ public class SessionListReader implements SessionListing {
             sql.append(" AND scheduled_at >= :from");
             params.addValue("from", Timestamp.from(query.from()));
         }
-        if (query.to() != null) {
+        if (query.to() != null && query.beforeId() != null) {
+            sql.append(" AND (scheduled_at < :to OR (scheduled_at = :to AND id < :beforeId))");
+            params.addValue("to", Timestamp.from(query.to())).addValue("beforeId", query.beforeId());
+        } else if (query.to() != null) {
             sql.append(" AND scheduled_at < :to");
             params.addValue("to", Timestamp.from(query.to()));
         }
+    }
+
+    /** Every kept session's instant in {@code [from, to)}, earliest first: the ribbon's ticks, without the tree. */
+    @Override
+    @Transactional(readOnly = true)
+    public List<Instant> instants(String organizationId, long communityId, Instant from, Instant to) {
+
+        var params = tenant(organizationId, communityId).addValue("from", Timestamp.from(from)).addValue("to",
+                Timestamp.from(to));
+        return jdbc.query(INSTANTS_SQL, params, (rs, rowNum) -> rs.getTimestamp("scheduled_at").toInstant());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<Instant> firstSessionAt(String organizationId, long communityId) {
+
+        var first = jdbc.queryForObject(FIRST_SESSION_AT_SQL, tenant(organizationId, communityId), Timestamp.class);
+        return Optional.ofNullable(first).map(Timestamp::toInstant);
+    }
+
+    private static MapSqlParameterSource tenant(String organizationId, long communityId) {
+
+        return new MapSqlParameterSource().addValue("organizationId", organizationId).addValue("communityId",
+                communityId);
     }
 
     /** The schedule's window is read whole, so an absent or unpaged {@code Pageable} means no {@code LIMIT} at all. */
@@ -283,6 +311,20 @@ public class SessionListReader implements SessionListing {
               FROM community_session
              WHERE organization_id = :organizationId AND community_id = :communityId
             """;
+
+    /** Neither a cancelled nor a skipped occurrence ever took place or will, so neither is a mark on the ribbon. */
+    private static final String KEPT = " AND status NOT IN ('CANCELLED', 'SKIPPED')";
+
+    private static final String INSTANTS_SQL = """
+            SELECT scheduled_at FROM community_session
+             WHERE organization_id = :organizationId AND community_id = :communityId
+               AND scheduled_at >= :from AND scheduled_at < :to
+            """ + KEPT + " ORDER BY scheduled_at, id";
+
+    private static final String FIRST_SESSION_AT_SQL = """
+            SELECT MIN(scheduled_at) FROM community_session
+             WHERE organization_id = :organizationId AND community_id = :communityId
+            """ + KEPT;
 
     private static final String SECTIONS_SQL = """
             SELECT id, session_id, section_type_id, title, duration_minutes, notes
