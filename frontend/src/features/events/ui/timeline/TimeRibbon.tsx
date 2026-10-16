@@ -1,23 +1,23 @@
 import { ChevronLeft, Undo2 } from "lucide-react";
-import type {
-  CSSProperties,
-  KeyboardEvent,
-  PointerEvent,
-  ReactNode,
-} from "react";
+import type { CSSProperties, KeyboardEvent, PointerEvent } from "react";
 import { useRef, useState } from "react";
 
 import type { RibbonSpan, RibbonTick } from "@/features/events/domain/ribbon";
 import {
   atFraction,
   fractionOf,
-  monthMarks,
   nearestTick,
   stepMonth,
   stepTick,
   ticksIn,
 } from "@/features/events/domain/ribbon";
 import { upcomingGlow } from "@/features/events/domain/upcoming-glow";
+import {
+  Cover,
+  MonthLabels,
+  percent,
+  StepButton,
+} from "@/features/events/ui/timeline/ribbon-parts";
 import { useStuck } from "@/features/events/ui/timeline/use-stuck";
 import { cn } from "@/lib/cn";
 
@@ -34,14 +34,6 @@ interface Props {
 
 const msOf = (tick: RibbonTick | null | undefined) =>
   tick ? new Date(tick.at).getTime() : null;
-
-const percent = (fraction: number) => `${fraction * 100}%`;
-
-/** Centred under its month, sliding to left or right alignment toward the edges so it is never cut. */
-const labelPlace = (fraction: number): CSSProperties => ({
-  left: percent(fraction),
-  transform: `translateX(-${percent(fraction)})`,
-});
 
 /** The lens stays whole inside the track at either end. */
 const lensLeft = (fraction: number) =>
@@ -84,71 +76,11 @@ function tickStyle(tick: RibbonTick, span: RibbonSpan, nowMs: number) {
   };
 }
 
-/** The topbar's surface, bled across `<main>` and faded out below; ink overflow, so it never scrolls. */
-const COVER_FADE_PX = 14;
-const COVER: CSSProperties = {
-  borderImage: `linear-gradient(to bottom, var(--background) calc(100% - ${COVER_FADE_PX}px), transparent) fill 0 / 0 / 0 100vmax ${COVER_FADE_PX}px`,
-};
-
-function Cover({ shown }: Readonly<{ shown: boolean }>) {
-  return (
-    <span
-      aria-hidden="true"
-      data-ribbon-cover=""
-      style={COVER}
-      className={cn(
-        "pointer-events-none absolute inset-0 -z-10",
-        shown ? "opacity-100" : "opacity-0 motion-safe:transition-opacity",
-      )}
-    />
-  );
-}
-
 const TICK_CLASS: Record<RibbonTick["kind"], string> = {
-  MEMORY: "bg-ink-sepia-soft h-3 w-1",
-  UPCOMING: "bg-primary h-3.5 w-1",
-  PROJECTED: "bg-muted-foreground/35 h-2 w-1",
+  MEMORY: "bg-ink-sepia/80 h-3 w-1",
+  UPCOMING: "bg-focus-ring h-3.5 w-1",
+  PROJECTED: "bg-muted-foreground/85 h-2 w-1",
 };
-
-function StepButton({
-  onPress,
-  children,
-}: Readonly<{ onPress: () => void; children: ReactNode }>) {
-  return (
-    <button
-      type="button"
-      onClick={onPress}
-      className="border-border-strong text-primary-strong hover:border-primary hover:bg-primary/5 inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold whitespace-nowrap transition-colors"
-    >
-      {children}
-    </button>
-  );
-}
-
-function MonthLabels({
-  span,
-  nowMs,
-}: Readonly<{ span: RibbonSpan; nowMs: number }>) {
-  return (
-    <div
-      aria-hidden="true"
-      className="relative mt-1 h-3.5 overflow-hidden text-[9.5px] font-bold tracking-widest uppercase"
-    >
-      {monthMarks(span).map((mark) => (
-        <span
-          key={mark.atMs}
-          style={labelPlace(fractionOf(mark.atMs, span))}
-          className={cn(
-            "absolute top-0 max-sm:[&:nth-child(even)]:hidden",
-            mark.atMs < nowMs ? "text-ink-sepia" : "text-muted-foreground",
-          )}
-        >
-          {mark.label}
-        </span>
-      ))}
-    </div>
-  );
-}
 
 function useScrubbing(
   span: RibbonSpan,
@@ -237,7 +169,7 @@ export function TimeRibbon({
               aria-valuetext={valueText(lensMs)}
               onKeyDown={onKeyDown}
               {...pointer}
-              className="focus-visible:ring-primary/40 relative h-11 cursor-ew-resize touch-none rounded-lg outline-none select-none focus-visible:ring-2"
+              className="focus-visible:ring-focus-ring relative h-11 cursor-ew-resize touch-none rounded-lg outline-none select-none focus-visible:ring-2"
             >
               <div
                 data-ribbon-track=""
@@ -248,7 +180,7 @@ export function TimeRibbon({
                 aria-hidden="true"
                 style={{ left: lensLeft(fractionOf(lensMs, span)) }}
                 data-ribbon-lens=""
-                className="border-primary bg-primary/10 pointer-events-none absolute inset-y-0 z-10 w-[46px] -translate-x-1/2 rounded-lg border-[1.5px] motion-safe:transition-[left] motion-safe:duration-75"
+                className="border-focus-ring bg-primary/6 pointer-events-none absolute inset-y-0 z-10 w-[46px] -translate-x-1/2 rounded-lg border-[1.5px] motion-safe:transition-[left] motion-safe:duration-75"
               />
               <div
                 data-ribbon-marks=""

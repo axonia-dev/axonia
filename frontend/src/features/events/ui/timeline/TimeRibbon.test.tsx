@@ -92,8 +92,8 @@ describe("TimeRibbon", () => {
     const lens = container.querySelector<HTMLElement>("[data-ribbon-lens]");
     const marks = container.querySelector<HTMLElement>("[data-ribbon-marks]");
     expect(lens?.className).toContain("z-10");
-    expect(lens?.className).toContain("border-primary");
-    expect(lens?.className).toContain("bg-primary/10");
+    expect(lens?.className).toContain("border-focus-ring");
+    expect(lens?.className).toContain("bg-primary/6");
     expect(marks?.className).toContain("z-20");
     expect(marks?.querySelector("[data-now-line]")).not.toBeNull();
     expect(marks?.querySelectorAll("[data-kind]")).toHaveLength(IN_SPAN.length);
