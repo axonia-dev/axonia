@@ -6,12 +6,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { EMPTY_PLACE } from "@/features/events/domain/meeting-place";
 import type { ScheduleEntry } from "@/features/events/domain/schedule";
 import { Chip } from "@/features/events/ui/ScheduleChip";
-import { morphNames } from "@/test/morph-names";
-
-vi.mock("react", async (original) => ({
-  ...(await original<typeof import("react")>()),
-  ViewTransition: (await import("@/test/morph-names")).ViewTransitionProbe,
-}));
 
 let user: ReturnType<typeof userEvent.setup>;
 
@@ -56,18 +50,6 @@ describe("Chip", () => {
     renderChip(entry({ hasTime: false, scheduledAt: "2026-08-19T22:00:00Z" }));
     expect(screen.queryByTestId("chip-time")).not.toBeInTheDocument();
     expect(screen.getByText("Guild Sync")).toBeInTheDocument();
-  });
-
-  it("names its label only when it is the morph source", () => {
-    // when
-    const named = render(
-      <Chip entry={entry()} seriesList={[]} morphId="session-7" />,
-    );
-    const plain = render(<Chip entry={entry()} seriesList={[]} />);
-
-    // then
-    expect(morphNames(named.container)).toEqual(["morph-title-session-7"]);
-    expect(morphNames(plain.container)).toEqual([]);
   });
 });
 

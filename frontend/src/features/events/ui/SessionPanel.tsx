@@ -1,7 +1,7 @@
-import { ExternalLink, MapPin, X } from "lucide-react";
+import { MapPin, X } from "lucide-react";
 import { type CSSProperties, useCallback, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
 
+import { MorphPart } from "@/components/patterns/morph/MorphPart";
 import { IconButton } from "@/components/ui/IconButton";
 import { entryDayIso } from "@/features/events/domain/occurrence-day";
 import type { ScheduleEntry } from "@/features/events/domain/schedule";
@@ -10,6 +10,7 @@ import { JoinControl } from "@/features/events/ui/JoinControl";
 import { ProjectedNotice } from "@/features/events/ui/ProjectedNotice";
 import { longDayLabel } from "@/features/events/ui/schedule-dates";
 import { SessionAgenda } from "@/features/events/ui/SessionAgenda";
+import { SessionOpenLink } from "@/features/events/ui/SessionOpenLink";
 import { stillToHappen } from "@/features/events/ui/SessionPlace";
 import { SpotsPill } from "@/features/events/ui/SpotsPill";
 import type { User } from "@/features/identity/domain/user";
@@ -31,6 +32,9 @@ interface SessionPanelProps {
   now?: Date;
   className?: string;
   style?: CSSProperties;
+  /** Names the heading as the morph source into the session page. Given to one panel at most,
+   *  and only for a real session, or the morph aborts. */
+  morphId?: string;
 }
 
 const NO_TIME = "Time to be confirmed";
@@ -122,6 +126,7 @@ export function SessionPanel({
   now,
   className,
   style,
+  morphId,
 }: Readonly<SessionPanelProps>) {
   const panelRef = useRef<HTMLElement>(null);
   const openerRef = useRef<HTMLElement | null>(null);
@@ -191,7 +196,11 @@ export function SessionPanel({
               </p>
             )}
             <h2 className="font-display text-foreground mt-1 text-lg leading-tight font-bold">
-              {label}
+              <MorphPart part="title" id={morphId}>
+                <span className="inline-block max-w-full align-top">
+                  {label}
+                </span>
+              </MorphPart>
             </h2>
             <p
               data-testid="panel-when"
@@ -232,13 +241,11 @@ export function SessionPanel({
 
       {href !== null && (
         <div className="border-border bg-surface-sunken/40 border-t px-4 py-3">
-          <Link
-            to={href}
-            className="text-primary inline-flex items-center gap-1.5 text-sm font-semibold"
-          >
-            {entry.virtual ? "Open the preview" : "Open the session"}
-            <ExternalLink aria-hidden size={13} />
-          </Link>
+          <SessionOpenLink
+            entry={entry}
+            href={href}
+            {...(morphId !== undefined && { morphId })}
+          />
         </div>
       )}
     </aside>

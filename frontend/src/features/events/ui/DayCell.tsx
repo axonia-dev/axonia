@@ -1,6 +1,5 @@
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 
-import { sessionMorphId } from "@/components/patterns/morph/MorphPart";
 import type { GridCell } from "@/features/events/domain/month-grid";
 import type { ScheduleEntry } from "@/features/events/domain/schedule";
 import { resolveLabel } from "@/features/events/domain/schedule";
@@ -49,7 +48,6 @@ function DraggableChip({
   panelId,
   onSelect,
   onOpen,
-  morphId,
 }: Readonly<ChipProps>) {
   const { setNodeRef, listeners, transform, isDragging } = useDraggable({
     id: dragId(entry),
@@ -73,7 +71,6 @@ function DraggableChip({
         {...(panelId !== undefined && { panelId })}
         {...(onSelect && { onSelect })}
         {...(onOpen && { onOpen })}
-        {...(morphId !== undefined && { morphId })}
       />
     </div>
   );
@@ -136,9 +133,6 @@ export function DayCell({
       ...(panelId !== undefined && { panelId }),
       ...(onSelect && { onSelect: () => onSelect(entry) }),
       ...(onOpen && { onOpen: () => onOpen(entry) }),
-      ...(entry.sessionId !== null && {
-        morphId: sessionMorphId(entry.sessionId),
-      }),
     };
   }
 

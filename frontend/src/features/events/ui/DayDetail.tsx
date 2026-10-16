@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 
+import { sessionMorphId } from "@/components/patterns/morph/MorphPart";
 import type { ScheduleEntry } from "@/features/events/domain/schedule";
 import { resolveLabel } from "@/features/events/domain/schedule";
 import type { Series } from "@/features/events/domain/series";
@@ -34,6 +35,9 @@ export function SelectedSessionPanel({
    *  the page gives the calendar. */
   style?: CSSProperties;
 }>) {
+  const { sessionId } = selected;
+  // Both panels are mounted; only the one on the surface the pick was made from may carry the name.
+  const named = focusOnOpen && sessionId !== null;
   return (
     <SessionPanel
       entry={selected}
@@ -45,6 +49,7 @@ export function SelectedSessionPanel({
       onClose={onClose}
       {...(className !== undefined && { className })}
       {...(style !== undefined && { style })}
+      {...(named && { morphId: sessionMorphId(sessionId) })}
     />
   );
 }
