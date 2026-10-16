@@ -58,6 +58,10 @@ export function liftCurtain(): void {
   }
 }
 
+export function isCurtainUp(): boolean {
+  return document.querySelector(SELECTOR) !== null;
+}
+
 /** Removes the curtain for a backdrop to stand in its place: how dark it still was, 0 when none was up. */
 export function takeCurtain(): number {
   const curtain = document.querySelector<HTMLElement>(SELECTOR);

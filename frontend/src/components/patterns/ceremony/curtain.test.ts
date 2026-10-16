@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   fadeInCurtain,
+  isCurtainUp,
   liftCurtain,
   raiseCurtain,
   STAGE_DARK,
@@ -70,6 +71,17 @@ describe("the ceremony curtain", () => {
     // then
     expect(taken).toBeCloseTo(0.4);
     expect(curtains()).toHaveLength(0);
+  });
+
+  it("tells whether a curtain is up", () => {
+    // given
+    expect(isCurtainUp()).toBe(false);
+
+    // when
+    raiseCurtain();
+
+    // then
+    expect(isCurtainUp()).toBe(true);
   });
 
   it("hands nothing over when none is up", () => {
