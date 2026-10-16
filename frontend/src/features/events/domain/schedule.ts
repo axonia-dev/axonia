@@ -19,7 +19,7 @@ const scheduleSectionSchema = sectionSchema.extend({
   sessionId: z.number().nullable(),
 });
 
-const scheduleEntrySchema = z.object({
+export const scheduleEntrySchema = z.object({
   sessionId: z.number().nullable(),
   seriesId: z.number().nullable(),
   title: z.string().nullable(),

@@ -22,6 +22,7 @@ const ALLOWED: ReadonlyArray<Allowed> = [
   },
 
   // ISO locale codes fed to Intl APIs, not copy: "en-US" formats dates and happens to spell an allowed word.
+  { file: "features/events/domain/ribbon.ts", text: "en-US" },
   { file: "features/events/ui/action-item-labels.ts", text: "en-US" },
   { file: "features/events/ui/schedule-dates.ts", text: "en-US" },
   { file: "features/events/ui/timeline/timeline.ts", text: "en-US" },
