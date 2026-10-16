@@ -1,14 +1,15 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { RouterProvider } from "react-aria-components";
 import {
-  BrowserRouter,
+  unstable_HistoryRouter as HistoryRouter,
   useHref,
   useNavigate,
   useRoutes,
 } from "react-router-dom";
 
 import { AppAuthProvider } from "@/auth/AppAuthProvider";
+import { createMorphHistory } from "@/components/patterns/morph/morph-history";
 import { SidebarProvider } from "@/components/patterns/SidebarProvider";
 import { ToastViewport } from "@/components/ui/toast";
 import type { Edition } from "@/edition";
@@ -21,6 +22,7 @@ import { ThemeProvider } from "@/theme/ThemeProvider";
 
 export default function App({ edition }: Readonly<{ edition: Edition }>) {
   const { AppFrame } = edition;
+  const [history] = useState(createMorphHistory);
   return (
     <EditionProvider edition={edition}>
       <AppAuthProvider sessionlessPaths={edition.sessionlessPaths}>
@@ -28,7 +30,7 @@ export default function App({ edition }: Readonly<{ edition: Edition }>) {
           <ThemeProvider>
             <SidebarProvider>
               <ToastViewport />
-              <BrowserRouter>
+              <HistoryRouter history={history}>
                 <TelemetryView />
                 <AriaRouterProvider>
                   {/* Above the whole table, public routes included: what the edition frames the
@@ -37,7 +39,7 @@ export default function App({ edition }: Readonly<{ edition: Edition }>) {
                     <EditionRoutes edition={edition} />
                   </AppFrame>
                 </AriaRouterProvider>
-              </BrowserRouter>
+              </HistoryRouter>
             </SidebarProvider>
           </ThemeProvider>
         </QueryClientProvider>
