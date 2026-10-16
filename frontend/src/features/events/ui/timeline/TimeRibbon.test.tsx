@@ -1,6 +1,6 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import type { RibbonSpan, RibbonTick } from "@/features/events/domain/ribbon";
 import {
@@ -85,17 +85,28 @@ describe("TimeRibbon", () => {
     expect(nowLine?.style.left).toBe(`${fractionOf(NOW, SPAN) * 100}%`);
   });
 
-  it("paints the now line and the ticks above a see-through lens", () => {
+  it("paints the now line and the ticks above a faintly tinted accent lens", () => {
     // when
     const { container } = setup();
     // then
-    const lens = container.querySelector<HTMLElement>(".border-foreground");
+    const lens = container.querySelector<HTMLElement>("[data-ribbon-lens]");
     const marks = container.querySelector<HTMLElement>("[data-ribbon-marks]");
     expect(lens?.className).toContain("z-10");
-    expect(lens?.className).not.toMatch(/\bbg-/);
+    expect(lens?.className).toContain("border-primary");
+    expect(lens?.className).toContain("bg-primary/10");
     expect(marks?.className).toContain("z-20");
     expect(marks?.querySelector("[data-now-line]")).not.toBeNull();
     expect(marks?.querySelectorAll("[data-kind]")).toHaveLength(IN_SPAN.length);
+  });
+
+  it("outlines the track with a hairline and no fill", () => {
+    // when
+    const { container } = setup();
+    // then
+    const track = container.querySelector<HTMLElement>("[data-ribbon-track]");
+    expect(track?.className).toContain("border");
+    expect(track?.className).not.toMatch(/\bbg-/);
+    expect(track?.childElementCount).toBe(0);
   });
 
   it.each([
@@ -173,5 +184,63 @@ describe("TimeRibbon", () => {
     setup();
     // then
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  describe("cover", () => {
+    const real = window.IntersectionObserver;
+    let report: (sentinelTop: number) => void = () => {};
+
+    beforeAll(() => {
+      window.IntersectionObserver = class {
+        constructor(private readonly callback: IntersectionObserverCallback) {}
+        observe(target: Element) {
+          report = (sentinelTop) =>
+            this.callback(
+              [
+                {
+                  target,
+                  boundingClientRect: { top: sentinelTop } as DOMRectReadOnly,
+                  rootBounds: { top: 60 } as DOMRectReadOnly,
+                } as IntersectionObserverEntry,
+              ],
+              this as unknown as IntersectionObserver,
+            );
+        }
+        disconnect() {}
+      } as unknown as typeof IntersectionObserver;
+    });
+
+    afterAll(() => {
+      window.IntersectionObserver = real;
+    });
+
+    const cover = (container: HTMLElement) =>
+      container.querySelector<HTMLElement>("[data-ribbon-cover]");
+
+    it("stays clear at rest, so the band sits on the page", () => {
+      // given
+      const { container } = setup();
+      // when
+      act(() => report(120));
+      // then
+      expect(cover(container)?.className).toContain("opacity-0");
+    });
+
+    it("covers the band once stuck under the topbar, and clears again on the way back", () => {
+      // given
+      const { container } = setup();
+      // when
+      act(() => report(59));
+      // then
+      expect(cover(container)?.className).toContain("opacity-100");
+      expect(cover(container)?.className).not.toContain("transition");
+      // when
+      act(() => report(60));
+      // then
+      expect(cover(container)?.className).toContain("opacity-0");
+      expect(cover(container)?.className).toContain(
+        "motion-safe:transition-opacity",
+      );
+    });
   });
 });

@@ -5,9 +5,8 @@ import type {
   PointerEvent,
   ReactNode,
 } from "react";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 
-import { PAGE_GUTTER_BLEED_X } from "@/components/patterns/page-gutter";
 import type { RibbonSpan, RibbonTick } from "@/features/events/domain/ribbon";
 import {
   atFraction,
@@ -19,6 +18,7 @@ import {
   ticksIn,
 } from "@/features/events/domain/ribbon";
 import { upcomingGlow } from "@/features/events/domain/upcoming-glow";
+import { useStuck } from "@/features/events/ui/timeline/use-stuck";
 import { cn } from "@/lib/cn";
 
 interface Props {
@@ -82,6 +82,26 @@ function tickStyle(tick: RibbonTick, span: RibbonSpan, nowMs: number) {
     opacity: 0.55 + 0.45 * strength,
     boxShadow: `0 0 6px color-mix(in srgb, var(--primary) ${Math.round(60 * strength)}%, transparent)`,
   };
+}
+
+/** The topbar's surface, bled across `<main>` and faded out below; ink overflow, so it never scrolls. */
+const COVER_FADE_PX = 14;
+const COVER: CSSProperties = {
+  borderImage: `linear-gradient(to bottom, var(--background) calc(100% - ${COVER_FADE_PX}px), transparent) fill 0 / 0 / 0 100vmax ${COVER_FADE_PX}px`,
+};
+
+function Cover({ shown }: Readonly<{ shown: boolean }>) {
+  return (
+    <span
+      aria-hidden="true"
+      data-ribbon-cover=""
+      style={COVER}
+      className={cn(
+        "pointer-events-none absolute inset-0 -z-10",
+        shown ? "opacity-100" : "opacity-0 motion-safe:transition-opacity",
+      )}
+    />
+  );
 }
 
 const TICK_CLASS: Record<RibbonTick["kind"], string> = {
@@ -181,6 +201,8 @@ export function TimeRibbon({
   const shown = ticksIn(ticks, span);
   const pointer = useScrubbing(span, shown, onScrub);
   const nowFraction = fractionOf(nowMs, span);
+  const [sentinel, setSentinel] = useState<HTMLDivElement | null>(null);
+  const stuck = useStuck(sentinel);
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     const at = keyTarget(event.key, shown, { lensMs, nowMs });
@@ -190,83 +212,78 @@ export function TimeRibbon({
   }
 
   return (
-    <div
-      data-time-ribbon=""
-      className={cn(
-        "bg-background border-border sticky top-0 z-10 mb-3 border-b px-7 pt-2 pb-1.5",
-        PAGE_GUTTER_BLEED_X,
-      )}
-    >
-      <div className="flex items-center gap-2">
-        {onFurtherBack && (
-          <StepButton onPress={onFurtherBack}>
-            <ChevronLeft size={14} aria-hidden="true" />
-            Further back
-          </StepButton>
-        )}
-        <div className="min-w-0 flex-1">
-          <div
-            role="slider"
-            tabIndex={0}
-            aria-label="Schedule timeline"
-            aria-valuemin={span.fromMs}
-            aria-valuemax={span.toMs}
-            aria-valuenow={Math.min(span.toMs, Math.max(span.fromMs, lensMs))}
-            aria-valuetext={valueText(lensMs)}
-            onKeyDown={onKeyDown}
-            {...pointer}
-            className="focus-visible:ring-primary/40 relative h-11 cursor-ew-resize touch-none rounded-lg outline-none select-none focus-visible:ring-2"
-          >
-            <div className="border-border absolute inset-x-0 top-[5px] h-[34px] overflow-hidden rounded-lg border">
-              <div
-                aria-hidden="true"
-                className="bg-paper absolute inset-y-0 left-0"
-                style={{ width: percent(nowFraction) }}
-              />
-              <div
-                aria-hidden="true"
-                className="bg-primary/7 absolute inset-y-0 right-0"
-                style={{ left: percent(nowFraction) }}
-              />
-            </div>
-            <span
-              aria-hidden="true"
-              style={{ left: lensLeft(fractionOf(lensMs, span)) }}
-              className="border-foreground pointer-events-none absolute inset-y-0 z-10 w-[46px] -translate-x-1/2 rounded-lg border-2 motion-safe:transition-[left] motion-safe:duration-75"
-            />
+    <>
+      <div ref={setSentinel} aria-hidden="true" className="-mb-px h-px" />
+      <div
+        data-time-ribbon=""
+        className="sticky top-0 z-10 mb-3 px-1 pt-2 pb-1.5"
+      >
+        <Cover shown={stuck} />
+        <div className="flex items-center gap-2">
+          {onFurtherBack && (
+            <StepButton onPress={onFurtherBack}>
+              <ChevronLeft size={14} aria-hidden="true" />
+              Further back
+            </StepButton>
+          )}
+          <div className="min-w-0 flex-1">
             <div
-              data-ribbon-marks=""
-              className="pointer-events-none absolute inset-x-0 top-[5px] z-20 h-[34px] overflow-hidden rounded-lg"
+              role="slider"
+              tabIndex={0}
+              aria-label="Schedule timeline"
+              aria-valuemin={span.fromMs}
+              aria-valuemax={span.toMs}
+              aria-valuenow={Math.min(span.toMs, Math.max(span.fromMs, lensMs))}
+              aria-valuetext={valueText(lensMs)}
+              onKeyDown={onKeyDown}
+              {...pointer}
+              className="focus-visible:ring-primary/40 relative h-11 cursor-ew-resize touch-none rounded-lg outline-none select-none focus-visible:ring-2"
             >
-              {shown.map((tick, index) => (
-                <span
-                  key={`${tick.kind}-${tick.at}-${index}`}
-                  data-kind={tick.kind}
-                  aria-hidden="true"
-                  style={tickStyle(tick, span, nowMs)}
-                  className={cn(
-                    "absolute bottom-1 -translate-x-1/2 rounded-sm",
-                    TICK_CLASS[tick.kind],
-                  )}
-                />
-              ))}
-              <span
-                data-now-line=""
+              <div
+                data-ribbon-track=""
                 aria-hidden="true"
-                style={{ left: percent(nowFraction) }}
-                className="bg-primary absolute inset-y-0 w-0.5 -translate-x-1/2"
+                className="border-border-strong absolute inset-x-0 top-[5px] h-[34px] rounded-lg border"
               />
+              <span
+                aria-hidden="true"
+                style={{ left: lensLeft(fractionOf(lensMs, span)) }}
+                data-ribbon-lens=""
+                className="border-primary bg-primary/10 pointer-events-none absolute inset-y-0 z-10 w-[46px] -translate-x-1/2 rounded-lg border-[1.5px] motion-safe:transition-[left] motion-safe:duration-75"
+              />
+              <div
+                data-ribbon-marks=""
+                className="pointer-events-none absolute inset-x-0 top-[5px] z-20 h-[34px] overflow-hidden rounded-lg"
+              >
+                {shown.map((tick, index) => (
+                  <span
+                    key={`${tick.kind}-${tick.at}-${index}`}
+                    data-kind={tick.kind}
+                    aria-hidden="true"
+                    style={tickStyle(tick, span, nowMs)}
+                    className={cn(
+                      "absolute bottom-1 -translate-x-1/2 rounded-sm",
+                      TICK_CLASS[tick.kind],
+                    )}
+                  />
+                ))}
+                <span
+                  data-now-line=""
+                  aria-hidden="true"
+                  style={{ left: percent(nowFraction) }}
+                  className="bg-primary absolute inset-y-0 w-0.5 -translate-x-1/2"
+                />
+              </div>
             </div>
+            <MonthLabels span={span} nowMs={nowMs} />
           </div>
-          <MonthLabels span={span} nowMs={nowMs} />
+          {onBackToToday && (
+            <StepButton onPress={onBackToToday}>
+              <Undo2 size={14} aria-hidden="true" />
+              Back to today
+            </StepButton>
+          )}
         </div>
-        {onBackToToday && (
-          <StepButton onPress={onBackToToday}>
-            <Undo2 size={14} aria-hidden="true" />
-            Back to today
-          </StepButton>
-        )}
       </div>
-    </div>
+    </>
   );
 }
