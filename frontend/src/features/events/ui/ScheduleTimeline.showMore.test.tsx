@@ -11,6 +11,7 @@ vi.mock("@/features/events/api/use-memories", () => ({ useMemories: vi.fn() }));
 vi.mock("@/features/events/api/use-ribbon", () => ({ useRibbon: vi.fn() }));
 vi.mock("@/features/events/api/invalidate-memories", () => ({
   invalidateMemories: vi.fn(),
+  invalidateRibbons: vi.fn(),
 }));
 
 afterEach(() => {

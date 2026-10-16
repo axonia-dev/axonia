@@ -4,7 +4,10 @@ import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { httpEventsGateway } from "@/features/events/adapters/http-events-gateway";
-import { invalidateMemories } from "@/features/events/api/invalidate-memories";
+import {
+  invalidateMemories,
+  invalidateRibbons,
+} from "@/features/events/api/invalidate-memories";
 import { scheduleKeys } from "@/features/events/api/query-keys";
 import { useCloseSession } from "@/features/events/api/use-session";
 
@@ -44,6 +47,18 @@ describe("invalidateMemories", () => {
 
     expect(stale(memories)).toBe(true);
     expect(stale(ribbon)).toBe(false);
+    expect(stale(window)).toBe(false);
+  });
+});
+
+describe("invalidateRibbons", () => {
+  it("marks ribbons stale and leaves memories and the schedule window alone", async () => {
+    seed();
+
+    await invalidateRibbons(client);
+
+    expect(stale(ribbon)).toBe(true);
+    expect(stale(memories)).toBe(false);
     expect(stale(window)).toBe(false);
   });
 });

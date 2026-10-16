@@ -112,16 +112,16 @@ export function stepTick(
   return nearestTick(candidates, currentMs);
 }
 
+/** The session nearest a month on, among those that lie that way: never back against the key. */
 export function stepMonth(
   ticks: RibbonTick[],
   currentMs: number,
   direction: 1 | -1,
 ): RibbonTick | null {
-  const others = ticks.filter((t) => msOf(t) !== currentMs);
-  return nearestTick(
-    others.length > 0 ? others : ticks,
-    shiftMonths(currentMs, direction),
+  const ahead = ticks.filter((t) =>
+    direction === 1 ? msOf(t) > currentMs : msOf(t) < currentMs,
   );
+  return nearestTick(ahead, shiftMonths(currentMs, direction));
 }
 
 export function monthMarks(

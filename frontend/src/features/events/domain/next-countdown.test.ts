@@ -18,21 +18,20 @@ const at = (offsetMs: number) => new Date(startMs + offsetMs);
 const MIN = 60_000;
 
 describe("countdown phases", () => {
-  it("counts days out and wakes at the next whole second", () => {
+  it("counts days out and wakes the page as the last hour opens", () => {
     const now = new Date(startMs - 2 * 86_400_000 + 400);
     expect(countdownPhase(entry, now)).toEqual({
       kind: "counting",
       msLeft: 2 * 86_400_000 - 400,
     });
-    expect(countdownWakeAt(entry, now)).toBe(
-      Math.floor(now.getTime() / 1000) * 1000 + 1000,
-    );
+    expect(countdownWakeAt(entry, now)).toBe(startMs - 60 * MIN);
   });
 
-  it("enters the last hour", () => {
+  it("enters the last hour and wakes the page at the start", () => {
     const now = at(-(42 * MIN + 10_000));
     expect(countdownPhase(entry, now)?.kind).toBe("last-hour");
     expect(lastHourLabel(42 * MIN + 10_000)).toBe("Starts in 42:10");
+    expect(countdownWakeAt(entry, now)).toBe(startMs);
   });
 
   it("runs from the start until the end and wakes at the end", () => {
@@ -85,5 +84,6 @@ describe("countdown reading", () => {
       "starts in 2 hours 1 minute",
     );
     expect(countdownSpeech(42 * MIN)).toBe("starts in 42 minutes");
+    expect(countdownSpeech(59_000)).toBe("starts in under a minute");
   });
 });

@@ -36,6 +36,12 @@ const msOf = (tick: RibbonTick | null | undefined) =>
 
 const percent = (fraction: number) => `${fraction * 100}%`;
 
+/** Centred under its month, sliding to left or right alignment toward the edges so it is never cut. */
+const labelPlace = (fraction: number): CSSProperties => ({
+  left: percent(fraction),
+  transform: `translateX(-${percent(fraction)})`,
+});
+
 /** The lens stays whole inside the track at either end. */
 const lensLeft = (fraction: number) =>
   `clamp(23px, ${percent(fraction)}, calc(100% - 23px))`;
@@ -110,10 +116,10 @@ function MonthLabels({
       {monthMarks(span).map((mark) => (
         <span
           key={mark.atMs}
-          style={{ left: percent(fractionOf(mark.atMs, span)) }}
+          style={labelPlace(fractionOf(mark.atMs, span))}
           className={cn(
-            "absolute top-0 -translate-x-1/2 max-sm:[&:nth-child(even)]:hidden",
-            mark.atMs < nowMs ? "text-ink-sepia-soft" : "text-muted-foreground",
+            "absolute top-0 max-sm:[&:nth-child(even)]:hidden",
+            mark.atMs < nowMs ? "text-ink-sepia" : "text-muted-foreground",
           )}
         >
           {mark.label}
@@ -201,7 +207,7 @@ export function TimeRibbon({
             aria-label="Schedule timeline"
             aria-valuemin={span.fromMs}
             aria-valuemax={span.toMs}
-            aria-valuenow={lensMs}
+            aria-valuenow={Math.min(span.toMs, Math.max(span.fromMs, lensMs))}
             aria-valuetext={valueText(lensMs)}
             onKeyDown={onKeyDown}
             {...pointer}
@@ -218,9 +224,9 @@ export function TimeRibbon({
                 className="bg-primary/7 absolute inset-y-0 right-0"
                 style={{ left: percent(nowFraction) }}
               />
-              {shown.map((tick) => (
+              {shown.map((tick, index) => (
                 <span
-                  key={`${tick.kind}-${tick.at}`}
+                  key={`${tick.kind}-${tick.at}-${index}`}
                   data-kind={tick.kind}
                   aria-hidden="true"
                   style={tickStyle(tick, span, nowMs)}

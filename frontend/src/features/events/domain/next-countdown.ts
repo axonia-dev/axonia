@@ -35,11 +35,14 @@ export function countdownPhase(entry: Timed, now: Date): CountdownPhase | null {
     : { kind: "counting", msLeft };
 }
 
+/** The next phase change: the last hour opening, the start, then the end. Ticks within a phase are
+ *  the countdown's own business, so the page is not woken every second. */
 export function countdownWakeAt(entry: Timed, now: Date): number | null {
   const phase = countdownPhase(entry, now);
   if (phase === null || phase.kind === "ended") return null;
   if (phase.kind === "running") return endOfEntry(entry);
-  return (Math.floor(now.getTime() / SECOND) + 1) * SECOND;
+  const startMs = now.getTime() + phase.msLeft;
+  return phase.kind === "counting" ? startMs - HOUR : startMs;
 }
 
 export function hasEnded(entry: Timed, now: Date): boolean {
@@ -72,5 +75,6 @@ export function countdownSpeech(msLeft: number): string {
   if (hours > 0) {
     return `starts in ${unit(hours, "hour")} ${unit(minutes, "minute")}`;
   }
+  if (minutes === 0) return "starts in under a minute";
   return `starts in ${unit(minutes, "minute")}`;
 }

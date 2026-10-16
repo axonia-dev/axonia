@@ -89,4 +89,52 @@ describe("NextCountdown", () => {
     expect(container.firstElementChild).toHaveAttribute("aria-hidden", "true");
     expect(container.querySelector("[aria-live]")).toBeNull();
   });
+
+  it("schedules no per-second tick while off screen", () => {
+    // given an observer that reports the countdown out of view
+    const real = window.IntersectionObserver;
+    window.IntersectionObserver = class {
+      constructor(private readonly report: IntersectionObserverCallback) {}
+      observe(target: Element) {
+        this.report(
+          [{ target, isIntersecting: false } as IntersectionObserverEntry],
+          this as unknown as IntersectionObserver,
+        );
+      }
+      disconnect() {}
+    } as unknown as typeof IntersectionObserver;
+    at(3_600_000 * 5);
+    // when
+    const { container } = render(<NextCountdown entry={entry()} />);
+    const shown = container.textContent;
+    // then: the one timer left is the page's wake for the last hour
+    expect(vi.getTimerCount()).toBe(1);
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
+    expect(container.textContent).toBe(shown);
+    window.IntersectionObserver = real;
+  });
+
+  it("schedules no per-second tick while the tab is hidden", () => {
+    // given
+    const visibility = vi
+      .spyOn(document, "visibilityState", "get")
+      .mockReturnValue("hidden");
+    at(3_600_000 * 5);
+    // when
+    render(<NextCountdown entry={entry()} />);
+    // then
+    expect(vi.getTimerCount()).toBe(1);
+    visibility.mockRestore();
+  });
+
+  it("ticks once each second while seen", () => {
+    // given
+    at(3_600_000 * 5);
+    // when
+    render(<NextCountdown entry={entry()} />);
+    // then: the page's phase wake and the countdown's own second
+    expect(vi.getTimerCount()).toBe(2);
+  });
 });

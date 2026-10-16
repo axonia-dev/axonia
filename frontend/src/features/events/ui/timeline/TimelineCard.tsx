@@ -29,7 +29,9 @@ import {
 } from "@/features/events/ui/timeline/timeline";
 import type { User } from "@/features/identity/domain/user";
 import { cn } from "@/lib/cn";
-import { useNow } from "@/lib/use-wake-at";
+import { useLocalClock } from "@/lib/use-local-clock";
+
+const MINUTE = 60_000;
 
 interface Props {
   entry: ScheduleEntry;
@@ -180,7 +182,8 @@ export function TimelineCard({
   nextUp,
   users,
 }: Readonly<Props>) {
-  const now = useNow();
+  // The next card's spoken countdown has minute resolution; every other card waits for phase changes.
+  const now = useLocalClock(MINUTE, nextUp);
   const peek = nextUp ? sneakPeek(entry) : null;
   const muted = entry.virtual || entry.status === "HELD";
   const { sessionId } = entry;

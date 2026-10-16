@@ -1,3 +1,5 @@
+import { memo } from "react";
+
 import type { Memory } from "@/features/events/domain/memory";
 import { agoLabel, memoryFade } from "@/features/events/domain/memory";
 import { entryDayIso } from "@/features/events/domain/occurrence-day";
@@ -19,7 +21,7 @@ interface Props {
   arriving?: boolean;
 }
 
-export function MemoryRow({
+function MemoryRowView({
   memory,
   label,
   href,
@@ -61,3 +63,15 @@ export function MemoryRow({
     </li>
   );
 }
+
+const sameRow = (a: Readonly<Props>, b: Readonly<Props>) =>
+  a.memory.entry === b.memory.entry &&
+  a.memory.traces === b.memory.traces &&
+  a.label === b.label &&
+  a.href === b.href &&
+  a.todayIso === b.todayIso &&
+  a.canManage === b.canManage &&
+  a.arriving === b.arriving;
+
+/** A memory the page re-derives is a new object each render, so rows compare what they show. */
+export const MemoryRow = memo(MemoryRowView, sameRow);

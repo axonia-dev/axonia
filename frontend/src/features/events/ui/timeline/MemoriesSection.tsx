@@ -44,7 +44,7 @@ export function MemoriesSection({
   }, [rootRef, scroller]);
 
   const items = buildMemoryTimeline(memories, arriving);
-  if (items.length === 0 && !isError) return null;
+  if (items.length === 0 && !isError && loadOlder === null) return null;
   return (
     <div className="relative flex flex-col">
       <div

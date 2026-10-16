@@ -21,6 +21,7 @@ import { RibbonBar } from "@/features/events/ui/timeline/RibbonBar";
 import type { TimelineItem } from "@/features/events/ui/timeline/timeline";
 import {
   buildTimeline,
+  entryAtMs,
   entryKey,
   occurrenceHref,
 } from "@/features/events/ui/timeline/timeline";
@@ -79,6 +80,10 @@ function loadOlderOf(
 ) {
   if (!query.hasNextPage || query.isFetchingNextPage) return null;
   return () => void query.fetchNextPage();
+}
+
+function oldestOf(memories: Memory[]): number {
+  return Math.min(Infinity, ...memories.map((m) => entryAtMs(m.entry)));
 }
 
 function entriesOf(memories: Memory[], ahead: ScheduleEntry[]) {
@@ -159,6 +164,7 @@ export function ScheduleTimeline({
         nowMs={nowMs}
         lensMs={lensMs}
         hasContent={items.length > 0 || memories.length > 0}
+        oldestShownMs={oldestOf(memories)}
         memoriesQuery={memoriesQuery}
         valueText={ribbonValueText(entriesOf(memories, ahead), {
           labelOf,

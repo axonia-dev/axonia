@@ -22,9 +22,14 @@ export function ribbonValueText(
   for (const entry of entries) {
     const iso = entryDayIso(entry);
     if (iso !== "") {
+      const at = entryAtMs(entry);
+      const same = sessions.get(at);
+      // Two sessions at one instant are both named rather than one hiding the other.
       sessions.set(
-        entryAtMs(entry),
-        `${ribbonDayLabel(iso)}, ${labelOf(entry)}`,
+        at,
+        same === undefined
+          ? `${ribbonDayLabel(iso)}, ${labelOf(entry)}`
+          : `${same} and ${labelOf(entry)}`,
       );
     }
   }

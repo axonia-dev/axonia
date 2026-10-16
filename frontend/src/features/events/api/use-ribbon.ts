@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 import { httpEventsGateway } from "@/features/events/adapters/http-events-gateway";
 import { scheduleKeys } from "@/features/events/api/query-keys";
@@ -9,5 +9,7 @@ export function useRibbon(slug: string, fromIso: string, toIso: string) {
   return useQuery({
     queryKey: scheduleKeys.ribbon(slug, fromIso, toIso),
     queryFn: () => gateway.getRibbon(slug, fromIso, toIso),
+    // Show more and Further back keep the ticks on screen while the next window loads.
+    placeholderData: keepPreviousData,
   });
 }

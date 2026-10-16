@@ -53,6 +53,7 @@ describe("mergeMemories", () => {
           next: null,
         },
       ],
+      [],
     );
     // then
     expect(memories.map((m) => m.entry.sessionId)).toEqual([2, 1]);
@@ -66,7 +67,11 @@ describe("mergeMemories", () => {
       traces: { loves: 4, recorded: true, artifacts: 1 },
     };
     // when
-    const memories = mergeMemories([local], [{ items: [served], next: null }]);
+    const memories = mergeMemories(
+      [local],
+      [{ items: [served], next: null }],
+      [],
+    );
     // then
     expect(memories).toEqual([served]);
   });
@@ -75,16 +80,29 @@ describe("mergeMemories", () => {
     // given
     const local = on(5, "2026-10-16T09:00:00Z");
     // when
-    const memories = mergeMemories([local], []);
+    const memories = mergeMemories([local], [], []);
     // then
     expect(memories).toEqual([{ entry: local, traces: NO_TRACES }]);
+  });
+
+  it("leaves a served session out while it is still ahead here", () => {
+    // given a session the server lists from its start, still running locally
+    const running = on(5, "2026-10-16T11:30:00Z");
+    // when
+    const memories = mergeMemories(
+      [],
+      [{ items: [{ entry: running, traces: NO_TRACES }], next: null }],
+      [running],
+    );
+    // then
+    expect(memories).toEqual([]);
   });
 
   it("leaves out a projected occurrence that passed unopened", () => {
     // given
     const ghost = { ...on(5, "2026-10-16T09:00:00Z"), sessionId: null };
     // when
-    const memories = mergeMemories([ghost], []);
+    const memories = mergeMemories([ghost], [], []);
     // then
     expect(memories).toEqual([]);
   });

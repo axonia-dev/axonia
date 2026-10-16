@@ -82,13 +82,15 @@ export function renderTimeline(given: TimelineGiven = {}) {
   const view = (next: TimelineGiven) => (
     <QueryClientProvider client={new QueryClient()}>
       <MemoryRouter>
-        <ScheduleTimeline
-          slug={next.slug ?? "x"}
-          fromIso={fromIso}
-          toIso={next.toIso ?? "2026-09-01T00:00:00.000Z"}
-          {...(next.showMore === false ? {} : { onShowMore })}
-          canManage={next.canManage ?? false}
-        />
+        <main>
+          <ScheduleTimeline
+            slug={next.slug ?? "x"}
+            fromIso={fromIso}
+            toIso={next.toIso ?? "2026-09-01T00:00:00.000Z"}
+            {...(next.showMore === false ? {} : { onShowMore })}
+            canManage={next.canManage ?? false}
+          />
+        </main>
       </MemoryRouter>
     </QueryClientProvider>
   );

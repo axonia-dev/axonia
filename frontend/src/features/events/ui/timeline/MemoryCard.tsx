@@ -1,5 +1,5 @@
 import { FileText, Heart, Video } from "lucide-react";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 import {
   MorphPart,
@@ -28,14 +28,11 @@ function counted(count: number, noun: string): string {
   return `${count} ${noun}${count === 1 ? "" : "s"}`;
 }
 
-function Trace({
-  text,
-  children,
-}: Readonly<{ text: string; children: ReactNode }>) {
+/** Seen, not heard: the link's name speaks every trace, so the list stays out of the way. */
+function Trace({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <li className="inline-flex items-center gap-1">
+    <li aria-hidden="true" className="inline-flex items-center gap-1">
       {children}
-      <span className="sr-only">{text}</span>
     </li>
   );
 }
@@ -45,19 +42,19 @@ function Traces({ traces }: Readonly<{ traces: Memory["traces"] }>) {
   return (
     <ul className="text-ink-sepia mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
       {loves > 0 && (
-        <Trace text={counted(loves, "love")}>
+        <Trace>
           <Heart size={13} aria-hidden="true" />
           <span aria-hidden="true">{loves}</span>
         </Trace>
       )}
       {recorded && (
-        <Trace text="Recording">
+        <Trace>
           <Video size={13} aria-hidden="true" />
           <span aria-hidden="true">Recording</span>
         </Trace>
       )}
       {artifacts > 0 && (
-        <Trace text={counted(artifacts, "artifact")}>
+        <Trace>
           <FileText size={13} aria-hidden="true" />
           <span aria-hidden="true">{counted(artifacts, "artifact")}</span>
         </Trace>
@@ -74,11 +71,22 @@ function spokenTraces({ loves, recorded, artifacts }: Memory["traces"]) {
   ].filter((part) => part !== null);
 }
 
-/** The timeline card's name, then the traces a sighted reader sees under it. */
-function memoryName(memory: Memory, label: string): string {
+/** The timeline card's name, then what a sighted reader sees under it: traces or the open answer. */
+function memoryName(memory: Memory, label: string, canManage: boolean): string {
   const name = accessibleName(memory.entry, label);
-  if (isAwaitingAnswer(memory.entry)) return name;
-  return [name, ...spokenTraces(memory.traces)].join(", ");
+  if (!isAwaitingAnswer(memory.entry)) {
+    return [name, ...spokenTraces(memory.traces)].join(", ");
+  }
+  return canManage ? `${name}, awaiting an answer` : name;
+}
+
+/** Age fades the paper toward the page, never the ink, so the text keeps its contrast. */
+function paperStyle(fade: number): CSSProperties {
+  const paper = Math.round(fade * 100);
+  return {
+    backgroundColor: `color-mix(in srgb, var(--paper) ${paper}%, var(--background))`,
+    "--memory-edge": `color-mix(in srgb, var(--paper-edge) ${paper}%, var(--background))`,
+  } as CSSProperties;
 }
 
 function metaLine({ entry }: Memory): string {
@@ -106,9 +114,9 @@ export function MemoryCard({
       <SessionMorphLink
         sessionId={sessionId}
         to={href}
-        aria-label={memoryName(memory, label)}
-        style={{ opacity: fade }}
-        className="bg-paper border-paper-edge text-ink-sepia group-hover:border-ink-sepia-soft block rounded-md border p-4 transition-[border-color] duration-200"
+        aria-label={memoryName(memory, label, canManage)}
+        style={paperStyle(fade)}
+        className="text-ink-sepia group-hover:border-ink-sepia-soft block rounded-md border border-[color:var(--memory-edge)] p-4 transition-[border-color] duration-200"
       >
         <MorphPart
           part="title"

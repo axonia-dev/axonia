@@ -67,7 +67,7 @@ function setup(memory: Memory, canManage = false) {
 }
 
 describe("MemoryCard", () => {
-  it("shows each trace with its count spoken", () => {
+  it("shows each trace with its count", () => {
     // when
     setup({
       entry: entry(),
@@ -75,9 +75,8 @@ describe("MemoryCard", () => {
     });
     // then
     expect(screen.getByText("9")).toBeInTheDocument();
-    expect(screen.getByText("9 loves")).toBeInTheDocument();
-    expect(screen.getAllByText("Recording").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("2 artifacts").length).toBeGreaterThan(0);
+    expect(screen.getByText("Recording")).toBeInTheDocument();
+    expect(screen.getByText("2 artifacts")).toBeInTheDocument();
   });
 
   it("hides every trace at zero", () => {
@@ -96,8 +95,10 @@ describe("MemoryCard", () => {
       traces: { loves: 1, recorded: false, artifacts: 1 },
     });
     // then
-    expect(screen.getByText("1 love")).toBeInTheDocument();
-    expect(screen.getAllByText("1 artifact").length).toBeGreaterThan(0);
+    expect(screen.getByRole("link")).toHaveAccessibleName(
+      /1 love, 1 artifact$/,
+    );
+    expect(screen.getByText("1 artifact")).toBeInTheDocument();
   });
 
   it("counts filled slots as talks", () => {
@@ -154,7 +155,7 @@ describe("MemoryCard", () => {
     setup(memory);
     // then
     expect(screen.queryByText("Awaiting an answer")).not.toBeInTheDocument();
-    expect(screen.queryByText("3 loves")).not.toBeInTheDocument();
+    expect(screen.queryByText("3")).not.toBeInTheDocument();
   });
 
   it("shows the awaiting chip instead of traces for a manager", () => {
@@ -162,6 +163,9 @@ describe("MemoryCard", () => {
     setup({ entry: entry({ status: "SCHEDULED" }), traces: NO_TRACES }, true);
     // then
     expect(screen.getByText("Awaiting an answer")).toBeInTheDocument();
+    expect(screen.getByRole("link")).toHaveAccessibleName(
+      /, awaiting an answer$/,
+    );
   });
 
   it("speaks the traces after the card's name", () => {
@@ -213,6 +217,15 @@ describe("MemoryCard", () => {
       name: accessibleName(e, "Frontend Dojo"),
     });
     expect(link).toHaveAttribute("href", "/s/7");
+  });
+
+  it("fades the paper with age and leaves the ink whole", () => {
+    // when
+    setup({ entry: entry(), traces: NO_TRACES });
+    // then
+    const link = screen.getByRole("link");
+    expect(link.style.opacity).toBe("");
+    expect(link.style.backgroundColor).toContain("var(--paper) 80%");
   });
 
   it("names the surface and title like a timeline card", () => {

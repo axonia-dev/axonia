@@ -119,11 +119,13 @@ describe("ticks", () => {
     expect(stepTick(all, ms(a.at), -1)).toBeNull();
   });
 
-  it("steps about a month, never staying on its own tick", () => {
+  it("steps about a month the way of the key, null at the ends", () => {
     expect(stepMonth(all, ms(a.at), 1)).toBe(b);
     expect(stepMonth(all, ms(b.at), -1)).toBe(a);
     expect(stepMonth(all, ms(c.at), -1)).toBe(b);
-    expect(stepMonth([a], ms(a.at), 1)).toBe(a);
+    expect(stepMonth([a], ms(a.at), 1)).toBeNull();
+    expect(stepMonth(all, ms(c.at), 1)).toBeNull();
+    expect(stepMonth(all, ms(a.at), -1)).toBeNull();
     expect(stepMonth([], ms(a.at), 1)).toBeNull();
   });
 });

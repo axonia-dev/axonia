@@ -1,7 +1,10 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
-import { invalidateMemories } from "@/features/events/api/invalidate-memories";
+import {
+  invalidateMemories,
+  invalidateRibbons,
+} from "@/features/events/api/invalidate-memories";
 import { useMemories } from "@/features/events/api/use-memories";
 import { endOfEntry } from "@/features/events/domain/next-countdown";
 import type { ScheduleEntry } from "@/features/events/domain/schedule";
@@ -57,7 +60,9 @@ function useArrivals(
   if (next !== null) setState(next);
 
   useEffect(() => {
-    if (state.arriving.size > 0) void invalidateMemories(queryClient);
+    if (state.arriving.size === 0) return;
+    void invalidateMemories(queryClient);
+    void invalidateRibbons(queryClient);
   }, [state.arriving, queryClient]);
   return state.arriving;
 }
@@ -71,6 +76,6 @@ export function useMemoryStream(
   useWakeAt(nextEnd(ahead));
   const memoriesQuery = useMemories(slug);
   const arriving = useArrivals(ended, schedule !== undefined);
-  const memories = mergeMemories(ended, memoriesQuery.data?.pages ?? []);
+  const memories = mergeMemories(ended, memoriesQuery.data?.pages ?? [], ahead);
   return { now, ahead, memories, arriving, memoriesQuery };
 }

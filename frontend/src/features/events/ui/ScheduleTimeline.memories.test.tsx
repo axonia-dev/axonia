@@ -15,6 +15,7 @@ vi.mock("@/features/events/api/use-memories", () => ({ useMemories: vi.fn() }));
 vi.mock("@/features/events/api/use-ribbon", () => ({ useRibbon: vi.fn() }));
 vi.mock("@/features/events/api/invalidate-memories", () => ({
   invalidateMemories: vi.fn(),
+  invalidateRibbons: vi.fn(),
 }));
 
 const FROM = "2026-10-16T00:00:00.000Z";
@@ -122,6 +123,36 @@ describe("ScheduleTimeline memories", () => {
     // then
     expect(linkNamed("Morning sync")).toHaveLength(1);
     expect(linkNamed("Morning sync")[0]).toHaveAccessibleName(/3 loves/);
+  });
+
+  it("keeps a running session the server already serves as one live card below Today", () => {
+    // given ten minutes into the session
+    renderTimeline({
+      fromIso: FROM,
+      now: "2026-10-16T09:10:00Z",
+      schedule: { data: [today] },
+      memories: { pages: [[{ entry: today, traces: NO_TRACES }]] },
+    });
+    // then
+    const cards = linkNamed("Morning sync");
+    expect(cards).toHaveLength(1);
+    expect(precedes(screen.getByText("Today"), cards[0]!)).toBe(true);
+    expect(screen.getByText("Running now")).toBeInTheDocument();
+  });
+
+  it("keeps an untimed session today below Today though the server serves it", () => {
+    // given
+    const untimed = { ...today, hasTime: false, scheduledAt: FROM };
+    renderTimeline({
+      fromIso: FROM,
+      now: "2026-10-16T15:00:00Z",
+      schedule: { data: [untimed] },
+      memories: { pages: [[{ entry: untimed, traces: NO_TRACES }]] },
+    });
+    // then
+    const cards = linkNamed("Morning sync");
+    expect(cards).toHaveLength(1);
+    expect(precedes(screen.getByText("Today"), cards[0]!)).toBe(true);
   });
 
   it("shows no ribbon and the empty message with nothing at all", () => {

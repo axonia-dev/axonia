@@ -39,15 +39,15 @@ function rowsOf(root: HTMLElement | null): HTMLElement[] {
 
 const atOf = (row: HTMLElement) => Number(row.dataset.at);
 
-function lensAt(
+/** The row being read: the last one whose top is above the reading line, else the first. */
+function readRow(
   root: HTMLElement | null,
   scroller: HTMLElement,
-): number | null {
+): HTMLElement | null {
   const rows = rowsOf(root);
   const line = readingLine(scroller);
   const read = rows.filter((row) => row.getBoundingClientRect().top <= line);
-  const row = read.at(-1) ?? rows[0];
-  return row === undefined ? null : atOf(row);
+  return read.at(-1) ?? rows[0] ?? null;
 }
 
 function nearestRow(rows: HTMLElement[], atMs: number): HTMLElement | null {
@@ -85,8 +85,7 @@ export function useTimelineScroll({
   );
   const [lensMs, setLensMs] = useState<number | null>(null);
   const positioned = useRef(false);
-  const previousCount = useRef(memoryCount);
-  const previousHeight = useRef<number | null>(null);
+  const anchor = useRef<{ row: HTMLElement; top: number } | null>(null);
 
   const scroller = useCallback(
     () => rootRef.current?.closest("main") ?? null,
@@ -107,18 +106,16 @@ export function useTimelineScroll({
     main.scrollTop = todayTop - main.clientHeight / 3;
   }, [ready, restored, scroller, todayRef]);
 
+  // Memories landing above the row being read (an older page, a session that just ended) would
+  // push it down; moving `<main>` by the same amount keeps the reader's place. It only reads
+  // layout when the memories changed, never on the renders in between.
   useLayoutEffect(() => {
     const main = scroller();
-    if (main === null) return;
-    if (
-      memoryCount > previousCount.current &&
-      previousHeight.current !== null
-    ) {
-      main.scrollTop += main.scrollHeight - previousHeight.current;
-    }
-    previousCount.current = memoryCount;
-    previousHeight.current = main.scrollHeight;
-  });
+    const held = anchor.current;
+    if (main === null || held === null || !held.row.isConnected) return;
+    const moved = held.row.getBoundingClientRect().top - held.top;
+    if (moved !== 0) main.scrollTop += moved;
+  }, [memoryCount, scroller]);
 
   useEffect(() => {
     const main = scroller();
@@ -126,7 +123,10 @@ export function useTimelineScroll({
     let frame: number | null = null;
     const measure = () => {
       frame = null;
-      setLensMs(lensAt(rootRef.current, main));
+      const row = readRow(rootRef.current, main);
+      anchor.current =
+        row === null ? null : { row, top: row.getBoundingClientRect().top };
+      setLensMs(row === null ? null : atOf(row));
     };
     const onScroll = () => {
       frame ??= requestAnimationFrame(measure);

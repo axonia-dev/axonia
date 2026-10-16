@@ -105,6 +105,9 @@ HTMLAnchorElement.prototype.click = function downloadAnchorClickNoop() {};
 if (typeof Element.prototype.scrollIntoView !== "function") {
   Element.prototype.scrollIntoView = function scrollIntoViewNoop() {};
 }
+if (typeof Element.prototype.scrollTo !== "function") {
+  Element.prototype.scrollTo = function scrollToNoop() {};
+}
 
 afterEach(() => {
   cleanup();

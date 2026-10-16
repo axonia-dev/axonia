@@ -119,23 +119,34 @@ describe("useTimelineScroll", () => {
     expect(main.scrollTop).toBe(250);
   });
 
-  it("keeps the view still when older memories land above it", () => {
-    // given
+  it("keeps the row being read still when memories land above it", async () => {
+    // given the row at 110 is being read
     const { main, update } = setup({ ready: false, count: 1 });
-    Object.defineProperty(main, "scrollHeight", {
-      configurable: true,
-      value: 1000,
+    await waitFor(() => {
+      expect(screen.getByRole("status")).toHaveTextContent("2000");
     });
-    update({ ready: false, count: 1 });
     main.scrollTop = 300;
-    Object.defineProperty(main, "scrollHeight", {
-      configurable: true,
-      value: 1400,
-    });
-    // when
+    // when an older page pushes it 400px down
+    document.querySelector<HTMLElement>('[data-at="2000"]')!.dataset.top =
+      "510";
     update({ ready: false, count: 2 });
     // then
     expect(main.scrollTop).toBe(700);
+  });
+
+  it("reads no layout on a render that adds no memory", async () => {
+    // given
+    const { main, update } = setup({ ready: false, count: 1 });
+    await waitFor(() => {
+      expect(screen.getByRole("status")).toHaveTextContent("2000");
+    });
+    main.scrollTop = 300;
+    document.querySelector<HTMLElement>('[data-at="2000"]')!.dataset.top =
+      "510";
+    // when
+    update({ ready: false, count: 1 });
+    // then
+    expect(main.scrollTop).toBe(300);
   });
 
   it("reads the lens off the last row above the reading line", async () => {

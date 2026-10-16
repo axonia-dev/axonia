@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import {
   countdownParts,
   countdownPhase,
@@ -5,16 +7,37 @@ import {
   lastHourLabel,
 } from "@/features/events/domain/next-countdown";
 import type { ScheduleEntry } from "@/features/events/domain/schedule";
+import {
+  useLocalClock,
+  useOnScreen,
+  usePageVisible,
+} from "@/lib/use-local-clock";
 import { useNow, useWakeAt } from "@/lib/use-wake-at";
 
+const SECOND = 1000;
+
+function showsSeconds(entry: ScheduleEntry, now: Date): boolean {
+  const kind = countdownPhase(entry, now)?.kind;
+  return kind === "counting" || kind === "last-hour";
+}
+
+/** Ticks each second on its own clock while seen; the page only wakes for the phase changes. */
 export function NextCountdown({ entry }: Readonly<{ entry: ScheduleEntry }>) {
-  const now = useNow();
-  useWakeAt(countdownWakeAt(entry, now));
+  const [element, setElement] = useState<HTMLElement | null>(null);
+  const onScreen = useOnScreen(element);
+  const pageVisible = usePageVisible();
+  const pageNow = useNow();
+  const ticking = onScreen && pageVisible && showsSeconds(entry, pageNow);
+  const now = useLocalClock(SECOND, ticking);
+  useWakeAt(countdownWakeAt(entry, pageNow));
   const phase = countdownPhase(entry, now);
   if (phase === null || phase.kind === "ended") return null;
   if (phase.kind === "running") {
     return (
-      <p className="text-primary-strong mt-2 inline-flex items-center gap-2 text-xs font-semibold">
+      <p
+        ref={setElement}
+        className="text-primary-strong mt-2 inline-flex items-center gap-2 text-xs font-semibold"
+      >
         <span
           aria-hidden="true"
           className="timeline-beacon bg-primary size-2 rounded-full"
@@ -25,7 +48,10 @@ export function NextCountdown({ entry }: Readonly<{ entry: ScheduleEntry }>) {
   }
   if (phase.kind === "last-hour") {
     return (
-      <p className="text-primary-strong font-display mt-2 text-sm font-semibold tabular-nums">
+      <p
+        ref={setElement}
+        className="text-primary-strong font-display mt-2 text-sm font-semibold tabular-nums"
+      >
         {lastHourLabel(phase.msLeft)}
       </p>
     );
@@ -39,6 +65,7 @@ export function NextCountdown({ entry }: Readonly<{ entry: ScheduleEntry }>) {
   ];
   return (
     <div
+      ref={setElement}
       aria-hidden="true"
       className="font-display mt-2 flex gap-1 tabular-nums"
     >

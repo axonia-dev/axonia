@@ -66,6 +66,13 @@ describe("TimeRibbon", () => {
     expect(slider).toHaveAttribute("aria-valuetext", `at ${LENS}`);
   });
 
+  it("reports a lens outside the span at the span's edge", () => {
+    // when
+    const { slider } = setup({ lensMs: SPAN.toMs + 86_400_000 });
+    // then
+    expect(slider).toHaveAttribute("aria-valuenow", String(SPAN.toMs));
+  });
+
   it("draws one tick per session in the span, and the now line at today", () => {
     // when
     const { container } = setup();
