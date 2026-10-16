@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 
 import { useMainScroll } from "@/components/patterns/main-scroll";
+import { MorphPage } from "@/components/patterns/morph/MorphPage";
 import type { NavGroup, NavItem } from "@/components/patterns/nav-types";
 import { shellChrome } from "@/components/patterns/shell-chrome";
 import { type ShellTab, ShellTabBar } from "@/components/patterns/ShellTabBar";
@@ -96,14 +97,16 @@ export function AppShell({
             theirs is the initial containing block, so <main>'s overflow does not clip them
             and each one below the fold extends the *document's* scroll area: a second
             scrollbar beside main's own, scrolling nothing but empty space. */}
-        <main
-          ref={mainRef}
-          onScroll={onMainScroll}
-          className="relative min-h-0 flex-1 overflow-y-auto"
-          style={mainStyle}
-        >
-          <div className={mainClassName}>{children}</div>
-        </main>
+        <MorphPage>
+          <main
+            ref={mainRef}
+            onScroll={onMainScroll}
+            className="relative min-h-0 flex-1 overflow-y-auto"
+            style={mainStyle}
+          >
+            <div className={mainClassName}>{children}</div>
+          </main>
+        </MorphPage>
       </div>
 
       <ShellTabBar

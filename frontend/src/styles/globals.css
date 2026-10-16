@@ -609,13 +609,21 @@ html {
   :root:active-view-transition-type(morph)::view-transition-new(*) {
     animation-duration: 322ms;
   }
-  :root:active-view-transition-type(morph)::view-transition-old(root) {
+  :root:active-view-transition-type(morph)::view-transition-group(.morph-page) {
+    animation: none;
+  }
+  :root:active-view-transition-type(morph)::view-transition-old(root),
+  :root:active-view-transition-type(morph)::view-transition-old(.morph-page) {
     animation: 160ms ease-out both morph-fade-out;
   }
-  :root:active-view-transition-type(morph)::view-transition-new(root) {
+  :root:active-view-transition-type(morph)::view-transition-new(root),
+  :root:active-view-transition-type(morph)::view-transition-new(.morph-page) {
     animation: 276ms cubic-bezier(0.22, 0.8, 0.24, 1) 138ms both morph-rise-in;
   }
-  :root:active-view-transition-type(morph-back)::view-transition-new(root) {
+  :root:active-view-transition-type(morph-back)::view-transition-new(root),
+  :root:active-view-transition-type(morph-back)::view-transition-new(
+      .morph-page
+    ) {
     animation-name: morph-fade-in;
     animation-delay: 92ms;
   }
@@ -648,6 +656,12 @@ html {
     ):only-child {
     animation-name: morph-fade-in;
     animation-delay: 92ms;
+  }
+  :root:active-view-transition-type(morph)::view-transition-group(
+      .morph-cover
+    ) {
+    overflow: clip;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   }
   :root:active-view-transition-type(morph)::view-transition-old(.morph-cover),
   :root:active-view-transition-type(morph)::view-transition-new(.morph-cover) {
