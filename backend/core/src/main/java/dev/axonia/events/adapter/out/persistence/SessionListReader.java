@@ -141,7 +141,7 @@ public class SessionListReader implements SessionListing {
             params.addValue("from", Timestamp.from(query.from()));
         }
         if (query.to() != null && query.beforeId() != null) {
-            sql.append(" AND (scheduled_at < :to OR (scheduled_at = :to AND id < :beforeId))");
+            sql.append(" AND (scheduled_at, id) < (:to, :beforeId)");
             params.addValue("to", Timestamp.from(query.to())).addValue("beforeId", query.beforeId());
         } else if (query.to() != null) {
             sql.append(" AND scheduled_at < :to");

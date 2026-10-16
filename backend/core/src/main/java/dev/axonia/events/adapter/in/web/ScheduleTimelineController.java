@@ -17,12 +17,11 @@ import dev.axonia.events.api.MemoryPage;
 import dev.axonia.events.api.Ribbon;
 import dev.axonia.events.application.MemoryService;
 import dev.axonia.events.application.ScheduleRibbonService;
+import dev.axonia.shared.api.error.ValidationException;
 import lombok.RequiredArgsConstructor;
 
 /**
- * The scrubbable schedule's two reads. No class-level {@code @Validated}: Spring MVC validates the {@code size} bounds
- * itself and answers 400, where the AOP proxy {@code @Validated} adds would throw a
- * {@code ConstraintViolationException} instead.
+ * No class-level {@code @Validated}: MVC's own method validation answers 400 on {@code size}, the AOP proxy would not.
  */
 @RestController
 @RequestMapping("/${spring.application.name}")
@@ -32,15 +31,18 @@ class ScheduleTimelineController {
     private final MemoryService memoryService;
     private final ScheduleRibbonService scheduleRibbonService;
 
-    /** {@code before} and {@code beforeId} are the previous page's {@code next}, and absent on the first page. */
+    /** {@code before} and {@code beforeId} are the previous page's {@code next}: both, or neither on the first page. */
     @GetMapping("/communities/{slug}/schedule/memories")
     MemoryPage memories(@PathVariable String slug,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant before,
             @RequestParam(required = false) Long beforeId,
             @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size) {
 
-        var cursor = before == null || beforeId == null ? null : new MemoryCursor(before, beforeId);
-        return memoryService.memories(slug, cursor, size);
+        if (before == null != (beforeId == null)) {
+            throw new ValidationException("MEMORY_CURSOR_INCOMPLETE",
+                    "A memories cursor needs both before and beforeId");
+        }
+        return memoryService.memories(slug, before == null ? null : new MemoryCursor(before, beforeId), size);
     }
 
     @GetMapping("/communities/{slug}/schedule/ribbon")

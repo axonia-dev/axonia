@@ -16,13 +16,7 @@ import dev.axonia.events.application.port.out.OrganizationContext;
 import dev.axonia.events.application.port.out.SessionListing;
 import lombok.RequiredArgsConstructor;
 
-/**
- * A community's past sessions, newest first, each with the traces it left, paged backward by a keyset cursor.
- *
- * <p>
- * A skipped occurrence never happened, so it is no memory, yet it still advances the cursor: dropping it after the read
- * rather than in it keeps a page that happens to be all skips from reading as the last page.
- */
+/** Past sessions newest first with their traces; a skipped one is no memory but still advances the keyset cursor. */
 @Service
 @RequiredArgsConstructor
 public class MemoryService {

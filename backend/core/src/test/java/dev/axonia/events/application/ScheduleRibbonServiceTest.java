@@ -64,7 +64,7 @@ class ScheduleRibbonServiceTest {
         var to = Instant.parse("2026-12-01T00:00:00Z");
         when(sessionListing.instants("default", 5L, from, NOW))
                 .thenReturn(List.of(Instant.parse("2026-09-10T18:00:00Z")));
-        when(scheduleService.schedule(ahead(NOW, to))).thenReturn(List.of(
+        when(scheduleService.schedule(ahead(from, to))).thenReturn(List.of(
                 entry("2026-11-10T18:00:00Z", SessionStatus.SCHEDULED, true),
                 entry("2026-10-20T18:00:00Z", SessionStatus.SCHEDULED, false),
                 entry("2026-10-21T18:00:00Z", SessionStatus.CANCELLED, false),
@@ -82,6 +82,30 @@ class ScheduleRibbonServiceTest {
                 new RibbonTick(Instant.parse("2026-09-10T18:00:00Z"), RibbonTick.Kind.MEMORY),
                 new RibbonTick(Instant.parse("2026-10-20T18:00:00Z"), RibbonTick.Kind.UPCOMING),
                 new RibbonTick(Instant.parse("2026-11-10T18:00:00Z"), RibbonTick.Kind.PROJECTED));
+    }
+
+    /**
+     * An occurrence anchored ahead but moved to an instant already past only suppresses its anchor's projection when
+     * the schedule reads its real row, so the schedule is asked from the window's own start, never from now.
+     */
+    @Test
+    void anOccurrenceMovedIntoThePastLeavesNoProjectionAtItsAnchor() {
+
+        // given
+        given();
+        var from = Instant.parse("2026-10-01T00:00:00Z");
+        var to = Instant.parse("2026-11-01T00:00:00Z");
+        var moved = Instant.parse("2026-10-12T18:00:00Z");
+        when(sessionListing.instants("default", 5L, from, NOW)).thenReturn(List.of(moved));
+        when(scheduleService.schedule(ahead(from, to)))
+                .thenReturn(List.of(entry("2026-10-12T18:00:00Z", SessionStatus.HELD, false)));
+        when(sessionListing.firstSessionAt("default", 5L)).thenReturn(Optional.of(moved));
+
+        // when
+        var actual = sut.ribbon("frontend", from, to);
+
+        // then
+        assertThat(actual.ticks()).containsExactly(new RibbonTick(moved, RibbonTick.Kind.MEMORY));
     }
 
     @Test
@@ -151,7 +175,7 @@ class ScheduleRibbonServiceTest {
         var from = Instant.parse("2023-01-01T00:00:00Z");
         var to = from.plus(Duration.ofDays(1500));
         when(sessionListing.instants("default", 5L, from, NOW)).thenReturn(List.of());
-        when(scheduleService.schedule(ahead(NOW, to))).thenReturn(List.of());
+        when(scheduleService.schedule(ahead(from, to))).thenReturn(List.of());
         when(sessionListing.firstSessionAt("default", 5L)).thenReturn(Optional.empty());
 
         // when

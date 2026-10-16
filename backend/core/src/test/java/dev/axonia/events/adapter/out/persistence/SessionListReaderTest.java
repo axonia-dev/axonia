@@ -305,6 +305,8 @@ class SessionListReaderTest extends CoreJdbcTestSupport {
         save(null, communityId, "SKIPPED", Instant.parse("2026-05-04T10:00:00Z"));
         save(null, communityId, "HELD", Instant.parse("2026-06-01T00:00:00Z"));
         save(null, communityId, "HELD", Instant.parse("2026-04-30T23:59:59Z"));
+        saveIn("acme", communityId, Instant.parse("2026-05-05T10:00:00Z"));
+        save(null, communityId(), "HELD", Instant.parse("2026-05-06T10:00:00Z"));
 
         // when
         var actual = sut.instants("default", communityId, Instant.parse("2026-05-01T00:00:00Z"),
@@ -324,6 +326,8 @@ class SessionListReaderTest extends CoreJdbcTestSupport {
         save(null, communityId, "SKIPPED", Instant.parse("2025-02-01T10:00:00Z"));
         save(null, communityId, "HELD", Instant.parse("2025-03-01T10:00:00Z"));
         save(null, communityId, "SCHEDULED", Instant.parse("2099-01-01T10:00:00Z"));
+        saveIn("acme", communityId, Instant.parse("2024-01-01T10:00:00Z"));
+        save(null, communityId(), "HELD", Instant.parse("2024-02-01T10:00:00Z"));
 
         // when
         var actual = sut.firstSessionAt("default", communityId);
@@ -483,6 +487,14 @@ class SessionListReaderTest extends CoreJdbcTestSupport {
     private Long save(Long seriesId, Long communityId, String status, Instant at) {
 
         return saveWithSections(seriesId, communityId, at, List.of(), status);
+    }
+
+    /** A kept session in another organization: only the organization predicate can exclude it. */
+    private void saveIn(String organizationId, Long communityId, Instant at) {
+
+        sessionRepository.save(SessionEntity.builder().organizationId(organizationId).communityId(communityId)
+                .status("HELD").scheduledAt(at).occurrenceDate(at.atOffset(ZoneOffset.UTC).toLocalDate()).notes("")
+                .recordingUrl("").sections(new ArrayList<>()).build());
     }
 
     private Long saveWithSections(Long seriesId, Long communityId, Instant at, List<SectionEntity> sections) {

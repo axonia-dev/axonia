@@ -25,8 +25,7 @@ import lombok.Builder;
  * defined against it, and {@link Window#BETWEEN} needs none.
  *
  * <p>
- * {@code beforeId} turns {@code to} into a keyset cursor: sessions strictly before {@code to}, plus those exactly at it
- * whose id is lower, which is the order {@link Window#PAST} reads in. Null leaves {@code to} a plain exclusive bound.
+ * {@code beforeId} makes {@code to} a keyset cursor on {@code (scheduled_at, id)}, the order {@link Window#PAST} reads.
  *
  * <p>
  * {@code status} narrows any window to one status, and null - the usual case - leaves it as the window defines it. It

@@ -25,6 +25,10 @@ import lombok.RequiredArgsConstructor;
 /**
  * The schedule's time scrubber: the window's past sessions as memories, and from now on what the schedule plans or a
  * series projects. The past is read from the sessions alone, because a projection of the past is no memory.
+ *
+ * <p>
+ * The schedule is asked for the whole window, not from now: an occurrence moved from a future anchor to a past instant
+ * only suppresses its anchor's projection when its real row is read, and anything before now is dropped afterwards.
  */
 @Service
 @RequiredArgsConstructor
@@ -58,7 +62,7 @@ public class ScheduleRibbonService {
         }
         if (to.isAfter(now)) {
             ticks.addAll(ahead(ScheduleQuery.builder().organizationId(organizationId).communityId(communityId)
-                    .from(later(from, now)).to(to).now(now).build()));
+                    .from(from).to(to).now(now).build()));
         }
         ticks.sort(Comparator.comparing(RibbonTick::at));
         return new Ribbon(sessionListing.firstSessionAt(organizationId, communityId).orElse(null), ticks);
@@ -80,10 +84,5 @@ public class ScheduleRibbonService {
     private static Instant earlier(Instant a, Instant b) {
 
         return a.isBefore(b) ? a : b;
-    }
-
-    private static Instant later(Instant a, Instant b) {
-
-        return a.isAfter(b) ? a : b;
     }
 }

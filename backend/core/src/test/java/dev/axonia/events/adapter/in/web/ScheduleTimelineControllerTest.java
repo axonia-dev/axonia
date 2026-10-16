@@ -18,9 +18,9 @@ import dev.axonia.events.api.ScheduleEntry;
 import dev.axonia.events.api.SessionStatus;
 import dev.axonia.events.application.MemoryService;
 import dev.axonia.events.application.ScheduleRibbonService;
+import dev.axonia.shared.api.error.ValidationException;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -75,18 +75,24 @@ class ScheduleTimelineControllerTest extends ControllerTestSupport {
     }
 
     @Test
-    void aHalfCursorReadsAsTheFirstPage() {
+    void aCursorWithoutItsIdIsRefused() {
 
-        // given
-        when(memoryService.memories("frontend", null, 20)).thenReturn(new MemoryPage(List.of(), null));
-
-        // when
         var actual = mvc.get()
                 .uri("/axonia/communities/{slug}/schedule/memories?before=2026-09-01T18:00:00Z", "frontend").exchange();
 
-        // then
-        assertThat(actual).hasStatus(200);
-        verify(memoryService).memories("frontend", null, 20);
+        assertThat(actual).hasStatus(400);
+        assertThat(actual).bodyJson().extractingPath("$.code").isEqualTo("MEMORY_CURSOR_INCOMPLETE");
+        verifyNoInteractions(memoryService);
+    }
+
+    @Test
+    void aCursorIdWithoutItsInstantIsRefused() {
+
+        var actual = mvc.get().uri("/axonia/communities/{slug}/schedule/memories?beforeId=7", "frontend").exchange();
+
+        assertThat(actual).hasStatus(400);
+        assertThat(actual).bodyJson().extractingPath("$.code").isEqualTo("MEMORY_CURSOR_INCOMPLETE");
+        verifyNoInteractions(memoryService);
     }
 
     @Test
@@ -127,5 +133,44 @@ class ScheduleTimelineControllerTest extends ControllerTestSupport {
         assertThat(actual).bodyJson().extractingPath("$.firstSessionAt").isEqualTo("2024-01-01T00:00:00Z");
         assertThat(actual).bodyJson().extractingPath("$.ticks[0].at").isEqualTo("2026-09-01T18:00:00Z");
         assertThat(actual).bodyJson().extractingPath("$.ticks[0].kind").isEqualTo("MEMORY");
+    }
+
+    @Test
+    void aRefusedRibbonWindowIsABadRequestWithItsCode() {
+
+        // given
+        var from = Instant.parse("2026-01-01T00:00:00Z");
+        when(scheduleRibbonService.ribbon("frontend", from, from)).thenThrow(
+                new ValidationException("RIBBON_WINDOW_EMPTY", "The ribbon window must end after it starts"));
+
+        // when
+        var actual = mvc.get()
+                .uri("/axonia/communities/{slug}/schedule/ribbon?from=2026-01-01T00:00:00Z&to=2026-01-01T00:00:00Z",
+                        "frontend")
+                .exchange();
+
+        // then
+        assertThat(actual).hasStatus(400);
+        assertThat(actual).bodyJson().extractingPath("$.code").isEqualTo("RIBBON_WINDOW_EMPTY");
+    }
+
+    @Test
+    void aRibbonWithoutItsEndIsRefused() {
+
+        var actual = mvc.get().uri("/axonia/communities/{slug}/schedule/ribbon?from=2026-01-01T00:00:00Z", "frontend")
+                .exchange();
+
+        assertThat(actual).hasStatus(400);
+        verifyNoInteractions(scheduleRibbonService);
+    }
+
+    @Test
+    void aRibbonWithoutItsStartIsRefused() {
+
+        var actual = mvc.get().uri("/axonia/communities/{slug}/schedule/ribbon?to=2026-01-01T00:00:00Z", "frontend")
+                .exchange();
+
+        assertThat(actual).hasStatus(400);
+        verifyNoInteractions(scheduleRibbonService);
     }
 }
