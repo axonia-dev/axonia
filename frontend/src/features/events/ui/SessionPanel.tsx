@@ -5,7 +5,11 @@ import { MorphPart } from "@/components/patterns/morph/MorphPart";
 import { IconButton } from "@/components/ui/IconButton";
 import { entryDayIso } from "@/features/events/domain/occurrence-day";
 import type { ScheduleEntry } from "@/features/events/domain/schedule";
-import { openSpotLabel, timeLabel } from "@/features/events/domain/schedule";
+import {
+  openSpotLabel,
+  pageTitleOf,
+  timeLabel,
+} from "@/features/events/domain/schedule";
 import { JoinControl } from "@/features/events/ui/JoinControl";
 import { ProjectedNotice } from "@/features/events/ui/ProjectedNotice";
 import { longDayLabel } from "@/features/events/ui/schedule-dates";
@@ -32,8 +36,9 @@ interface SessionPanelProps {
   now?: Date;
   className?: string;
   style?: CSSProperties;
-  /** Names the heading as the morph source into the session page. Given to one panel at most,
-   *  and only for a real session, or the morph aborts. */
+  /** Makes the panel the morph source into the session page, its heading travelling only when the
+   *  page heads the session with the same words. Given to one panel at most, and only for a real
+   *  session, or the morph aborts. */
   morphId?: string;
 }
 
@@ -196,7 +201,10 @@ export function SessionPanel({
               </p>
             )}
             <h2 className="font-display text-foreground mt-1 text-lg leading-tight font-bold">
-              <MorphPart part="title" id={morphId}>
+              <MorphPart
+                part="title"
+                id={label === pageTitleOf(entry) ? morphId : undefined}
+              >
                 <span className="inline-block max-w-full align-top">
                   {label}
                 </span>

@@ -36,12 +36,15 @@ export function MorphPart({
   id: string | undefined;
   children: ReactElement;
 }>): ReactElement {
-  if (id === undefined) return children;
   return (
     <ViewTransition
-      name={morphName(part, id)}
+      {...(id !== undefined && { name: morphName(part, id) })}
       default="none"
-      share={{ [MORPH]: morphClass(part), default: "none" }}
+      share={
+        id === undefined
+          ? "none"
+          : { [MORPH]: morphClass(part), default: "none" }
+      }
     >
       {children}
     </ViewTransition>

@@ -243,6 +243,7 @@ export function CommunityShell() {
       style={accentVariables(community)}
     >
       <AppShell
+        shell="community"
         railTestId="community-rail"
         renderSwitcher={(collapsed) =>
           communitySwitcher(isHub, community, collapsed)

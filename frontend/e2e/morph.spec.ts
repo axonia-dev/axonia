@@ -4,18 +4,22 @@ import { expect, test } from "@playwright/test";
 import {
   community,
   member,
-  paged,
   shellOfCommunity,
   SLUG,
   stubReads,
 } from "./community-home";
+import {
+  group,
+  groupsDuring,
+  morphsSeen,
+  noGroupsDuring,
+  recordMorphs,
+  stubImages,
+  stubLobby,
+} from "./morph-support";
 
 const SESSION_ID = 42;
 const TITLE = "Virtual threads deep dive";
-const PIXEL_PNG = Buffer.from(
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
-  "base64",
-);
 
 const pictured = {
   ...community,
@@ -23,8 +27,6 @@ const pictured = {
   badgeUrl: "/morph-badge.png",
 };
 
-const group = (part: string, id: string) =>
-  `::view-transition-group(morph-${part}-${id})`;
 const communityGroups = ["banner", "badge", "name"].map((part) =>
   group(part, `community-${SLUG}`),
 );
@@ -33,6 +35,34 @@ const sessionGroups = ["surface", "title"].map((part) =>
 );
 
 const inTwoDays = new Date(Date.now() + 2 * 86_400_000).toISOString();
+
+function agenda(talk: string) {
+  const slot = {
+    id: 1,
+    sectionId: 1,
+    position: 0,
+    presenterUserIds: [],
+    topicId: null,
+    title: talk,
+    notes: null,
+    durationMinutes: 30,
+    tags: [],
+  };
+  return [
+    {
+      id: 1,
+      sessionId: SESSION_ID,
+      position: 0,
+      sectionTypeId: null,
+      sectionType: null,
+      sectionTypeIcon: null,
+      sectionTypeAccentColor: null,
+      title: null,
+      durationMinutes: 30,
+      slots: [slot],
+    },
+  ];
+}
 
 const occurrence = {
   seriesId: null,
@@ -44,7 +74,7 @@ const occurrence = {
   durationMinutes: 60,
   seriesTimeZone: null,
   place: null,
-  sections: [],
+  sections: agenda(TITLE),
 };
 
 const session = {
@@ -65,94 +95,10 @@ const scheduleEntry = { ...occurrence, sessionId: SESSION_ID, virtual: false };
 
 const savedSession = {
   kind: "session",
-  session: { ...session, slotCount: 0 },
+  session: { ...session, slotCount: 1 },
   community: { ...community, accentColor: null },
   savedAt: "2026-06-02T00:00:00Z",
 };
-
-/** Every morph group any frame has painted since the document loaded or since `forgetMorphs`. */
-async function recordMorphs(page: Page): Promise<void> {
-  await page.addInitScript(() => {
-    const record = globalThis as { morphsSeen?: Set<string> };
-    record.morphsSeen = new Set();
-    const sample = () => {
-      for (const animation of document.getAnimations()) {
-        const pseudo =
-          (animation.effect as KeyframeEffect | null)?.pseudoElement ?? "";
-        if (pseudo.startsWith("::view-transition-group(morph-")) {
-          record.morphsSeen?.add(pseudo);
-        }
-      }
-      requestAnimationFrame(sample);
-    };
-    requestAnimationFrame(sample);
-  });
-}
-
-function morphsSeen(page: Page): Promise<string[]> {
-  return page.evaluate(() => [
-    ...((globalThis as { morphsSeen?: Set<string> }).morphsSeen ?? []),
-  ]);
-}
-
-async function forgetMorphs(page: Page): Promise<void> {
-  await page.evaluate(() => {
-    (globalThis as { morphsSeen?: Set<string> }).morphsSeen?.clear();
-  });
-}
-
-async function groupsDuring(
-  page: Page,
-  act: () => Promise<unknown>,
-  expected: string[],
-): Promise<void> {
-  await forgetMorphs(page);
-  await act();
-  await expect
-    .poll(() => morphsSeen(page), { timeout: 2000 })
-    .toEqual(expect.arrayContaining(expected));
-}
-
-/** Settles a few frames past the destination, so a morph that started is sure to be recorded. */
-async function noGroupsDuring(
-  page: Page,
-  act: () => Promise<unknown>,
-  arrived: () => Promise<void>,
-): Promise<void> {
-  await forgetMorphs(page);
-  await act();
-  await arrived();
-  await page.evaluate(
-    () =>
-      new Promise((done) => {
-        setTimeout(done, 600);
-      }),
-  );
-  expect(await morphsSeen(page)).toEqual([]);
-}
-
-/** The lobby lists its two sections from one path, told apart by the membership parameter. */
-async function stubLobby(
-  page: Page,
-  sections: { joined: unknown[]; explore: unknown[] },
-): Promise<void> {
-  await page.route(
-    (url) => url.pathname === "/axonia/communities",
-    (route) => {
-      const { searchParams } = new URL(route.request().url());
-      const joined = searchParams.get("membership") === "JOINED";
-      const content = joined ? sections.joined : sections.explore;
-      return route.fulfill({ json: paged(content) });
-    },
-  );
-}
-
-async function stubImages(page: Page): Promise<void> {
-  await page.route(
-    (url) => url.pathname.startsWith("/morph-"),
-    (route) => route.fulfill({ contentType: "image/png", body: PIXEL_PNG }),
-  );
-}
 
 async function visitLobby(page: Page): Promise<void> {
   await recordMorphs(page);
@@ -160,8 +106,15 @@ async function visitLobby(page: Page): Promise<void> {
     ...shellOfCommunity,
     [`/axonia/communities/${SLUG}`]: pictured,
   });
+  const fillers = Array.from({ length: 14 }, (_, index) => ({
+    ...community,
+    id: 100 + index,
+    slug: `filler-${index}`,
+    name: `Filler ${index}`,
+    role: "MEMBER",
+  }));
   await stubLobby(page, {
-    joined: [{ ...pictured, role: "ORGANIZER" }],
+    joined: [...fillers, { ...pictured, role: "ORGANIZER" }],
     explore: [],
   });
   await stubImages(page);
@@ -173,12 +126,21 @@ const tileOf = (page: Page) =>
 const heroHeading = (page: Page) =>
   page.getByRole("heading", { name: community.name });
 
-async function visitSession(page: Page, from: string): Promise<void> {
+const mainScrollTop = (page: Page) =>
+  page.locator("main").evaluate((main) => main.scrollTop);
+
+async function visitSession(
+  page: Page,
+  from: string,
+  talk = TITLE,
+): Promise<void> {
   await recordMorphs(page);
   await stubReads(page, {
     ...shellOfCommunity,
-    [`/axonia/communities/${SLUG}/schedule`]: [scheduleEntry],
-    [`/axonia/sessions/${SESSION_ID}`]: session,
+    [`/axonia/communities/${SLUG}/schedule`]: [
+      { ...scheduleEntry, sections: agenda(talk) },
+    ],
+    [`/axonia/sessions/${SESSION_ID}`]: { ...session, sections: agenda(talk) },
     "/axonia/me/saved": [savedSession],
   });
   await page.goto(from);
@@ -190,6 +152,8 @@ test("a lobby tile morphs into its hero, and back replays the morph", async ({
   // given
   await visitLobby(page);
   const tile = tileOf(page);
+  await tile.scrollIntoViewIfNeeded();
+  expect(await mainScrollTop(page)).toBeGreaterThan(0);
 
   // when / then
   await groupsDuring(page, () => tile.click(), communityGroups);
@@ -200,6 +164,7 @@ test("a lobby tile morphs into its hero, and back replays the morph", async ({
   await groupsDuring(page, () => page.goBack(), communityGroups);
   await expect(page).toHaveURL("/communities");
   await expect(tile).toBeInViewport();
+  expect(await mainScrollTop(page)).toBeGreaterThan(0);
 });
 
 test("a schedule card morphs into its session", async ({ page }) => {
@@ -213,6 +178,28 @@ test("a schedule card morphs into its session", async ({ page }) => {
     sessionGroups,
   );
   await expect(page).toHaveURL(`/communities/${SLUG}/sessions/${SESSION_ID}`);
+});
+
+test("a schedule card the session page heads otherwise morphs without its title", async ({
+  page,
+}) => {
+  // given
+  await visitSession(
+    page,
+    `/communities/${SLUG}/schedule?view=timeline`,
+    "Signals in React 19",
+  );
+
+  // when / then
+  await groupsDuring(
+    page,
+    () => page.getByRole("link", { name: TITLE }).click(),
+    [group("surface", `session-${SESSION_ID}`)],
+  );
+  await expect(page).toHaveURL(`/communities/${SLUG}/sessions/${SESSION_ID}`);
+  expect(await morphsSeen(page)).not.toContain(
+    group("title", `session-${SESSION_ID}`),
+  );
 });
 
 test("the breadcrumb is a plain link and never morphs", async ({ page }) => {
@@ -264,6 +251,17 @@ test("joining from Explore plays the welcome and never morphs", async ({
     () => expect(stage).toBeVisible(),
   );
   await expect(page).toHaveURL(`/communities/${SLUG}`);
+
+  // then the hero image survives the ceremony's end instead of being decoded again
+  const banners = page.locator("img[data-focal-image]");
+  await banners.evaluateAll((imgs) => {
+    for (const img of imgs) img.setAttribute("data-kept", "");
+  });
+  await expect(stage).toBeHidden({ timeout: 15_000 });
+  await expect(banners.first()).toBeVisible();
+  await expect(
+    page.locator("img[data-focal-image]:not([data-kept])"),
+  ).toHaveCount(0);
 });
 
 test("reduced motion opens the hero without a morph", async ({ page }) => {

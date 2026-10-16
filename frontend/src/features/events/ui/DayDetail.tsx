@@ -18,7 +18,7 @@ export function SelectedSessionPanel({
   slug,
   users,
   panelId,
-  focusOnOpen,
+  pickedHere,
   onClose,
   className,
   style,
@@ -28,7 +28,9 @@ export function SelectedSessionPanel({
   slug: string;
   users: Record<string, User>;
   panelId: string;
-  focusOnOpen: boolean;
+  /** Whether the pick was made on this panel's surface: only that panel takes the focus and is
+   *  the morph source, since both panels are mounted. */
+  pickedHere: boolean;
   onClose: () => void;
   className?: string;
   /** Geometry a class cannot express: the desktop panel's own left edge, computed from the width
@@ -36,8 +38,7 @@ export function SelectedSessionPanel({
   style?: CSSProperties;
 }>) {
   const { sessionId } = selected;
-  // Both panels are mounted; only the one on the surface the pick was made from may carry the name.
-  const named = focusOnOpen && sessionId !== null;
+  const named = pickedHere && sessionId !== null;
   return (
     <SessionPanel
       entry={selected}
@@ -45,7 +46,7 @@ export function SelectedSessionPanel({
       label={resolveLabel(selected, seriesList)}
       href={chipHref(selected, slug)}
       users={users}
-      focusOnOpen={focusOnOpen}
+      focusOnOpen={pickedHere}
       onClose={onClose}
       {...(className !== undefined && { className })}
       {...(style !== undefined && { style })}
@@ -67,7 +68,7 @@ interface DayDetailProps {
     selected: ScheduleEntry | null;
     users: Record<string, User>;
     panelId: string;
-    focusOnOpen: boolean;
+    pickedHere: boolean;
     onClose: () => void;
   };
 }
@@ -112,7 +113,7 @@ export function DayDetail({
           slug={slug}
           users={panel.users}
           panelId={panel.panelId}
-          focusOnOpen={panel.focusOnOpen}
+          pickedHere={panel.pickedHere}
           onClose={panel.onClose}
           className="mt-3"
         />

@@ -231,7 +231,7 @@ export function MonthCalendar({
             slug={slug}
             users={users}
             panelId={selection.desktopPanelId}
-            focusOnOpen={selection.focusOn("desktop")}
+            pickedHere={selection.pickedOn("desktop")}
             onClose={selection.close}
             style={{ left: PANEL_LEFT }}
             className="absolute top-0 hidden max-h-full w-[384px] md:flex"
@@ -262,7 +262,7 @@ export function MonthCalendar({
           selected: selection.entry,
           users,
           panelId: selection.phonePanelId,
-          focusOnOpen: selection.focusOn("phone"),
+          pickedHere: selection.pickedOn("phone"),
           onClose: selection.close,
         }}
       />

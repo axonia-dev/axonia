@@ -178,7 +178,12 @@ export function nextSessionMark(
  * "Session". The generic label is the last resort, for a session that is neither shaped nor
  * named.
  */
-export function sessionTitle(session: Session): string {
+export interface TitledSession {
+  title: string | null;
+  sections: ReadonlyArray<{ slots: ReadonlyArray<{ title: string | null }> }>;
+}
+
+export function sessionTitle(session: TitledSession): string {
   for (const section of session.sections) {
     const titled = section.slots.find(
       (slot) => slot.title !== null && slot.title.trim() !== "",

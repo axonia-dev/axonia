@@ -3,7 +3,10 @@ import type { CSSProperties, ReactNode } from "react";
 import { useMainScroll } from "@/components/patterns/main-scroll";
 import { MorphPage } from "@/components/patterns/morph/MorphPage";
 import type { NavGroup, NavItem } from "@/components/patterns/nav-types";
-import { shellChrome } from "@/components/patterns/shell-chrome";
+import {
+  shellChrome,
+  type ShellName,
+} from "@/components/patterns/shell-chrome";
 import { type ShellTab, ShellTabBar } from "@/components/patterns/ShellTabBar";
 import { useSidebar } from "@/components/patterns/SidebarProvider";
 import {
@@ -23,6 +26,7 @@ import { cn } from "@/lib/cn";
  *  assembling its own near-identical header. GlobalShell, CommunityShell and
  *  SettingsShell differ only in the data and slot content they pass in. */
 export function AppShell({
+  shell,
   railTestId,
   renderSwitcher,
   primary,
@@ -37,6 +41,8 @@ export function AppShell({
   mainStyle,
   children,
 }: Readonly<{
+  /** Which shell this is: a morph holds its chrome still only between pages of the same shell. */
+  shell: ShellName;
   railTestId: string;
   renderSwitcher: (collapsed: boolean) => ReactNode;
   primary: { label: string; items: ReadonlyArray<NavItem> };
@@ -63,7 +69,6 @@ export function AppShell({
   const { collapsed } = useSidebar();
   // Only <main> scrolls, so it keeps and restores its own position.
   const { ref: mainRef, onScroll: onMainScroll } = useMainScroll();
-  const shell = railTestId.replace(/-rail$/, "");
   return (
     <div className="bg-background text-foreground flex h-full flex-col overflow-hidden md:flex-row">
       <SideRail testId={railTestId} chrome={shellChrome("rail", shell)}>

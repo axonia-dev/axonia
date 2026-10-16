@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 export function ViewTransitionProbe({
   name,
   children,
-}: Readonly<{ name: string; children: ReactNode }>) {
+}: Readonly<{ name?: string | undefined; children: ReactNode }>) {
   return <div data-morph-name={name}>{children}</div>;
 }
 

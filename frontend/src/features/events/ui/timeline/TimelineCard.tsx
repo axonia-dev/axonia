@@ -1,20 +1,17 @@
-import type { ReactNode } from "react";
-import { Link } from "react-router-dom";
-
-import { MorphLink } from "@/components/patterns/morph/MorphLink";
 import {
   MorphPart,
   sessionMorphId,
 } from "@/components/patterns/morph/MorphPart";
-import { useReadySession } from "@/features/events/api/use-ready-session";
 import type { ScheduleEntry } from "@/features/events/domain/schedule";
 import {
   openSpotLabel,
+  pageTitleOf,
   presenterIdsOf,
   timeLabel,
 } from "@/features/events/domain/schedule";
 import { PresenterAvatars } from "@/features/events/ui/PresenterAvatars";
 import { ProjectedNotice } from "@/features/events/ui/ProjectedNotice";
+import { SessionMorphLink } from "@/features/events/ui/SessionMorphLink";
 import { displayNameOf } from "@/features/events/ui/SlotPresenter";
 import { SpotsPill } from "@/features/events/ui/SpotsPill";
 import type { SneakPeek } from "@/features/events/ui/timeline/timeline";
@@ -140,27 +137,6 @@ function CardFooter({
   );
 }
 
-function CardLink({
-  sessionId,
-  ...props
-}: Readonly<{
-  sessionId: number | null;
-  to: string;
-  "aria-label": string;
-  className: string;
-  children: ReactNode;
-}>) {
-  const session = useReadySession();
-  if (sessionId === null) return <Link {...props} />;
-  return (
-    <MorphLink
-      {...props}
-      ready={() => session.ready(sessionId)}
-      onIntent={() => session.prefetch(sessionId)}
-    />
-  );
-}
-
 export function TimelineCard({
   entry,
   label,
@@ -175,7 +151,7 @@ export function TimelineCard({
 
   return (
     <MorphPart part="surface" id={morphId}>
-      <CardLink
+      <SessionMorphLink
         sessionId={sessionId}
         to={href}
         aria-label={accessibleName(entry, label)}
@@ -193,7 +169,7 @@ export function TimelineCard({
           meta={metaLine(entry)}
           nextUp={nextUp}
           muted={muted}
-          morphId={morphId}
+          morphId={label === pageTitleOf(entry) ? morphId : undefined}
         />
         {peek !== null && (
           <p className="text-muted-foreground mt-1 text-sm">
@@ -202,7 +178,7 @@ export function TimelineCard({
         )}
         {entry.virtual && <ProjectedNotice className="mt-1" />}
         <CardFooter entry={entry} users={users} morphId={morphId} />
-      </CardLink>
+      </SessionMorphLink>
     </MorphPart>
   );
 }

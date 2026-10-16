@@ -12,9 +12,9 @@ vi.mock("react", async (original) => ({
     share,
     children,
   }: Readonly<{
-    name: string;
+    name?: string;
     default: string;
-    share: Record<string, string>;
+    share: string | Record<string, string>;
     children: ReactNode;
   }>) => (
     <div
@@ -29,7 +29,7 @@ vi.mock("react", async (original) => ({
 }));
 
 describe("MorphPart", () => {
-  it("renders the child as is without an id", () => {
+  it("keeps an inert boundary without an id", () => {
     // when
     render(
       <MorphPart part="badge" id={undefined}>
@@ -38,8 +38,38 @@ describe("MorphPart", () => {
     );
 
     // then
-    expect(screen.getByText("badge")).toBeInTheDocument();
-    expect(screen.queryByTestId("view-transition")).toBeNull();
+    const boundary = screen.getByTestId("view-transition");
+    expect(boundary).toContainElement(screen.getByText("badge"));
+    expect(boundary).not.toHaveAttribute("data-name");
+    expect(boundary).toHaveAttribute("data-default", "none");
+    expect(boundary).toHaveAttribute("data-share", '"none"');
+  });
+
+  it("keeps the same child node when the id comes and goes", () => {
+    // given
+    const { rerender } = render(
+      <MorphPart part="banner" id={undefined}>
+        <img alt="hero" src="/hero.png" />
+      </MorphPart>,
+    );
+    const before = screen.getByRole("img");
+
+    // when
+    rerender(
+      <MorphPart part="banner" id="community-x">
+        <img alt="hero" src="/hero.png" />
+      </MorphPart>,
+    );
+    const named = screen.getByRole("img");
+    rerender(
+      <MorphPart part="banner" id={undefined}>
+        <img alt="hero" src="/hero.png" />
+      </MorphPart>,
+    );
+
+    // then
+    expect(named).toBe(before);
+    expect(screen.getByRole("img")).toBe(before);
   });
 
   it("shares the child under its name on morphs only", () => {

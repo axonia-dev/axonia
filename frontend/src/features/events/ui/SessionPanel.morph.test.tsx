@@ -7,6 +7,7 @@ import { EMPTY_PLACE } from "@/features/events/domain/meeting-place";
 import type { ScheduleEntry } from "@/features/events/domain/schedule";
 import { SessionPanel } from "@/features/events/ui/SessionPanel";
 import { morphNames } from "@/test/morph-names";
+import { aSlot } from "@/test/session-fixture";
 
 const ready = vi.hoisted(() => ({
   ready: vi.fn(() => Promise.resolve()),
@@ -75,6 +76,35 @@ describe("SessionPanel morph", () => {
     expect(screen.getByRole("heading", { name: "Guild Sync" })).toContainHTML(
       '<span class="inline-block max-w-full align-top">Guild Sync</span>',
     );
+  });
+
+  it("leaves its heading unnamed when the session page heads it otherwise", () => {
+    // given
+    const titled = entry({
+      sections: [
+        {
+          id: 1,
+          sessionId: 7,
+          position: 0,
+          sectionTypeId: null,
+          sectionType: null,
+          sectionTypeIcon: null,
+          sectionTypeAccentColor: null,
+          title: null,
+          durationMinutes: null,
+          slots: [aSlot({ title: "Virtual threads deep dive" })],
+        },
+      ],
+    });
+
+    // when
+    const { container } = renderPanel(titled, "session-7");
+
+    // then
+    expect(morphNames(container)).toEqual([]);
+    expect(
+      screen.getByRole("link", { name: /open the session/i }),
+    ).toBeInTheDocument();
   });
 
   it("names nothing without a morph id", () => {

@@ -1,5 +1,9 @@
 import { addTransitionType, startTransition, useCallback } from "react";
-import { type NavigateOptions, useNavigate } from "react-router-dom";
+import {
+  type NavigateOptions,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 
 import { isCurtainUp } from "@/components/patterns/ceremony/curtain";
 import {
@@ -18,6 +22,11 @@ export interface MorphOptions {
 
 const READY_BUDGET_MS = 300;
 let latestCall = 0;
+let lastLeft: string | undefined;
+
+function leftAlready(rendered: string): boolean {
+  return rendered === lastLeft && liveKey() !== rendered;
+}
 
 async function readyInTime(ready: MorphOptions["ready"]): Promise<boolean> {
   if (ready === undefined) return true;
@@ -43,6 +52,7 @@ export function useMorphNavigate(): (
   options?: MorphOptions,
 ) => Promise<void> {
   const navigate = useNavigate();
+  const rendered = useLocation().key;
 
   return useCallback(
     async (to: string, options: MorphOptions = {}) => {
@@ -52,6 +62,7 @@ export function useMorphNavigate(): (
         void navigate(to, how);
         return;
       }
+      if (leftAlready(rendered)) return;
       latestCall += 1;
       const call = latestCall;
       const from = liveKey();
@@ -61,6 +72,7 @@ export function useMorphNavigate(): (
         void navigate(to, how);
         return;
       }
+      lastLeft = from;
       armMorph();
       try {
         startTransition(() => {
@@ -71,6 +83,6 @@ export function useMorphNavigate(): (
         disarmMorph();
       }
     },
-    [navigate],
+    [navigate, rendered],
   );
 }

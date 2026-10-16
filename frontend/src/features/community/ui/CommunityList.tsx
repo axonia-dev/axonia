@@ -78,12 +78,11 @@ function ExploreRow({ community }: Readonly<{ community: CommunityListing }>) {
   const accent = communityHue(community);
   const id = communityMorphId(community.slug);
   const seed = useSeedCommunityDetail();
-  const linkProps = useMorphLinkProps(`/communities/${community.slug}`, {
-    ready: () => seed(community),
-  });
+  const href = `/communities/${community.slug}`;
+  const linkProps = useMorphLinkProps(href, { ready: () => seed(community) });
   return (
     <ListRow
-      href={`/communities/${community.slug}`}
+      href={href}
       linkProps={linkProps}
       title={
         <MorphPart part="name" id={id}>

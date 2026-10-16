@@ -98,8 +98,8 @@ export function useSessionSelection(
     selectedKey,
     desktopPanelId: `${baseId}desktop`,
     phonePanelId: `${baseId}phone`,
-    /** Whether the panel on this surface is the one the reader can see, and so the one to focus. */
-    focusOn: (surface: PanelSurface) => selected?.surface === surface,
+    /** Whether the pick was made on this surface, so its panel is the one the reader can see. */
+    pickedOn: (surface: PanelSurface) => selected?.surface === surface,
     select: (entry: ScheduleEntry, surface: PanelSurface) =>
       setPicked({ entry, surface }),
     close: () => setPicked(null),

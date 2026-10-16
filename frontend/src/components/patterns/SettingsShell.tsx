@@ -174,6 +174,7 @@ export function SettingsShell({
 
   return (
     <AppShell
+      shell="settings"
       railTestId="settings-rail"
       renderSwitcher={(collapsed) => <TenantIdentity collapsed={collapsed} />}
       primary={{ label: "Settings", items: [] }}

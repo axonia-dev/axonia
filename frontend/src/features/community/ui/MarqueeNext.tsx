@@ -1,13 +1,12 @@
 import { ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { MorphLink } from "@/components/patterns/morph/MorphLink";
 import {
   MorphPart,
   sessionMorphId,
 } from "@/components/patterns/morph/MorphPart";
 import type { NextUp } from "@/features/community/domain/session-recap";
-import { useReadySession } from "@/features/events/api/use-ready-session";
+import { SessionMorphLink } from "@/features/events/ui/SessionMorphLink";
 import { relativeTime } from "@/lib/period";
 import { plural } from "@/lib/plural";
 import { useNow } from "@/lib/use-wake-at";
@@ -44,7 +43,6 @@ function agendaOf(next: NextUp): string {
  */
 export function MarqueeNext({ slug, next }: Readonly<Props>) {
   const now = useNow();
-  const session = useReadySession();
   const href = `/communities/${slug}/sessions/${next.sessionId}`;
   return (
     <div className="border-border-strong bg-background/40 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t px-5 py-3">
@@ -52,14 +50,13 @@ export function MarqueeNext({ slug, next }: Readonly<Props>) {
         <span className="text-foreground font-semibold">Next up</span>
         <span className="mx-1.5">·</span>
         <MorphPart part="title" id={sessionMorphId(next.sessionId)}>
-          <MorphLink
+          <SessionMorphLink
             to={href}
-            ready={() => session.ready(next.sessionId)}
-            onIntent={() => session.prefetch(next.sessionId)}
+            sessionId={next.sessionId}
             className="hover:text-foreground inline-block underline-offset-2 hover:underline"
           >
             {next.title}
-          </MorphLink>
+          </SessionMorphLink>
         </MorphPart>
         <span className="mx-1.5">·</span>
         {relativeTime(next.scheduledAt, now)}

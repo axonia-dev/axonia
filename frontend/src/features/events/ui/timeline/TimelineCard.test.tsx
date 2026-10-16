@@ -199,12 +199,32 @@ describe("TimelineCard", () => {
 
   it("names the surface, title and pill of a real session", () => {
     // when
-    const container = setup(entry({ sessionId: 42, status: "HELD" }));
+    const container = setup(
+      entry({ sessionId: 42, status: "HELD", title: "Frontend Dojo" }),
+    );
 
     // then
     expect(morphNames(container)).toEqual([
       "morph-surface-session-42",
       "morph-title-session-42",
+      "morph-pill-session-42",
+    ]);
+  });
+
+  it("leaves the title unnamed when the session page heads it otherwise", () => {
+    // when
+    const container = setup(
+      entry({
+        sessionId: 42,
+        status: "HELD",
+        sections: sections([slot({ title: "Virtual threads deep dive" })]),
+      }),
+    );
+
+    // then
+    expect(screen.getByText("Frontend Dojo")).toBeInTheDocument();
+    expect(morphNames(container)).toEqual([
+      "morph-surface-session-42",
       "morph-pill-session-42",
     ]);
   });

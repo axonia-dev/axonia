@@ -1,7 +1,5 @@
 import { Calendar, ChevronRight } from "lucide-react";
-import { Link } from "react-router-dom";
 
-import { MorphLink } from "@/components/patterns/morph/MorphLink";
 import {
   MorphPart,
   sessionMorphId,
@@ -13,7 +11,7 @@ import {
   SavedRowShell,
 } from "@/features/bookmarks/ui/SavedRowShell";
 import { useReadyCommunity } from "@/features/community/api/use-ready-community";
-import { useReadySession } from "@/features/events/api/use-ready-session";
+import { SessionMorphLink } from "@/features/events/ui/SessionMorphLink";
 import { relativeTime } from "@/lib/period";
 import { useNow } from "@/lib/use-wake-at";
 
@@ -44,37 +42,32 @@ const TITLE_CLASS =
 function SessionTitle({
   item: { session, community },
 }: Readonly<{ item: SavedSessionView }>) {
-  const readiness = useReadySession();
   const shell = useReadyCommunity();
-  const chevron = (
-    <ChevronRight size={14} className="text-muted-foreground shrink-0" />
-  );
   const title = session.title ?? "Session";
-  if (community === null) {
-    return (
-      <Link to="#" className={TITLE_CLASS}>
-        {title}
-        {chevron}
-      </Link>
-    );
-  }
   return (
-    <MorphLink
-      to={`/communities/${community.slug}/sessions/${session.id}`}
-      ready={() =>
-        Promise.all([readiness.ready(session.id), shell.ready(community.slug)])
+    <SessionMorphLink
+      to={
+        community === null
+          ? "#"
+          : `/communities/${community.slug}/sessions/${session.id}`
       }
-      onIntent={() => {
-        readiness.prefetch(session.id);
-        shell.prefetch(community.slug);
-      }}
+      sessionId={community === null ? null : session.id}
+      {...(community !== null && {
+        alsoReady: {
+          ready: () => shell.ready(community.slug),
+          prefetch: () => shell.prefetch(community.slug),
+        },
+      })}
       className={TITLE_CLASS}
     >
-      <MorphPart part="title" id={sessionMorphId(session.id)}>
+      <MorphPart
+        part="title"
+        id={community === null ? undefined : sessionMorphId(session.id)}
+      >
         <span className="inline-block">{title}</span>
       </MorphPart>
-      {chevron}
-    </MorphLink>
+      <ChevronRight size={14} className="text-muted-foreground shrink-0" />
+    </SessionMorphLink>
   );
 }
 

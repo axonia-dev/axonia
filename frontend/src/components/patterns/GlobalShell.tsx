@@ -101,6 +101,7 @@ export function GlobalShell() {
 
   return (
     <AppShell
+      shell="global"
       railTestId="global-rail"
       renderSwitcher={(collapsed) => (
         <OrganizationSwitcher variant={collapsed ? "compact" : "full"} />

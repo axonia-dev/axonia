@@ -3,7 +3,10 @@ import { z } from "zod";
 import { meetingPlaceSchema } from "@/features/events/domain/meeting-place";
 import { sectionSchema } from "@/features/events/domain/section";
 import type { Series } from "@/features/events/domain/series";
-import { sessionStatusSchema } from "@/features/events/domain/session";
+import {
+  sessionStatusSchema,
+  sessionTitle,
+} from "@/features/events/domain/session";
 import type { Slot } from "@/features/events/domain/slot";
 import { isOpen } from "@/features/events/domain/slot";
 
@@ -61,6 +64,11 @@ export function resolveLabel(
   if (entry.title !== null) return entry.title;
   const series = seriesList.find((s) => s.id === entry.seriesId);
   return series?.title ?? "Session";
+}
+
+/** The heading the session page gives this entry, by the page's own rule (`sessionTitle`). */
+export function pageTitleOf(entry: ScheduleEntry): string {
+  return sessionTitle(entry);
 }
 
 export const scheduleActivitySchema = z.array(
