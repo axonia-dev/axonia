@@ -77,7 +77,7 @@ export function presenterIdsOf(entry: ScheduleEntry): string[] {
 }
 
 export function openSpotLabel(entry: ScheduleEntry): string | null {
-  if (entry.virtual || entry.status === "HELD") return null;
+  if (entry.virtual || entry.status !== "SCHEDULED") return null;
   const slots = slotsOf(entry);
   if (slots.length === 0) return "Open for sign-up";
   const count = slots.filter(isOpen).length;

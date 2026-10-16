@@ -223,6 +223,15 @@ describe("entry readings", () => {
     ).toBeNull();
   });
 
+  it.each(["CANCELLED", "SKIPPED"] as const)(
+    "invites no sign-up on a %s session",
+    (status) => {
+      expect(
+        openSpotLabel(aScheduleEntry({ status, sections: [] })),
+      ).toBeNull();
+    },
+  );
+
   it("collects each presenter once across every section", () => {
     const twoSections = aScheduleEntry({
       sections: [
