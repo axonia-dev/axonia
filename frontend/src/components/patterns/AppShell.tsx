@@ -1,6 +1,6 @@
-import { type CSSProperties, type ReactNode, useEffect, useRef } from "react";
-import { useLocation } from "react-router-dom";
+import type { CSSProperties, ReactNode } from "react";
 
+import { useMainScroll } from "@/components/patterns/main-scroll";
 import type { NavGroup, NavItem } from "@/components/patterns/nav-types";
 import { type ShellTab, ShellTabBar } from "@/components/patterns/ShellTabBar";
 import { useSidebar } from "@/components/patterns/SidebarProvider";
@@ -59,15 +59,8 @@ export function AppShell({
   children: ReactNode;
 }>) {
   const { collapsed } = useSidebar();
-  // The shell fills the box the route guard gives it (the viewport, less whatever
-  // frame the edition draws around a delegated tab): the rail and header are persistent chrome and only
-  // <main> scrolls. Reset that scroll on navigation, since an internal scroll
-  // container (unlike the document) does not do it.
-  const { pathname } = useLocation();
-  const mainRef = useRef<HTMLElement>(null);
-  useEffect(() => {
-    if (mainRef.current) mainRef.current.scrollTop = 0;
-  }, [pathname]);
+  // Only <main> scrolls, so it keeps and restores its own position.
+  const { ref: mainRef, onScroll: onMainScroll } = useMainScroll();
   return (
     <div className="bg-background text-foreground flex h-full flex-col overflow-hidden md:flex-row">
       <SideRail testId={railTestId}>
@@ -100,6 +93,7 @@ export function AppShell({
             scrollbar beside main's own, scrolling nothing but empty space. */}
         <main
           ref={mainRef}
+          onScroll={onMainScroll}
           className="relative min-h-0 flex-1 overflow-y-auto"
           style={mainStyle}
         >
