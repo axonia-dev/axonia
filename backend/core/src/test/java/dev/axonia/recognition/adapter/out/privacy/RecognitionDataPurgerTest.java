@@ -70,6 +70,20 @@ class RecognitionDataPurgerTest extends PurgerTestSupport {
         assertThat(count("reaction_definition")).isZero();
     }
 
+    @Test
+    void purgeDeletesTheOrganizationsImpactVisits() {
+
+        // given
+        jdbc.update("INSERT INTO impact_visit (organization_id, user_id, community_id, seen_at) "
+                + "VALUES (:org, 'visitor-user', 1, now())", Map.of("org", ORG));
+
+        // when
+        purger.purge(ORG);
+
+        // then
+        assertThat(count("impact_visit")).isZero();
+    }
+
     /**
      * Object storage has no rollback, so the blob delete must not happen until the purge's own transaction has actually
      * committed - otherwise a later purger in the same hub-deletion transaction failing would leave the row back
@@ -141,6 +155,8 @@ class RecognitionDataPurgerTest extends PurgerTestSupport {
             case "contribution_reaction" ->
                 jdbc.queryForObject("SELECT count(*) FROM contribution_reaction WHERE organization_id = :org",
                         Map.of("org", ORG), Long.class);
+            case "impact_visit" -> jdbc.queryForObject("SELECT count(*) FROM impact_visit WHERE organization_id = :org",
+                    Map.of("org", ORG), Long.class);
             case "reaction_definition" ->
                 jdbc.queryForObject("SELECT count(*) FROM reaction_definition WHERE organization_id = :org",
                         Map.of("org", ORG), Long.class);

@@ -151,6 +151,53 @@ class RecognitionPersonalDataExporterTest extends FootprintTestSupport {
                 .containsEntry("approved_by_user_id", NEIGHBOUR));
     }
 
+    @Test
+    void memberScopedExportCarriesTheMembersLastVisitsNamedByCommunity() {
+
+        var communityId = seedCommunity("Platform Guild");
+        seedVisit(TARGET, communityId);
+        seedVisit(NEIGHBOUR, communityId);
+
+        var fragment = exporter.export(new ExportScope.OneMember(ORG, TARGET));
+
+        assertThat(rowsOf(fragment, "impact_visit")).singleElement()
+                .satisfies(row -> assertThat(row).containsOnlyKeys("user_id", "seen_at", "community")
+                        .containsEntry("user_id", TARGET).containsEntry("community", "Platform Guild"));
+    }
+
+    @Test
+    void organizationScopedExportCarriesEveryMembersLastVisits() {
+
+        var communityId = seedCommunity("Platform Guild");
+        seedVisit(TARGET, communityId);
+        seedVisit(NEIGHBOUR, communityId);
+
+        var fragment = exporter.export(new ExportScope.WholeOrganization(ORG));
+
+        assertThat(rowsOf(fragment, "impact_visit")).hasSize(2);
+    }
+
+    private Long seedCommunity(String name) {
+
+        var kindId = jdbc.queryForObject(
+                "INSERT INTO community_kind (organization_id, label, created_at, updated_at, "
+                        + "version) VALUES (:org, 'Guild', now(), now(), 0) RETURNING id",
+                Map.of("org", ORG), Long.class);
+        return jdbc.queryForObject(
+                "INSERT INTO communities (organization_id, slug, name, kind_id, description, status, created_at, "
+                        + "updated_at, version) VALUES (:org, 'platform', :name, :kindId, '', 'ACTIVE', now(), now(), "
+                        + "0) RETURNING id",
+                Map.of("org", ORG, "name", name, "kindId", kindId), Long.class);
+    }
+
+    private void seedVisit(String userId, Long communityId) {
+
+        jdbc.update(
+                "INSERT INTO impact_visit (organization_id, user_id, community_id, seen_at) "
+                        + "VALUES (:org, :user, :communityId, now())",
+                Map.of("org", ORG, "user", userId, "communityId", communityId));
+    }
+
     private Long seedContribution(String contributionType, long contributionId, String title) {
 
         var params = new MapSqlParameterSource().addValue("org", ORG).addValue("type", contributionType)

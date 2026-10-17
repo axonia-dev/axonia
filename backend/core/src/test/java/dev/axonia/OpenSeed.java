@@ -112,6 +112,10 @@ public final class OpenSeed {
                     contribution_id, reactor_user_id, emoji, created_at, updated_at)
                 VALUES (:org, 1, 'SLOT_PRESENTED', 1, :user, '🧠', now(), now())
                 """, Map.of("org", ORG, "user", USER));
+        jdbc.update(
+                "INSERT INTO impact_visit (organization_id, user_id, community_id, seen_at) "
+                        + "VALUES (:org, :user, :communityId, now())",
+                Map.of("org", ORG, "user", USER, "communityId", communityId));
         jdbc.update("""
                 INSERT INTO reaction_definition (organization_id, name, image_key, state,
                     proposed_by_user_id, approved_by_user_id, created_at, updated_at)

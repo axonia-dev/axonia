@@ -332,6 +332,33 @@ class RlsIsolationTest {
     }
 
     @Test
+    @IsolationProbe("impact_visit")
+    void impactVisitIsOrganizationIsolated() throws Exception {
+        try (var c = asApp(); var s = c.createStatement()) {
+            // given a marker set under 'default'
+            s.execute("SET app.current_org = 'default'");
+            s.execute("INSERT INTO impact_visit (organization_id, user_id, community_id, seen_at)"
+                    + " VALUES ('default', 'u-rls-visit', 1, now())");
+            s.execute("SET app.current_org = 'acme'");
+
+            // when
+            try (var rs = s.executeQuery("SELECT count(*) FROM impact_visit WHERE user_id = 'u-rls-visit'")) {
+                rs.next();
+
+                // then
+                assertThat(rs.getInt(1)).isZero(); // acme cannot see default's marker
+            }
+            // and acme cannot move default's marker
+            assertThat(s.executeUpdate("UPDATE impact_visit SET seen_at = now() WHERE user_id = 'u-rls-visit'"))
+                    .isZero();
+            // and acme cannot write a marker under default's name (WITH CHECK denies it)
+            assertThatThrownBy(() -> s.execute("INSERT INTO impact_visit (organization_id, user_id, community_id,"
+                    + " seen_at) VALUES ('default', 'u-rls-sneaky', 1, now())"))
+                    .hasMessageContaining("row-level security");
+        }
+    }
+
+    @Test
     @IsolationProbe("contribution_reaction")
     void contributionReactionIsOrganizationIsolated() throws Exception {
         try (var c = asApp(); var s = c.createStatement()) {

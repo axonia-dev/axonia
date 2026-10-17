@@ -23,6 +23,9 @@ import dev.axonia.shared.api.personaldata.TableFootprint;
  * the Organization, not the member who proposed or approved it, so {@code proposed_by_user_id} and
  * {@code approved_by_user_id} are {@code CLEAR} - both columns are nullable, and the definition itself, the hub's word,
  * survives unnamed.
+ * <p>
+ * {@code impact_visit} records when a member last viewed My impact in a community, so it goes with them:
+ * {@code DELETE_ROW}. The export names the community rather than its id.
  */
 @Component
 public class RecognitionPersonalDataFootprint implements PersonalDataFootprint {
@@ -30,7 +33,8 @@ public class RecognitionPersonalDataFootprint implements PersonalDataFootprint {
     @Override
     public List<TableFootprint> tables() {
 
-        return List.of(recognizedContribution(), contributionLove(), contributionReaction(), reactionDefinition());
+        return List.of(recognizedContribution(), contributionLove(), contributionReaction(), reactionDefinition(),
+                impactVisit());
     }
 
     private TableFootprint recognizedContribution() {
@@ -74,5 +78,13 @@ public class RecognitionPersonalDataFootprint implements PersonalDataFootprint {
                 .notPersonal(Set.of("id", "organization_id", "name", "image_key", "state", "created_at", "updated_at",
                         "version"))
                 .exportedContext(Set.of("name")).build();
+    }
+
+    private TableFootprint impactVisit() {
+
+        return TableFootprint.builder().table("impact_visit").category(DataCategory.HOW_YOU_TAKE_PART)
+                .personal(List.of(new ColumnFootprint("user_id", Classification.SUBJECT, Disposition.DELETE_ROW)))
+                .notPersonal(Set.of("organization_id", "community_id", "seen_at")).exportedContext(Set.of("seen_at"))
+                .exportedLabels(Set.of("community")).build();
     }
 }

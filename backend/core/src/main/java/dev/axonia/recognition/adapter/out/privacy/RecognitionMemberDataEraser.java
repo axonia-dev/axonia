@@ -30,6 +30,8 @@ import lombok.RequiredArgsConstructor;
  * proposal in {@code reaction_definition} is the opposite: once approved it belongs to the Organization, not to the
  * member who proposed or approved it, so it is cleared in place through
  * {@link ReactionDefinitionRepository#anonymiseProposer} rather than taken down with its author.
+ * <p>
+ * The member's {@code impact_visit} markers are theirs alone and are deleted outright.
  */
 @Component
 @RequiredArgsConstructor
@@ -51,9 +53,11 @@ public class RecognitionMemberDataEraser implements MemberDataEraser {
                 + "updated_at = :erasedAt WHERE organization_id = :org AND lover_user_id = :user", params);
 
         var reactionsRemoved = reactionRepository.deleteByReactor(erasure.organizationId(), erasure.userId());
+        var visitsRemoved = jdbc.update("DELETE FROM impact_visit WHERE organization_id = :org AND user_id = :user",
+                params);
         var proposalsCleared = reactionDefinitionRepository.anonymiseProposer(erasure.organizationId(),
                 erasure.userId(), erasure.erasedAt());
 
-        return new ErasureCounts(reactionsRemoved, proposalsCleared, anonymised, 0);
+        return new ErasureCounts(reactionsRemoved + visitsRemoved, proposalsCleared, anonymised, 0);
     }
 }

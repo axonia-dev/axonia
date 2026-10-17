@@ -67,6 +67,7 @@ TRUNCATE TABLE
     expertise_tag_alias,
     expertise_tag_dismissal,
     identity_user,
+    impact_visit,
     learning_intent,
     memberships,
     onboarding_path,

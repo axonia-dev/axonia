@@ -44,6 +44,7 @@ public class RecognitionDataPurger implements OrganizationDataPurger {
                 params, String.class);
         jdbc.update("DELETE FROM contribution_reaction WHERE organization_id = :org", params); // definition cascades
         jdbc.update("DELETE FROM reaction_definition WHERE organization_id = :org", params);
+        jdbc.update("DELETE FROM impact_visit WHERE organization_id = :org", params);
         deleteBlobsAfterCommit(imageKeys);
     }
 

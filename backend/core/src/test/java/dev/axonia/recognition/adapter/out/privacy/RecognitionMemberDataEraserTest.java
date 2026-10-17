@@ -128,6 +128,37 @@ class RecognitionMemberDataEraserTest extends FootprintTestSupport {
                 .containsEntry("approved_by_user_id", TARGET);
     }
 
+    @Test
+    void erasingDeletesTheMembersOwnVisitsButSparesOtherMembersAndOrganizations() {
+
+        seedVisit(ORG, TARGET, 1L);
+        seedVisit(ORG, TARGET, 2L);
+        seedVisit(ORG, NEIGHBOUR, 1L);
+        seedVisit(OTHER_ORG, TARGET, 1L);
+
+        var counts = eraser.erase(MemberErasure.builder().organizationId(ORG).userId(TARGET).surrogateId(SURROGATE)
+                .erasedAt(ERASED_AT).build());
+
+        assertThat(counts.deleted()).isEqualTo(2);
+        assertThat(visitsBy(ORG, TARGET)).isZero();
+        assertThat(visitsBy(ORG, NEIGHBOUR)).isEqualTo(1);
+        assertThat(visitsBy(OTHER_ORG, TARGET)).isEqualTo(1);
+    }
+
+    private void seedVisit(String org, String userId, long communityId) {
+
+        jdbc.update(
+                "INSERT INTO impact_visit (organization_id, user_id, community_id, seen_at) "
+                        + "VALUES (:org, :user, :communityId, now())",
+                Map.of("org", org, "user", userId, "communityId", communityId));
+    }
+
+    private long visitsBy(String org, String userId) {
+
+        return jdbc.queryForObject("SELECT count(*) FROM impact_visit WHERE organization_id = :org AND user_id = :user",
+                Map.of("org", org, "user", userId), Long.class);
+    }
+
     private void seedPlacement(String org, String reactor, String emoji, Long definitionId) {
 
         var params = new MapSqlParameterSource().addValue("org", org).addValue("reactor", reactor)

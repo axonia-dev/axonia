@@ -59,7 +59,7 @@ public class RecognitionPersonalDataExporter implements PersonalDataExporter {
     private ExportFragment organizationFragment(ExportScope.InOrganization scope) {
 
         Map<String, Object> payload = Map.of("contribution_love", loves(scope), "contribution_reaction",
-                placements(scope), "reaction_definition", definitions(scope));
+                placements(scope), "reaction_definition", definitions(scope), "impact_visit", impactVisits(scope));
         return new ExportFragment("recognition.json", payload, List.of());
     }
 
@@ -105,6 +105,22 @@ public class RecognitionPersonalDataExporter implements PersonalDataExporter {
         var params = new MapSqlParameterSource("org", scope.organizationId());
         if (scope instanceof ExportScope.OneMember member) {
             sql.append(" AND cr.reactor_user_id = :user");
+            params.addValue("user", member.userId());
+        }
+        return jdbc.queryForList(sql.toString(), params);
+    }
+
+    /** When the member last viewed My impact, per community, named by the community rather than its id. */
+    private List<Map<String, Object>> impactVisits(ExportScope.InOrganization scope) {
+
+        var columns = ExportQueries.qualifiedColumnList(footprint.table("impact_visit"), scope, "user_id", "iv");
+        var sql = new StringBuilder("SELECT ").append(columns).append(", c.name AS community")
+                .append(" FROM impact_visit iv")
+                .append(" LEFT JOIN communities c ON c.id = iv.community_id AND c.organization_id = iv.organization_id")
+                .append(" WHERE iv.organization_id = :org");
+        var params = new MapSqlParameterSource("org", scope.organizationId());
+        if (scope instanceof ExportScope.OneMember member) {
+            sql.append(" AND iv.user_id = :user");
             params.addValue("user", member.userId());
         }
         return jdbc.queryForList(sql.toString(), params);
