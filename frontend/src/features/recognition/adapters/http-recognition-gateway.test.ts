@@ -140,18 +140,16 @@ describe("httpRecognitionGateway", () => {
 
   it("scopes new loves to a community", async () => {
     // given
-    const fetchSpy = vi
-      .spyOn(globalThis, "fetch")
-      .mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            asOf: "2026-10-17T00:00:00Z",
-            capped: true,
-            items: [],
-          }),
-          { status: 200, headers: { "content-type": "application/json" } },
-        ),
-      );
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          asOf: "2026-10-17T00:00:00Z",
+          capped: true,
+          items: [],
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      ),
+    );
 
     // when
     await httpRecognitionGateway.getNewLoves(7);
