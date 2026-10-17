@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { currentUserId } from "@/auth/current-user";
 import { AnimatedCount } from "@/components/ui/AnimatedCount";
@@ -12,7 +12,9 @@ import {
 import type { ContributionKey } from "@/features/recognition/domain/recognition";
 import { recognitionErrorMessage } from "@/features/recognition/recognition-errors";
 import { AnimatedLoveButton } from "@/features/recognition/ui/AnimatedLoveButton";
+import { launchLoveFlight } from "@/features/recognition/ui/love-flight";
 import { cn } from "@/lib/cn";
+import { useMediaQuery } from "@/lib/use-media-query";
 
 /** `inline` = heart + count in a row (default); `stacked` = compact vertical
  * control for a fixed-width rail, with an icon-only first-love prompt. */
@@ -130,6 +132,19 @@ export function LoveAction({
     );
   }
 
+  const originRef = useRef<HTMLDivElement>(null);
+  const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
+
+  function celebrate() {
+    if (reducedMotion || !originRef.current) return;
+    const launched = launchLoveFlight({
+      contribution,
+      viewerId: currentUserId() ?? null,
+      origin: originRef.current,
+    });
+    if (!launched) spawnBurst();
+  }
+
   function removeBurster(key: number) {
     setBursters((prev) => prev.filter((b) => b.key !== key));
   }
@@ -161,7 +176,7 @@ export function LoveAction({
           {...(stacked ? { ariaLabel: "Love it!" } : {})}
           isPending={love.isPending}
           onPress={() => {
-            spawnBurst();
+            celebrate();
             love.mutate();
           }}
         >
@@ -176,7 +191,7 @@ export function LoveAction({
         ariaLabel={`Love, ${count} ${lovesLabel(count)}`}
         isPending={love.isPending}
         onPress={() => {
-          spawnBurst();
+          celebrate();
           love.mutate();
         }}
       >
@@ -188,7 +203,7 @@ export function LoveAction({
 
   return (
     <div className={cn("flex flex-col gap-2", wrap)}>
-      <div className="relative">
+      <div ref={originRef} className="relative">
         {control()}
         {bursters.map((b) => (
           <span
