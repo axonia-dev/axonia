@@ -114,7 +114,9 @@ describe("ScheduleTimeline scrub timing", () => {
     act(() => {
       rerenderWith({ ...given, memories: { pages: [[latest], [oldest]] } });
     });
-    // then the smooth scroll starts last, so the anchoring cannot cancel it
+    // then the reader's row is held first, and the scroll starts a frame later
+    expect(moves).toEqual(["anchor"]);
+    await new Promise((resolve) => requestAnimationFrame(resolve));
     expect(moves).toEqual(["anchor", "scroll"]);
   });
 });

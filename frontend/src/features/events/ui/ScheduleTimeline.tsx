@@ -88,7 +88,7 @@ export function ScheduleTimeline({
   );
   const nowMs = now.getTime();
   const ready = !scheduleQuery.isLoading && !memoriesQuery.isLoading;
-  const { lensMs, scrollToAt, scroller } = useTimelineScroll({
+  const { lens, scrollToAt, scroller } = useTimelineScroll({
     rootRef,
     todayRef,
     ready,
@@ -142,7 +142,7 @@ export function ScheduleTimeline({
         slug={slug}
         todayIso={fromIso}
         nowMs={nowMs}
-        lensMs={lensMs}
+        lens={lens}
         hasContent={items.length > 0 || memories.length > 0}
         ready={ready}
         oldestShownMs={oldestOf(memories)}

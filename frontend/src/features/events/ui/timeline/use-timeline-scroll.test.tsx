@@ -10,6 +10,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useMainScroll } from "@/components/patterns/main-scroll";
+import { useLensMs } from "@/features/events/ui/timeline/lens";
 import { useTimelineScroll } from "@/features/events/ui/timeline/use-timeline-scroll";
 
 interface Given {
@@ -28,12 +29,13 @@ const ROWS = [
 function Timeline({ ready, count, ribbonTop, memoryTop }: Readonly<Given>) {
   const rootRef = useRef<HTMLDivElement>(null);
   const todayRef = useRef<HTMLDivElement>(null);
-  const { lensMs, scrollToAt } = useTimelineScroll({
+  const { lens, scrollToAt } = useTimelineScroll({
     rootRef,
     todayRef,
     ready,
     memoryCount: count,
   });
+  const lensMs = useLensMs(lens);
   return (
     <div ref={rootRef} data-top={ribbonTop}>
       <div data-time-ribbon="" />
@@ -191,6 +193,25 @@ describe("useTimelineScroll", () => {
     await waitFor(() => {
       expect(screen.getByRole("status")).toHaveTextContent("2000");
     });
+  });
+
+  it("jumps to a screen short of a far row, then glides the last screen", () => {
+    // given a 600px screen, its target row 2000px down
+    vi.spyOn(window, "matchMedia").mockReturnValue({
+      matches: false,
+    } as MediaQueryList);
+    const { main } = setup({ ready: false, count: 0, memoryTop: 2000 });
+    const moves: string[] = [];
+    Object.defineProperty(main, "scrollTop", {
+      get: () => 0,
+      set: (top: number) => moves.push(`jump ${top}`),
+    });
+    main.scrollTo = ((options: ScrollToOptions) =>
+      moves.push(`glide ${options.top}`)) as typeof main.scrollTo;
+    // when
+    fireEvent.click(screen.getByText("go"));
+    // then: the row's target is 2000 - 124, a screen short of it is 600 less
+    expect(moves).toEqual(["jump 1276", "glide 1876"]);
   });
 
   it.each([

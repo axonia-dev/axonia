@@ -145,7 +145,7 @@ describe("ScheduleTimeline ribbon", () => {
     );
   });
 
-  it("loads ahead before scrolling to a session past the loaded rows", () => {
+  it("loads ahead before scrolling to a session past the loaded rows", async () => {
     // given
     const given = {
       fromIso: FROM,
@@ -172,6 +172,7 @@ describe("ScheduleTimeline ribbon", () => {
     expect(main.scrollTo).not.toHaveBeenCalled();
     // when
     rerenderWith(given);
+    await new Promise((resolve) => requestAnimationFrame(resolve));
     // then
     expect(main.scrollTo).toHaveBeenCalledOnce();
   });
@@ -194,6 +195,33 @@ describe("ScheduleTimeline ribbon", () => {
       "x",
       FROM,
       addDaysIso(FROM, 90),
+    );
+  });
+
+  it("draws the lens on the session under a held pointer, ahead of the list", () => {
+    // given
+    Element.prototype.setPointerCapture = vi.fn();
+    renderTimeline({
+      fromIso: FROM,
+      schedule: { data: [] },
+      memories: { pages: [[latest]] },
+      ribbon: {
+        firstSessionAt: oldest.entry.scheduledAt,
+        ticks: [{ at: middle.entry.scheduledAt ?? "", kind: "MEMORY" }],
+      },
+    });
+    const slider = screen.getByRole("slider");
+    vi.spyOn(slider, "getBoundingClientRect").mockReturnValue({
+      left: 0,
+      right: 400,
+      width: 400,
+    } as DOMRect);
+    // when
+    fireEvent.pointerDown(slider, { clientX: 200, pointerId: 1 });
+    // then
+    expect(slider).toHaveAttribute(
+      "aria-valuenow",
+      String(Date.parse(middle.entry.scheduledAt ?? "")),
     );
   });
 

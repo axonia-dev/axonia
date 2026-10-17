@@ -18,6 +18,7 @@ import {
   windowAround,
   windowAt,
 } from "@/features/events/domain/ribbon";
+import { type Lens, useLensMs } from "@/features/events/ui/timeline/lens";
 import { entryAtMs } from "@/features/events/ui/timeline/timeline";
 import { TimeRibbon } from "@/features/events/ui/timeline/TimeRibbon";
 
@@ -31,7 +32,7 @@ interface Props {
   /** Start of today UTC: the earliest the ribbon reaches when every session is still ahead. */
   todayIso: string;
   nowMs: number;
-  lensMs: number | null;
+  lens: Lens;
   /** Something is on the timeline already, so a ribbon is worth drawing even with no ticks. */
   hasContent: boolean;
   /** The schedule and the first memories page have settled. A scrub before that would find no
@@ -114,16 +115,20 @@ function useScrub(
     shown.current = { oldestShownMs, reachedMs };
   });
 
-  // A loaded page reaches the list a commit after it lands, so the scroll waits for it. A passive
-  // effect: the timeline's layout effect first holds the reader's row still against a prepend by
-  // setting `scrollTop`, which would cancel a smooth scroll already under way.
+  // A loaded page reaches the list a commit after it lands, so the scroll waits for it, and starts
+  // a frame later: the timeline's layout effect first holds the reader's row still against a
+  // prepend by setting `scrollTop`, which would cancel a smooth scroll already under way, and the
+  // frame the new rows appear in paints with the reader's row where it was, before a far jump.
   useEffect(() => {
     const target = pending.current;
     if (target === null || !target.landed({ oldestShownMs, reachedMs })) {
       return;
     }
     pending.current = null;
-    scrollToAt(target.atMs);
+    const mine = generation.current;
+    requestAnimationFrame(() => {
+      if (generation.current === mine) scrollToAt(target.atMs);
+    });
   }, [oldestShownMs, reachedMs, scrollToAt]);
 
   return useCallback(
@@ -187,14 +192,14 @@ function useRollingWindow(
       return windowAt(from + deltaMs, bounds).fromMs;
     });
   };
-  return { span, slide, setHeld, recentre: () => setStartMs(null) };
+  return { span, held, slide, setHeld, recentre: () => setStartMs(null) };
 }
 
 export function RibbonBar({
   slug,
   todayIso,
   nowMs,
-  lensMs,
+  lens,
   hasContent,
   ready,
   oldestShownMs,
@@ -204,9 +209,12 @@ export function RibbonBar({
   valueText,
   scrollToAt,
 }: Readonly<Props>) {
+  const lensMs = useLensMs(lens);
+  // A held pointer draws the lens on the session under it; the list catches up behind.
+  const [scrubbedTo, setScrubbedTo] = useState<number | null>(null);
   const [firstSessionAt, setFirstSessionAt] = useState<string | null>(null);
   const bounds = ribbonBounds(firstSessionAt, new Date(todayIso).getTime());
-  const { span, slide, setHeld, recentre } = useRollingWindow(
+  const { span, held, slide, setHeld, recentre } = useRollingWindow(
     bounds,
     lensMs,
     nowMs,
@@ -237,9 +245,12 @@ export function RibbonBar({
       bounds={bounds}
       ticks={ticksIn(ribbon.ticks, bounds)}
       nowMs={nowMs}
-      lensMs={lensMs ?? nowMs}
+      lensMs={held && scrubbedTo !== null ? scrubbedTo : (lensMs ?? nowMs)}
       valueText={valueText}
-      onScrub={(atMs) => void scrub(atMs)}
+      onScrub={(atMs) => {
+        setScrubbedTo(atMs);
+        void scrub(atMs);
+      }}
       onSlide={slide}
       onHold={setHeld}
       onBackToToday={backToToday}

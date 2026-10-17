@@ -13,6 +13,7 @@ import {
 } from "react-router-dom";
 
 import { restoresMainScroll } from "@/components/patterns/main-scroll";
+import { createLens, type Lens } from "@/features/events/ui/timeline/lens";
 
 interface Options {
   rootRef: RefObject<HTMLElement | null>;
@@ -108,6 +109,18 @@ function nearestRow(rows: HTMLElement[], atMs: number): HTMLElement | null {
   return best;
 }
 
+/**
+ * A smooth scroll across years of rows takes the browser a second or more, so a far target is
+ * first jumped to a screen short of it, and only that last screen glides.
+ */
+function jumpNear(main: HTMLElement, top: number) {
+  const screen = main.clientHeight;
+  const distance = top - main.scrollTop;
+  if (screen > 0 && Math.abs(distance) > 2 * screen) {
+    main.scrollTop = top - Math.sign(distance) * screen;
+  }
+}
+
 function prefersReducedMotion(): boolean {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
@@ -119,7 +132,7 @@ export function useTimelineScroll({
   ready,
   memoryCount,
 }: Readonly<Options>): {
-  lensMs: number | null;
+  lens: Lens;
   scrollToAt: (atMs: number) => void;
   scroller: () => HTMLElement | null;
 } {
@@ -128,7 +141,7 @@ export function useTimelineScroll({
   const [restored] = useState(
     () => navigationType === NavigationType.Pop && restoresMainScroll(key),
   );
-  const [lensMs, setLensMs] = useState<number | null>(null);
+  const [lens] = useState(createLens);
   const positioned = useRef(false);
   const anchor = useRef<{ row: HTMLElement; top: number } | null>(null);
 
@@ -175,7 +188,7 @@ export function useTimelineScroll({
       const row = readRow(rootRef.current, main);
       anchor.current =
         row === null ? null : { row, top: row.getBoundingClientRect().top };
-      setLensMs(row === null ? null : atOf(row));
+      lens.set(row === null ? null : atOf(row));
     };
     const onScroll = () => {
       frame ??= requestAnimationFrame(measure);
@@ -186,21 +199,24 @@ export function useTimelineScroll({
       main.removeEventListener("scroll", onScroll);
       if (frame !== null) cancelAnimationFrame(frame);
     };
-  }, [ready, memoryCount, rootRef, scroller]);
+  }, [ready, memoryCount, rootRef, scroller, lens]);
 
   const scrollToAt = useCallback(
     (atMs: number) => {
       const main = scroller();
       const row = nearestRow(rowsOf(rootRef.current), atMs);
       if (main === null || row === null) return;
-      main.scrollTo({
-        top:
-          main.scrollTop + row.getBoundingClientRect().top - readingLine(main),
-        behavior: prefersReducedMotion() ? "auto" : "smooth",
-      });
+      const top =
+        main.scrollTop + row.getBoundingClientRect().top - readingLine(main);
+      if (prefersReducedMotion()) {
+        main.scrollTo({ top, behavior: "auto" });
+        return;
+      }
+      jumpNear(main, top);
+      main.scrollTo({ top, behavior: "smooth" });
     },
     [rootRef, scroller],
   );
 
-  return { lensMs, scrollToAt, scroller };
+  return { lens, scrollToAt, scroller };
 }
