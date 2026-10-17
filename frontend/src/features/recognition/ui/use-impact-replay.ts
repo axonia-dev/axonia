@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { useIsDelegated } from "@/auth/delegated-session";
 import {
   useMarkImpactSeen,
   useNewLoves,
@@ -123,6 +124,7 @@ export function useImpactReplay({
     enabled: scopeKnown,
   });
   const { mutate: markSeen } = useMarkImpactSeen();
+  const delegated = useIsDelegated();
   const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
 
   const [seed, setSeed] = useState<Seed>();
@@ -141,7 +143,7 @@ export function useImpactReplay({
 
   useEffect(() => {
     if (seed === undefined || finished.current) return;
-    if (!marked.current) {
+    if (!delegated && !marked.current) {
       marked.current = true;
       markSeen({
         asOf: seed.data.asOf,
@@ -188,7 +190,7 @@ export function useImpactReplay({
       alive = false;
       timers.forEach(clearTimeout);
     };
-  }, [seed, communityId, markSeen, reducedMotion]);
+  }, [seed, communityId, markSeen, reducedMotion, delegated]);
 
   const cardOf = useCallback((key: string) => states.get(key), [states]);
   const heartRef = useCallback(

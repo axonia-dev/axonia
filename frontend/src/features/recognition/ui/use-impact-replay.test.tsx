@@ -1,6 +1,8 @@
 import { act, renderHook } from "@testing-library/react";
+import type { PropsWithChildren, ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { DelegatedSessionProvider } from "@/auth/delegated-session";
 import {
   useMarkImpactSeen,
   useNewLoves,
@@ -87,8 +89,12 @@ interface Props {
   ready: boolean;
 }
 
-function renderReplay(initial: Partial<Props> = {}) {
+function renderReplay(
+  initial: Partial<Props> = {},
+  wrapper?: ({ children }: PropsWithChildren) => ReactNode,
+) {
   const hook = renderHook((props: Props) => useImpactReplay(props), {
+    ...(wrapper === undefined ? {} : { wrapper }),
     initialProps: {
       cards: [RUST, RUNBOOK],
       communityId: undefined,
@@ -189,6 +195,17 @@ describe("useImpactReplay", () => {
     expect(markSeen).toHaveBeenCalledExactlyOnceWith({ asOf: NEW_LOVES.asOf });
     expect(flyComet).toHaveBeenCalledTimes(2);
     expect(hook.result.current.cardOf(RUST_KEY)?.displayedCount).toBe(7);
+  });
+
+  it("plays the replay in a delegated tab without consuming it", async () => {
+    const hook = renderReplay({}, DelegatedSessionProvider);
+    start(hook);
+    await act(() => vi.advanceTimersByTimeAsync(3000));
+    expect(markSeen).not.toHaveBeenCalled();
+    expect(flyComet).toHaveBeenCalledTimes(2);
+    expect(hook.result.current.summary).toBe(
+      "2 new loves since the last visit",
+    );
   });
 
   it("still advances the marker when nothing new arrived", async () => {
