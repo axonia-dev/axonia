@@ -105,8 +105,7 @@ class ImpactReplayServiceTest {
 
     private static NewLoveTally tally(ContributionType type, Long id, long loves, boolean capped) {
 
-        return NewLoveTally.builder().contributionType(type).contributionId(id).communityId(7L).newLoves(loves)
-                .capped(capped).build();
+        return NewLoveTally.builder().contributionType(type).contributionId(id).newLoves(loves).capped(capped).build();
     }
 
     @Test

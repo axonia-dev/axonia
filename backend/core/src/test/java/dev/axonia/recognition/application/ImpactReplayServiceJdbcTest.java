@@ -19,6 +19,7 @@ import dev.axonia.recognition.adapter.out.persistence.JdbcImpactVisits;
 import dev.axonia.recognition.adapter.out.persistence.JdbcLoveStore;
 import dev.axonia.recognition.adapter.out.persistence.JdbcNewLoveTallies;
 import dev.axonia.recognition.adapter.out.persistence.JdbcRecognitionStore;
+import dev.axonia.recognition.api.ContributionSource;
 import dev.axonia.recognition.api.ContributionType;
 import dev.axonia.recognition.api.spi.ArtifactSourceAccess;
 import dev.axonia.recognition.api.spi.ArtifactTypeAccess;
@@ -42,6 +43,9 @@ class ImpactReplayServiceJdbcTest extends CoreJdbcTestSupport {
 
     @Autowired
     private ImpactReplayService sut;
+
+    @Autowired
+    private RecognitionService recognitionService;
 
     @Autowired
     private NamedParameterJdbcTemplate jdbc;
@@ -70,6 +74,11 @@ class ImpactReplayServiceJdbcTest extends CoreJdbcTestSupport {
         when(organizationContext.organizationId()).thenReturn(ORG);
         when(currentUser.userId()).thenReturn(ME);
         when(artifactSourceAccess.artifactsCapturedBy(ORG, ME)).thenReturn(List.of());
+    }
+
+    private void as(String userId) {
+
+        when(currentUser.userId()).thenReturn(userId);
     }
 
     private static Instant daysAgo(long days) {
@@ -135,16 +144,27 @@ class ImpactReplayServiceJdbcTest extends CoreJdbcTestSupport {
         assertThat(actual.items()).containsExactly(new NewLoveItem(ContributionType.SLOT_PRESENTED, 1L, 1));
     }
 
+    /** Through the real love and unlove: an unlove deletes the row and a love again is stamped afresh. */
     @Test
     void aLoveTakenBackAndGivenAgainAfterTheMarkerCountsOnce() {
 
         // given
-        var slot = recognize(1L, COMMUNITY_A);
+        when(slotSourceAccess.slotContribution(ORG, 1L))
+                .thenReturn(Optional.of(ContributionSource.builder().communityId(COMMUNITY_A)
+                        .contributorUserIds(List.of(ME)).title("Talk").occurredAt(daysAgo(20)).build()));
+        when(communityAccess.isMember(COMMUNITY_A, "u1")).thenReturn(true);
         presenting(1L);
-        var first = love(slot, "u1", daysAgo(10));
+        var request = new LoveRequest(ContributionType.SLOT_PRESENTED, 1L);
+        as("u1");
+        var first = recognitionService.love(request);
+        jdbc.update("UPDATE contribution_love SET created_at = :at WHERE id = :id",
+                Map.of("at", Timestamp.from(daysAgo(10)), "id", first.id()));
+        as(ME);
         sut.markSeen(new MarkSeenRequest(daysAgo(5), null));
-        jdbc.update("DELETE FROM contribution_love WHERE id = :id", Map.of("id", first));
-        love(slot, "u1", daysAgo(1));
+        as("u1");
+        recognitionService.unlove(ContributionType.SLOT_PRESENTED, 1L);
+        recognitionService.love(request);
+        as(ME);
 
         // when
         var actual = sut.newLoves(Optional.empty());

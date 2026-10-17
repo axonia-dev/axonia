@@ -19,10 +19,12 @@ import dev.axonia.recognition.application.NewLoves;
 import dev.axonia.recognition.application.RecognitionService;
 import dev.axonia.recognition.application.RecognizedContribution;
 import dev.axonia.recognition.domain.Love;
+import dev.axonia.shared.api.error.ValidationException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -197,5 +199,20 @@ class RecognitionControllerTest extends ControllerTestSupport {
         // then
         assertThat(actual).hasStatus(400);
         verifyNoInteractions(impactReplayService);
+    }
+
+    @Test
+    void markSeen_futureAsOfIs400() {
+
+        // given
+        doThrow(new ValidationException("FUTURE_AS_OF", "asOf cannot be in the future")).when(impactReplayService)
+                .markSeen(any());
+
+        // when
+        var actual = mvc.put().uri("/axonia/recognition/contributions/me/seen").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"asOf\":\"2099-01-01T00:00:00Z\",\"communityId\":null}").exchange();
+
+        // then
+        assertThat(actual).hasStatus(400).bodyJson().extractingPath("$.code").isEqualTo("FUTURE_AS_OF");
     }
 }

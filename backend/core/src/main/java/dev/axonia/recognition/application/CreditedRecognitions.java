@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import dev.axonia.recognition.api.ContributionType;
 import dev.axonia.recognition.api.spi.ArtifactSourceAccess;
@@ -21,6 +22,7 @@ public class CreditedRecognitions {
     private final SlotSourceAccess slotSourceAccess;
     private final ArtifactSourceAccess artifactSourceAccess;
 
+    @Transactional(readOnly = true)
     public List<Recognition> of(String organizationId, String userId) {
 
         var credited = new ArrayList<Recognition>();

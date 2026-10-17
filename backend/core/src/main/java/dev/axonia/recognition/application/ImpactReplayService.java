@@ -22,7 +22,13 @@ import dev.axonia.recognition.domain.Recognition;
 import dev.axonia.shared.api.error.ValidationException;
 import lombok.RequiredArgsConstructor;
 
-/** The loves My impact replays on arrival, and the marker that ends a replay once it has played. */
+/**
+ * The loves My impact replays on arrival, and the marker that ends a replay once it has played.
+ * <p>
+ * Two edge cases are accepted rather than fixed: a love stamped before a read's {@code asOf} but committed after its
+ * snapshot is never replayed (its count stays right), and clock skew between replicas can refuse a valid mark-seen as
+ * {@code FUTURE_AS_OF}, so the replay plays again. Both are cosmetic; neither calls for SQL {@code now()}.
+ */
 @Service
 @RequiredArgsConstructor
 public class ImpactReplayService {

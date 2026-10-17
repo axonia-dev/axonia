@@ -18,7 +18,7 @@ import lombok.RequiredArgsConstructor;
 public class JdbcNewLoveTallies implements NewLoveTallies {
 
     private static final String SQL = """
-            SELECT rc.contribution_id, rc.community_id, COUNT(*) AS new_loves,
+            SELECT rc.contribution_id, COUNT(*) AS new_loves,
                    BOOL_OR(iv.seen_at IS NULL OR iv.seen_at < :floor) AS capped
             FROM recognized_contribution rc
             JOIN contribution_love cl
@@ -49,7 +49,7 @@ public class JdbcNewLoveTallies implements NewLoveTallies {
                 .addValue("asOf", Timestamp.from(query.asOf()));
         return jdbc.query(SQL, params,
                 (rs, _) -> NewLoveTally.builder().contributionType(query.contributionType())
-                        .contributionId(rs.getLong("contribution_id")).communityId(rs.getLong("community_id"))
-                        .newLoves(rs.getLong("new_loves")).capped(rs.getBoolean("capped")).build());
+                        .contributionId(rs.getLong("contribution_id")).newLoves(rs.getLong("new_loves"))
+                        .capped(rs.getBoolean("capped")).build());
     }
 }

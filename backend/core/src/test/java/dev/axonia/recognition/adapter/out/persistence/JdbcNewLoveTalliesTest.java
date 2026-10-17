@@ -74,10 +74,10 @@ class JdbcNewLoveTalliesTest extends CoreJdbcTestSupport {
                 .asOf(AS_OF).build());
     }
 
-    private static NewLoveTally tally(Long contributionId, Long communityId, long newLoves, boolean capped) {
+    private static NewLoveTally tally(Long contributionId, long newLoves, boolean capped) {
 
         return NewLoveTally.builder().contributionType(ContributionType.SLOT_PRESENTED).contributionId(contributionId)
-                .communityId(communityId).newLoves(newLoves).capped(capped).build();
+                .newLoves(newLoves).capped(capped).build();
     }
 
     @Test
@@ -95,7 +95,7 @@ class JdbcNewLoveTalliesTest extends CoreJdbcTestSupport {
         var actual = since(List.of(7L));
 
         // then
-        assertThat(actual).containsExactly(tally(7L, 1L, 2, false));
+        assertThat(actual).containsExactly(tally(7L, 2, false));
     }
 
     @Test
@@ -112,7 +112,7 @@ class JdbcNewLoveTalliesTest extends CoreJdbcTestSupport {
         var actual = since(List.of(7L));
 
         // then
-        assertThat(actual).containsExactly(tally(7L, 1L, 1, false));
+        assertThat(actual).containsExactly(tally(7L, 1, false));
     }
 
     @Test
@@ -129,7 +129,7 @@ class JdbcNewLoveTalliesTest extends CoreJdbcTestSupport {
         var actual = since(List.of(7L, 8L));
 
         // then
-        assertThat(actual).containsExactly(tally(7L, 1L, 1, true));
+        assertThat(actual).containsExactly(tally(7L, 1, true));
     }
 
     @Test
@@ -145,7 +145,7 @@ class JdbcNewLoveTalliesTest extends CoreJdbcTestSupport {
         var actual = since(List.of(7L));
 
         // then
-        assertThat(actual).containsExactly(tally(7L, 1L, 1, true));
+        assertThat(actual).containsExactly(tally(7L, 1, true));
     }
 
     @Test
@@ -165,7 +165,7 @@ class JdbcNewLoveTalliesTest extends CoreJdbcTestSupport {
         var actual = since(List.of(7L, 8L));
 
         // then
-        assertThat(actual).containsExactlyInAnyOrder(tally(7L, 1L, 1, false), tally(8L, 2L, 2, false));
+        assertThat(actual).containsExactlyInAnyOrder(tally(7L, 1, false), tally(8L, 2, false));
     }
 
     @Test
@@ -182,7 +182,7 @@ class JdbcNewLoveTalliesTest extends CoreJdbcTestSupport {
         var actual = since(List.of(7L));
 
         // then
-        assertThat(actual).containsExactly(tally(7L, 1L, 1, false));
+        assertThat(actual).containsExactly(tally(7L, 1, false));
     }
 
     @Test
@@ -200,7 +200,31 @@ class JdbcNewLoveTalliesTest extends CoreJdbcTestSupport {
         var actual = since(List.of(7L, 8L, 9L, 10L));
 
         // then
-        assertThat(actual).containsExactly(tally(7L, 1L, 1, false));
+        assertThat(actual).containsExactly(tally(7L, 1, false));
+    }
+
+    @Test
+    void anotherOrganizationsMarkersAndLovesNeverReachTheTally() {
+
+        // given
+        var slot = recognize(7L, 1L);
+        love(slot, "u1", daysAgo(3));
+        var otherSlot = contributions
+                .save(RecognizedContributionEntityMother.any().organizationId("other")
+                        .contributionType(ContributionType.SLOT_PRESENTED).contributionId(7L).communityId(1L).build())
+                .getId();
+        var otherLove = loves.save(LoveEntityMother.any().organizationId("other").recognizedContributionId(otherSlot)
+                .loverUserId("u2").build()).getId();
+        jdbc.update("UPDATE contribution_love SET created_at = :at WHERE id = :id",
+                Map.of("at", Timestamp.from(daysAgo(1)), "id", otherLove));
+        jdbc.update("INSERT INTO impact_visit (organization_id, user_id, community_id, seen_at) "
+                + "VALUES ('other', :user, 1, :seenAt)", Map.of("user", ME, "seenAt", Timestamp.from(AS_OF)));
+
+        // when
+        var actual = since(List.of(7L));
+
+        // then
+        assertThat(actual).containsExactly(tally(7L, 1, true));
     }
 
     @Test
