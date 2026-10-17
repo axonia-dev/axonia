@@ -1,12 +1,18 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Artifact } from "@/features/knowledge/domain/artifact";
 import { ArtifactCard } from "@/features/knowledge/ui/ArtifactCard";
+import {
+  creditTargetsOf,
+  resetCreditTargets,
+} from "@/features/recognition/ui/credit-targets";
 
 let user: ReturnType<typeof userEvent.setup>;
+
+afterEach(resetCreditTargets);
 
 beforeEach(() => {
   user = userEvent.setup({ delay: null });
@@ -165,5 +171,16 @@ describe("ArtifactCard", () => {
     expect(
       screen.getByRole("button", { name: "Love" }).closest("footer"),
     ).toBeNull();
+  });
+
+  it("registers the contributor avatar as the credit target", () => {
+    renderCard();
+
+    const targets = creditTargetsOf({
+      contributionType: "ARTIFACT_CAPTURED",
+      contributionId: 1,
+    });
+    expect(targets.map((t) => t.userId)).toEqual(["alice"]);
+    expect(targets[0]?.element.closest("footer")).not.toBeNull();
   });
 });

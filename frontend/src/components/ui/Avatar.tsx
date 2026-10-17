@@ -1,4 +1,4 @@
-import { type CSSProperties, useState } from "react";
+import { type CSSProperties, type Ref, useState } from "react";
 
 import { cn } from "@/lib/cn";
 
@@ -10,6 +10,7 @@ interface AvatarProps {
   /** `circle` marks a person; `square` (default) marks an org/entity. */
   shape?: "square" | "circle";
   className?: string;
+  ref?: Ref<HTMLElement>;
 }
 
 function initials(name: string): string {
@@ -27,6 +28,7 @@ export function Avatar({
   src,
   shape = "square",
   className,
+  ref,
 }: Readonly<AvatarProps>) {
   const [brokenSrc, setBrokenSrc] = useState<string | undefined>(undefined);
   const shapeClass = shape === "circle" ? "rounded-full" : "rounded-md";
@@ -36,6 +38,7 @@ export function Avatar({
       // Keyed by src: a changed src remounts a fresh <img>, so a late/aborted
       // error from a previous src can never latch the new (good) one.
       <img
+        ref={ref as Ref<HTMLImageElement> | undefined}
         key={src}
         src={src}
         alt={name}
@@ -52,6 +55,7 @@ export function Avatar({
 
   return (
     <span
+      ref={ref}
       aria-hidden="true"
       style={{ "--k": hue } as CSSProperties}
       className={cn(

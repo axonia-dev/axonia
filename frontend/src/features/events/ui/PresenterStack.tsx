@@ -1,5 +1,5 @@
 import { Plus } from "lucide-react";
-import { useEffect, useState } from "react";
+import { type ComponentProps, useEffect, useState } from "react";
 
 import { currentUserId } from "@/auth/current-user";
 import { Button } from "@/components/ui/Button";
@@ -11,6 +11,7 @@ import { AddPresenterPopover } from "@/features/events/ui/AddPresenterPopover";
 import { PresenterHoverCard } from "@/features/events/ui/PresenterHoverCard";
 import { displayNameOf } from "@/features/events/ui/SlotPresenter";
 import type { User } from "@/features/identity/domain/user";
+import { useCreditTarget } from "@/features/recognition/ui/credit-targets";
 
 export interface PresenterStackProps {
   slug: string;
@@ -118,6 +119,20 @@ function ManagePopover({
   );
 }
 
+function RegisteredPresenter({
+  slotId,
+  userId,
+  ...card
+}: Readonly<
+  { slotId: number; userId: string } & ComponentProps<typeof PresenterHoverCard>
+>) {
+  const avatarRef = useCreditTarget(
+    { contributionType: "SLOT_PRESENTED", contributionId: slotId },
+    userId,
+  );
+  return <PresenterHoverCard {...card} avatarRef={avatarRef} />;
+}
+
 /** Closes the currently open popover, if any, when Escape is pressed. */
 function useCloseOnEscape(isOpen: boolean, onEscape: () => void) {
   useEffect(() => {
@@ -213,7 +228,9 @@ export function PresenterStack({
             // and the avatar rides the line box's top - dropping the "+" beside it by the
             // difference. A flex parent blockifies the child, so the wrapper is the avatar.
             <span key={id} className="relative flex">
-              <PresenterHoverCard
+              <RegisteredPresenter
+                slotId={slot.id}
+                userId={id}
                 name={name}
                 user={users[id]}
                 suppressCard={openPopover === id}

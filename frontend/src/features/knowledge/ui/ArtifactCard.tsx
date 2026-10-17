@@ -7,6 +7,7 @@ import { TagChips } from "@/components/ui/TagChips";
 import type { Artifact } from "@/features/knowledge/domain/artifact";
 import { ArtifactLink } from "@/features/knowledge/ui/ArtifactLink";
 import { TypeIcon } from "@/features/knowledge/ui/type-visual";
+import { useCreditTarget } from "@/features/recognition/ui/credit-targets";
 import { relativeTime } from "@/lib/period";
 import { useNow } from "@/lib/use-wake-at";
 import { userHue } from "@/lib/user-hue";
@@ -101,6 +102,10 @@ export function ArtifactCard({
 }: Readonly<Props>) {
   const person = contributorOf(contributor, artifact.contributorUserId);
   const now = useNow();
+  const avatarRef = useCreditTarget(
+    { contributionType: "ARTIFACT_CAPTURED", contributionId: artifact.id },
+    artifact.contributorUserId,
+  );
 
   return (
     <article className="group border-border bg-surface flex items-start gap-3 rounded-md border p-4">
@@ -151,6 +156,7 @@ export function ArtifactCard({
               subject={artifact.contributorUserId}
               src={person.avatarUrl}
               className="size-5 rounded-full text-[0.6rem]"
+              ref={avatarRef}
             />
             <span className="leading-5">
               {person.name} ·{" "}

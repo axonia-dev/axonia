@@ -1,3 +1,5 @@
+import type { Ref } from "react";
+
 import { MemberAvatar } from "@/components/patterns/MemberAvatar";
 import type { User } from "@/features/identity/domain/user";
 import { MemberLabel } from "@/features/identity/ui/MemberLabel";
@@ -17,6 +19,7 @@ interface Props {
   /** Which avatar edge the card hangs from; "end" keeps the card on-page when the
    * avatar sits at a container's right edge. */
   align?: "start" | "end";
+  avatarRef?: Ref<HTMLElement>;
 }
 
 /** The border is what separates one face from the next in an overlapping presenter stack; every
@@ -99,6 +102,7 @@ export function PresenterHoverCard({
   onPress,
   suppressCard = false,
   align = "start",
+  avatarRef,
 }: Readonly<Props>) {
   return (
     <span className="group/hc relative inline-flex">
@@ -114,6 +118,7 @@ export function PresenterHoverCard({
           subject={user?.id ?? null}
           src={user?.avatarUrl ?? null}
           className={avatarClass}
+          {...(avatarRef ? { ref: avatarRef } : {})}
         />
       </button>
       {!suppressCard && <HoverCard name={name} user={user} align={align} />}

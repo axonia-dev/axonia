@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import { createRef } from "react";
 import { describe, expect, it } from "vitest";
 
 import type { EditionSlots } from "@/edition";
@@ -95,5 +96,50 @@ describe("MemberAvatar", () => {
     );
 
     expect(container.querySelector(".size-22")).not.toBeNull();
+  });
+
+  it("hands a ref the avatar itself where undecorated", () => {
+    const ref = createRef<HTMLElement>();
+    const { container } = render(
+      <MemberAvatar
+        name="Marta Ruiz"
+        hue="#6e3ceb"
+        subject="marta"
+        src={null}
+        ref={ref}
+      />,
+    );
+
+    expect(ref.current).toBe(container.firstElementChild);
+  });
+
+  it("hands a ref the decoration box where decorated, and the image where one is drawn", () => {
+    const ref = createRef<HTMLElement>();
+    render(
+      <EditionProvider edition={decorating}>
+        <MemberAvatar
+          name="Marta Ruiz"
+          hue="#6e3ceb"
+          subject="marta"
+          src={null}
+          ref={ref}
+        />
+      </EditionProvider>,
+    );
+    expect(ref.current).toBe(screen.getByTestId("decoration").parentElement);
+
+    const imgRef = createRef<HTMLElement>();
+    render(
+      <MemberAvatar
+        name="Marta Ruiz"
+        hue="#6e3ceb"
+        subject={null}
+        src="/m.png"
+        ref={imgRef}
+      />,
+    );
+    expect(imgRef.current).toBe(
+      screen.getByRole("img", { name: "Marta Ruiz" }),
+    );
   });
 });
