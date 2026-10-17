@@ -5,11 +5,19 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useCommunity } from "@/features/community/api/use-communities";
 import { useMe } from "@/features/identity/api/use-me";
+import {
+  useMarkImpactSeen,
+  useNewLoves,
+} from "@/features/recognition/api/use-new-loves";
 import { useMyContributions } from "@/features/recognition/api/use-recognition";
 import { MyImpactView } from "@/features/recognition/ui/MyImpactView";
 
 vi.mock("@/features/recognition/api/use-recognition", () => ({
   useMyContributions: vi.fn(),
+}));
+vi.mock("@/features/recognition/api/use-new-loves", () => ({
+  useNewLoves: vi.fn(),
+  useMarkImpactSeen: vi.fn(),
 }));
 vi.mock("@/features/identity/api/use-me", () => ({ useMe: vi.fn() }));
 vi.mock("@/features/community/api/use-communities", () => ({
@@ -75,6 +83,8 @@ beforeEach(() => {
   vi.mocked(useMe).mockReturnValue({
     data: { id: "u1", displayName: "Gabriel Dinant" },
   } as never);
+  vi.mocked(useNewLoves).mockReturnValue({ data: undefined } as never);
+  vi.mocked(useMarkImpactSeen).mockReturnValue({ mutate: vi.fn() } as never);
   onPage();
 });
 
@@ -93,22 +103,7 @@ describe("MyImpactView", () => {
 
   it("renders the header standing and a contribution card", () => {
     mockUseMyContributions.mockReturnValue({
-      data: [
-        {
-          contributionType: "SLOT_PRESENTED",
-          contributionId: 9,
-          communityId: 1,
-          communitySlug: "eng",
-          title: "Resilience talk",
-          occurredAt: "2026-06-01T00:00:00Z",
-          loveCount: 2,
-          sessionId: null,
-          typeId: null,
-          typeLabel: null,
-          typeIcon: null,
-          typeAccentColor: null,
-        },
-      ],
+      data: [contribution({ contributionId: 9, loveCount: 2 })],
       isLoading: false,
       isError: false,
     } as never);
@@ -261,6 +256,35 @@ describe("MyImpactView", () => {
       renderView();
       expect(screen.getByText("Loading…")).toBeInTheDocument();
       expect(screen.queryByText(/no contributions/i)).not.toBeInTheDocument();
+    });
+
+    it("asks for the new loves of this community only", () => {
+      onPage(ENGINEERING);
+      mockUseMyContributions.mockReturnValue({
+        data: [contribution({ contributionId: 1, communityId: 1 })],
+        isLoading: false,
+        isError: false,
+      } as never);
+      renderView();
+      expect(useNewLoves).toHaveBeenLastCalledWith({
+        communityId: 1,
+        enabled: true,
+      });
+    });
+
+    it("asks for no new loves while the community is unknown", () => {
+      vi.mocked(useParams).mockReturnValue({ slug: ENGINEERING.slug });
+      vi.mocked(useCommunity).mockReturnValue({ data: undefined } as never);
+      mockUseMyContributions.mockReturnValue({
+        data: [contribution({ contributionId: 1, communityId: 1 })],
+        isLoading: false,
+        isError: false,
+      } as never);
+      renderView();
+      expect(useNewLoves).toHaveBeenLastCalledWith({
+        communityId: undefined,
+        enabled: false,
+      });
     });
   });
 });

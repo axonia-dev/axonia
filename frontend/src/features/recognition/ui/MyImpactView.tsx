@@ -17,6 +17,11 @@ import type { RecognizedContribution } from "@/features/recognition/domain/recog
 import { ContributionCard } from "@/features/recognition/ui/ContributionCard";
 import { ImpactHeader } from "@/features/recognition/ui/ImpactHeader";
 import { ImpactToolbar } from "@/features/recognition/ui/ImpactToolbar";
+import {
+  contributionKeyOf,
+  type ImpactReplay,
+  useImpactReplay,
+} from "@/features/recognition/ui/use-impact-replay";
 import { failedToLoad, type RetryableRead } from "@/lib/failed-to-load";
 
 const PAGE_SIZE = 25;
@@ -41,6 +46,7 @@ interface ImpactResultsProps {
   scoped: boolean;
   visible: ReadonlyArray<RecognizedContribution>;
   windowed: ReadonlyArray<RecognizedContribution>;
+  replay: ImpactReplay;
   onClearFilters: () => void;
   onShowMore: () => void;
 }
@@ -68,6 +74,7 @@ function ImpactResults({
   scoped,
   visible,
   windowed,
+  replay,
   onClearFilters,
   onShowMore,
 }: Readonly<ImpactResultsProps>) {
@@ -112,12 +119,17 @@ function ImpactResults({
   return (
     <>
       <ul className="flex flex-col gap-3">
-        {windowed.map((c) => (
-          <ContributionCard
-            key={`${c.contributionType}-${c.contributionId}`}
-            contribution={c}
-          />
-        ))}
+        {windowed.map((c) => {
+          const key = contributionKeyOf(c);
+          return (
+            <ContributionCard
+              key={key}
+              contribution={c}
+              replay={replay.cardOf(key)}
+              heartRef={replay.heartRef(key)}
+            />
+          );
+        })}
       </ul>
       {visible.length > windowed.length && (
         <div className="flex flex-col items-center gap-1">
@@ -140,16 +152,22 @@ function useScopedContributions() {
   const contributions = useMyContributions();
   const page = usePageCommunity();
   const all = contributions.data ?? [];
+  const isLoading = contributions.isLoading || page.isLoading;
+  const failure = failedToLoad(contributions) ? contributions : undefined;
+  const scopeKnown = !page.scoped || page.community !== undefined;
   return {
     items: page.scoped ? scopeToCommunity(all, page.community?.id) : all,
-    isLoading: contributions.isLoading || page.isLoading,
-    failure: failedToLoad(contributions) ? contributions : undefined,
+    isLoading,
+    failure,
     scoped: page.scoped,
+    communityId: page.community?.id,
+    replayReady: scopeKnown && !isLoading && failure === undefined,
   };
 }
 
 export function MyImpactView() {
-  const { items, isLoading, failure, scoped } = useScopedContributions();
+  const scope = useScopedContributions();
+  const { items, isLoading, failure, scoped } = scope;
 
   const [query, setQuery] = useState("");
   const [communityId, setCommunityId] = useState(ALL_COMMUNITIES);
@@ -181,12 +199,19 @@ export function MyImpactView() {
     sort,
   );
   const windowed = visible.slice(0, shown);
+  const replay = useImpactReplay({
+    cards: windowed,
+    communityId: scope.communityId,
+    ready: scope.replayReady,
+  });
 
   return (
     <section className="flex flex-col gap-6">
       <ImpactHeader
         items={failure === undefined ? items : undefined}
         scoped={scoped}
+        avatarRef={replay.avatarRef}
+        replaySummary={replay.summary}
       />
 
       {items.length > 0 && (
@@ -212,6 +237,7 @@ export function MyImpactView() {
         scoped={scoped}
         visible={visible}
         windowed={windowed}
+        replay={replay}
         onClearFilters={clearFilters}
         onShowMore={() => setShown((n) => n + PAGE_SIZE)}
       />

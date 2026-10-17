@@ -1,4 +1,5 @@
 import { MemberAvatar } from "@/components/patterns/MemberAvatar";
+import { HeartIcon } from "@/components/ui/HeartIcon";
 import { useMe } from "@/features/identity/api/use-me";
 import { primaryOrgUnit, type User } from "@/features/identity/domain/user";
 import type {
@@ -65,14 +66,28 @@ function MixBar({
   );
 }
 
+function ReplaySummaryLine({ text }: Readonly<{ text: string | null }>) {
+  if (text === null) return null;
+  return (
+    <p className="text-primary mt-2 inline-flex items-center gap-1.5 text-sm font-medium motion-safe:animate-[hovercard-in_320ms_ease-out]">
+      <HeartIcon filled />
+      {text}
+    </p>
+  );
+}
+
 /** `items` is undefined when the contributions could not load: the header then names the member
  *  and claims nothing about what they contributed. */
 export function ImpactHeader({
   items,
   scoped = false,
+  avatarRef,
+  replaySummary = null,
 }: Readonly<{
   items: RecognizedContribution[] | undefined;
   scoped?: boolean;
+  avatarRef?: ((element: HTMLElement | null) => void) | undefined;
+  replaySummary?: string | null;
 }>) {
   const me = useMe();
   const summary =
@@ -89,6 +104,7 @@ export function ImpactHeader({
           src={avatarUrl}
           shape="circle"
           className="size-14 text-lg"
+          {...(avatarRef === undefined ? {} : { ref: avatarRef })}
         />
         <div className="min-w-0 flex-1">
           <div className="min-w-0">
@@ -105,6 +121,7 @@ export function ImpactHeader({
           {summary !== undefined && (
             <p className="text-foreground mt-3 text-sm">{summary.standing}</p>
           )}
+          <ReplaySummaryLine text={replaySummary} />
         </div>
       </div>
       {summary !== undefined && <MixBar counts={summary.counts} />}

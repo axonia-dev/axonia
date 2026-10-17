@@ -1,9 +1,10 @@
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { RecognizedContribution } from "@/features/recognition/domain/recognition";
 import { ContributionCard } from "@/features/recognition/ui/ContributionCard";
+import type { CardReplay } from "@/features/recognition/ui/use-impact-replay";
 
 function contribution(
   over: Partial<RecognizedContribution>,
@@ -26,10 +27,18 @@ function contribution(
   };
 }
 
-function renderCard(over: Partial<RecognizedContribution>) {
+function renderCard(
+  over: Partial<RecognizedContribution>,
+  replay?: CardReplay,
+  heartRef?: (element: HTMLElement | null) => void,
+) {
   render(
     <MemoryRouter>
-      <ContributionCard contribution={contribution(over)} />
+      <ContributionCard
+        contribution={contribution(over)}
+        replay={replay}
+        heartRef={heartRef}
+      />
     </MemoryRouter>,
   );
 }
@@ -96,5 +105,39 @@ describe("ContributionCard", () => {
   it("omits the reaction line when there is none yet", () => {
     renderCard({ loveCount: 0 });
     expect(screen.queryByLabelText(/appreciated by/i)).not.toBeInTheDocument();
+  });
+
+  describe("during the replay", () => {
+    it("shows the replayed count while keeping the final count in the label", () => {
+      renderCard(
+        { loveCount: 7 },
+        { displayedCount: 5, newLoves: 2, marked: false },
+      );
+      const reaction = screen.getByLabelText("Appreciated by 7 people");
+      expect(reaction).toHaveTextContent("5");
+      expect(screen.queryByLabelText("2 new")).not.toBeInTheDocument();
+      expect(screen.getByRole("listitem")).toHaveClass("border-border");
+    });
+
+    it("marks the card fresh with its new loves once marked", () => {
+      renderCard(
+        { loveCount: 7 },
+        { displayedCount: 7, newLoves: 2, marked: true },
+      );
+      expect(screen.getByLabelText("2 new")).toHaveTextContent("+2");
+      expect(screen.getByRole("listitem")).toHaveClass(
+        "border-primary/35",
+        "ring-3",
+        "ring-primary/10",
+      );
+    });
+
+    it("hands its heart over as the trail origin", () => {
+      const heartRef = vi.fn();
+      renderCard({ loveCount: 7 }, undefined, heartRef);
+      expect(heartRef).toHaveBeenCalledWith(
+        screen.getByLabelText("Appreciated by 7 people").firstElementChild,
+      );
+    });
   });
 });

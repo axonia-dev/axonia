@@ -61,4 +61,24 @@ describe("ImpactHeader", () => {
     expect(screen.getByText("1 talk")).toBeInTheDocument();
     expect(screen.getByText("1 artifact")).toBeInTheDocument();
   });
+
+  it("renders the replay summary only once given", () => {
+    const { rerender } = render(<ImpactHeader items={[contribution({})]} />);
+    expect(screen.queryByText(/since the last visit/)).not.toBeInTheDocument();
+    rerender(
+      <ImpactHeader
+        items={[contribution({})]}
+        replaySummary="2 new loves since the last visit"
+      />,
+    );
+    expect(
+      screen.getByText("2 new loves since the last visit"),
+    ).toBeInTheDocument();
+  });
+
+  it("hands its avatar over as the landing target", () => {
+    const avatarRef = vi.fn();
+    render(<ImpactHeader items={[contribution({})]} avatarRef={avatarRef} />);
+    expect(avatarRef).toHaveBeenCalledWith(expect.any(HTMLElement));
+  });
 });
