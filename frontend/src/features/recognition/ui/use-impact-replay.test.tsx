@@ -83,6 +83,7 @@ function newLovesReturn(result: Partial<{ data: NewLoves; isError: boolean }>) {
 interface Props {
   cards: ReadonlyArray<RecognizedContribution>;
   communityId: number | undefined;
+  scopeKnown: boolean;
   ready: boolean;
 }
 
@@ -91,6 +92,7 @@ function renderReplay(initial: Partial<Props> = {}) {
     initialProps: {
       cards: [RUST, RUNBOOK],
       communityId: undefined,
+      scopeKnown: true,
       ready: false,
       ...initial,
     },
@@ -108,6 +110,7 @@ function start(
   hook.rerender({
     cards: [RUST, RUNBOOK],
     communityId: undefined,
+    scopeKnown: true,
     ready: true,
     ...over,
   });

@@ -29,6 +29,7 @@ export interface ImpactReplay {
   heartRef(key: string): (element: HTMLElement | null) => void;
   avatarRef: (element: HTMLElement | null) => void;
   summary: string | null;
+  settled: boolean;
 }
 
 export const contributionKeyOf = (
@@ -109,13 +110,18 @@ function withSummaryFallback(
 export function useImpactReplay({
   cards,
   communityId,
+  scopeKnown,
   ready,
 }: Readonly<{
   cards: ReadonlyArray<RecognizedContribution>;
   communityId: number | undefined;
+  scopeKnown: boolean;
   ready: boolean;
 }>): ImpactReplay {
-  const { data } = useNewLoves({ communityId, enabled: ready });
+  const { data, isPending } = useNewLoves({
+    communityId,
+    enabled: scopeKnown,
+  });
   const { mutate: markSeen } = useMarkImpactSeen();
   const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
 
@@ -196,5 +202,6 @@ export function useImpactReplay({
     avatar.current = element;
   }, []);
 
-  return { cardOf, heartRef, avatarRef, summary };
+  const settled = !scopeKnown || !isPending;
+  return { cardOf, heartRef, avatarRef, summary, settled };
 }

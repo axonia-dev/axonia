@@ -70,6 +70,26 @@ const CARD_CLASS =
   "bg-surface flex items-start gap-3 rounded-xl border p-4 shadow-[0_1px_2px_rgba(94,23,64,0.05)] transition-[border-color,box-shadow] duration-500";
 const FRESH_CLASS = "border-primary/35 ring-3 ring-primary/10";
 
+function loveLineLabel(count: number, replay: CardReplay | undefined): string {
+  if (replay?.marked !== true) return peopleLabel(count);
+  return `${peopleLabel(count)}, ${replay.newLoves} new`;
+}
+
+function hasTicked(count: number, replay: CardReplay | undefined): boolean {
+  if (replay === undefined) return false;
+  return replay.displayedCount !== Math.max(0, count - replay.newLoves);
+}
+
+// AnimatedCount pops on mount, so a count only animates once the replay has ticked it.
+function LoveCount({
+  count,
+  replay,
+}: Readonly<{ count: number; replay: CardReplay | undefined }>) {
+  const value = replay?.displayedCount ?? count;
+  if (hasTicked(count, replay)) return <AnimatedCount value={value} />;
+  return <span className="inline-block tabular-nums">{value}</span>;
+}
+
 function LoveLine({
   count,
   replay,
@@ -82,15 +102,15 @@ function LoveLine({
   return (
     <p
       className="text-primary mt-2 inline-flex items-center gap-1.5 text-sm tabular-nums"
-      aria-label={peopleLabel(count)}
+      aria-label={loveLineLabel(count, replay)}
     >
       <span ref={heartRef} className="inline-flex">
         <HeartIcon filled />
       </span>
-      <AnimatedCount value={replay?.displayedCount ?? count} />
+      <LoveCount count={count} replay={replay} />
       {replay?.marked === true && (
         <span
-          aria-label={`${replay.newLoves} new`}
+          aria-hidden
           className="text-primary bg-primary/10 rounded-full px-1.5 text-xs font-semibold"
         >
           +{replay.newLoves}

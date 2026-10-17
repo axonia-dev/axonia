@@ -115,7 +115,7 @@ describe("ContributionCard", () => {
       );
       const reaction = screen.getByLabelText("Appreciated by 7 people");
       expect(reaction).toHaveTextContent("5");
-      expect(screen.queryByLabelText("2 new")).not.toBeInTheDocument();
+      expect(screen.queryByText("+2")).not.toBeInTheDocument();
       expect(screen.getByRole("listitem")).toHaveClass("border-border");
     });
 
@@ -124,12 +124,25 @@ describe("ContributionCard", () => {
         { loveCount: 7 },
         { displayedCount: 7, newLoves: 2, marked: true },
       );
-      expect(screen.getByLabelText("2 new")).toHaveTextContent("+2");
+      expect(
+        screen.getByLabelText("Appreciated by 7 people, 2 new"),
+      ).toBeInTheDocument();
+      expect(screen.getByText("+2")).toHaveAttribute("aria-hidden", "true");
       expect(screen.getByRole("listitem")).toHaveClass(
         "border-primary/35",
         "ring-3",
         "ring-primary/10",
       );
+    });
+
+    it("names a single new love in the singular", () => {
+      renderCard(
+        { loveCount: 1 },
+        { displayedCount: 1, newLoves: 1, marked: true },
+      );
+      expect(
+        screen.getByLabelText("Appreciated by 1 person, 1 new"),
+      ).toBeInTheDocument();
     });
 
     it("hands its heart over as the trail origin", () => {
@@ -138,6 +151,33 @@ describe("ContributionCard", () => {
       expect(heartRef).toHaveBeenCalledWith(
         screen.getByLabelText("Appreciated by 7 people").firstElementChild,
       );
+    });
+  });
+
+  describe("count motion", () => {
+    const POP = /animate-\[count-pop/;
+    const countOf = () =>
+      screen.getByLabelText("Appreciated by 7 people").children[1];
+
+    it("renders a card outside the replay without the pop", () => {
+      renderCard({ loveCount: 7 });
+      expect(countOf()?.outerHTML).not.toMatch(POP);
+    });
+
+    it("holds a replayed card still until its first tick", () => {
+      renderCard(
+        { loveCount: 7 },
+        { displayedCount: 5, newLoves: 2, marked: false },
+      );
+      expect(countOf()?.outerHTML).not.toMatch(POP);
+    });
+
+    it("pops a replayed card's count once it ticks", () => {
+      renderCard(
+        { loveCount: 7 },
+        { displayedCount: 6, newLoves: 2, marked: false },
+      );
+      expect(countOf()?.outerHTML).toMatch(POP);
     });
   });
 });

@@ -161,6 +161,7 @@ function useScopedContributions() {
     failure,
     scoped: page.scoped,
     communityId: page.community?.id,
+    scopeKnown,
     replayReady: scopeKnown && !isLoading && failure === undefined,
   };
 }
@@ -202,6 +203,7 @@ export function MyImpactView() {
   const replay = useImpactReplay({
     cards: windowed,
     communityId: scope.communityId,
+    scopeKnown: scope.scopeKnown,
     ready: scope.replayReady,
   });
 
@@ -231,7 +233,7 @@ export function MyImpactView() {
       )}
 
       <ImpactResults
-        isLoading={isLoading}
+        isLoading={isLoading || !replay.settled}
         failure={failure}
         hasItems={items.length > 0}
         scoped={scoped}
