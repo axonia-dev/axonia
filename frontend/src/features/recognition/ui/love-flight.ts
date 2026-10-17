@@ -6,19 +6,9 @@ import {
   creditTargetsOf,
 } from "@/features/recognition/ui/credit-targets";
 import { landPulse } from "@/features/recognition/ui/land-pulse";
+import { inViewport } from "@/features/recognition/ui/viewport";
 
 const PRESENTER_STAGGER_MS = 110;
-
-function inViewport(element: HTMLElement): boolean {
-  const r = element.getBoundingClientRect();
-  return (
-    r.width > 0 &&
-    r.bottom > 0 &&
-    r.right > 0 &&
-    r.top < window.innerHeight &&
-    r.left < window.innerWidth
-  );
-}
 
 function nearestPerUser(
   targets: CreditTarget[],

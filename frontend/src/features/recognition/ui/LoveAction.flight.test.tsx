@@ -114,4 +114,26 @@ describe("LoveAction flight", () => {
     expect(launchLoveFlight).not.toHaveBeenCalled();
     expect(unlove).toHaveBeenCalledTimes(1);
   });
+
+  it.each([
+    ["the first love", 0],
+    ["a further love", 2],
+  ])(
+    "launches %s from the heart icon, not the whole button",
+    async (_, count) => {
+      vi.mocked(useLoveSummary).mockReturnValue({
+        data: { count, viewerHasLoved: false },
+      } as never);
+      vi.mocked(launchLoveFlight).mockReturnValue(true);
+      render(<LoveAction contribution={ref} />);
+      const button = screen.getByRole("button", { name: /^love/i });
+
+      await userEvent.click(button);
+
+      const origin = vi.mocked(launchLoveFlight).mock.calls[0]?.[0].origin;
+      expect(origin?.parentElement).toBe(button);
+      expect(origin?.children).toHaveLength(1);
+      expect(origin?.firstElementChild?.tagName.toLowerCase()).toBe("svg");
+    },
+  );
 });

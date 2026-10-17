@@ -43,6 +43,8 @@ function renderCard(
   );
 }
 
+const countOf = () => document.querySelector("[data-love-count]");
+
 describe("ContributionCard", () => {
   it("links a talk to the session it happened in", () => {
     renderCard({
@@ -91,42 +93,54 @@ describe("ContributionCard", () => {
 
   it("shows the love count with the app-wide heart reaction", () => {
     renderCard({ loveCount: 7 });
-    const reaction = screen.getByLabelText("Appreciated by 7 people");
-    expect(reaction).toHaveTextContent("7");
+    expect(countOf()).toHaveTextContent("7");
+    expect(screen.getByText("Appreciated by 7 people")).toHaveClass("sr-only");
   });
 
-  it("pluralises the accessible label to the singular for one love", () => {
+  it("pluralises the spoken sentence to the singular for one love", () => {
     renderCard({ loveCount: 1 });
-    expect(
-      screen.getByLabelText("Appreciated by 1 person"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Appreciated by 1 person")).toBeInTheDocument();
+  });
+
+  it("names the line in text rather than an aria-label a paragraph cannot carry", () => {
+    renderCard({ loveCount: 7 });
+    const line = screen.getByText("Appreciated by 7 people").parentElement!;
+    expect(line).not.toHaveAttribute("aria-label");
+    const visible = [...line.children].filter(
+      (child) => !child.classList.contains("sr-only"),
+    );
+    visible.forEach((child) =>
+      expect(child).toHaveAttribute("aria-hidden", "true"),
+    );
   });
 
   it("omits the reaction line when there is none yet", () => {
     renderCard({ loveCount: 0 });
-    expect(screen.queryByLabelText(/appreciated by/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/appreciated by/i)).not.toBeInTheDocument();
   });
 
   describe("during the replay", () => {
-    it("shows the replayed count while keeping the final count in the label", () => {
-      renderCard(
-        { loveCount: 7 },
-        { displayedCount: 5, newLoves: 2, marked: false },
-      );
-      const reaction = screen.getByLabelText("Appreciated by 7 people");
-      expect(reaction).toHaveTextContent("5");
+    it("holds back the pending loves while saying the final count", () => {
+      renderCard({ loveCount: 7 }, { pending: 2, newLoves: 2, marked: false });
+      expect(countOf()).toHaveTextContent("5");
+      expect(screen.getByText("Appreciated by 7 people")).toBeInTheDocument();
       expect(screen.queryByText("+2")).not.toBeInTheDocument();
       expect(screen.getByRole("listitem")).toHaveClass("border-border");
     });
 
-    it("marks the card fresh with its new loves once marked", () => {
-      renderCard(
-        { loveCount: 7 },
-        { displayedCount: 7, newLoves: 2, marked: true },
-      );
+    it("follows a refetched total instead of freezing the seeded one", () => {
+      renderCard({ loveCount: 9 }, { pending: 1, newLoves: 2, marked: true });
+      expect(countOf()).toHaveTextContent("8");
       expect(
-        screen.getByLabelText("Appreciated by 7 people, 2 new"),
+        screen.getByText("Appreciated by 9 people, 2 new"),
       ).toBeInTheDocument();
+    });
+
+    it("marks the card fresh with its new loves once marked", () => {
+      renderCard({ loveCount: 7 }, { pending: 0, newLoves: 2, marked: true });
+      expect(screen.getByText("Appreciated by 7 people, 2 new")).toHaveClass(
+        "sr-only",
+      );
       expect(screen.getByText("+2")).toHaveAttribute("aria-hidden", "true");
       expect(screen.getByRole("listitem")).toHaveClass(
         "border-primary/35",
@@ -136,12 +150,9 @@ describe("ContributionCard", () => {
     });
 
     it("names a single new love in the singular", () => {
-      renderCard(
-        { loveCount: 1 },
-        { displayedCount: 1, newLoves: 1, marked: true },
-      );
+      renderCard({ loveCount: 1 }, { pending: 0, newLoves: 1, marked: true });
       expect(
-        screen.getByLabelText("Appreciated by 1 person, 1 new"),
+        screen.getByText("Appreciated by 1 person, 1 new"),
       ).toBeInTheDocument();
     });
 
@@ -149,15 +160,14 @@ describe("ContributionCard", () => {
       const heartRef = vi.fn();
       renderCard({ loveCount: 7 }, undefined, heartRef);
       expect(heartRef).toHaveBeenCalledWith(
-        screen.getByLabelText("Appreciated by 7 people").firstElementChild,
+        screen.getByText("Appreciated by 7 people").parentElement!
+          .firstElementChild,
       );
     });
   });
 
   describe("count motion", () => {
     const POP = /animate-\[count-pop/;
-    const countOf = () =>
-      screen.getByLabelText("Appreciated by 7 people").children[1];
 
     it("renders a card outside the replay without the pop", () => {
       renderCard({ loveCount: 7 });
@@ -165,18 +175,12 @@ describe("ContributionCard", () => {
     });
 
     it("holds a replayed card still until its first tick", () => {
-      renderCard(
-        { loveCount: 7 },
-        { displayedCount: 5, newLoves: 2, marked: false },
-      );
+      renderCard({ loveCount: 7 }, { pending: 2, newLoves: 2, marked: false });
       expect(countOf()?.outerHTML).not.toMatch(POP);
     });
 
     it("pops a replayed card's count once it ticks", () => {
-      renderCard(
-        { loveCount: 7 },
-        { displayedCount: 6, newLoves: 2, marked: false },
-      );
+      renderCard({ loveCount: 7 }, { pending: 1, newLoves: 2, marked: false });
       expect(countOf()?.outerHTML).toMatch(POP);
     });
   });

@@ -1,6 +1,6 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { Profiler } from "react";
-import { MemoryRouter } from "react-router-dom";
+import { Link, MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useCommunity } from "@/features/community/api/use-communities";
@@ -11,7 +11,10 @@ import {
 } from "@/features/recognition/api/use-new-loves";
 import { useMyContributions } from "@/features/recognition/api/use-recognition";
 import type { RecognizedContribution } from "@/features/recognition/domain/recognition";
-import { MyImpactView } from "@/features/recognition/ui/MyImpactView";
+import {
+  MyImpactRoute,
+  MyImpactView,
+} from "@/features/recognition/ui/MyImpactView";
 
 vi.mock("@/features/recognition/api/use-recognition", () => ({
   useMyContributions: vi.fn(),
@@ -75,9 +78,7 @@ function newLovesAre(read: "pending" | "loaded" | "failed") {
 const shown: string[] = [];
 
 function recordCount() {
-  const count = document.querySelector(
-    '[aria-label^="Appreciated by 7 people"]',
-  )?.children[1]?.textContent;
+  const count = document.querySelector("[data-love-count]")?.textContent;
   if (count !== undefined) shown.push(count);
 }
 
@@ -163,5 +164,39 @@ describe("MyImpactView replay", () => {
 
     expect(new Set(shown)).toEqual(new Set(["7"]));
     expect(screen.queryByText("Loading…")).not.toBeInTheDocument();
+  });
+
+  it("replays and marks each community afresh when moving between them", async () => {
+    vi.mocked(useCommunity).mockImplementation(
+      (slug) => ({ data: { id: slug === "a" ? 1 : 2 } }) as never,
+    );
+    vi.mocked(useMyContributions).mockReturnValue({
+      data: [RUST, { ...RUST, contributionId: 2, communityId: 2 }],
+      isLoading: false,
+      errorUpdateCount: 0,
+    } as never);
+    newLovesAre("loaded");
+    const mark = vi.fn();
+    vi.mocked(useMarkImpactSeen).mockReturnValue({ mutate: mark } as never);
+    render(
+      <MemoryRouter initialEntries={["/communities/a/me/impact"]}>
+        <Link to="/communities/b/me/impact">Community b</Link>
+        <Routes>
+          <Route
+            path="/communities/:slug/me/impact"
+            element={<MyImpactRoute />}
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
+    await act(() => vi.advanceTimersByTimeAsync(300));
+
+    act(() => fireEvent.click(screen.getByText("Community b")));
+    await playOut();
+
+    expect(mark.mock.calls).toEqual([
+      [{ asOf: NEW_LOVES.asOf, communityId: 1 }],
+      [{ asOf: NEW_LOVES.asOf, communityId: 2 }],
+    ]);
   });
 });

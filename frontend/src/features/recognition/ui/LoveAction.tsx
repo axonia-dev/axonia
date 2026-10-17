@@ -132,15 +132,15 @@ export function LoveAction({
     );
   }
 
-  const originRef = useRef<HTMLDivElement>(null);
+  const heartRef = useRef<HTMLSpanElement>(null);
   const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
 
   function celebrate() {
-    if (reducedMotion || !originRef.current) return;
+    if (reducedMotion || !heartRef.current) return;
     const launched = launchLoveFlight({
       contribution,
       viewerId: currentUserId() ?? null,
-      origin: originRef.current,
+      origin: heartRef.current,
     });
     if (!launched) spawnBurst();
   }
@@ -180,7 +180,9 @@ export function LoveAction({
             love.mutate();
           }}
         >
-          <HeartIcon />
+          <span ref={heartRef} className="inline-flex">
+            <HeartIcon />
+          </span>
           {stacked ? null : "Love it!"}
         </AnimatedLoveButton>
       );
@@ -195,7 +197,9 @@ export function LoveAction({
           love.mutate();
         }}
       >
-        <HeartIcon key="unloved" className={POP} />
+        <span ref={heartRef} className="inline-flex">
+          <HeartIcon key="unloved" className={POP} />
+        </span>
         <AnimatedCount value={count} />
       </AnimatedLoveButton>
     );
@@ -203,7 +207,7 @@ export function LoveAction({
 
   return (
     <div className={cn("flex flex-col gap-2", wrap)}>
-      <div ref={originRef} className="relative">
+      <div className="relative">
         {control()}
         {bursters.map((b) => (
           <span

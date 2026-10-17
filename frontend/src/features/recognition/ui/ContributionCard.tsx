@@ -75,9 +75,8 @@ function loveLineLabel(count: number, replay: CardReplay | undefined): string {
   return `${peopleLabel(count)}, ${replay.newLoves} new`;
 }
 
-function hasTicked(count: number, replay: CardReplay | undefined): boolean {
-  if (replay === undefined) return false;
-  return replay.displayedCount !== Math.max(0, count - replay.newLoves);
+function shownCount(count: number, replay: CardReplay | undefined): number {
+  return Math.max(0, count - (replay?.pending ?? 0));
 }
 
 // AnimatedCount pops on mount, so a count only animates once the replay has ticked it.
@@ -85,11 +84,14 @@ function LoveCount({
   count,
   replay,
 }: Readonly<{ count: number; replay: CardReplay | undefined }>) {
-  const value = replay?.displayedCount ?? count;
-  if (hasTicked(count, replay)) return <AnimatedCount value={value} />;
+  const value = shownCount(count, replay);
+  if (replay !== undefined && replay.pending !== replay.newLoves)
+    return <AnimatedCount value={value} />;
   return <span className="inline-block tabular-nums">{value}</span>;
 }
 
+// The visible line is hidden from assistive tech; one sr-only sentence carries it, since a
+// paragraph cannot be named by aria-label.
 function LoveLine({
   count,
   replay,
@@ -100,14 +102,13 @@ function LoveLine({
   heartRef: ((element: HTMLElement | null) => void) | undefined;
 }>) {
   return (
-    <p
-      className="text-primary mt-2 inline-flex items-center gap-1.5 text-sm tabular-nums"
-      aria-label={loveLineLabel(count, replay)}
-    >
-      <span ref={heartRef} className="inline-flex">
+    <p className="text-primary mt-2 inline-flex items-center gap-1.5 text-sm tabular-nums">
+      <span ref={heartRef} aria-hidden className="inline-flex">
         <HeartIcon filled />
       </span>
-      <LoveCount count={count} replay={replay} />
+      <span aria-hidden data-love-count className="inline-flex">
+        <LoveCount count={count} replay={replay} />
+      </span>
       {replay?.marked === true && (
         <span
           aria-hidden
@@ -116,6 +117,7 @@ function LoveLine({
           +{replay.newLoves}
         </span>
       )}
+      <span className="sr-only">{loveLineLabel(count, replay)}</span>
     </p>
   );
 }

@@ -1,22 +1,22 @@
-import { act, renderHook } from "@testing-library/react";
-import type { PropsWithChildren, ReactNode } from "react";
+import { act } from "@testing-library/react";
+import { StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DelegatedSessionProvider } from "@/auth/delegated-session";
-import {
-  useMarkImpactSeen,
-  useNewLoves,
-} from "@/features/recognition/api/use-new-loves";
-import type {
-  NewLoves,
-  RecognizedContribution,
-} from "@/features/recognition/domain/recognition";
 import { flyComet } from "@/features/recognition/ui/comet-trail";
-import { landPulse } from "@/features/recognition/ui/land-pulse";
 import {
-  contributionKeyOf,
-  useImpactReplay,
-} from "@/features/recognition/ui/use-impact-replay";
+  arrangeReplay,
+  markSeen,
+  NEW_LOVES,
+  newLovesReturn,
+  renderReplay,
+  RUNBOOK,
+  RUST,
+  RUST_KEY,
+  start,
+} from "@/features/recognition/ui/impact-replay-fixture";
+import { landPulse } from "@/features/recognition/ui/land-pulse";
+import { contributionKeyOf } from "@/features/recognition/ui/use-impact-replay";
 import { useMediaQuery } from "@/lib/use-media-query";
 
 vi.mock("@/features/recognition/api/use-new-loves", () => ({
@@ -32,103 +32,7 @@ vi.mock("@/features/recognition/ui/land-pulse", () => ({
 }));
 vi.mock("@/lib/use-media-query", () => ({ useMediaQuery: vi.fn() }));
 
-const markSeen = vi.fn();
-
-function card(id: number, loveCount: number): RecognizedContribution {
-  return {
-    contributionType: "SLOT_PRESENTED",
-    contributionId: id,
-    communityId: 1,
-    communitySlug: "eng",
-    communityName: "Engineering",
-    title: `Talk ${id}`,
-    occurredAt: "2026-06-01T00:00:00Z",
-    loveCount,
-    sessionId: null,
-    typeId: null,
-    typeLabel: null,
-    typeIcon: null,
-    typeAccentColor: null,
-  };
-}
-
-const RUST = card(1, 7);
-const RUNBOOK = card(2, 3);
-const RUST_KEY = contributionKeyOf(RUST);
-
-const NEW_LOVES: NewLoves = {
-  asOf: "2026-10-17T09:00:00Z",
-  capped: false,
-  items: [
-    { contributionType: "SLOT_PRESENTED", contributionId: 1, newLoves: 2 },
-  ],
-};
-
-function element(top: number): HTMLElement {
-  const el = document.createElement("span");
-  el.getBoundingClientRect = () =>
-    ({
-      top,
-      bottom: top + 16,
-      left: 0,
-      right: 16,
-      width: 16,
-      height: 16,
-    }) as DOMRect;
-  return el;
-}
-
-function newLovesReturn(result: Partial<{ data: NewLoves; isError: boolean }>) {
-  vi.mocked(useNewLoves).mockReturnValue(result as never);
-}
-
-interface Props {
-  cards: ReadonlyArray<RecognizedContribution>;
-  communityId: number | undefined;
-  scopeKnown: boolean;
-  ready: boolean;
-}
-
-function renderReplay(
-  initial: Partial<Props> = {},
-  wrapper?: ({ children }: PropsWithChildren) => ReactNode,
-) {
-  const hook = renderHook((props: Props) => useImpactReplay(props), {
-    ...(wrapper === undefined ? {} : { wrapper }),
-    initialProps: {
-      cards: [RUST, RUNBOOK],
-      communityId: undefined,
-      scopeKnown: true,
-      ready: false,
-      ...initial,
-    },
-  });
-  hook.result.current.avatarRef(element(0));
-  hook.result.current.heartRef(RUST_KEY)(element(200));
-  hook.result.current.heartRef(contributionKeyOf(RUNBOOK))(element(260));
-  return hook;
-}
-
-function start(
-  hook: ReturnType<typeof renderReplay>,
-  over: Partial<Props> = {},
-) {
-  hook.rerender({
-    cards: [RUST, RUNBOOK],
-    communityId: undefined,
-    scopeKnown: true,
-    ready: true,
-    ...over,
-  });
-}
-
-beforeEach(() => {
-  vi.useFakeTimers();
-  vi.clearAllMocks();
-  vi.mocked(useMarkImpactSeen).mockReturnValue({ mutate: markSeen } as never);
-  vi.mocked(useMediaQuery).mockReturnValue(false);
-  newLovesReturn({ data: NEW_LOVES });
-});
+beforeEach(arrangeReplay);
 
 afterEach(() => {
   vi.useRealTimers();
@@ -147,7 +51,7 @@ describe("useImpactReplay", () => {
     const hook = renderReplay();
     start(hook);
     expect(hook.result.current.cardOf(RUST_KEY)).toEqual({
-      displayedCount: 5,
+      pending: 2,
       newLoves: 2,
       marked: false,
     });
@@ -156,11 +60,11 @@ describe("useImpactReplay", () => {
     ).toBeUndefined();
 
     await act(() => vi.advanceTimersByTimeAsync(250));
-    expect(hook.result.current.cardOf(RUST_KEY)?.displayedCount).toBe(6);
+    expect(hook.result.current.cardOf(RUST_KEY)?.pending).toBe(1);
     await act(() => vi.advanceTimersByTimeAsync(120));
     expect(hook.result.current.cardOf(RUST_KEY)?.marked).toBe(true);
     await act(() => vi.advanceTimersByTimeAsync(100));
-    expect(hook.result.current.cardOf(RUST_KEY)?.displayedCount).toBe(7);
+    expect(hook.result.current.cardOf(RUST_KEY)?.pending).toBe(0);
     expect(hook.result.current.summary).toBeNull();
 
     await act(() => vi.advanceTimersByTimeAsync(1000));
@@ -194,7 +98,7 @@ describe("useImpactReplay", () => {
     await act(() => vi.advanceTimersByTimeAsync(3000));
     expect(markSeen).toHaveBeenCalledExactlyOnceWith({ asOf: NEW_LOVES.asOf });
     expect(flyComet).toHaveBeenCalledTimes(2);
-    expect(hook.result.current.cardOf(RUST_KEY)?.displayedCount).toBe(7);
+    expect(hook.result.current.cardOf(RUST_KEY)?.pending).toBe(0);
   });
 
   it("plays the replay in a delegated tab without consuming it", async () => {
@@ -234,31 +138,13 @@ describe("useImpactReplay", () => {
     start(hook);
     await act(() => vi.advanceTimersByTimeAsync(0));
     expect(hook.result.current.cardOf(RUST_KEY)).toEqual({
-      displayedCount: 7,
+      pending: 0,
       newLoves: 2,
       marked: true,
     });
     expect(hook.result.current.summary).toBe(
       "2 new loves since the last visit",
     );
-    expect(flyComet).not.toHaveBeenCalled();
-  });
-
-  it("sends no trail from a card outside the viewport", async () => {
-    const hook = renderReplay();
-    hook.result.current.heartRef(RUST_KEY)(element(5000));
-    start(hook);
-    await act(() => vi.advanceTimersByTimeAsync(0));
-    expect(hook.result.current.cardOf(RUST_KEY)?.displayedCount).toBe(7);
-    expect(flyComet).not.toHaveBeenCalled();
-  });
-
-  it("sends no trail from a card whose heart is gone", async () => {
-    const hook = renderReplay();
-    hook.result.current.heartRef(RUST_KEY)(null);
-    start(hook);
-    await act(() => vi.advanceTimersByTimeAsync(0));
-    expect(hook.result.current.cardOf(RUST_KEY)?.marked).toBe(true);
     expect(flyComet).not.toHaveBeenCalled();
   });
 
@@ -279,11 +165,24 @@ describe("useImpactReplay", () => {
     expect(hook.result.current.summary).toBe("2 loves in the last 30 days");
   });
 
-  it("clears its pending timers on unmount", async () => {
+  it("clears its pending timers and grounds its comets on unmount", async () => {
     const hook = renderReplay();
     start(hook);
     await act(() => vi.advanceTimersByTimeAsync(300));
     hook.unmount();
     expect(vi.getTimerCount()).toBe(0);
+    const signal = vi.mocked(flyComet).mock.calls[0]?.[0].signal;
+    expect(signal?.aborted).toBe(true);
+  });
+
+  it("marks once and flies every trail under StrictMode", async () => {
+    const hook = renderReplay({}, StrictMode);
+    start(hook);
+    await act(() => vi.advanceTimersByTimeAsync(3000));
+    expect(markSeen).toHaveBeenCalledOnce();
+    expect(flyComet).toHaveBeenCalledTimes(2);
+    expect(hook.result.current.summary).toBe(
+      "2 new loves since the last visit",
+    );
   });
 });

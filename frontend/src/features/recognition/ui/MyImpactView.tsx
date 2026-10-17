@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button } from "react-aria-components";
+import { useParams } from "react-router-dom";
 
 import { EmptyState } from "@/components/patterns/EmptyState";
 import { LoadFailed } from "@/components/patterns/LoadFailed";
@@ -245,4 +246,10 @@ export function MyImpactView() {
       />
     </section>
   );
+}
+
+/** One view per community: the replay is one-shot per mount, so moving to another community remounts it. */
+export function MyImpactRoute() {
+  const { slug = "" } = useParams();
+  return <MyImpactView key={slug} />;
 }

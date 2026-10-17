@@ -41,7 +41,14 @@ export async function flyComet({
   from,
   to,
   delay = 0,
-}: Readonly<{ from: Point; to: Point; delay?: number }>): Promise<void> {
+  signal,
+}: Readonly<{
+  from: Point;
+  to: Point;
+  delay?: number;
+  signal?: AbortSignal;
+}>): Promise<void> {
+  if (signal?.aborted === true) return;
   const overlay = cometOverlay();
   const flights = SIZES.map(async (size, index) => {
     const el = heart(size, index);
@@ -52,6 +59,9 @@ export async function flyComet({
       delay: delay + index * STAGGER_MS,
       easing: EASING,
       fill: "both",
+    });
+    signal?.addEventListener("abort", () => animation.cancel(), {
+      once: true,
     });
     await animation.finished.catch(() => undefined);
     el.remove();

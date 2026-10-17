@@ -80,6 +80,42 @@ describe("flyComet", () => {
     await Promise.all([first, second]);
   });
 
+  it("cancels every heart in flight when its signal aborts", async () => {
+    const cancels: (() => void)[] = [];
+    Element.prototype.animate = vi.fn(() => {
+      const rejecters: ((reason: unknown) => void)[] = [];
+      const finished = new Promise<void>((_, fail) => {
+        rejecters.push(fail);
+      });
+      const cancel = vi.fn(() => {
+        for (const fail of rejecters) fail(new DOMException("", "AbortError"));
+      });
+      cancels.push(cancel);
+      return { finished, cancel };
+    }) as unknown as Element["animate"];
+    const controller = new AbortController();
+    const done = flyComet({ from, to, signal: controller.signal });
+
+    controller.abort();
+
+    await done;
+    expect(cancels).toHaveLength(4);
+    cancels.forEach((cancel) => expect(cancel).toHaveBeenCalledOnce());
+    await vi.waitFor(() =>
+      expect(
+        document.querySelectorAll("[data-comet-overlay] span"),
+      ).toHaveLength(0),
+    );
+  });
+
+  it("flies nothing once its signal has already aborted", async () => {
+    const animate = stubAnimate();
+    const controller = new AbortController();
+    controller.abort();
+    await flyComet({ from, to, signal: controller.signal });
+    expect(animate).not.toHaveBeenCalled();
+  });
+
   it("resolves and leaves no hearts when animate is unavailable", async () => {
     await expect(flyComet({ from, to })).resolves.toBeUndefined();
     expect(document.querySelectorAll("[data-comet-overlay] span")).toHaveLength(

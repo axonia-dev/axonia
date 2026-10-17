@@ -112,9 +112,7 @@ describe("MyImpactView", () => {
     expect(
       screen.getByRole("link", { name: "Resilience talk" }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByLabelText("Appreciated by 2 people"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Appreciated by 2 people")).toBeInTheDocument();
   });
 
   it("says the contributions could not load, claiming none in the header", async () => {

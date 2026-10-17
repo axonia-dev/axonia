@@ -41,7 +41,10 @@ import { MyExpertiseView } from "@/features/expertise/ui/MyExpertiseView";
 import { TagCurationView } from "@/features/expertise/ui/TagCurationView";
 import { HealthSection } from "@/features/health/ui/HealthSection";
 import { LearningPage } from "@/features/learning/ui/LearningPage";
-import { MyImpactView } from "@/features/recognition/ui/MyImpactView";
+import {
+  MyImpactRoute,
+  MyImpactView,
+} from "@/features/recognition/ui/MyImpactView";
 import { failedToLoad } from "@/lib/failed-to-load";
 import { CommunitiesPage } from "@/pages/CommunitiesPage";
 import { CommunityEditPage } from "@/pages/CommunityEditPage";
@@ -231,7 +234,7 @@ function openRoutes(edition: EditionSlots): ReactNode {
           path="settings/communication"
           element={<CommunicationSettingsPage />}
         />
-        <Route path="me/impact" element={<MyImpactView />} />
+        <Route path="me/impact" element={<MyImpactRoute />} />
         <Route path="me/expertise" element={<MyExpertiseView />} />
         <Route path="me/saved" element={<MySavedView />} />
         <Route path="*" element={<CommunityNotFound />} />

@@ -17,10 +17,12 @@ import {
 } from "@/features/recognition/domain/replay-plan";
 import { centreOf, flyComet } from "@/features/recognition/ui/comet-trail";
 import { landPulse } from "@/features/recognition/ui/land-pulse";
+import { inViewport } from "@/features/recognition/ui/viewport";
 import { useMediaQuery } from "@/lib/use-media-query";
 
+/** `pending` counts the new loves not yet ticked in, so the shown count follows a refetched total. */
 export interface CardReplay {
-  displayedCount: number;
+  pending: number;
   newLoves: number;
   marked: boolean;
 }
@@ -66,19 +68,30 @@ function initialStates(seed: Seed): CardStates {
       .filter((card) => card.newLoves > 0)
       .map((card) => [
         card.key,
-        {
-          displayedCount: Math.max(0, card.finalCount - card.newLoves),
-          newLoves: card.newLoves,
-          marked: false,
-        },
+        { pending: card.newLoves, newLoves: card.newLoves, marked: false },
       ]),
   );
 }
 
-function inViewport(element: HTMLElement | undefined): boolean {
-  if (element === undefined) return false;
-  const rect = element.getBoundingClientRect();
-  return rect.bottom > 0 && rect.top < window.innerHeight;
+function visible(element: HTMLElement | null | undefined): boolean {
+  return element !== null && element !== undefined && inViewport(element);
+}
+
+function replayCards(
+  seed: Seed,
+  hearts: ReadonlyMap<string, HTMLElement>,
+  avatar: HTMLElement | null,
+): ReplayCard[] {
+  const landing = visible(avatar);
+  return seed.cards.map((card) => ({
+    ...card,
+    inView: landing && visible(hearts.get(card.key)),
+  }));
+}
+
+function pendingAfter(seed: Seed, key: string, count: number): number {
+  const card = seed.cards.find((c) => c.key === key);
+  return card === undefined ? 0 : Math.max(0, card.finalCount - count);
 }
 
 function updated(
@@ -151,22 +164,26 @@ export function useImpactReplay({
       });
     }
 
-    let alive = true;
+    const flights = new AbortController();
     const trail = (key: string) => {
       const heart = hearts.current.get(key);
       const target = avatar.current;
       if (heart === undefined || target === null) return;
-      void flyComet({ from: centreOf(heart), to: centreOf(target) }).then(
-        () => {
-          if (alive) landPulse(target);
-        },
-      );
+      void flyComet({
+        from: centreOf(heart),
+        to: centreOf(target),
+        signal: flights.signal,
+      }).then(() => {
+        if (!flights.signal.aborted) landPulse(target);
+      });
     };
     const apply = (event: ReplayEvent) => {
       if (event.kind === "trail") trail(event.key);
       else if (event.kind === "tick")
         setStates((s) =>
-          updated(s, event.key, { displayedCount: event.count }),
+          updated(s, event.key, {
+            pending: pendingAfter(seed, event.key, event.count),
+          }),
         );
       else if (event.kind === "mark")
         setStates((s) => updated(s, event.key, { marked: true }));
@@ -176,18 +193,14 @@ export function useImpactReplay({
       }
     };
 
-    const plan = planReplay(
-      seed.cards.map((card) => ({
-        ...card,
-        inView: inViewport(hearts.current.get(card.key)),
-      })),
-      { reducedMotion },
-    );
+    const plan = planReplay(replayCards(seed, hearts.current, avatar.current), {
+      reducedMotion,
+    });
     const timers = withSummaryFallback(plan, seed.data).map((event) =>
       setTimeout(() => apply(event), event.at),
     );
     return () => {
-      alive = false;
+      flights.abort();
       timers.forEach(clearTimeout);
     };
   }, [seed, communityId, markSeen, reducedMotion, delegated]);
