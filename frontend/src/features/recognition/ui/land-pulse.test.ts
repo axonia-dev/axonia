@@ -27,7 +27,7 @@ describe("landPulse", () => {
           finished: new Promise<void>((r) => (release = r)),
         }) as unknown as Animation,
     );
-    Element.prototype.animate = animate as unknown as Element["animate"];
+    Element.prototype.animate = animate;
     const el = target();
     landPulse(el);
     expect(animate).toHaveBeenCalledTimes(2);

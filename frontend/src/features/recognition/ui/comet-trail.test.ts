@@ -16,7 +16,7 @@ function stubAnimate() {
         cancel: vi.fn(),
       }) as unknown as Animation,
   );
-  Element.prototype.animate = animate as unknown as Element["animate"];
+  Element.prototype.animate = animate;
   return animate;
 }
 
