@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+
 import { MemberAvatar } from "@/components/patterns/MemberAvatar";
 import { HeartIcon } from "@/components/ui/HeartIcon";
 import { useMe } from "@/features/identity/api/use-me";
@@ -11,6 +13,7 @@ import {
   CONTRIBUTION_ORDER,
 } from "@/features/recognition/ui/contribution-meta";
 import { summarizeImpact } from "@/features/recognition/ui/impact-summary";
+import { cn } from "@/lib/cn";
 import { userHue } from "@/lib/user-hue";
 
 interface Identity {
@@ -66,14 +69,46 @@ function MixBar({
   );
 }
 
-function ReplaySummaryLine({ text }: Readonly<{ text: string | null }>) {
-  if (text === null) return null;
+const SUMMARY_SLOT =
+  "grid motion-safe:transition-[grid-template-rows,opacity] motion-safe:duration-320 motion-safe:ease-out";
+const SUMMARY_COLLAPSED = "grid-rows-[minmax(0,0fr)] opacity-0";
+const SUMMARY_EXPANDED = "grid-rows-[minmax(0,1fr)] opacity-100";
+
+// Mounts collapsed and opens two frames later, so the collapsed state paints before the glide.
+function useOpenAfterPaint(): boolean {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    let second = 0;
+    const first = requestAnimationFrame(() => {
+      second = requestAnimationFrame(() => setOpen(true));
+    });
+    return () => {
+      cancelAnimationFrame(first);
+      cancelAnimationFrame(second);
+    };
+  }, []);
+  return open;
+}
+
+function ReplaySummaryLine({ text }: Readonly<{ text: string }>) {
+  const open = useOpenAfterPaint();
   return (
-    <p className="text-primary mt-2 inline-flex items-center gap-1.5 text-sm font-medium motion-safe:animate-[hovercard-in_320ms_ease-out]">
-      <HeartIcon filled />
-      {text}
-    </p>
+    <div
+      data-state={open ? "expanded" : "collapsed"}
+      className={cn(SUMMARY_SLOT, open ? SUMMARY_EXPANDED : SUMMARY_COLLAPSED)}
+    >
+      <div className="min-h-0 overflow-hidden">
+        <p className="text-primary mt-2 inline-flex items-center gap-1.5 text-sm font-medium">
+          <HeartIcon filled />
+          {text}
+        </p>
+      </div>
+    </div>
   );
+}
+
+function ReplaySummary({ text }: Readonly<{ text: string | null }>) {
+  return text === null ? null : <ReplaySummaryLine text={text} />;
 }
 
 /** `items` is undefined when the contributions could not load: the header then names the member
@@ -121,7 +156,7 @@ export function ImpactHeader({
           {summary !== undefined && (
             <p className="text-foreground mt-3 text-sm">{summary.standing}</p>
           )}
-          <ReplaySummaryLine text={replaySummary} />
+          <ReplaySummary text={replaySummary} />
         </div>
       </div>
       {summary !== undefined && <MixBar counts={summary.counts} />}

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useMe } from "@/features/identity/api/use-me";
@@ -80,5 +80,25 @@ describe("ImpactHeader", () => {
     const avatarRef = vi.fn();
     render(<ImpactHeader items={[contribution({})]} avatarRef={avatarRef} />);
     expect(avatarRef).toHaveBeenCalledWith(expect.any(HTMLElement));
+  });
+
+  it("glides the summary open from a collapsed slot", async () => {
+    const { rerender, container } = render(
+      <ImpactHeader items={[contribution({})]} />,
+    );
+    expect(container.querySelector("[data-state]")).toBeNull();
+
+    rerender(
+      <ImpactHeader
+        items={[contribution({})]}
+        replaySummary="2 new loves since the last visit"
+      />,
+    );
+    const slot = container.querySelector("[data-state]");
+    expect(slot).toHaveAttribute("data-state", "collapsed");
+    expect(slot).toHaveClass("grid-rows-[minmax(0,0fr)]", "opacity-0");
+
+    await waitFor(() => expect(slot).toHaveAttribute("data-state", "expanded"));
+    expect(slot).toHaveClass("grid-rows-[minmax(0,1fr)]", "opacity-100");
   });
 });
