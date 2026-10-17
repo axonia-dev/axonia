@@ -191,7 +191,9 @@ describe("MyImpactView replay", () => {
     );
     await act(() => vi.advanceTimersByTimeAsync(300));
 
-    act(() => fireEvent.click(screen.getByText("Community b")));
+    act(() => {
+      fireEvent.click(screen.getByText("Community b"));
+    });
     await playOut();
 
     expect(mark.mock.calls).toEqual([
