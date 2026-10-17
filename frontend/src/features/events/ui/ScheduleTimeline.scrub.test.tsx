@@ -18,7 +18,6 @@ vi.mock("@/features/events/api/invalidate-memories", () => ({
 }));
 
 const FROM = "2026-10-16T00:00:00.000Z";
-const TO = "2027-01-14T00:00:00.000Z";
 
 function memoryOn(sessionId: number, scheduledAt: string): Memory {
   return {
@@ -51,7 +50,6 @@ describe("ScheduleTimeline scrub timing", () => {
     // given the schedule is in but the memories are still on their way
     const { rerenderWith } = renderTimeline({
       fromIso: FROM,
-      toIso: TO,
       schedule: { data: [] },
       memories: { pages: [], isLoading: true },
       ribbon: {
@@ -64,7 +62,6 @@ describe("ScheduleTimeline scrub timing", () => {
     // when
     rerenderWith({
       fromIso: FROM,
-      toIso: TO,
       schedule: { data: [] },
       memories: { pages: [[latest]] },
       ribbon: {
@@ -84,7 +81,6 @@ describe("ScheduleTimeline scrub timing", () => {
     );
     const given = {
       fromIso: FROM,
-      toIso: TO,
       schedule: { data: [] },
       ribbon: {
         firstSessionAt: oldest.entry.scheduledAt,

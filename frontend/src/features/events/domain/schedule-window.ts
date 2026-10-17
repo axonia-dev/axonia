@@ -16,3 +16,17 @@ export function addDaysIso(isoBase: string, days: number): string {
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString();
 }
+
+const DAY_MS = 86_400_000;
+
+/** How far ahead the timeline ever reaches: three years of planned and projected sessions. */
+export const HORIZON_DAYS = 1095;
+/** The timeline loads ahead in steps of this many days. */
+export const HORIZON_STEP_DAYS = 90;
+
+/** The days ahead the timeline must load for `atMs` to be in it: whole steps, never past the horizon. */
+export function horizonDaysFor(fromIso: string, atMs: number): number {
+  const days = Math.ceil((atMs - new Date(fromIso).getTime()) / DAY_MS) + 1;
+  const steps = Math.max(1, Math.ceil(days / HORIZON_STEP_DAYS));
+  return Math.min(steps * HORIZON_STEP_DAYS, HORIZON_DAYS);
+}

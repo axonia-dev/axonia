@@ -3,9 +3,10 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { useRibbon } from "@/features/events/api/use-ribbon";
+import { useSchedule } from "@/features/events/api/use-schedule";
 import type { Memory } from "@/features/events/domain/memory";
 import { NO_TRACES } from "@/features/events/domain/memory";
-import { ribbonWindow } from "@/features/events/domain/ribbon";
+import { addDaysIso } from "@/features/events/domain/schedule-window";
 import { renderTimeline } from "@/test/schedule-timeline-harness";
 import { aScheduleEntry } from "@/test/session-fixture";
 
@@ -20,7 +21,6 @@ vi.mock("@/features/events/api/invalidate-memories", () => ({
 }));
 
 const FROM = "2026-10-16T00:00:00.000Z";
-const TO = "2027-01-14T00:00:00.000Z";
 
 function memoryOn(sessionId: number, scheduledAt: string): Memory {
   return {
@@ -64,7 +64,6 @@ describe("ScheduleTimeline ribbon", () => {
       });
     renderTimeline({
       fromIso: FROM,
-      toIso: TO,
       schedule: { data: [] },
       memories: { pages: [[latest]], hasNextPage: true, fetchNextPage },
       ribbon: {
@@ -92,7 +91,6 @@ describe("ScheduleTimeline ribbon", () => {
     const fetchNextPage = vi.fn();
     renderTimeline({
       fromIso: FROM,
-      toIso: TO,
       schedule: { data: [] },
       memories: { pages: [[latest]], hasNextPage: true, fetchNextPage },
       ribbon: {
@@ -110,7 +108,6 @@ describe("ScheduleTimeline ribbon", () => {
     // when
     renderTimeline({
       fromIso: FROM,
-      toIso: TO,
       schedule: { data: [] },
       memories: { pages: [[latest]] },
     });
@@ -121,42 +118,83 @@ describe("ScheduleTimeline ribbon", () => {
     );
   });
 
-  it("steps a year further back when history precedes the window", () => {
-    // given
+  it("asks for the ticks of the years around the window it opens on", () => {
+    // when
     renderTimeline({
       fromIso: FROM,
-      toIso: TO,
       schedule: { data: [] },
       memories: { pages: [[latest]] },
-      ribbon: { firstSessionAt: "2024-03-01T18:00:00Z", ticks: [] },
+      ribbon: { firstSessionAt: oldest.entry.scheduledAt, ticks: [] },
     });
-    // when
-    fireEvent.click(screen.getByRole("button", { name: "Further back" }));
     // then
-    const previous = ribbonWindow(FROM, TO, 1);
-    expect(useRibbon).toHaveBeenLastCalledWith(
-      "x",
-      previous.fromIso,
-      previous.toIso,
-    );
-    expect(
-      screen.getByRole("button", { name: "Back to today" }),
-    ).toBeInTheDocument();
+    expect(useRibbon).toHaveBeenLastCalledWith("x", [2026, 2027]);
   });
 
-  it("offers no step back when the window holds the whole history", () => {
+  it("opens the schedule a step ahead of today", () => {
     // when
     renderTimeline({
       fromIso: FROM,
-      toIso: TO,
       schedule: { data: [] },
       memories: { pages: [[latest]] },
-      ribbon: { firstSessionAt: latest.entry.scheduledAt, ticks: [] },
     });
     // then
-    expect(
-      screen.queryByRole("button", { name: "Further back" }),
-    ).not.toBeInTheDocument();
+    expect(useSchedule).toHaveBeenLastCalledWith(
+      "x",
+      FROM,
+      addDaysIso(FROM, 90),
+    );
+  });
+
+  it("loads ahead before scrolling to a session past the loaded rows", () => {
+    // given
+    const given = {
+      fromIso: FROM,
+      schedule: { data: [] },
+      memories: { pages: [[latest]] },
+    };
+    const { rerenderWith } = renderTimeline(given);
+    const main = screen.getByRole("main");
+    main.scrollTo = vi.fn();
+    // when the reader jumps to the end of the horizon, and the next rows are still on their way
+    vi.mocked(useSchedule).mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+      isPlaceholderData: true,
+    } as never);
+    fireEvent.keyDown(screen.getByRole("slider"), { key: "End" });
+    // then the whole horizon is asked for, and nothing scrolls before it lands
+    expect(useSchedule).toHaveBeenLastCalledWith(
+      "x",
+      FROM,
+      addDaysIso(FROM, 1095),
+    );
+    expect(main.scrollTo).not.toHaveBeenCalled();
+    // when
+    rerenderWith(given);
+    // then
+    expect(main.scrollTo).toHaveBeenCalledOnce();
+  });
+
+  it("never steps to a tick past the horizon, which no load could reach", () => {
+    // given the only tick ahead lies past the three years the list ever loads
+    renderTimeline({
+      fromIso: FROM,
+      schedule: { data: [] },
+      memories: { pages: [[latest]] },
+      ribbon: {
+        firstSessionAt: latest.entry.scheduledAt,
+        ticks: [{ at: addDaysIso(FROM, 1100), kind: "PROJECTED" }],
+      },
+    });
+    // when
+    fireEvent.keyDown(screen.getByRole("slider"), { key: "ArrowRight" });
+    // then
+    expect(useSchedule).toHaveBeenLastCalledWith(
+      "x",
+      FROM,
+      addDaysIso(FROM, 90),
+    );
   });
 
   it("joins the page in flight and drops a superseded scrub", async () => {
@@ -167,7 +205,6 @@ describe("ScheduleTimeline ribbon", () => {
     );
     renderTimeline({
       fromIso: FROM,
-      toIso: TO,
       schedule: { data: [] },
       memories: { pages: [[latest]], hasNextPage: true, fetchNextPage },
       ribbon: {
@@ -190,39 +227,5 @@ describe("ScheduleTimeline ribbon", () => {
       [{ cancelRefetch: false }],
     ]);
     expect(main.scrollTo).toHaveBeenCalledOnce();
-  });
-
-  it("lands on the newest session of the year it steps back to, and comes back", async () => {
-    // given
-    renderTimeline({
-      fromIso: FROM,
-      toIso: TO,
-      schedule: { data: [] },
-      memories: { pages: [[latest]] },
-      ribbon: {
-        firstSessionAt: "2024-03-01T18:00:00Z",
-        ticks: [{ at: latest.entry.scheduledAt ?? "", kind: "MEMORY" }],
-      },
-    });
-    const main = screen.getByRole("main");
-    main.scrollTo = vi.fn();
-    // when
-    fireEvent.click(screen.getByRole("button", { name: "Further back" }));
-    // then
-    await waitFor(() => {
-      expect(main.scrollTo).toHaveBeenCalledOnce();
-    });
-    // when
-    fireEvent.click(screen.getByRole("button", { name: "Back to today" }));
-    // then
-    const current = ribbonWindow(FROM, TO, 0);
-    expect(useRibbon).toHaveBeenLastCalledWith(
-      "x",
-      current.fromIso,
-      current.toIso,
-    );
-    await waitFor(() => {
-      expect(main.scrollTo).toHaveBeenCalledTimes(2);
-    });
   });
 });

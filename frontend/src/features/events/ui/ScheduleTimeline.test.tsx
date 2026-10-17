@@ -1,8 +1,9 @@
 import { fireEvent, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { useSchedule } from "@/features/events/api/use-schedule";
 import type { ScheduleEntry } from "@/features/events/domain/schedule";
+import { addDaysIso } from "@/features/events/domain/schedule-window";
 import { useUsers } from "@/features/identity/api/use-users";
 import { renderTimeline } from "@/test/schedule-timeline-harness";
 import {
@@ -44,12 +45,12 @@ function setup() {
     users: { u1: { id: "u1", displayName: "Maya Kim" } },
     slug: "backend-guild",
     fromIso: "2026-06-01T00:00:00.000Z",
-    toIso: "2026-08-30T00:00:00.000Z",
   });
 }
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.unstubAllGlobals();
 });
 
 describe("ScheduleTimeline", () => {
@@ -149,15 +150,6 @@ describe("ScheduleTimeline", () => {
     expect(screen.getByText("1 spot open")).toBeInTheDocument();
   });
 
-  it("calls onShowMore when the show-more button is clicked", async () => {
-    const { onShowMore } = setup();
-    const user = userEvent.setup({ delay: null });
-    // when
-    await user.click(screen.getByRole("button", { name: /show more/i }));
-    // then
-    expect(onShowMore).toHaveBeenCalledOnce();
-  });
-
   it("a real (held) row links to its session page", () => {
     setup();
     // then
@@ -211,17 +203,37 @@ describe("ScheduleTimeline", () => {
     expect(screen.getByRole("alert")).toBeInTheDocument();
   });
 
-  it("shows the empty state with today origin and show-more still present", () => {
+  it("keeps loading ahead while the list's end is in view, then says nothing lies ahead", () => {
+    // when
+    renderTimeline({ schedule: { data: [] }, endInView: true });
+    // then
+    expect(useSchedule).toHaveBeenLastCalledWith(
+      "x",
+      "2026-06-01T00:00:00.000Z",
+      addDaysIso("2026-06-01T00:00:00.000Z", 1095),
+    );
+    expect(screen.getByText("No sessions ahead.")).toBeInTheDocument();
+    expect(screen.getByText("Today")).toBeInTheDocument();
+  });
+
+  it("says nothing lies ahead only once the last step has landed", () => {
+    // given the whole horizon asked for and loaded
+    const { rerenderWith } = renderTimeline({
+      schedule: { data: [] },
+      endInView: true,
+    });
+    // when its rows are refetching
+    rerenderWith({ schedule: { data: [], isPlaceholderData: true } });
+    // then
+    expect(screen.queryByText("No sessions ahead.")).not.toBeInTheDocument();
+  });
+
+  it("says nothing of an empty list it is still loading ahead of", () => {
     // when
     renderTimeline({ schedule: { data: [] } });
     // then
-    expect(
-      screen.getByText("No scheduled sessions in this window."),
-    ).toBeInTheDocument();
+    expect(screen.queryByText("No sessions ahead.")).not.toBeInTheDocument();
     expect(screen.getByText("Today")).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /show more/i }),
-    ).toBeInTheDocument();
   });
 
   /** The commands apply equally to what the timeline is already showing, so an organizer who

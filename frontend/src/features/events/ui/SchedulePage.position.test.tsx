@@ -22,32 +22,8 @@ vi.mock("@/features/community/api/use-contribution-policy", () => ({
   }),
 }));
 vi.mock("@/features/events/ui/ScheduleTimeline", () => ({
-  ScheduleTimeline: ({
-    slug,
-    fromIso,
-    toIso,
-    onShowMore,
-  }: {
-    slug: string;
-    fromIso: string;
-    toIso: string;
-    onShowMore?: () => void;
-  }) => (
-    <div
-      data-testid="schedule-timeline"
-      data-slug={slug}
-      data-days={String(
-        Math.round(
-          (new Date(toIso).getTime() - new Date(fromIso).getTime()) / 86400000,
-        ),
-      )}
-    >
-      {onShowMore && (
-        <button type="button" onClick={onShowMore}>
-          show-more
-        </button>
-      )}
-    </div>
+  ScheduleTimeline: ({ slug }: { slug: string }) => (
+    <div data-testid="schedule-timeline" data-slug={slug} />
   ),
 }));
 vi.mock("@/features/events/ui/MonthCalendar", () => ({
@@ -122,46 +98,6 @@ describe("SchedulePage: view and window in the URL", () => {
       "view=timeline",
     );
   });
-
-  it("widens the timeline window from the URL", () => {
-    renderPage("/communities/backend-guild/schedule?view=timeline&days=180");
-    expect(screen.getByTestId("schedule-timeline")).toHaveAttribute(
-      "data-days",
-      "180",
-    );
-  });
-
-  it("clamps a window the URL asks for beyond the maximum", () => {
-    renderPage("/communities/backend-guild/schedule?view=timeline&days=99999");
-    expect(screen.getByTestId("schedule-timeline")).toHaveAttribute(
-      "data-days",
-      "1095",
-    );
-  });
-
-  it("extends the window by a further 90 days on Show more", async () => {
-    renderPage("/communities/backend-guild/schedule?view=timeline");
-    expect(screen.getByTestId("schedule-timeline")).toHaveAttribute(
-      "data-days",
-      "90",
-    );
-    await user.click(screen.getByRole("button", { name: "show-more" }));
-    expect(screen.getByTestId("schedule-timeline")).toHaveAttribute(
-      "data-days",
-      "180",
-    );
-  });
-
-  it("stops offering Show more once the window is already at its maximum", () => {
-    renderPage("/communities/backend-guild/schedule?view=timeline&days=1095");
-    expect(screen.getByTestId("schedule-timeline")).toHaveAttribute(
-      "data-days",
-      "1095",
-    );
-    expect(
-      screen.queryByRole("button", { name: "show-more" }),
-    ).not.toBeInTheDocument();
-  });
 });
 
 describe("SchedulePage: month in the URL", () => {
@@ -205,13 +141,12 @@ describe("SchedulePage: month in the URL", () => {
   // The reported flow: leave the schedule on March, come back to March.
   it("remembers a browsed month for the next visit", async () => {
     const first = renderPage(
-      "/communities/backend-guild/schedule?view=calendar&days=180",
+      "/communities/backend-guild/schedule?view=calendar",
     );
     await user.click(screen.getByRole("button", { name: "go-march" }));
     const search = screen.getByTestId("location-search").textContent;
     expect(search).toContain("month=2026-03");
     expect(search).toContain("view=calendar");
-    expect(search).toContain("days=180");
     first.unmount();
 
     renderPage();

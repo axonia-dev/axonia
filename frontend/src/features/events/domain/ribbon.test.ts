@@ -2,83 +2,142 @@ import { describe, expect, it } from "vitest";
 
 import {
   atFraction,
+  follow,
   fractionOf,
+  mergeTicks,
   monthMarks,
   nearestTick,
+  RIBBON_WINDOW_MS,
+  ribbonBounds,
   ribbonSchema,
   type RibbonSpan,
-  ribbonSpan,
   type RibbonTick,
-  ribbonWindow,
+  ribbonYears,
   stepMonth,
   stepTick,
   ticksIn,
+  windowAround,
+  windowAt,
+  yearRange,
 } from "@/features/events/domain/ribbon";
 
 const TODAY = "2026-10-16T00:00:00.000Z";
-const END = "2027-01-14T00:00:00.000Z";
+const DAY_MS = 86_400_000;
 const ms = (iso: string) => new Date(iso).getTime();
 const tick = (at: string): RibbonTick => ({ at, kind: "MEMORY" });
+const MONTH = RIBBON_WINDOW_MS / 12;
 
-describe("ribbonWindow", () => {
-  it("covers a year back up to the future end", () => {
-    expect(ribbonWindow(TODAY, END, 0)).toEqual({
-      fromIso: "2025-10-16T00:00:00.000Z",
-      toIso: END,
-      yearsBack: 0,
+describe("ribbonBounds", () => {
+  it("reaches from the first session to three years ahead", () => {
+    expect(ribbonBounds("2024-03-01T18:00:00Z", ms(TODAY))).toEqual({
+      fromMs: ms("2024-03-01T18:00:00Z"),
+      toMs: ms(TODAY) + 1095 * DAY_MS,
     });
   });
 
-  it("slides back a year at a time", () => {
-    expect(ribbonWindow(TODAY, END, 1)).toEqual({
-      fromIso: "2024-10-16T00:00:00.000Z",
-      toIso: "2025-10-16T00:00:00.000Z",
-      yearsBack: 1,
+  it("starts at today with no history, or when every session is still ahead", () => {
+    expect(ribbonBounds(null, ms(TODAY)).fromMs).toBe(ms(TODAY));
+    expect(ribbonBounds("2027-01-01T00:00:00Z", ms(TODAY)).fromMs).toBe(
+      ms(TODAY),
+    );
+  });
+});
+
+describe("the rolling window", () => {
+  const bounds = ribbonBounds("2024-03-01T00:00:00Z", ms(TODAY));
+
+  it("is a year wide wherever it starts", () => {
+    const span = windowAt(ms("2025-02-01T00:00:00Z"), bounds);
+    expect(span.toMs - span.fromMs).toBe(RIBBON_WINDOW_MS);
+  });
+
+  it("slides back inside the bounds at either end", () => {
+    expect(windowAt(0, bounds).fromMs).toBe(bounds.fromMs);
+    expect(windowAt(bounds.toMs, bounds).toMs).toBe(bounds.toMs);
+  });
+
+  it("opens centred on now when history allows it", () => {
+    const span = windowAround(ms(TODAY), bounds);
+    expect(span.fromMs).toBe(ms(TODAY) - RIBBON_WINDOW_MS / 2);
+  });
+
+  it("opens at the first session when it is younger than half a window", () => {
+    const young = ribbonBounds("2026-09-10T00:00:00Z", ms(TODAY));
+    expect(windowAround(ms(TODAY), young).fromMs).toBe(
+      ms("2026-09-10T00:00:00Z"),
+    );
+  });
+
+  it("never grows wider than the bounds", () => {
+    const narrow = { fromMs: 0, toMs: MONTH };
+    expect(windowAt(5, narrow)).toEqual(narrow);
+  });
+});
+
+describe("follow", () => {
+  const bounds = ribbonBounds("2024-03-01T00:00:00Z", ms(TODAY));
+  const span = windowAround(ms(TODAY), bounds);
+
+  it("leaves the window alone while the lens stays a margin inside it", () => {
+    expect(follow(span, ms(TODAY), 1, bounds)).toBe(span);
+  });
+
+  it("rolls forward to keep a lens heading for the end a month inside it", () => {
+    const at = span.toMs - MONTH / 2;
+    expect(follow(span, at, 1, bounds).toMs).toBe(at + MONTH);
+  });
+
+  it("rolls back to keep a lens heading for the start a month inside it", () => {
+    const at = span.fromMs + MONTH / 2;
+    expect(follow(span, at, -1, bounds).fromMs).toBe(at - MONTH);
+  });
+
+  it("never drags the window after a lens heading away from its edge", () => {
+    expect(follow(span, span.toMs - MONTH / 2, -1, bounds)).toBe(span);
+    expect(follow(span, span.fromMs - MONTH, 1, bounds)).toBe(span);
+  });
+});
+
+describe("ribbonYears", () => {
+  it("covers every year the window touches, and a quarter beyond", () => {
+    expect(
+      ribbonYears({
+        fromMs: ms("2026-04-16T00:00:00Z"),
+        toMs: ms("2027-04-16T00:00:00Z"),
+      }),
+    ).toEqual([2026, 2027]);
+    expect(
+      ribbonYears({
+        fromMs: ms("2026-02-01T00:00:00Z"),
+        toMs: ms("2026-11-01T00:00:00Z"),
+      }),
+    ).toEqual([2025, 2026, 2027]);
+  });
+
+  it("spans a whole UTC year per bucket", () => {
+    expect(yearRange(2027)).toEqual({
+      fromIso: "2027-01-01T00:00:00.000Z",
+      toIso: "2028-01-01T00:00:00.000Z",
     });
   });
 });
 
-describe("ribbonSpan", () => {
-  const window = ribbonWindow(TODAY, END, 0);
-
-  it("starts at the first session when it is inside the window", () => {
-    expect(ribbonSpan(window, "2026-03-01T00:00:00Z", TODAY)).toEqual({
-      fromMs: ms("2026-03-01T00:00:00Z"),
-      toMs: ms(END),
-      hasOlder: false,
-    });
-  });
-
-  it("starts at today with no history", () => {
-    expect(ribbonSpan(window, null, TODAY).fromMs).toBe(ms(TODAY));
-  });
-
-  it("starts at today, never later, when every session is still ahead", () => {
-    // given a first session after today
-    const span = ribbonSpan(window, END, TODAY);
-    // then
-    expect(span).toEqual({ fromMs: ms(TODAY), toMs: ms(END), hasOlder: false });
-  });
-
-  it("caps at the window and offers older history", () => {
-    const span = ribbonSpan(window, "2023-01-01T00:00:00Z", TODAY);
-    expect(span.fromMs).toBe(ms(window.fromIso));
-    expect(span.hasOlder).toBe(true);
-  });
-
-  it("starts at the window start once slid back", () => {
-    const older = ribbonWindow(TODAY, END, 1);
-    const span = ribbonSpan(older, "2025-01-01T00:00:00Z", TODAY);
-    expect(span).toEqual({
-      fromMs: ms(older.fromIso),
-      toMs: ms(older.toIso),
-      hasOlder: false,
-    });
+describe("mergeTicks", () => {
+  it("orders the years' ticks and keeps a tick on a shared edge once", () => {
+    const edge = tick("2027-01-01T00:00:00Z");
+    const late = tick("2026-12-04T18:00:00Z");
+    const early = tick("2027-01-08T18:00:00Z");
+    expect(
+      mergeTicks([
+        [early, edge],
+        [late, edge],
+      ]),
+    ).toEqual([late, edge, early]);
   });
 });
 
 describe("positions", () => {
-  const span: RibbonSpan = { fromMs: 1000, toMs: 3000, hasOlder: false };
+  const span: RibbonSpan = { fromMs: 1000, toMs: 3000 };
 
   it("clamps fractions and round-trips inside the span", () => {
     expect(fractionOf(0, span)).toBe(0);
@@ -87,7 +146,7 @@ describe("positions", () => {
   });
 
   it("is zero for an empty span", () => {
-    expect(fractionOf(5, { fromMs: 5, toMs: 5, hasOlder: false })).toBe(0);
+    expect(fractionOf(5, { fromMs: 5, toMs: 5 })).toBe(0);
   });
 });
 
@@ -101,7 +160,6 @@ describe("ticks", () => {
     const span: RibbonSpan = {
       fromMs: ms(b.at),
       toMs: ms(c.at),
-      hasOlder: false,
     };
     expect(ticksIn(all, span)).toEqual([b, c]);
   });
@@ -135,7 +193,6 @@ describe("monthMarks", () => {
     const marks = monthMarks({
       fromMs: ms("2026-10-16T00:00:00Z"),
       toMs: ms("2027-01-14T00:00:00Z"),
-      hasOlder: false,
     });
     expect(marks.map((m) => m.label)).toEqual(["Nov", "Dec", "Jan"]);
     expect(marks[0]?.atMs).toBe(ms("2026-11-01T00:00:00Z"));
@@ -145,7 +202,6 @@ describe("monthMarks", () => {
     const marks = monthMarks({
       fromMs: ms("2026-11-01T00:00:00Z"),
       toMs: ms("2026-11-20T00:00:00Z"),
-      hasOlder: false,
     });
     expect(marks.map((m) => m.label)).toEqual(["Nov"]);
   });

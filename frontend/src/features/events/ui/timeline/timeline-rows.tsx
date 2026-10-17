@@ -62,7 +62,14 @@ export function StateMessages({
   isLoading,
   isError,
   count,
-}: Readonly<{ isLoading: boolean; isError: boolean; count: number }>) {
+  complete,
+}: Readonly<{
+  isLoading: boolean;
+  isError: boolean;
+  count: number;
+  /** The whole horizon is loaded: an empty list means nothing lies ahead, not that more is coming. */
+  complete: boolean;
+}>) {
   if (isLoading)
     return <p className="text-muted-foreground pb-3 text-sm">Loading…</p>;
   if (isError) {
@@ -72,11 +79,9 @@ export function StateMessages({
       </p>
     );
   }
-  if (count === 0) {
+  if (count === 0 && complete) {
     return (
-      <p className="text-muted-foreground pb-3 text-sm">
-        No scheduled sessions in this window.
-      </p>
+      <p className="text-muted-foreground pb-3 text-sm">No sessions ahead.</p>
     );
   }
   return null;

@@ -19,15 +19,9 @@ import type { MonthPosition } from "@/features/events/domain/schedule-position";
 import {
   currentMonth,
   formatMonthParam,
-  MAX_WINDOW_DAYS,
-  MIN_WINDOW_DAYS,
   parseMonthParam,
-  parseWindowDays,
 } from "@/features/events/domain/schedule-position";
-import {
-  addDaysIso,
-  startOfTodayUtc,
-} from "@/features/events/domain/schedule-window";
+import { startOfTodayUtc } from "@/features/events/domain/schedule-window";
 import {
   CALENDAR_BLOCK,
   TIMELINE_BLOCK,
@@ -68,7 +62,6 @@ type ModalState = { open: false } | { open: true; date?: string };
 export function SchedulePage({ slug }: Readonly<{ slug: string }>) {
   const [searchParams, setSearchParams] = useSearchParams();
   const view = resolveView(searchParams.get("view"));
-  const windowDays = parseWindowDays(searchParams.get("days"));
   const month = resolveMonth(searchParams.get("month"), slug);
   const { year, monthIndex0 } = month;
 
@@ -117,13 +110,6 @@ export function SchedulePage({ slug }: Readonly<{ slug: string }>) {
     setTargetDate(null);
   }
 
-  function handleShowMore() {
-    setParam(
-      "days",
-      String(Math.min(windowDays + MIN_WINDOW_DAYS, MAX_WINDOW_DAYS)),
-    );
-  }
-
   function handleNewAction(key: Key) {
     if (key === "series") openSeries();
     if (key === "oneoff") openOneOff();
@@ -132,8 +118,6 @@ export function SchedulePage({ slug }: Readonly<{ slug: string }>) {
   const calendarProps = {
     ...(targetDate !== null && { highlightedDate: targetDate }),
   };
-  const timelineProps =
-    windowDays < MAX_WINDOW_DAYS ? { onShowMore: handleShowMore } : {};
 
   // The page is wide enough for the calendar and the panel that stands beside it, and centres its
   // content inside that. The controls sit over the view they control rather than at an edge it
@@ -200,9 +184,7 @@ export function SchedulePage({ slug }: Readonly<{ slug: string }>) {
           <ScheduleTimeline
             slug={slug}
             fromIso={fromIso}
-            toIso={addDaysIso(fromIso, windowDays)}
             canManage={canManage}
-            {...timelineProps}
           />
         </div>
       ) : (

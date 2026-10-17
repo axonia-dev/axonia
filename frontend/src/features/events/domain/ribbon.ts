@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { HORIZON_DAYS } from "@/features/events/domain/schedule-window";
+
 const ribbonTickSchema = z.object({
   at: z.string(),
   kind: z.enum(["MEMORY", "UPCOMING", "PROJECTED"]),
@@ -12,23 +14,19 @@ export const ribbonSchema = z.object({
 export type Ribbon = z.infer<typeof ribbonSchema>;
 export type RibbonTick = z.infer<typeof ribbonTickSchema>;
 
-export interface RibbonWindow {
-  fromIso: string;
-  toIso: string;
-  yearsBack: number;
-}
+const msOf = (tick: RibbonTick) => new Date(tick.at).getTime();
 
 export interface RibbonSpan {
   fromMs: number;
   toMs: number;
-  hasOlder: boolean;
 }
 
-function shiftYears(iso: string, years: number): string {
-  const date = new Date(iso);
-  date.setUTCFullYear(date.getUTCFullYear() - years);
-  return date.toISOString();
-}
+const DAY_MS = 86_400_000;
+
+/** The width of the rolling window the ribbon shows. */
+export const RIBBON_WINDOW_MS = 365 * DAY_MS;
+/** How close to an edge the lens may come before the window rolls on. */
+const FOLLOW_MARGIN_MS = RIBBON_WINDOW_MS / 12;
 
 function shiftMonths(ms: number, months: number): number {
   const date = new Date(ms);
@@ -36,37 +34,80 @@ function shiftMonths(ms: number, months: number): number {
   return date.getTime();
 }
 
-/** The window the ribbon asks for: a year back from today up to the future end, or one older year. */
-export function ribbonWindow(
-  todayIso: string,
-  futureEndIso: string,
-  yearsBack: number,
-): RibbonWindow {
+/** Everything the ribbon can roll over: the first session, or today, up to the horizon. */
+export function ribbonBounds(
+  firstSessionAt: string | null,
+  todayMs: number,
+): RibbonSpan {
+  const first =
+    firstSessionAt === null ? todayMs : new Date(firstSessionAt).getTime();
   return {
-    fromIso: shiftYears(todayIso, yearsBack + 1),
-    toIso: yearsBack === 0 ? futureEndIso : shiftYears(todayIso, yearsBack),
-    yearsBack,
+    fromMs: Math.min(first, todayMs),
+    toMs: todayMs + HORIZON_DAYS * DAY_MS,
   };
 }
 
-export function ribbonSpan(
-  window: RibbonWindow,
-  firstSessionAt: string | null,
-  todayIso: string,
-): RibbonSpan {
-  const windowFrom = new Date(window.fromIso).getTime();
-  const today = new Date(todayIso).getTime();
-  const first =
-    firstSessionAt === null ? null : new Date(firstSessionAt).getTime();
-  const start =
-    window.yearsBack === 0
-      ? Math.max(windowFrom, Math.min(first ?? today, today))
-      : windowFrom;
+/** The window starting at `startMs`, slid back inside the bounds. */
+export function windowAt(startMs: number, bounds: RibbonSpan): RibbonSpan {
+  const latest = Math.max(bounds.fromMs, bounds.toMs - RIBBON_WINDOW_MS);
+  const fromMs = Math.min(Math.max(startMs, bounds.fromMs), latest);
   return {
-    fromMs: start,
-    toMs: new Date(window.toIso).getTime(),
-    hasOlder: first !== null && first < windowFrom,
+    fromMs,
+    toMs: Math.min(fromMs + RIBBON_WINDOW_MS, bounds.toMs),
   };
+}
+
+/** The window with `atMs` in its middle. */
+export function windowAround(atMs: number, bounds: RibbonSpan): RibbonSpan {
+  return windowAt(atMs - RIBBON_WINDOW_MS / 2, bounds);
+}
+
+/**
+ * The window rolled just enough to keep a lens moving `direction` a margin inside the edge it
+ * heads for. A lens heading away from an edge never drags the window, so one still travelling
+ * back to where a scrub sent it leaves the window where the reader put it.
+ */
+export function follow(
+  span: RibbonSpan,
+  atMs: number,
+  direction: number,
+  bounds: RibbonSpan,
+): RibbonSpan {
+  if (direction > 0 && atMs > span.toMs - FOLLOW_MARGIN_MS) {
+    return windowAt(atMs + FOLLOW_MARGIN_MS - RIBBON_WINDOW_MS, bounds);
+  }
+  if (direction < 0 && atMs < span.fromMs + FOLLOW_MARGIN_MS) {
+    return windowAt(atMs - FOLLOW_MARGIN_MS, bounds);
+  }
+  return span;
+}
+
+/** The UTC years the ribbon loads ticks for: those the window touches, and a quarter beyond it. */
+export function ribbonYears(span: RibbonSpan): number[] {
+  const first = new Date(shiftMonths(span.fromMs, -3)).getUTCFullYear();
+  const last = new Date(shiftMonths(span.toMs, 3)).getUTCFullYear();
+  return Array.from({ length: last - first + 1 }, (_, index) => first + index);
+}
+
+export function yearRange(year: number): { fromIso: string; toIso: string } {
+  return {
+    fromIso: new Date(Date.UTC(year, 0, 1)).toISOString(),
+    toIso: new Date(Date.UTC(year + 1, 0, 1)).toISOString(),
+  };
+}
+
+/** The ticks of every loaded year, in order, each once. */
+export function mergeTicks(years: RibbonTick[][]): RibbonTick[] {
+  const seen = new Set<string>();
+  return years
+    .flat()
+    .filter((tick) => {
+      const key = `${tick.kind}-${tick.at}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => msOf(a) - msOf(b));
 }
 
 export function fractionOf(atMs: number, span: RibbonSpan): number {
@@ -78,8 +119,6 @@ export function fractionOf(atMs: number, span: RibbonSpan): number {
 export function atFraction(fraction: number, span: RibbonSpan): number {
   return span.fromMs + fraction * (span.toMs - span.fromMs);
 }
-
-const msOf = (tick: RibbonTick) => new Date(tick.at).getTime();
 
 export function ticksIn(ticks: RibbonTick[], span: RibbonSpan): RibbonTick[] {
   return ticks.filter((t) => msOf(t) >= span.fromMs && msOf(t) <= span.toMs);

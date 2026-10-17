@@ -83,6 +83,63 @@ export interface TimelineStubs {
   /** Resolves the second memories page once it is requested; defaults to answering at once. */
   holdSecondPage?: Promise<void>;
   memoryRequests: string[];
+  /** A session every Friday for years ahead, answered for whatever range is asked. */
+  weekly?: boolean;
+}
+
+const WEEKLY_FROM = Date.parse("2026-10-23T17:00:00Z");
+
+/** The weekly sessions from the next Friday on, inside [from, to). */
+function weeklyIn(fromIso: string, toIso: string) {
+  const from = Date.parse(fromIso);
+  const to = Date.parse(toIso);
+  const sessions = [];
+  for (let at = WEEKLY_FROM, id = 1; at < to; at += 7 * DAY_MS, id += 1) {
+    if (at >= from) {
+      sessions.push({
+        ...entry(2000 + id, new Date(at).toISOString(), `Weekly ${id}`),
+        status: "SCHEDULED",
+      });
+    }
+  }
+  return sessions;
+}
+
+/** Answers the schedule and the ribbon from the weekly sessions in the range each asks for. */
+async function stubWeekly(page: Page): Promise<void> {
+  const path = `/axonia/communities/${SLUG}/schedule`;
+  await page.route(
+    (url) => url.pathname === path || url.pathname === `${path}/ribbon`,
+    (route) => {
+      const url = new URL(route.request().url());
+      const range = [
+        url.searchParams.get("from") ?? "",
+        url.searchParams.get("to") ?? "",
+      ] as const;
+      const sessions = weeklyIn(...range);
+      const body = url.pathname.endsWith("/ribbon")
+        ? {
+            firstSessionAt: oldest.entry.scheduledAt,
+            ticks: [
+              ...ribbon.ticks.filter((tick) => tick.kind === "MEMORY"),
+              ...sessions.map((session) => ({
+                at: session.scheduledAt,
+                kind: "UPCOMING",
+              })),
+            ].filter(
+              (tick) =>
+                tick.at >= new Date(range[0]).toISOString() &&
+                tick.at < new Date(range[1]).toISOString(),
+            ),
+          }
+        : sessions;
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(body),
+      });
+    },
+  );
 }
 
 export async function stubTimeline(
@@ -96,6 +153,7 @@ export async function stubTimeline(
     [`/axonia/communities/${SLUG}/schedule`]: [nextSession, ...laterSessions],
     [`/axonia/communities/${SLUG}/schedule/ribbon`]: ribbon,
   });
+  if (stubs.weekly) await stubWeekly(page);
   await page.route(`${base}/memories**`, async (route) => {
     const url = new URL(route.request().url());
     stubs.memoryRequests.push(url.search);

@@ -1,12 +1,11 @@
-import { ChevronLeft, Undo2 } from "lucide-react";
-import type { CSSProperties, KeyboardEvent, PointerEvent } from "react";
+import { Undo2 } from "lucide-react";
+import type { CSSProperties, KeyboardEvent } from "react";
 import { useRef, useState } from "react";
 
 import type { RibbonSpan, RibbonTick } from "@/features/events/domain/ribbon";
 import {
-  atFraction,
   fractionOf,
-  nearestTick,
+  RIBBON_WINDOW_MS,
   stepMonth,
   stepTick,
   ticksIn,
@@ -18,18 +17,27 @@ import {
   percent,
   StepButton,
 } from "@/features/events/ui/timeline/ribbon-parts";
+import { useScrubbing } from "@/features/events/ui/timeline/use-scrubbing";
 import { useStuck } from "@/features/events/ui/timeline/use-stuck";
 import { cn } from "@/lib/cn";
 
 interface Props {
+  /** The window drawn on the track. */
   span: RibbonSpan;
+  /** Everything the window can roll over: the slider's range. */
+  bounds: RibbonSpan;
+  /** Every loaded tick, inside the window and around it. */
   ticks: RibbonTick[];
   nowMs: number;
   lensMs: number;
   valueText: (atMs: number) => string;
   onScrub: (atMs: number) => void;
-  onFurtherBack?: () => void;
-  onBackToToday?: () => void;
+  /** Rolls the window by a signed amount, while a held pointer rests on an edge. */
+  onSlide: (deltaMs: number) => void;
+  /** The pointer took or let go of the ribbon. */
+  onHold: (held: boolean) => void;
+  /** Brings today back into the window; offered only while today is out of it. */
+  onBackToToday: () => void;
 }
 
 const msOf = (tick: RibbonTick | null | undefined) =>
@@ -41,26 +49,39 @@ const lensLeft = (fraction: number) =>
 
 type KeyStep = (ticks: RibbonTick[], from: number) => RibbonTick | null;
 
-const KEY_STEPS = new Map<string, KeyStep>([
-  ["ArrowRight", (ticks, from) => stepTick(ticks, from, 1)],
-  ["ArrowUp", (ticks, from) => stepTick(ticks, from, 1)],
-  ["ArrowLeft", (ticks, from) => stepTick(ticks, from, -1)],
-  ["ArrowDown", (ticks, from) => stepTick(ticks, from, -1)],
-  ["PageUp", (ticks, from) => stepMonth(ticks, from, 1)],
-  ["PageDown", (ticks, from) => stepMonth(ticks, from, -1)],
-  ["Home", (ticks) => ticks[0] ?? null],
-  ["End", (ticks) => ticks.at(-1) ?? null],
+const KEY_STEPS = new Map<string, { step: KeyStep; direction: 1 | -1 }>([
+  ["ArrowRight", { step: (t, from) => stepTick(t, from, 1), direction: 1 }],
+  ["ArrowUp", { step: (t, from) => stepTick(t, from, 1), direction: 1 }],
+  ["ArrowLeft", { step: (t, from) => stepTick(t, from, -1), direction: -1 }],
+  ["ArrowDown", { step: (t, from) => stepTick(t, from, -1), direction: -1 }],
+  ["PageUp", { step: (t, from) => stepMonth(t, from, 1), direction: 1 }],
+  ["PageDown", { step: (t, from) => stepMonth(t, from, -1), direction: -1 }],
 ]);
 
-/** The instant a key moves the lens to, or null for a key the ribbon leaves alone. */
-function keyTarget(
+interface KeyContext {
+  ticks: RibbonTick[];
+  bounds: RibbonSpan;
+  lensMs: number;
+  nowMs: number;
+}
+
+/**
+ * What a key does: move the lens to an instant, or, for a step with no loaded session that way,
+ * roll the window half its width so the years beyond load. Null for a key the ribbon leaves alone.
+ */
+function keyAction(
   key: string,
-  ticks: RibbonTick[],
-  { lensMs, nowMs }: Readonly<{ lensMs: number; nowMs: number }>,
-): number | null {
-  if (key === "t" || key === "T") return nowMs;
-  const step = KEY_STEPS.get(key);
-  return step === undefined ? null : msOf(step(ticks, lensMs));
+  context: KeyContext,
+): { atMs: number } | { rollMs: number } | null {
+  if (key === "t" || key === "T") return { atMs: context.nowMs };
+  if (key === "Home") return { atMs: context.bounds.fromMs };
+  if (key === "End") return { atMs: context.bounds.toMs };
+  const keyStep = KEY_STEPS.get(key);
+  if (keyStep === undefined) return null;
+  const atMs = msOf(keyStep.step(context.ticks, context.lensMs));
+  return atMs === null
+    ? { rollMs: (keyStep.direction * RIBBON_WINDOW_MS) / 2 }
+    : { atMs };
 }
 
 function tickStyle(tick: RibbonTick, span: RibbonSpan, nowMs: number) {
@@ -82,65 +103,43 @@ const TICK_CLASS: Record<RibbonTick["kind"], string> = {
   PROJECTED: "bg-muted-foreground/85 h-2 w-1",
 };
 
-function useScrubbing(
-  span: RibbonSpan,
-  ticks: RibbonTick[],
-  onScrub: (atMs: number) => void,
-) {
-  const held = useRef(false);
-  const last = useRef<number | null>(null);
-
-  function scrubTo(event: PointerEvent<HTMLDivElement>) {
-    const rect = event.currentTarget.getBoundingClientRect();
-    if (rect.width <= 0) return;
-    const fraction = (event.clientX - rect.left) / rect.width;
-    const at = msOf(nearestTick(ticks, atFraction(fraction, span)));
-    if (at === null || at === last.current) return;
-    last.current = at;
-    onScrub(at);
-  }
-
-  return {
-    onPointerDown: (event: PointerEvent<HTMLDivElement>) => {
-      held.current = true;
-      last.current = null;
-      event.currentTarget.setPointerCapture(event.pointerId);
-      scrubTo(event);
-    },
-    onPointerMove: (event: PointerEvent<HTMLDivElement>) => {
-      if (held.current) scrubTo(event);
-    },
-    onPointerUp: (event: PointerEvent<HTMLDivElement>) => {
-      held.current = false;
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    },
-    onPointerCancel: () => {
-      held.current = false;
-    },
-  };
-}
-
 export function TimeRibbon({
   span,
+  bounds,
   ticks,
   nowMs,
   lensMs,
   valueText,
   onScrub,
-  onFurtherBack,
+  onSlide,
+  onHold,
   onBackToToday,
 }: Readonly<Props>) {
   const shown = ticksIn(ticks, span);
-  const pointer = useScrubbing(span, shown, onScrub);
-  const nowFraction = fractionOf(nowMs, span);
+  const pointer = useScrubbing({
+    span,
+    ticks: shown,
+    onScrub,
+    onSlide,
+    onHold,
+  });
+  const nowInView = nowMs >= span.fromMs && nowMs <= span.toMs;
   const [sentinel, setSentinel] = useState<HTMLDivElement | null>(null);
   const stuck = useStuck(sentinel);
+  const slider = useRef<HTMLDivElement>(null);
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    const at = keyTarget(event.key, shown, { lensMs, nowMs });
-    if (at === null) return;
+    const action = keyAction(event.key, { ticks, bounds, lensMs, nowMs });
+    if (action === null) return;
     event.preventDefault();
-    onScrub(at);
+    if ("atMs" in action) onScrub(action.atMs);
+    else onSlide(action.rollMs);
+  }
+
+  // The button leaves with today's return, so focus stays on the ribbon rather than falling away.
+  function backToToday() {
+    onBackToToday();
+    slider.current?.focus();
   }
 
   return (
@@ -152,20 +151,18 @@ export function TimeRibbon({
       >
         <Cover shown={stuck} />
         <div className="flex items-center gap-2">
-          {onFurtherBack && (
-            <StepButton onPress={onFurtherBack}>
-              <ChevronLeft size={14} aria-hidden="true" />
-              Further back
-            </StepButton>
-          )}
           <div className="min-w-0 flex-1">
             <div
+              ref={slider}
               role="slider"
               tabIndex={0}
               aria-label="Schedule timeline"
-              aria-valuemin={span.fromMs}
-              aria-valuemax={span.toMs}
-              aria-valuenow={Math.min(span.toMs, Math.max(span.fromMs, lensMs))}
+              aria-valuemin={bounds.fromMs}
+              aria-valuemax={bounds.toMs}
+              aria-valuenow={Math.min(
+                bounds.toMs,
+                Math.max(bounds.fromMs, lensMs),
+              )}
               aria-valuetext={valueText(lensMs)}
               onKeyDown={onKeyDown}
               {...pointer}
@@ -198,20 +195,22 @@ export function TimeRibbon({
                     )}
                   />
                 ))}
-                <span
-                  data-now-line=""
-                  aria-hidden="true"
-                  style={{ left: percent(nowFraction) }}
-                  className="bg-primary absolute inset-y-0 w-0.5 -translate-x-1/2"
-                />
+                {nowInView && (
+                  <span
+                    data-now-line=""
+                    aria-hidden="true"
+                    style={{ left: percent(fractionOf(nowMs, span)) }}
+                    className="bg-primary absolute inset-y-0 w-0.5 -translate-x-1/2"
+                  />
+                )}
               </div>
             </div>
             <MonthLabels span={span} nowMs={nowMs} />
           </div>
-          {onBackToToday && (
-            <StepButton onPress={onBackToToday}>
+          {!nowInView && (
+            <StepButton onPress={backToToday}>
               <Undo2 size={14} aria-hidden="true" />
-              Back to today
+              <span className="max-sm:sr-only">Back to today</span>
             </StepButton>
           )}
         </div>

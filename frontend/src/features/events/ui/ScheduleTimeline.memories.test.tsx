@@ -58,6 +58,7 @@ const precedes = (a: Element, b: Element) =>
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.unstubAllGlobals();
   vi.mocked(invalidateMemories).mockClear();
 });
 
@@ -157,11 +158,9 @@ describe("ScheduleTimeline memories", () => {
 
   it("shows no ribbon and the empty message with nothing at all", () => {
     // when
-    renderTimeline({ fromIso: FROM, schedule: { data: [] } });
+    renderTimeline({ fromIso: FROM, schedule: { data: [] }, endInView: true });
     // then
     expect(screen.queryByRole("slider")).not.toBeInTheDocument();
-    expect(
-      screen.getByText("No scheduled sessions in this window."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("No sessions ahead.")).toBeInTheDocument();
   });
 });

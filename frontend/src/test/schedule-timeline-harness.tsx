@@ -20,7 +20,12 @@ import { useUsers } from "@/features/identity/api/use-users";
  * the file that declares it.
  */
 interface TimelineGiven {
-  schedule?: { data?: ScheduleEntry[]; isLoading?: boolean; isError?: boolean };
+  schedule?: {
+    data?: ScheduleEntry[];
+    isLoading?: boolean;
+    isError?: boolean;
+    isPlaceholderData?: boolean;
+  };
   series?: { content: Series[] };
   users?: Record<string, { id: string; displayName: string }>;
   memories?: {
@@ -32,13 +37,30 @@ interface TimelineGiven {
   ribbon?: { firstSessionAt: string | null; ticks: RibbonTick[] };
   slug?: string;
   fromIso?: string;
-  toIso?: string;
   canManage?: boolean;
   /** The instant the clock reads; defaults to fromIso, the start of the timeline's today. */
   now?: string;
-  showMore?: boolean;
   /** Fakes timeouts too, so a test can advance the clock past a session's end. */
   fakeTimeouts?: boolean;
+  /** The list's end sits in view, so the timeline keeps loading ahead up to its horizon. */
+  endInView?: boolean;
+}
+
+/** An IntersectionObserver that sees every element it observes in view; the caller restores the real one. */
+function seeEverythingInView() {
+  vi.stubGlobal(
+    "IntersectionObserver",
+    class {
+      constructor(private readonly callback: IntersectionObserverCallback) {}
+      observe(target: Element) {
+        this.callback(
+          [{ target, isIntersecting: true } as IntersectionObserverEntry],
+          this as unknown as IntersectionObserver,
+        );
+      }
+      disconnect() {}
+    },
+  );
 }
 
 function memoriesQueryOf(given: TimelineGiven) {
@@ -61,13 +83,14 @@ function wireQueries(given: TimelineGiven) {
     data: given.schedule?.data,
     isLoading: given.schedule?.isLoading ?? false,
     isError: given.schedule?.isError ?? false,
+    isPlaceholderData: given.schedule?.isPlaceholderData ?? false,
   } as never);
   vi.mocked(useSeriesList).mockReturnValue({ data: given.series } as never);
   vi.mocked(useUsers).mockReturnValue({ data: given.users } as never);
   vi.mocked(useMemories).mockReturnValue(memoriesQueryOf(given) as never);
-  vi.mocked(useRibbon).mockReturnValue({
-    data: given.ribbon ?? { firstSessionAt: null, ticks: [] },
-  } as never);
+  vi.mocked(useRibbon).mockReturnValue(
+    given.ribbon ?? { firstSessionAt: null, ticks: [] },
+  );
 }
 
 export function renderTimeline(given: TimelineGiven = {}) {
@@ -79,7 +102,7 @@ export function renderTimeline(given: TimelineGiven = {}) {
     now: new Date(given.now ?? fromIso),
   });
   wireQueries(given);
-  const onShowMore = vi.fn();
+  if (given.endInView) seeEverythingInView();
   const view = (next: TimelineGiven) => (
     <QueryClientProvider client={new QueryClient()}>
       <MemoryRouter>
@@ -87,8 +110,6 @@ export function renderTimeline(given: TimelineGiven = {}) {
           <ScheduleTimeline
             slug={next.slug ?? "x"}
             fromIso={fromIso}
-            toIso={next.toIso ?? "2026-09-01T00:00:00.000Z"}
-            {...(next.showMore === false ? {} : { onShowMore })}
             canManage={next.canManage ?? false}
           />
         </main>
@@ -97,7 +118,6 @@ export function renderTimeline(given: TimelineGiven = {}) {
   );
   const { rerender } = render(view(given));
   return {
-    onShowMore,
     rerenderWith: (next: TimelineGiven) => {
       wireQueries(next);
       rerender(view(next));

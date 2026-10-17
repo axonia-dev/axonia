@@ -116,7 +116,7 @@ async function watchTopAtGrowth(page: Page, at: number) {
   }, at);
 }
 
-test("scrubbing to the oldest quarter loads the older page without a jump", async ({
+test("scrubbing to the oldest memory loads the older page without a jump", async ({
   page,
 }) => {
   // given
@@ -131,7 +131,8 @@ test("scrubbing to the oldest quarter loads the older page without a jump", asyn
   await watchTopAtGrowth(page, Date.parse(newest.entry.scheduledAt));
 
   // when
-  await pressLensAt(page, 0.01);
+  // The window opens at the first session, so the track's very start is the oldest memory.
+  await pressLensAt(page, 0.001);
   release();
 
   // then
@@ -183,6 +184,36 @@ test("the next session counts down, runs, and then becomes a memory above Today"
     await today.elementHandle(),
   );
   expect(precedes).toBe(true);
+});
+
+test("holding the lens on the right edge rolls the ribbon on and loads the list ahead", async ({
+  page,
+}) => {
+  // given a session every week for years ahead, and the first ninety days loaded
+  await open(page, { weekly: true });
+  const box = (await slider(page).boundingBox())!;
+  const y = box.y + box.height / 2;
+  const months = page.locator("[data-ribbon-months] > span");
+  const firstMonth = await months.first().textContent();
+
+  // when the reader drags the lens to the right edge and holds it there
+  await page.mouse.move(box.x + box.width / 2, y);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width - 2, y, { steps: 10 });
+
+  // then the lens travels on to a session a year past the first ninety days
+  await expect
+    .poll(async () => Number(await slider(page).getAttribute("aria-valuenow")))
+    .toBeGreaterThan(Date.parse("2027-10-16T00:00:00Z"));
+  await page.mouse.up();
+
+  // and the window rolled on with it, never widening
+  await expect(months.first()).not.toHaveText(firstMonth ?? "");
+  await expect(months).toHaveCount(12);
+  await expect(page.getByRole("button", { name: /show more/i })).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Back to today" }),
+  ).toBeVisible();
 });
 
 test("the keyboard jumps to the oldest memory and back to Today", async ({

@@ -1,8 +1,6 @@
 // frontend/src/features/events/ui/ScheduleTimeline.tsx
-import { ChevronDown } from "lucide-react";
 import { type MouseEvent as ReactMouseEvent, useRef, useState } from "react";
 
-import { useSchedule } from "@/features/events/api/use-schedule";
 import { useSeriesList } from "@/features/events/api/use-series";
 import type { Memory } from "@/features/events/domain/memory";
 import type { ScheduleEntry } from "@/features/events/domain/schedule";
@@ -31,41 +29,21 @@ import {
   StateMessages,
   TodayOrigin,
 } from "@/features/events/ui/timeline/timeline-rows";
+import { TimelineRow } from "@/features/events/ui/timeline/TimelineRow";
 import {
-  rowGridClass,
-  TimelineRow,
-} from "@/features/events/ui/timeline/TimelineRow";
+  useGrowWhenNear,
+  useHorizon,
+} from "@/features/events/ui/timeline/use-horizon";
 import { useMemoryStream } from "@/features/events/ui/timeline/use-memory-stream";
+import { useTailRoom } from "@/features/events/ui/timeline/use-tail-room";
 import { useTimelineScroll } from "@/features/events/ui/timeline/use-timeline-scroll";
 import { useUsers } from "@/features/identity/api/use-users";
-import { cn } from "@/lib/cn";
 
 interface Props {
   slug: string;
+  /** Start of today UTC: the timeline's origin, from which it loads ahead as the reader nears its end. */
   fromIso: string;
-  toIso: string;
-  /** Omitted once the window is already at its maximum: there is nothing left to show. */
-  onShowMore?: () => void;
   canManage?: boolean;
-}
-
-function ShowMore({ onShowMore }: Readonly<{ onShowMore: () => void }>) {
-  return (
-    <div className={cn(rowGridClass, "items-center")}>
-      <span
-        aria-hidden="true"
-        className="border-border-strong col-start-2 ml-2 h-6 border-l-2 border-dotted"
-      />
-      <button
-        type="button"
-        onClick={onShowMore}
-        className="border-border-strong text-primary-strong hover:border-primary hover:bg-primary/5 col-start-3 inline-flex cursor-pointer items-center gap-1.5 justify-self-start rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors"
-      >
-        <ChevronDown size={14} aria-hidden="true" />
-        Show more
-      </button>
-    </div>
-  );
 }
 
 function presenterIdsIn(items: TimelineItem[]): string[] {
@@ -93,14 +71,15 @@ function entriesOf(memories: Memory[], ahead: ScheduleEntry[]) {
 export function ScheduleTimeline({
   slug,
   fromIso,
-  toIso,
-  onShowMore,
   canManage = false,
 }: Readonly<Props>) {
   const [menu, setMenu] = useState<MenuState | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const todayRef = useRef<HTMLDivElement>(null);
-  const scheduleQuery = useSchedule(slug, fromIso, toIso);
+  const [end, setEnd] = useState<HTMLDivElement | null>(null);
+  const { scheduleQuery, reachedMs, reachForward, complete, growWhenNear } =
+    useHorizon(slug, fromIso);
+  useGrowWhenNear(end, growWhenNear);
   const seriesQuery = useSeriesList(slug);
   const seriesList = pageItems(seriesQuery);
   const { now, ahead, memories, arriving, memoriesQuery } = useMemoryStream(
@@ -118,6 +97,7 @@ export function ScheduleTimeline({
 
   // fromIso is start-of-today UTC (SchedulePage computes it), so it doubles as the timeline origin.
   const items = buildTimeline(ahead, fromIso);
+  useTailRoom(rootRef, complete);
   const usersQuery = useUsers(presenterIdsIn(items));
   const users = usersQuery.data ?? {};
   const labelOf = (entry: ScheduleEntry) => resolveLabel(entry, seriesList);
@@ -160,13 +140,14 @@ export function ScheduleTimeline({
     >
       <RibbonBar
         slug={slug}
-        fromIso={fromIso}
-        toIso={toIso}
+        todayIso={fromIso}
         nowMs={nowMs}
         lensMs={lensMs}
         hasContent={items.length > 0 || memories.length > 0}
         ready={ready}
         oldestShownMs={oldestOf(memories)}
+        reachedMs={reachedMs}
+        reachForward={reachForward}
         memoriesQuery={memoriesQuery}
         valueText={ribbonValueText(entriesOf(memories, ahead), {
           labelOf,
@@ -196,6 +177,7 @@ export function ScheduleTimeline({
           isLoading={scheduleQuery.isLoading}
           isError={scheduleQuery.isError}
           count={items.length}
+          complete={complete}
         />
         <ul className="flex flex-col">{items.map(renderItem)}</ul>
         {menu && (
@@ -209,8 +191,8 @@ export function ScheduleTimeline({
             onClose={() => setMenu(null)}
           />
         )}
-        {onShowMore && <ShowMore onShowMore={onShowMore} />}
       </div>
+      <div ref={setEnd} data-tail-room="" aria-hidden="true" />
     </div>
   );
 }

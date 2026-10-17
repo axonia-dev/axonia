@@ -23,20 +23,8 @@ vi.mock("@/features/community/api/use-contribution-policy", () => ({
   })),
 }));
 vi.mock("@/features/events/ui/ScheduleTimeline", () => ({
-  ScheduleTimeline: ({
-    slug,
-    onShowMore,
-  }: {
-    slug: string;
-    fromIso: string;
-    toIso: string;
-    onShowMore: () => void;
-  }) => (
-    <div data-testid="schedule-timeline" data-slug={slug}>
-      <button type="button" onClick={onShowMore}>
-        show-more
-      </button>
-    </div>
+  ScheduleTimeline: ({ slug }: { slug: string }) => (
+    <div data-testid="schedule-timeline" data-slug={slug} />
   ),
 }));
 vi.mock("@/features/events/ui/MonthCalendar", () => ({

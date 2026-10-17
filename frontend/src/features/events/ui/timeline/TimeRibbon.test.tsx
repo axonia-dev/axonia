@@ -1,12 +1,11 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import type { RibbonSpan, RibbonTick } from "@/features/events/domain/ribbon";
 import {
-  atFraction,
   fractionOf,
-  nearestTick,
+  RIBBON_WINDOW_MS,
   stepMonth,
   stepTick,
 } from "@/features/events/domain/ribbon";
@@ -17,7 +16,10 @@ const ms = (iso: string) => new Date(iso).getTime();
 const SPAN: RibbonSpan = {
   fromMs: ms("2026-01-01T00:00:00Z"),
   toMs: ms("2026-12-31T00:00:00Z"),
-  hasOlder: false,
+};
+const BOUNDS: RibbonSpan = {
+  fromMs: ms("2025-06-01T00:00:00Z"),
+  toMs: ms("2029-01-01T00:00:00Z"),
 };
 const NOW = ms("2026-07-01T00:00:00Z");
 const TICKS: RibbonTick[] = [
@@ -41,11 +43,15 @@ function setup(extra: Partial<Parameters<typeof TimeRibbon>[0]> = {}) {
   const { container } = render(
     <TimeRibbon
       span={SPAN}
+      bounds={BOUNDS}
       ticks={TICKS}
       nowMs={NOW}
       lensMs={LENS}
       valueText={(at) => `at ${at}`}
       onScrub={onScrub}
+      onSlide={vi.fn()}
+      onHold={vi.fn()}
+      onBackToToday={vi.fn()}
       {...extra}
     />,
   );
@@ -56,21 +62,21 @@ function setup(extra: Partial<Parameters<typeof TimeRibbon>[0]> = {}) {
 const at = (tick: RibbonTick | null) => ms(tick?.at ?? "");
 
 describe("TimeRibbon", () => {
-  it("is a slider over the span whose value is the lens", () => {
+  it("is a slider over everything the window rolls across, whose value is the lens", () => {
     // when
     const { slider } = setup();
     // then
-    expect(slider).toHaveAttribute("aria-valuemin", String(SPAN.fromMs));
-    expect(slider).toHaveAttribute("aria-valuemax", String(SPAN.toMs));
+    expect(slider).toHaveAttribute("aria-valuemin", String(BOUNDS.fromMs));
+    expect(slider).toHaveAttribute("aria-valuemax", String(BOUNDS.toMs));
     expect(slider).toHaveAttribute("aria-valuenow", String(LENS));
     expect(slider).toHaveAttribute("aria-valuetext", `at ${LENS}`);
   });
 
-  it("reports a lens outside the span at the span's edge", () => {
+  it("reports a lens outside the bounds at their edge", () => {
     // when
-    const { slider } = setup({ lensMs: SPAN.toMs + 86_400_000 });
+    const { slider } = setup({ lensMs: BOUNDS.toMs + 86_400_000 });
     // then
-    expect(slider).toHaveAttribute("aria-valuenow", String(SPAN.toMs));
+    expect(slider).toHaveAttribute("aria-valuenow", String(BOUNDS.toMs));
   });
 
   it("draws one tick per session in the span, and the now line at today", () => {
@@ -110,12 +116,12 @@ describe("TimeRibbon", () => {
   });
 
   it.each([
-    ["{ArrowRight}", stepTick(IN_SPAN, LENS, 1)],
-    ["{ArrowLeft}", stepTick(IN_SPAN, LENS, -1)],
-    ["{PageUp}", stepMonth(IN_SPAN, LENS, 1)],
-    ["{PageDown}", stepMonth(IN_SPAN, LENS, -1)],
-    ["{Home}", IN_SPAN[0] ?? null],
-    ["{End}", IN_SPAN.at(-1) ?? null],
+    ["{ArrowRight}", at(stepTick(TICKS, LENS, 1))],
+    ["{ArrowLeft}", at(stepTick(TICKS, LENS, -1))],
+    ["{PageUp}", at(stepMonth(TICKS, LENS, 1))],
+    ["{PageDown}", at(stepMonth(TICKS, LENS, -1))],
+    ["{Home}", BOUNDS.fromMs],
+    ["{End}", BOUNDS.toMs],
   ])("moves the lens with %s", async (key, expected) => {
     // given
     const { onScrub, slider } = setup();
@@ -123,7 +129,32 @@ describe("TimeRibbon", () => {
     // when
     await userEvent.keyboard(key);
     // then
-    expect(onScrub).toHaveBeenCalledWith(at(expected));
+    expect(onScrub).toHaveBeenCalledWith(expected);
+  });
+
+  it("steps past the window's edge to a session just outside it", async () => {
+    // given the lens on the first session inside the window
+    const { onScrub, slider } = setup({ lensMs: at(IN_SPAN[0] ?? null) });
+    slider.focus();
+    // when
+    await userEvent.keyboard("{ArrowLeft}");
+    // then
+    expect(onScrub).toHaveBeenCalledWith(at(TICKS[0] ?? null));
+  });
+
+  it("rolls the window on when no loaded session lies the way of a step", async () => {
+    // given the lens on the last loaded session
+    const onSlide = vi.fn();
+    const { onScrub, slider } = setup({
+      lensMs: at(TICKS.at(-1) ?? null),
+      onSlide,
+    });
+    slider.focus();
+    // when
+    await userEvent.keyboard("{ArrowRight}");
+    // then
+    expect(onScrub).not.toHaveBeenCalled();
+    expect(onSlide).toHaveBeenCalledWith(RIBBON_WINDOW_MS / 2);
   });
 
   it("jumps to today on T", async () => {
@@ -146,40 +177,24 @@ describe("TimeRibbon", () => {
     expect(onScrub).not.toHaveBeenCalled();
   });
 
-  it("scrubs to the nearest session while the pointer is held, and stops on release", () => {
-    // given
-    const { onScrub, slider } = setup();
-    vi.spyOn(slider, "getBoundingClientRect").mockReturnValue({
-      left: 0,
-      width: 400,
-    } as DOMRect);
-    const near = (fraction: number) =>
-      at(nearestTick(IN_SPAN, atFraction(fraction, SPAN)));
-    // when
-    fireEvent.pointerDown(slider, { clientX: 100, pointerId: 1 });
-    fireEvent.pointerMove(slider, { clientX: 360, pointerId: 1 });
-    fireEvent.pointerUp(slider, { clientX: 360, pointerId: 1 });
-    fireEvent.pointerMove(slider, { clientX: 0, pointerId: 1 });
-    // then
-    expect(onScrub.mock.calls).toEqual([[near(0.25)], [near(0.9)]]);
-  });
-
-  it("offers Further back and Back to today only when given", async () => {
-    // given
-    const onFurtherBack = vi.fn();
+  it("offers Back to today only while today is out of the window", async () => {
+    // given today a year past the window
     const onBackToToday = vi.fn();
-    setup({ onFurtherBack, onBackToToday });
+    const { container } = setup({
+      nowMs: ms("2027-07-01T00:00:00Z"),
+      onBackToToday,
+    });
     // when
-    await userEvent.click(screen.getByRole("button", { name: "Further back" }));
     await userEvent.click(
       screen.getByRole("button", { name: "Back to today" }),
     );
-    // then
-    expect(onFurtherBack).toHaveBeenCalledOnce();
+    // then focus lands on the ribbon, as the button leaves once today is back
     expect(onBackToToday).toHaveBeenCalledOnce();
+    expect(container.querySelector("[data-now-line]")).toBeNull();
+    expect(screen.getByRole("slider")).toHaveFocus();
   });
 
-  it("hides both steps without their handlers", () => {
+  it("offers no step while today is in the window", () => {
     // when
     setup();
     // then

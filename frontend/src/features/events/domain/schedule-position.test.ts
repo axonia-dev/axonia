@@ -3,12 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   currentMonth,
   formatMonthParam,
-  MAX_WINDOW_DAYS,
-  MIN_WINDOW_DAYS,
   monthPositionOf,
   nextMonth,
   parseMonthParam,
-  parseWindowDays,
   previousMonth,
   sameMonth,
 } from "@/features/events/domain/schedule-position";
@@ -99,25 +96,5 @@ describe("the month a date falls in", () => {
       year: 2026,
       monthIndex0: 11,
     });
-  });
-});
-
-describe("the window parameter", () => {
-  it("defaults to the minimum when absent or unreadable", () => {
-    expect(parseWindowDays(null)).toBe(MIN_WINDOW_DAYS);
-    expect(parseWindowDays("")).toBe(MIN_WINDOW_DAYS);
-    expect(parseWindowDays("soon")).toBe(MIN_WINDOW_DAYS);
-    expect(parseWindowDays("90.5")).toBe(MIN_WINDOW_DAYS);
-  });
-
-  it("keeps a value inside the range", () => {
-    expect(parseWindowDays("180")).toBe(180);
-  });
-
-  // A hand-edited URL must not be able to ask the API for a decade.
-  it("clamps at both ends", () => {
-    expect(parseWindowDays("1")).toBe(MIN_WINDOW_DAYS);
-    expect(parseWindowDays("-30")).toBe(MIN_WINDOW_DAYS);
-    expect(parseWindowDays("99999")).toBe(MAX_WINDOW_DAYS);
   });
 });

@@ -25,7 +25,7 @@ interface Options {
 /** How far below the ribbon a row counts as the one being read. */
 const READING_GAP_PX = 24;
 
-function readingLine(scroller: HTMLElement): number {
+export function readingLine(scroller: HTMLElement): number {
   const ribbon = scroller.querySelector("[data-time-ribbon]");
   const ribbonHeight = ribbon?.getBoundingClientRect().height ?? 0;
   return scroller.getBoundingClientRect().top + ribbonHeight + READING_GAP_PX;

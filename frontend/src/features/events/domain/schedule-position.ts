@@ -1,15 +1,12 @@
 /**
- * Pure helpers for the schedule's position: which month the calendar shows and
- * how far the timeline reaches. All month arithmetic is UTC, matching month-grid.
+ * Pure helpers for the schedule's position: which month the calendar shows.
+ * All month arithmetic is UTC, matching month-grid.
  */
 
 export interface MonthPosition {
   year: number;
   monthIndex0: number;
 }
-
-export const MIN_WINDOW_DAYS = 90;
-export const MAX_WINDOW_DAYS = 1095;
 
 const MONTH_PARAM = /^(\d{4})-(\d{2})$/;
 
@@ -52,10 +49,4 @@ export function monthPositionOf(isoDate: string): MonthPosition {
     year: Number(isoDate.slice(0, 4)),
     monthIndex0: Number(isoDate.slice(5, 7)) - 1,
   };
-}
-
-export function parseWindowDays(raw: string | null): number {
-  const days = raw === null ? Number.NaN : Number(raw);
-  if (!Number.isInteger(days)) return MIN_WINDOW_DAYS;
-  return Math.min(Math.max(days, MIN_WINDOW_DAYS), MAX_WINDOW_DAYS);
 }
