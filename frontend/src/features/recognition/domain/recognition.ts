@@ -44,3 +44,21 @@ export interface ContributionKey {
   contributionType: ContributionType;
   contributionId: number;
 }
+
+export const newLovesSchema = z.object({
+  asOf: z.string(),
+  capped: z.boolean(),
+  items: z.array(
+    z.object({
+      contributionType: contributionTypeSchema,
+      contributionId: z.number(),
+      newLoves: z.number(),
+    }),
+  ),
+});
+export type NewLoves = z.infer<typeof newLovesSchema>;
+
+export interface MarkImpactSeen {
+  asOf: string;
+  communityId?: number;
+}

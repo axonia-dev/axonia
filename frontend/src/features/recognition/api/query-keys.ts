@@ -10,6 +10,8 @@ export const recognitionKeys = {
       key.contributionId,
     ] as const,
   myContributions: () => [...recognitionKeys.all, "me"] as const,
+  newLoves: (communityId: number | "all") =>
+    [...recognitionKeys.all, "new-loves", communityId] as const,
   /** Every contribution's tallies at once: the prefix a catalog change has to reach, since
    *  approving or removing a definition changes what any mounted bar should be drawing. */
   reactionsAll: () => [...recognitionKeys.all, "reactions"] as const,

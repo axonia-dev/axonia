@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   loveSchema,
   loveSummarySchema,
+  newLovesSchema,
   recognizedContributionSchema,
 } from "@/features/recognition/domain/recognition";
 import type { RecognitionGateway } from "@/features/recognition/domain/recognition-gateway";
@@ -38,5 +39,19 @@ export const httpRecognitionGateway: RecognitionGateway = {
       `/axonia/recognition/contributions/me`,
     );
     return myContributionsSchema.parse(data);
+  },
+
+  async getNewLoves(communityId) {
+    const data = await apiFetch<unknown>(
+      `/axonia/recognition/contributions/me/new-loves${query({ communityId })}`,
+    );
+    return newLovesSchema.parse(data);
+  },
+
+  async markImpactSeen(input) {
+    await apiFetchVoid(`/axonia/recognition/contributions/me/seen`, {
+      method: "PUT",
+      body: JSON.stringify(input),
+    });
   },
 };

@@ -105,4 +105,102 @@ describe("httpRecognitionGateway", () => {
     // then
     expect(actual).toHaveLength(1);
   });
+
+  it("gets new loves with no community filter", async () => {
+    // given
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          asOf: "2026-10-17T00:00:00Z",
+          capped: false,
+          items: [
+            {
+              contributionType: "SLOT_PRESENTED",
+              contributionId: 3,
+              newLoves: 2,
+            },
+          ],
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      ),
+    );
+
+    // when
+    const actual = await httpRecognitionGateway.getNewLoves();
+
+    // then
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /\/axonia\/recognition\/contributions\/me\/new-loves$/,
+      ),
+      expect.anything(),
+    );
+    expect(actual.items[0]?.newLoves).toBe(2);
+  });
+
+  it("scopes new loves to a community", async () => {
+    // given
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            asOf: "2026-10-17T00:00:00Z",
+            capped: true,
+            items: [],
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+      );
+
+    // when
+    await httpRecognitionGateway.getNewLoves(7);
+
+    // then
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.stringContaining("/me/new-loves?communityId=7"),
+      expect.anything(),
+    );
+  });
+
+  it("puts the seen marker with the community and no explicit content type", async () => {
+    // given
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(null, { status: 204 }));
+    const input = { asOf: "2026-10-17T00:00:00Z", communityId: 7 };
+
+    // when
+    await httpRecognitionGateway.markImpactSeen(input);
+
+    // then
+    const init = fetchSpy.mock.calls[0]?.[1];
+    expect(fetchSpy.mock.calls[0]?.[0]).toContain(
+      "/axonia/recognition/contributions/me/seen",
+    );
+    expect(init).toMatchObject({
+      method: "PUT",
+      body: JSON.stringify(input),
+    });
+    expect(
+      Object.keys((init?.headers as Record<string, string>) ?? {}),
+    ).not.toContain("Content-Type");
+  });
+
+  it("omits the community from the seen body when absent", async () => {
+    // given
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(null, { status: 204 }));
+
+    // when
+    await httpRecognitionGateway.markImpactSeen({
+      asOf: "2026-10-17T00:00:00Z",
+    });
+
+    // then
+    expect(fetchSpy.mock.calls[0]?.[1]?.body).toBe(
+      JSON.stringify({ asOf: "2026-10-17T00:00:00Z" }),
+    );
+  });
 });
