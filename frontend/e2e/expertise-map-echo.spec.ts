@@ -7,7 +7,7 @@ import { differingPixels } from "./painted-colours";
 const URL = `/communities/${SLUG}/expertise?view=map`;
 // Frames of a live canvas never match exactly; below this many differing pixels two pictures are the same one.
 const SAME = 40;
-const ECHO_WINDOW_MS = 3500;
+const MID_ECHO_MS = 750;
 const SETTLE_TIMEOUT_MS = 15_000;
 
 // Tall enough that the whole canvas fits the viewport, so a screenshot of it never scrolls the page mid-echo.
@@ -61,17 +61,18 @@ test("a term echoes across the map and settles on the reduced-motion picture", a
   const reduced = await still(calm, calmCanvas);
   await calm.close();
 
+  await page.clock.install();
   const canvas = await open(page);
   const before = await canvas.screenshot();
 
+  // A software-rendered screenshot takes a second or more, longer than an echo's opening, so the clock is held still
+  // mid-echo for the shot rather than raced.
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
   await type(page, "kafka");
-  const started = Date.now();
-  // A software-rendered screenshot takes a second or more, so a single one at a chosen instant may land after the
-  // echo. Shots are taken back to back through the echo's first seconds, and one of them must show it mid-flight.
-  const during: Buffer[] = [];
-  while (Date.now() - started < ECHO_WINDOW_MS) {
-    during.push(await canvas.screenshot());
-  }
+  await page.clock.runFor(MID_ECHO_MS);
+  const during = await canvas.screenshot();
+  await page.clock.resume();
+
   await expect
     .poll(
       async () => differingPixels(await canvas.screenshot(), reduced, page),
@@ -81,13 +82,8 @@ test("a term echoes across the map and settles on the reduced-motion picture", a
     )
     .toBeLessThan(SAME);
 
-  const apart = async (shot: Buffer) =>
-    Math.min(
-      await differingPixels(shot, before, page),
-      await differingPixels(shot, reduced, page),
-    );
-  const gaps = await Promise.all(during.map(apart));
-  expect(Math.max(...gaps)).toBeGreaterThan(SAME);
+  expect(await differingPixels(during, before, page)).toBeGreaterThan(SAME);
+  expect(await differingPixels(during, reduced, page)).toBeGreaterThan(SAME);
 
   expect([...unstubbed]).toEqual([]);
 });
