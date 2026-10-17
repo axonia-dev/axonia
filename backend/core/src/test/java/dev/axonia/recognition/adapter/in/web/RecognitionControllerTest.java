@@ -2,6 +2,7 @@ package dev.axonia.recognition.adapter.in.web;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
@@ -10,14 +11,20 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import dev.axonia.ControllerTestSupport;
 import dev.axonia.CoreWebMvcTest;
 import dev.axonia.recognition.api.ContributionType;
+import dev.axonia.recognition.application.ImpactReplayService;
 import dev.axonia.recognition.application.LoveSummary;
+import dev.axonia.recognition.application.MarkSeenRequest;
+import dev.axonia.recognition.application.NewLoveItem;
+import dev.axonia.recognition.application.NewLoves;
 import dev.axonia.recognition.application.RecognitionService;
 import dev.axonia.recognition.application.RecognizedContribution;
 import dev.axonia.recognition.domain.Love;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @CoreWebMvcTest(controllers = RecognitionController.class)
@@ -25,6 +32,9 @@ class RecognitionControllerTest extends ControllerTestSupport {
 
     @MockitoBean
     private RecognitionService recognitionService;
+
+    @MockitoBean
+    private ImpactReplayService impactReplayService;
 
     @Test
     void love() {
@@ -118,5 +128,74 @@ class RecognitionControllerTest extends ControllerTestSupport {
         actual.assertThat().hasStatus2xxSuccessful().bodyJson().extractingPath("$.length()").isEqualTo(1);
         actual.assertThat().bodyJson().extractingPath("$[0].communitySlug").isEqualTo("eng");
         actual.assertThat().bodyJson().extractingPath("$[0].communityName").isEqualTo("Engineering");
+    }
+
+    @Test
+    void newLoves() {
+
+        // given
+        when(impactReplayService.newLoves(Optional.of(7L)))
+                .thenReturn(NewLoves.builder().asOf(Instant.parse("2026-10-17T12:00:00.123Z")).capped(true)
+                        .items(List.of(new NewLoveItem(ContributionType.ARTIFACT_CAPTURED, 200L, 3))).build());
+
+        // when
+        var actual = mvc.get().uri("/axonia/recognition/contributions/me/new-loves").queryParam("communityId", "7")
+                .exchange();
+
+        // then
+        assertThat(actual).hasStatus2xxSuccessful().bodyJson().isStrictlyEqualTo("""
+                {"asOf":"2026-10-17T12:00:00.123Z","capped":true,
+                 "items":[{"contributionType":"ARTIFACT_CAPTURED","contributionId":200,"newLoves":3}]}
+                """);
+    }
+
+    @Test
+    void newLoves_withoutACommunityAsksForEvery() {
+
+        // given
+        when(impactReplayService.newLoves(Optional.empty())).thenReturn(
+                NewLoves.builder().asOf(Instant.parse("2026-10-17T12:00:00Z")).capped(false).items(List.of()).build());
+
+        // when
+        var actual = mvc.get().uri("/axonia/recognition/contributions/me/new-loves").exchange();
+
+        // then
+        assertThat(actual).hasStatus2xxSuccessful().bodyJson().extractingPath("$.items.length()").isEqualTo(0);
+    }
+
+    @Test
+    void markSeen() {
+
+        // when
+        var actual = mvc.put().uri("/axonia/recognition/contributions/me/seen").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"asOf\":\"2026-10-17T12:00:00.123Z\",\"communityId\":7}").exchange();
+
+        // then
+        assertThat(actual).hasStatus(204);
+        verify(impactReplayService).markSeen(new MarkSeenRequest(Instant.parse("2026-10-17T12:00:00.123Z"), 7L));
+    }
+
+    @Test
+    void markSeen_withoutACommunity() {
+
+        // when
+        var actual = mvc.put().uri("/axonia/recognition/contributions/me/seen").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"asOf\":\"2026-10-17T12:00:00.123Z\",\"communityId\":null}").exchange();
+
+        // then
+        assertThat(actual).hasStatus(204);
+        verify(impactReplayService).markSeen(new MarkSeenRequest(Instant.parse("2026-10-17T12:00:00.123Z"), null));
+    }
+
+    @Test
+    void markSeen_withoutAsOfIs400() {
+
+        // when
+        var actual = mvc.put().uri("/axonia/recognition/contributions/me/seen").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"communityId\":7}").exchange();
+
+        // then
+        assertThat(actual).hasStatus(400);
+        verifyNoInteractions(impactReplayService);
     }
 }

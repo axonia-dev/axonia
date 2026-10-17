@@ -22,7 +22,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import dev.axonia.CoreJdbcTestSupport;
+import dev.axonia.recognition.adapter.out.persistence.JdbcImpactVisits;
 import dev.axonia.recognition.adapter.out.persistence.JdbcLoveStore;
+import dev.axonia.recognition.adapter.out.persistence.JdbcNewLoveTallies;
 import dev.axonia.recognition.adapter.out.persistence.JdbcRecognitionStore;
 import dev.axonia.recognition.api.ContributionSource;
 import dev.axonia.recognition.api.ContributionType;
@@ -42,7 +44,8 @@ import static org.mockito.Mockito.when;
  * Postgres. Rows are committed, so the test is not transactional and deletes what it wrote.
  */
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
-@Import({RecognitionService.class, JdbcRecognitionStore.class, JdbcLoveStore.class})
+@Import({RecognitionService.class, ImpactReplayService.class, CreditedRecognitions.class, JdbcRecognitionStore.class,
+        JdbcLoveStore.class, JdbcNewLoveTallies.class, JdbcImpactVisits.class})
 class RecognitionServiceJdbcTest extends CoreJdbcTestSupport {
 
     private static final String ORG = "default";

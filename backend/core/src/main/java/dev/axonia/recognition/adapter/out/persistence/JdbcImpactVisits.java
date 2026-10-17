@@ -15,7 +15,7 @@ import lombok.RequiredArgsConstructor;
 
 @Component
 @RequiredArgsConstructor
-class JdbcImpactVisits implements ImpactVisits {
+public class JdbcImpactVisits implements ImpactVisits {
 
     private static final String UPSERT = """
             INSERT INTO impact_visit (organization_id, user_id, community_id, seen_at)

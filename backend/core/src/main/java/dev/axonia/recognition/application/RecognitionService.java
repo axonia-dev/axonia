@@ -43,6 +43,7 @@ public class RecognitionService {
     private final SlotSourceAccess slotSourceAccess;
     private final ArtifactSourceAccess artifactSourceAccess;
     private final ArtifactTypeAccess artifactTypeAccess;
+    private final CreditedRecognitions creditedRecognitions;
     private final CurrentUser currentUser;
     private final OrganizationContext organizationContext;
     private final ApplicationEventPublisher events;
@@ -103,11 +104,7 @@ public class RecognitionService {
 
         var organizationId = organizationContext.organizationId();
         var userId = currentUser.userId();
-        var entities = new ArrayList<Recognition>();
-        entities.addAll(recognizedOf(organizationId, ContributionType.SLOT_PRESENTED,
-                slotSourceAccess.slotsPresentedBy(organizationId, userId)));
-        entities.addAll(recognizedOf(organizationId, ContributionType.ARTIFACT_CAPTURED,
-                artifactSourceAccess.artifactsCapturedBy(organizationId, userId)));
+        var entities = new ArrayList<>(creditedRecognitions.of(organizationId, userId));
         entities.sort(Comparator.comparing(Recognition::occurredAt).reversed());
         var summaries = communityAccess.summaryById(entities.stream().map(Recognition::communityId).toList());
         var slotSources = slotSourceAccess.slotSources(idsOfType(entities, ContributionType.SLOT_PRESENTED));
@@ -119,14 +116,6 @@ public class RecognitionService {
 
     /** Groups the lookup tables {@link #toRecognizedContribution} needs, to stay under the parameter-count limit. */
     private record ContributionCatalogs(Map<Long, SlotSource> slotSources, Map<Long, ArtifactBadge> artifactBadges) {
-    }
-
-    private List<Recognition> recognizedOf(String organizationId, ContributionType type, List<Long> contributionIds) {
-
-        if (contributionIds.isEmpty()) {
-            return List.of();
-        }
-        return recognitionStore.findAll(organizationId, type, contributionIds);
     }
 
     private static List<Long> idsOfType(List<Recognition> entities, ContributionType type) {

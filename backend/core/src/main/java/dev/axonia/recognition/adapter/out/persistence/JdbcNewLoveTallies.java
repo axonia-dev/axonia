@@ -15,7 +15,7 @@ import lombok.RequiredArgsConstructor;
 
 @Component
 @RequiredArgsConstructor
-class JdbcNewLoveTallies implements NewLoveTallies {
+public class JdbcNewLoveTallies implements NewLoveTallies {
 
     private static final String SQL = """
             SELECT rc.contribution_id, rc.community_id, COUNT(*) AS new_loves,

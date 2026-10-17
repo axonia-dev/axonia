@@ -5,9 +5,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.springframework.context.ApplicationEventPublisher;
@@ -74,8 +74,16 @@ class RecognitionServiceTest {
     @Mock
     private ApplicationEventPublisher events;
 
-    @InjectMocks
     private RecognitionService sut;
+
+    @BeforeEach
+    void setUp() {
+
+        sut = new RecognitionService(recognitionStore, loveStore, communityAccess, slotSourceAccess,
+                artifactSourceAccess, artifactTypeAccess,
+                new CreditedRecognitions(recognitionStore, slotSourceAccess, artifactSourceAccess), currentUser,
+                organizationContext, events);
+    }
 
     private static LoveRequest request() {
 
