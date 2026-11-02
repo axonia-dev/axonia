@@ -17,13 +17,13 @@
     "verify": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run test && pnpm run knip"
   },
   "devDependencies": {
-    "@types/node": "24.19.1",
-    "@vitest/coverage-v8": "^5.0.2",
-    "knip": "6.39.0",
-    "oxlint": "^1.85.0",
-    "oxlint-tsgolint": "^7.0.2003",
-    "prettier": "^3.9.9",
+    "@types/node": "24.19.2",
+    "@vitest/coverage-v8": "^5.0.5",
+    "knip": "6.42.0",
+    "oxlint": "^1.88.0",
+    "oxlint-tsgolint": "^7.0.2004",
+    "prettier": "^3.9.10",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.2"
+    "vitest": "^5.0.5"
   }
 }
