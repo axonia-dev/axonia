@@ -204,7 +204,9 @@ describe("useTimelineScroll", () => {
     const moves: string[] = [];
     Object.defineProperty(main, "scrollTop", {
       get: () => 0,
-      set: (top: number) => moves.push(`jump ${top}`),
+      set: (top: number) => {
+        moves.push(`jump ${top}`);
+      },
     });
     main.scrollTo = ((options: ScrollToOptions) =>
       moves.push(`glide ${options.top}`)) as typeof main.scrollTo;

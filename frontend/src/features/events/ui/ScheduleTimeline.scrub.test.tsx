@@ -102,7 +102,9 @@ describe("ScheduleTimeline scrub timing", () => {
     main.scrollTo = () => moves.push("scroll");
     Object.defineProperty(main, "scrollTop", {
       get: () => 0,
-      set: () => moves.push("anchor"),
+      set: () => {
+        moves.push("anchor");
+      },
     });
     await new Promise((resolve) => requestAnimationFrame(resolve));
     // when the reader jumps to the first session and its page lands above the row being read
