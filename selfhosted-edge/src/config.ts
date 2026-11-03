@@ -1,6 +1,19 @@
-import { realpathSync, statSync } from "node:fs";
-import { isAbsolute, join } from "node:path";
-import { type AuthEnv, authConfiguration, contentSecurityPolicy, sealingKey } from "./shared.ts";
+import { readFileSync, realpathSync, statSync } from "node:fs";
+import { isAbsolute } from "node:path";
+import {
+  backendOriginProblem,
+  edgeSecretProblem,
+  publicUrlProblem,
+  staticDirProblem,
+} from "./deployment-problems.ts";
+import { managedIdentityAssertion, tokenFileAssertion } from "./client-authentication.ts";
+import {
+  type AuthEnv,
+  authConfiguration,
+  type ClientAuthentication,
+  contentSecurityPolicy,
+  sealingKey,
+} from "./shared.ts";
 
 // An installation is the only app on its host, so the cookie names are not a setting.
 const COOKIE_NAME_PREFIX = "axonia";
@@ -10,7 +23,6 @@ const REQUIRED = [
   "BACKEND_ORIGIN",
   "OIDC_ISSUER",
   "OIDC_CLIENT_ID",
-  "OIDC_CLIENT_SECRET",
   "OIDC_SCOPES",
   "OIDC_SESSION_END",
   "SESSION_COOKIE_KEY",
@@ -31,15 +43,23 @@ interface WholeNumberRule {
 const PORT: WholeNumberRule = { name: "PORT", fallback: 8080, max: 65535 };
 const TRUSTED_PROXY_HOPS: WholeNumberRule = { name: "TRUSTED_PROXY_HOPS", fallback: 0, max: 10 };
 
-const LOCAL_HOSTNAMES: ReadonlySet<string> = new Set(["localhost", "127.0.0.1", "[::1]"]);
 const UNRESOLVED_PLACEHOLDER = /\$\{[^}]*\}/;
-const HEADER_SAFE = /^[\x21-\x7e]+$/;
 const WHOLE_NUMBER = /^(0|[1-9][0-9]{0,5})$/;
 
-const notAnOrigin = (name: string, example: string): string =>
-  `${name} must be an origin with no path, such as ${example}.`;
-const STATIC_DIR_PROBLEM =
-  "STATIC_DIR must be an absolute path to the built app, holding its index.html.";
+// The settings read only in some OIDC_CLIENT_AUTH modes, each with a name: "..." literal that
+// deploy/check-configuration-docs.sh reads. IDENTITY_ENDPOINT and IDENTITY_HEADER are the
+// platform's, not an operator's, and are read without that pattern.
+const CLIENT_SECRET = { name: "OIDC_CLIENT_SECRET" };
+const CLIENT_AUTH = { name: "OIDC_CLIENT_AUTH" };
+const MANAGED_IDENTITY_CLIENT_ID = { name: "OIDC_MANAGED_IDENTITY_CLIENT_ID" };
+const FEDERATED_TOKEN_FILE = { name: "OIDC_FEDERATED_TOKEN_FILE" };
+
+const CLIENT_AUTH_PROBLEM =
+  "OIDC_CLIENT_AUTH must be client-secret, azure-managed-identity or federated-token-file.";
+const FEDERATED_TOKEN_FILE_PROBLEM =
+  "OIDC_FEDERATED_TOKEN_FILE must be an absolute path to a readable, non-empty file when OIDC_CLIENT_AUTH is federated-token-file.";
+const MANAGED_IDENTITY_PLATFORM_PROBLEM =
+  "OIDC_CLIENT_AUTH=azure-managed-identity needs IDENTITY_ENDPOINT and IDENTITY_HEADER, which App Service and Container Apps set when the site has a managed identity.";
 
 export interface EdgeConfiguration {
   port: number;
@@ -69,7 +89,7 @@ const isProblem = (problem: string | null): problem is string => problem !== nul
 
 // A literal ${NAME} is what a compose file or a chart hands over when the variable it names was
 // never set, and it is truthy, so it would otherwise pass as a value.
-const absenceProblem = (environment: Environment, name: RequiredSetting): string | null => {
+const absenceProblem = (environment: Environment, name: string): string | null => {
   const value = environment[name];
   if (value === undefined || value.trim() === "") {
     return `${name} is required.`;
@@ -94,43 +114,91 @@ const wholeNumber = (
   return parsed;
 };
 
-// Exactly an origin: written the way URL writes one back, so nothing a cookie, a redirect or the
-// backend's own PUBLIC_URL is compared against can differ by a path, a port spelling or a case.
-const originOf = (raw: string): URL | null => {
-  if (!URL.canParse(raw)) {
-    return null;
-  }
-  const url = new URL(raw);
-  return raw.replace(/\/$/, "") === url.origin ? url : null;
-};
+interface ClientProof {
+  secret: string;
+  clientAuthentication?: ClientAuthentication;
+}
 
-const publicUrlProblem = (raw: string): string | null => {
-  const url = originOf(raw);
-  if (url === null) {
-    return notAnOrigin("PUBLIC_URL", "https://axonia.example.com");
-  }
-  return url.protocol === "https:" || LOCAL_HOSTNAMES.has(url.hostname)
-    ? null
-    : "PUBLIC_URL must be https, or http on localhost: browsers refuse the session cookie anywhere else.";
-};
+const valueOf = (environment: Environment, name: string): string =>
+  (environment[name] ?? "").trim();
 
-const backendOriginProblem = (raw: string): string | null =>
-  originOf(raw) === null ? notAnOrigin("BACKEND_ORIGIN", "http://axonia-backend:8080") : null;
+const secretConflict = (mode: string): string =>
+  `${CLIENT_SECRET.name} must not be set when ${CLIENT_AUTH.name} is ${mode}: the edge never sends it.`;
 
-const edgeSecretProblem = (raw: string): string | null =>
-  HEADER_SAFE.test(raw)
-    ? null
-    : "EDGE_SHARED_SECRET must be printable ASCII with no spaces: it travels in a header.";
-
-const staticDirProblem = (raw: string): string | null => {
-  if (!isAbsolute(raw)) {
-    return STATIC_DIR_PROBLEM;
+// The file is only checked here, never used: a token is fetched on each sign-in, not at start.
+const tokenFileProblem = (path: string): string | null => {
+  if (!isAbsolute(path)) {
+    return FEDERATED_TOKEN_FILE_PROBLEM;
   }
   try {
-    return statSync(join(raw, "index.html")).isFile() ? null : STATIC_DIR_PROBLEM;
+    return statSync(path).isFile() && readFileSync(path, "utf8").trim() !== ""
+      ? null
+      : FEDERATED_TOKEN_FILE_PROBLEM;
   } catch {
-    return STATIC_DIR_PROBLEM;
+    return FEDERATED_TOKEN_FILE_PROBLEM;
   }
+};
+
+const isHttpUrl = (raw: string): boolean => {
+  if (!URL.canParse(raw)) {
+    return false;
+  }
+  const { protocol } = new URL(raw);
+  return protocol === "http:" || protocol === "https:";
+};
+
+const federatedTokenFile = (environment: Environment, problems: string[]): ClientProof => {
+  const path = valueOf(environment, FEDERATED_TOKEN_FILE.name);
+  const problem = tokenFileProblem(path);
+  if (problem !== null) {
+    problems.push(problem);
+    return { secret: "" };
+  }
+  return { secret: "", clientAuthentication: tokenFileAssertion(path) };
+};
+
+const azureManagedIdentity = (environment: Environment, problems: string[]): ClientProof => {
+  const clientId = valueOf(environment, MANAGED_IDENTITY_CLIENT_ID.name);
+  const endpoint = valueOf(environment, "IDENTITY_ENDPOINT");
+  const header = valueOf(environment, "IDENTITY_HEADER");
+  if (clientId === "") {
+    problems.push(
+      `${MANAGED_IDENTITY_CLIENT_ID.name} is required when ${CLIENT_AUTH.name} is azure-managed-identity.`,
+    );
+  }
+  if (!isHttpUrl(endpoint) || header === "") {
+    problems.push(MANAGED_IDENTITY_PLATFORM_PROBLEM);
+  }
+  if (clientId === "" || !isHttpUrl(endpoint) || header === "") {
+    return { secret: "" };
+  }
+  return {
+    secret: "",
+    clientAuthentication: managedIdentityAssertion({ endpoint, header, clientId }),
+  };
+};
+
+// The secret is the client's proof unless OIDC_CLIENT_AUTH names a federated one, and then it must
+// be absent so no deployment keeps a secret it believes is in use. A whitespace-only value is unset.
+const clientProofOf = (environment: Environment, problems: string[]): ClientProof => {
+  const mode = valueOf(environment, CLIENT_AUTH.name);
+  if (mode === "" || mode === "client-secret") {
+    const absent = absenceProblem(environment, CLIENT_SECRET.name);
+    if (absent !== null) {
+      problems.push(absent);
+    }
+    return { secret: environment[CLIENT_SECRET.name] ?? "" };
+  }
+  if (mode !== "federated-token-file" && mode !== "azure-managed-identity") {
+    problems.push(CLIENT_AUTH_PROBLEM);
+    return { secret: "" };
+  }
+  if (valueOf(environment, CLIENT_SECRET.name) !== "") {
+    problems.push(secretConflict(mode));
+  }
+  return mode === "federated-token-file"
+    ? federatedTokenFile(environment, problems)
+    : azureManagedIdentity(environment, problems);
 };
 
 // The auth module's own validation, run once here rather than on the first sign-in, so a wrong
@@ -150,10 +218,14 @@ const authProblem = async (auth: AuthEnv): Promise<string | null> => {
   return detail;
 };
 
-const authEnvironment = (settings: Readonly<Record<RequiredSetting, string>>): AuthEnv => ({
+const authEnvironment = (
+  settings: Readonly<Record<RequiredSetting, string>>,
+  { secret, clientAuthentication }: ClientProof,
+): AuthEnv => ({
   OIDC_ISSUER: settings.OIDC_ISSUER,
   OIDC_CLIENT_ID: settings.OIDC_CLIENT_ID,
-  OIDC_CLIENT_SECRET: settings.OIDC_CLIENT_SECRET,
+  OIDC_CLIENT_SECRET: secret,
+  ...(clientAuthentication === undefined ? {} : { clientAuthentication }),
   SESSION_COOKIE_KEY: settings.SESSION_COOKIE_KEY,
   SESSION_MAX_AGE_SECONDS: settings.SESSION_MAX_AGE_SECONDS,
   COOKIE_NAME_PREFIX,
@@ -163,16 +235,19 @@ const authEnvironment = (settings: Readonly<Record<RequiredSetting, string>>): A
 });
 
 export async function readConfiguration(environment: Environment): Promise<EdgeConfiguration> {
+  const problems: string[] = [];
+  const clientProof = clientProofOf(environment, problems);
+  // A failed proof is already a problem: a stand-in keeps the auth module checking the rest.
+  const clientProofFailed = problems.length > 0;
   const absent = REQUIRED.map((name) => absenceProblem(environment, name)).filter(isProblem);
   if (absent.length > 0) {
-    throw new ConfigurationError(absent);
+    throw new ConfigurationError([...problems, ...absent]);
   }
   const settings = Object.fromEntries(
     REQUIRED.map((name) => [name, environment[name] ?? ""]),
   ) as Record<RequiredSetting, string>;
-  const auth = authEnvironment(settings);
+  const auth = authEnvironment(settings, clientProof);
 
-  const problems: string[] = [];
   const port = wholeNumber(environment, PORT, problems);
   const trustedProxyHops = wholeNumber(environment, TRUSTED_PROXY_HOPS, problems);
   problems.push(
@@ -181,7 +256,7 @@ export async function readConfiguration(environment: Environment): Promise<EdgeC
       backendOriginProblem(settings.BACKEND_ORIGIN),
       edgeSecretProblem(settings.EDGE_SHARED_SECRET),
       staticDirProblem(settings.STATIC_DIR),
-      await authProblem(auth),
+      await authProblem(clientProofFailed ? { ...auth, OIDC_CLIENT_SECRET: "unchecked" } : auth),
     ].filter(isProblem),
   );
   if (problems.length > 0) {

@@ -182,6 +182,43 @@ export const fakeIdentityProvider = async (): Promise<FakeIdentityProvider> => {
   return provider;
 };
 
+export interface FakeIdentityEndpoint {
+  /** What the platform hands a site as IDENTITY_ENDPOINT. */
+  endpoint: string;
+  received: { url: string; identityHeader: string | undefined }[];
+  /** What it answers, an access token until a test says otherwise. */
+  answer: { status: number; document: object };
+  close: () => Promise<void>;
+}
+
+export const MANAGED_IDENTITY_TOKEN = "a-managed-identity-token";
+export const IDENTITY_HEADER = "a-header-nobody-may-log";
+
+/** The App Service and Container Apps endpoint a managed identity's token comes from. */
+export const fakeIdentityEndpoint = async (): Promise<FakeIdentityEndpoint> => {
+  const server = createServer((request, response) => {
+    endpoint.received.push({
+      url: request.url ?? "",
+      identityHeader: request.headers["x-identity-header"] as string | undefined,
+    });
+    sendJson(response, endpoint.answer.document, endpoint.answer.status);
+  });
+  const origin = await listening(server);
+  const endpoint: FakeIdentityEndpoint = {
+    endpoint: `${origin}/msi/token`,
+    received: [],
+    answer: {
+      status: 200,
+      document: {
+        access_token: MANAGED_IDENTITY_TOKEN,
+        expires_on: String(Math.floor(Date.now() / 1000) + 3600),
+      },
+    },
+    close: () => closed(server),
+  };
+  return endpoint;
+};
+
 /** A build as Vite writes one, in a directory that also holds a file no request may reach. */
 export const staticBuild = (): string => {
   const parent = mkdtempSync(join(tmpdir(), "selfhosted-edge-"));

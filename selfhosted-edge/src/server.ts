@@ -4,7 +4,12 @@ import type { EdgeConfiguration } from "./config.ts";
 import { logAuthFailure, logFailure } from "./log.ts";
 import { isBackendPath, proxyToBackend } from "./proxy.ts";
 import { type Exchange, sendProblem, sendWebResponse, writeHead } from "./respond.ts";
-import { handleAuth, IDENTITY_PROVIDER_UNREACHABLE, isAuthPath } from "./shared.ts";
+import {
+  CLIENT_ASSERTION_UNAVAILABLE,
+  handleAuth,
+  IDENTITY_PROVIDER_UNREACHABLE,
+  isAuthPath,
+} from "./shared.ts";
 import { sendShell, serveStatic } from "./static.ts";
 
 const HEALTH_PATH = "/healthz";
@@ -55,18 +60,21 @@ const authenticate = async (exchange: Exchange): Promise<void> => {
     });
     return;
   }
+  let clientProofFailed = false;
   const answer = await handleAuth(
     toWebRequest(exchange),
     {
       ...exchange.configuration.auth,
       reportFailure: (failure, oauthError) => {
+        clientProofFailed ||= failure === CLIENT_ASSERTION_UNAVAILABLE;
         logAuthFailure(failure, exchange, oauthError);
       },
     },
     exchange.url,
   );
-  // The auth module answers 503 for one thing alone: an identity provider it could not reach.
-  if (answer.status === 503) {
+  // A 503 is an identity provider the auth module could not reach, unless it never asked: a failed
+  // client proof is already logged under its own name, and would misdirect operators if logged twice.
+  if (answer.status === 503 && !clientProofFailed) {
     logFailure(IDENTITY_PROVIDER_UNREACHABLE, exchange);
   }
   await sendWebResponse(exchange, answer);

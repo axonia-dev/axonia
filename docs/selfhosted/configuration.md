@@ -53,7 +53,10 @@ Database passwords must match `[A-Za-z0-9._~-]+`; `openssl rand -hex 32` does.
 | `BACKEND_ORIGIN` | The backend's address inside the platform, with no path, for example `http://axonia-backend:8080`. The edge forwards `/axonia`, `/public`, `/mcp`, `/scim`, `/oauth/token`, `/oauth/revoke` and `/.well-known/oauth-*` to it |
 | `OIDC_ISSUER` | Same as the backend's `AXONIA_SELFHOSTED_OIDC_ISSUER_URI` |
 | `OIDC_CLIENT_ID` | The client the edge signs in as |
-| `OIDC_CLIENT_SECRET` | That client's secret |
+| `OIDC_CLIENT_SECRET` | That client's secret, with `OIDC_CLIENT_AUTH` unset or `client-secret`. Must not be set in the other two modes |
+| `OIDC_CLIENT_AUTH` | How the edge proves the client to the identity provider: `client-secret` (the default), `azure-managed-identity` or `federated-token-file`. The last two send a federated client assertion instead of a secret (`entra.md`) |
+| `OIDC_MANAGED_IDENTITY_CLIENT_ID` | With `azure-managed-identity`: the client id of the site's managed identity. App Service and Container Apps provide `IDENTITY_ENDPOINT` and `IDENTITY_HEADER` themselves (`entra.md`) |
+| `OIDC_FEDERATED_TOKEN_FILE` | With `federated-token-file`: the absolute path of the file holding the workload's token, for example a Kubernetes projected service account token. It is read on every sign-in and renewal (`entra.md`) |
 | `OIDC_SCOPES` | Space-separated, including `openid` and whatever makes the provider issue a refresh token and an access token for axonia |
 | `OIDC_SESSION_END` | `revoke` (RFC 7009, the standard) or `refresh-token-post` (Keycloak's own) |
 | `SESSION_COOKIE_KEY` | 32 random bytes in unpadded base64url (`openssl rand -base64 32 \| tr '+/' '-_' \| tr -d '='`). Every edge instance needs the same one; changing it signs everybody out |
