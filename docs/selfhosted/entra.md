@@ -204,6 +204,13 @@ Skip step 3 of the app registration, or delete the client secret once sign-in wo
 
 Outside Helm, `OIDC_CLIENT_AUTH=federated-token-file` reads the token from the file `OIDC_FEDERATED_TOKEN_FILE` names.
 
+### When a federated sign-in fails
+
+A sign-in that answers 503 while the edge logs `"failure":"client_assertion_unavailable"` never reached Entra: the edge could not read its token file or get a token from the platform's identity endpoint.
+The line's `error.message` names the cause, such as the file's path or the endpoint's status.
+A 400 from the identity endpoint usually means `OIDC_MANAGED_IDENTITY_CLIENT_ID` is not the client id of an identity assigned to the site.
+A sign-in that ends on "The identity provider refused to complete the sign-in. The edge's client settings may be wrong.", logged as `"failure":"token_refused"` with `"oauth_error":"invalid_client"` or `"unauthorized_client"`, means Entra refused the token: the federated credential's issuer, subject or audience does not match it exactly.
+
 ## App roles instead of groups
 
 With app roles assigned in the enterprise application (Users and groups), the access token carries a `roles` claim, for example `"roles": ["owner"]`, and no `groups` unless step 6's groups claim is kept.

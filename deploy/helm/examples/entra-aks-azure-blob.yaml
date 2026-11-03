@@ -13,8 +13,8 @@ oidc:
   sessionMaxAgeSeconds: 7776000
   subjectClaim: oid
   # The app registration needs a federated credential with the cluster's OIDC issuer URL, the subject
-  # system:serviceaccount:<namespace>:<release>-edge and the audience api://AzureADTokenExchange
-  # (docs/selfhosted/entra.md). The Graph reads below still use a client secret.
+  # system:serviceaccount:<namespace>:<release>-edge (<fullnameOverride>-edge when fullnameOverride is set) and the
+  # audience api://AzureADTokenExchange (docs/selfhosted/entra.md). The Graph reads below still use a client secret.
   clientAuth: federated-token-file
 database:
   url: jdbc:postgresql://example.postgres.database.azure.com:5432/axonia?sslmode=require
