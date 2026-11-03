@@ -2,6 +2,7 @@ suite: the edge
 templates:
   - edge-deployment.yaml
   - ingress.yaml
+  - edge-serviceaccount.yaml
 release:
   name: axonia
   namespace: axonia
@@ -125,3 +126,97 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].image
           value: ghcr.io/axonia-dev/axonia-edge:0.0.0
+
+  - it: mounts a federated token instead of a client secret
+    set:
+      oidc.clientAuth: federated-token-file
+    asserts:
+      - template: edge-deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OIDC_CLIENT_AUTH
+            value: federated-token-file
+      - template: edge-deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OIDC_FEDERATED_TOKEN_FILE
+            value: /var/run/secrets/axonia/federated-token/token
+      - template: edge-deployment.yaml
+        notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OIDC_CLIENT_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: axonia
+                key: OIDC_CLIENT_SECRET
+      - template: edge-deployment.yaml
+        equal:
+          path: spec.template.spec.serviceAccountName
+          value: axonia-edge
+      - template: edge-deployment.yaml
+        equal:
+          path: spec.template.spec.automountServiceAccountToken
+          value: false
+      - template: edge-deployment.yaml
+        contains:
+          path: spec.template.spec.volumes
+          content:
+            name: federated-token
+            projected:
+              sources:
+                - serviceAccountToken:
+                    path: token
+                    audience: api://AzureADTokenExchange
+                    expirationSeconds: 3600
+      - template: edge-deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: federated-token
+            mountPath: /var/run/secrets/axonia/federated-token
+            readOnly: true
+      - template: edge-serviceaccount.yaml
+        equal:
+          path: metadata.name
+          value: axonia-edge
+      - template: edge-serviceaccount.yaml
+        equal:
+          path: automountServiceAccountToken
+          value: false
+
+  - it: takes another audience
+    set:
+      oidc.clientAuth: federated-token-file
+      oidc.federatedTokenAudience: sts.amazonaws.com
+    template: edge-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[1].projected.sources[0].serviceAccountToken.audience
+          value: sts.amazonaws.com
+
+  - it: keeps the client secret by default
+    asserts:
+      - template: edge-deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OIDC_CLIENT_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: axonia
+                key: OIDC_CLIENT_SECRET
+      - template: edge-deployment.yaml
+        notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: OIDC_CLIENT_AUTH
+            value: client-secret
+      - template: edge-deployment.yaml
+        notExists:
+          path: spec.template.spec.serviceAccountName
+      - template: edge-serviceaccount.yaml
+        hasDocuments:
+          count: 0

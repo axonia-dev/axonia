@@ -32,13 +32,17 @@ from_compose() {
 	grep -vE '^[[:space:]]*#' "$compose" | grep -oE '\$\{[A-Z][A-Z0-9_]*' | sed 's/^\${//'
 }
 
-# Every optional block on, once per media store, so no variable depends on what an example happens to set.
+# Every optional block on, once per media store and once with the federated edge, so no variable depends on what an example happens to set.
 from_chart() {
 	local media
-	for media in local s3 azure-blob; do
+	{
+		for media in local s3 azure-blob; do
+			"$helm" template axonia "$root/deploy/helm/axonia" --values "$root/deploy/helm/test/every-variable.yaml" \
+				--set media.type="$media"
+		done
 		"$helm" template axonia "$root/deploy/helm/axonia" --values "$root/deploy/helm/test/every-variable.yaml" \
-			--set media.type="$media"
-	done | grep -oE '^ +- name: [A-Z][A-Z0-9_]*$' | sed -E 's/^ +- name: //'
+			--set oidc.clientAuth=federated-token-file
+	} | grep -oE '^ +- name: [A-Z][A-Z0-9_]*$' | sed -E 's/^ +- name: //'
 }
 
 work="$(mktemp -d)"

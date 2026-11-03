@@ -68,6 +68,8 @@
       "properties": {
         "issuer": { "type": "string", "pattern": "^(https://\\S+|http://(localhost|127\\.0\\.0\\.1)(:[0-9]{1,5})?(/\\S*)?)$" },
         "clientId": { "$ref": "#/definitions/nonEmpty" },
+        "clientAuth": { "enum": ["client-secret", "federated-token-file"] },
+        "federatedTokenAudience": { "$ref": "#/definitions/nonEmpty" },
         "audience": { "type": "string" },
         "scopes": { "type": "string", "pattern": "(^|\\s)openid(\\s|$)" },
         "sessionEnd": { "enum": ["revoke", "refresh-token-post"] },

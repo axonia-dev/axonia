@@ -28,6 +28,14 @@ oidc:
   issuer: ""
   # The client the edge signs in as.
   clientId: ""
+  # How the edge proves itself to the provider: client-secret (the OIDC_CLIENT_SECRET key of existingSecret) or
+  # federated-token-file, a projected service account token the chart mounts for the edge, so no client secret is kept.
+  # With Entra the app registration's federated credential then names the cluster's OIDC issuer and the subject
+  # system:serviceaccount:<namespace>:<release>-edge. The AKS Workload Identity webhook label is not needed on the edge.
+  clientAuth: client-secret
+  # The audience of the projected token under clientAuth=federated-token-file, which the provider's federated
+  # credential expects: api://AzureADTokenExchange for Entra.
+  federatedTokenAudience: api://AzureADTokenExchange
   # The audience the backend requires in every access token. Empty means the client id, which is what Microsoft Entra
   # puts there once the app registration asks for v2 tokens.
   audience: ""

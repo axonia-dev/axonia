@@ -181,3 +181,40 @@ tests:
       - equal:
           path: metadata.name
           value: prod-backend
+
+  - it: refuses OIDC_CLIENT_SECRET in edge.extraEnv when the chart federates the edge
+    set:
+      oidc.clientAuth: federated-token-file
+      edge.extraEnv:
+        - name: OIDC_CLIENT_SECRET
+          value: x
+    asserts:
+      - failedTemplate:
+          errorPattern: "oidc.clientAuth=federated-token-file sets the edge's client authentication itself: remove OIDC_CLIENT_SECRET from edge.extraEnv\\."
+
+  - it: refuses OIDC_CLIENT_AUTH in edge.extraEnv when the chart federates the edge
+    set:
+      oidc.clientAuth: federated-token-file
+      edge.extraEnv:
+        - name: OIDC_CLIENT_AUTH
+          value: x
+    asserts:
+      - failedTemplate:
+          errorPattern: "oidc.clientAuth=federated-token-file sets the edge's client authentication itself: remove OIDC_CLIENT_AUTH from edge.extraEnv\\."
+
+  - it: refuses OIDC_FEDERATED_TOKEN_FILE in edge.extraEnv when the chart federates the edge
+    set:
+      oidc.clientAuth: federated-token-file
+      edge.extraEnv:
+        - name: OIDC_FEDERATED_TOKEN_FILE
+          value: x
+    asserts:
+      - failedTemplate:
+          errorPattern: "oidc.clientAuth=federated-token-file sets the edge's client authentication itself: remove OIDC_FEDERATED_TOKEN_FILE from edge.extraEnv\\."
+
+  - it: refuses a client authentication the chart has no platform for
+    set:
+      oidc.clientAuth: azure-managed-identity
+    asserts:
+      - failedTemplate:
+          errorPattern: /oidc/clientAuth

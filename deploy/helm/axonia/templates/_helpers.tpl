@@ -24,6 +24,10 @@ app.kubernetes.io/component: {{ .component }}
 {{- printf "%s-edge" (include "axonia.fullname" .) -}}
 {{- end -}}
 
+{{- define "axonia.federatedTokenDir" -}}
+/var/run/secrets/axonia/federated-token
+{{- end -}}
+
 {{- define "axonia.image" -}}
 {{- $repository := required (printf "%s.image.repository is required" .component) .image.repository -}}
 {{- printf "%s:%s" $repository (.image.tag | default .context.Chart.AppVersion) -}}
@@ -95,6 +99,13 @@ Refusals no schema can express, because each one depends on two values together.
 {{- end -}}
 {{- if and $values.entraGraph.clientId (not $values.entraGraph.clientSecret.existingSecret) -}}
 {{- fail "entraGraph.clientId needs entraGraph.clientSecret.existingSecret, the Secret holding its client secret." -}}
+{{- end -}}
+{{- if eq $values.oidc.clientAuth "federated-token-file" -}}
+{{- range $values.edge.extraEnv -}}
+{{- if has .name (list "OIDC_CLIENT_SECRET" "OIDC_CLIENT_AUTH" "OIDC_FEDERATED_TOKEN_FILE") -}}
+{{- fail (printf "oidc.clientAuth=federated-token-file sets the edge's client authentication itself: remove %s from edge.extraEnv." .name) -}}
+{{- end -}}
+{{- end -}}
 {{- end -}}
 {{- include "axonia.validateNames" . -}}
 {{- end -}}
