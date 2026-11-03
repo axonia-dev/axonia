@@ -100,14 +100,14 @@ tests:
       - failedTemplate:
           errorPattern: needs entraGraph.clientSecret.existingSecret
 
-  # Helm logs "cannot overwrite table with non table for axonia.mail.password" here, as it does for an operator making
-  # this mistake: the scalar has to replace the table for the schema to refuse it.
+  # Given inside the table: a bare scalar is refused by the same secretRef schema, but Helm first logs "cannot
+  # overwrite table with non table" for it, which would leave a warning in every run of this gate.
   - it: refuses a mail password given as a value rather than a Secret
     set:
-      mail.password: hunter2
+      mail.password.value: hunter2
     asserts:
       - failedTemplate:
-          errorPattern: "/mail/password.*want object"
+          errorPattern: "/mail/password.*additional properties 'value' not allowed"
 
   - it: refuses a mail security the application does not know
     set:
