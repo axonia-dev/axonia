@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { isHeaderSafe } from "./deployment-problems.ts";
 import type { ClientAuthentication } from "./shared.ts";
 
 export const JWT_BEARER = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer";
@@ -62,6 +63,10 @@ export const managedIdentityAssertion = (
   let inFlight: Promise<string> | undefined;
 
   const request = async (): Promise<string> => {
+    // The HTTP client quotes a header value it refuses, which would put the secret in the logs.
+    if (!isHeaderSafe(identity.header)) {
+      throw new Error("The identity header is not printable ASCII with no spaces.");
+    }
     const query = new URLSearchParams({
       resource: TOKEN_EXCHANGE_RESOURCE,
       "api-version": IDENTITY_API_VERSION,

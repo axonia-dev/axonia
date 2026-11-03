@@ -32,10 +32,18 @@ export const publicUrlProblem = (raw: string): string | null => {
 export const backendOriginProblem = (raw: string): string | null =>
   originOf(raw) === null ? notAnOrigin("BACKEND_ORIGIN", "http://axonia-backend:8080") : null;
 
-export const edgeSecretProblem = (raw: string): string | null =>
-  HEADER_SAFE.test(raw)
+export const isHeaderSafe = (raw: string): boolean => HEADER_SAFE.test(raw);
+
+const headerValueProblem = (name: string, raw: string): string | null =>
+  isHeaderSafe(raw)
     ? null
-    : "EDGE_SHARED_SECRET must be printable ASCII with no spaces: it travels in a header.";
+    : `${name} must be printable ASCII with no spaces: it travels in a header.`;
+
+export const edgeSecretProblem = (raw: string): string | null =>
+  headerValueProblem("EDGE_SHARED_SECRET", raw);
+
+export const identityHeaderProblem = (raw: string): string | null =>
+  headerValueProblem("IDENTITY_HEADER", raw);
 
 export const staticDirProblem = (raw: string): string | null => {
   if (!isAbsolute(raw)) {

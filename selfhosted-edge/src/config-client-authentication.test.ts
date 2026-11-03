@@ -27,6 +27,8 @@ const FEDERATED_FILE_PROBLEM =
   "OIDC_FEDERATED_TOKEN_FILE must be an absolute path to a readable, non-empty file when OIDC_CLIENT_AUTH is federated-token-file.";
 const PLATFORM_PROBLEM =
   "OIDC_CLIENT_AUTH=azure-managed-identity needs IDENTITY_ENDPOINT and IDENTITY_HEADER, which App Service and Container Apps set when the site has a managed identity.";
+const IDENTITY_HEADER_PROBLEM =
+  "IDENTITY_HEADER must be printable ASCII with no spaces: it travels in a header.";
 const IDENTITY_HEADER = "a-header-nobody-may-log";
 const MANAGED_IDENTITY = {
   OIDC_CLIENT_AUTH: "azure-managed-identity",
@@ -143,6 +145,17 @@ describe("how the client proves itself", () => {
 
     expect(problems).toEqual([PLATFORM_PROBLEM]);
     expect(problems.join()).not.toContain(IDENTITY_HEADER);
+  });
+
+  it.each([
+    ["a line break", "a-header\nnobody-may-log"],
+    ["a space", "a-header nobody-may-log"],
+    ["a non-ASCII character", "a-header-nobödy-may-log"],
+  ])("refuses an identity header with %s, never printing it", async (_name, header) => {
+    const problems = await problemsOf({ ...MANAGED_IDENTITY, IDENTITY_HEADER: header });
+
+    expect(problems).toEqual([IDENTITY_HEADER_PROBLEM]);
+    expect(problems.join()).not.toContain(header);
   });
 
   it("still reports the rest of the configuration beside a client problem", async () => {

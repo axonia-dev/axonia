@@ -155,6 +155,23 @@ describe("the managed identity assertion", () => {
     expect(fetchFn).toHaveBeenCalledTimes(2);
   });
 
+  it.each(["secret\nheader", " secret\u0000header "])(
+    "refuses a header the HTTP client would quote, without asking or naming it",
+    async (header) => {
+      const fetchFn = vi.fn<typeof fetch>();
+
+      const failure = await managedIdentityAssertion({ ...identity, header }, { fetchFn })().then(
+        () => null,
+        (error: unknown) => error,
+      );
+
+      expect((failure as Error).message).toBe(
+        "The identity header is not printable ASCII with no spaces.",
+      );
+      expect(fetchFn).not.toHaveBeenCalled();
+    },
+  );
+
   it("rejects a redirect naming its status only", async () => {
     const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 302 }));
 

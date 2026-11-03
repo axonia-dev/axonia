@@ -3,6 +3,7 @@ import { isAbsolute } from "node:path";
 import {
   backendOriginProblem,
   edgeSecretProblem,
+  identityHeaderProblem,
   publicUrlProblem,
   staticDirProblem,
 } from "./deployment-problems.ts";
@@ -166,10 +167,14 @@ const azureManagedIdentity = (environment: Environment, problems: string[]): Cli
       `${MANAGED_IDENTITY_CLIENT_ID.name} is required when ${CLIENT_AUTH.name} is azure-managed-identity.`,
     );
   }
-  if (!isHttpUrl(endpoint) || header === "") {
-    problems.push(MANAGED_IDENTITY_PLATFORM_PROBLEM);
+  const platformProblem =
+    !isHttpUrl(endpoint) || header === ""
+      ? MANAGED_IDENTITY_PLATFORM_PROBLEM
+      : identityHeaderProblem(header);
+  if (platformProblem !== null) {
+    problems.push(platformProblem);
   }
-  if (clientId === "" || !isHttpUrl(endpoint) || header === "") {
+  if (clientId === "" || platformProblem !== null) {
     return { secret: "" };
   }
   return {
