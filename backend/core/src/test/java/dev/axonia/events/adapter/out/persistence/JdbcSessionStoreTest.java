@@ -160,4 +160,16 @@ class JdbcSessionStoreTest {
         assertThat(captor.getValue()).usingRecursiveComparison().isEqualTo(STORED);
         assertThat(actual.getVersion()).isEqualTo(5L);
     }
+
+    @Test
+    void delete_removes_the_aggregate_the_record_names() {
+
+        // when
+        sut.delete(JdbcSessionStore.toRecord(STORED));
+
+        // then
+        var captor = ArgumentCaptor.forClass(SessionEntity.class);
+        verify(sessionRepository).delete(captor.capture());
+        assertThat(captor.getValue()).usingRecursiveComparison().isEqualTo(STORED);
+    }
 }

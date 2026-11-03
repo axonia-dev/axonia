@@ -29,6 +29,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.jdbc.Sql;
 
 import dev.axonia.CoreSpringBootTest;
+import dev.axonia.bookmarks.application.BookmarkService;
 import dev.axonia.expertise.application.ExpertisePreferenceService;
 import dev.axonia.expertise.application.ExpertiseService;
 import dev.axonia.expertise.application.Practitioner;
@@ -54,15 +55,16 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>
  * Assertions (each maps to a spec guarantee):
  * <ol>
- * <li>A scoped token lists exactly the 24 tools (surface allowlist + auth passes).</li>
+ * <li>A scoped token lists exactly the 27 tools (surface allowlist + auth passes).</li>
  * <li>A scoped {@code topic.propose} call succeeds, a topic is created, and an {@code OK} audit row is written.</li>
  * <li>An unscoped {@code library.contribute} call is refused (scope layer), a {@code SCOPE_DENIED} audit row is
  * written, and the org's artifact count is unchanged.</li>
  * <li>A bogus bearer on {@code /mcp} is rejected with 401 (chain gate).</li>
  * <li>The same {@code axp_} token presented to the REST chain ({@code /axonia/**}) is rejected with 401 (surface
  * isolation).</li>
- * <li>{@code tools/list} contains exactly the 24 known tool names, and exactly two of them declare
- * {@code destructiveHint}: {@code session.detachArtifact} and {@code learning.remove}.</li>
+ * <li>{@code tools/list} contains exactly the 27 known tool names, and exactly four of them declare
+ * {@code destructiveHint}: {@code session.detachArtifact}, {@code learning.remove}, {@code session.delete} and
+ * {@code tag.delete}.</li>
  * <li>The scoped {@code topic.propose} guarantee holds identically in a second, independently seeded ENTERPRISE
  * organization: the tool code path does not depend on which organization it runs in.</li>
  * <li>The full library round trip: {@code library.contribute} then {@code session.attachArtifact} then
@@ -87,6 +89,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  * organizer refusal survives the surface's error sanitizer with its message intact.</li>
  * <li>A contributor or proposer reference matching nobody, or several members, refuses the write and reaches the agent
  * saying which name failed and why, rather than as a bare "the action could not be completed".</li>
+ * <li>The undo of a mistaken backfill: {@code session.delete} removes the session with its slots, tags, attachments and
+ * attendance, takes the talk's credit back out of the expertise graph, and keeps the library's artifact; then
+ * {@code tag.usage} counts what is left on the tag and {@code tag.delete} strips it from the community.</li>
  * <li>The learning round trip: a {@code learning:declare} token adds an area through {@code learning.add},
  * {@code learning.demand} lists it as held, and {@code learning.remove} takes it back out of the demand.</li>
  * </ol>
@@ -97,20 +102,21 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AgentMcpEndToEndTest {
 
     /**
-     * The complete tool catalog. Assertion 6 checks {@code tools/list} is EXACTLY this set, and that exactly two tools
-     * declare {@code destructiveHint} - {@code session.detachArtifact}, gated behind its own {@code session:detach}
-     * scope, and {@code learning.remove}, which drops the date an area was named and takes back only the caller's own
-     * statement. Every other tool is additive.
+     * The complete tool catalog. Assertion 6 checks {@code tools/list} is EXACTLY this set, and that exactly four tools
+     * declare {@code destructiveHint} - {@code session.detachArtifact}, {@code session.delete} and {@code tag.delete},
+     * each gated behind a scope of its own, and {@code learning.remove}, which drops the date an area was named and
+     * takes back only the caller's own statement. Every other tool is additive.
      */
     private static final Set<String> EXPECTED_TOOLS = Set.of("communities.list", "schedule.read", "session.get",
             "library.artifactTypes", "library.contribute", "topic.propose", "session.signup", "attendance.signal",
             "community.join", "library.search", "session.artifacts", "session.attachArtifact", "session.detachArtifact",
             "events.sectionTypes", "session.create", "session.addSection", "session.addSlot", "slot.addPresenter",
             "community.members", "actionItem.raise", "learning.demand", "learning.learners", "learning.add",
-            "learning.remove");
+            "learning.remove", "session.delete", "tag.usage", "tag.delete");
 
     /** The destructive tools on the agent surface. Assertion 6 pins this list to prevent silent growth. */
-    private static final Set<String> DESTRUCTIVE_TOOLS = Set.of("session.detachArtifact", "learning.remove");
+    private static final Set<String> DESTRUCTIVE_TOOLS = Set.of("session.detachArtifact", "learning.remove",
+            "session.delete", "tag.delete");
 
     /** Reads a tool result's JSON text back into fields, e.g. the {@code sessionId} a create call reports. */
     private static final JsonMapper JSON = JsonMapper.builder().build();
@@ -143,6 +149,13 @@ class AgentMcpEndToEndTest {
     // stable fixture the other assertions read. Seeded deliberately OUT of ascending user-id order: an ORDER BY that
     // Spring silently dropped would hand back insertion order, and that is exactly what must not pass.
     private static final String ROSTER_SLUG = "agent-ent-roster";
+
+    // The delete loop's own community and people. The backfill loop holds absolute expertise counts for its presenter
+    // and organizer over the whole class, so the loop that creates and then erases a talk must never touch them.
+    private static final String DELETE_SLUG = "agent-ent-undo";
+    private static final String DELETE_ORGANIZER = "agent-ent-undo-organizer";
+    private static final String DELETE_PRESENTER = "agent-ent-undo-presenter";
+    private static final String DELETE_PRESENTER_NAME = "Undo Presenter";
     private static final List<String> ROSTER_SEED_ORDER = List.of("roster-user-3", "roster-user-1", "roster-user-2");
     private static final List<String> ROSTER_ASCENDING = List.of(ENTERPRISE_USER, "roster-user-1", "roster-user-2",
             "roster-user-3");
@@ -175,6 +188,9 @@ class AgentMcpEndToEndTest {
     /** The same graph seen from one person's side: what it holds about them, everywhere, whatever the community. */
     @Autowired
     private ExpertisePreferenceService expertiseProfile;
+
+    @Autowired
+    private BookmarkService bookmarks;
 
     /**
      * The OAuth resource-server chain needs a {@link JwtDecoder} bean to exist. Stubbed to reject any presented token
@@ -222,6 +238,12 @@ class AgentMcpEndToEndTest {
                 seedMembership(ENTERPRISE_ORG, ROSTER_SLUG, rosterUser);
             }
 
+            seedActiveMember(ENTERPRISE_ORG, DELETE_ORGANIZER);
+            seedCommunityWithKind(ENTERPRISE_ORG, DELETE_SLUG, DELETE_ORGANIZER, enterpriseKindId);
+            promoteToOrganizer(ENTERPRISE_ORG, DELETE_SLUG, DELETE_ORGANIZER);
+            seedActiveMember(ENTERPRISE_ORG, DELETE_PRESENTER, DELETE_PRESENTER_NAME, null);
+            seedMembership(ENTERPRISE_ORG, DELETE_SLUG, DELETE_PRESENTER);
+
             // A second, independently seeded ENTERPRISE organization. The MCP surface is Enterprise-only (the
             // agent-access-and-open-docs kind gate), so a HUB org can no longer authenticate here at all; this proves
             // the tool code path works from a second organization rather than proving anything about kind.
@@ -233,11 +255,11 @@ class AgentMcpEndToEndTest {
     }
 
     // -------------------------------------------------------------------------
-    // Assertion 1: a scoped token lists exactly the 24 tools.
+    // Assertion 1: a scoped token lists exactly the 27 tools.
     // -------------------------------------------------------------------------
 
     @Test
-    void scopedToken_listsExactlyTheTwentyFourTools() {
+    void scopedToken_listsExactlyTheTwentySevenTools() {
         var bearer = mint(ENTERPRISE_ORG, ENTERPRISE_USER, Set.of("read", "topic:propose"));
         var client = connect(bearer);
         try {
@@ -362,11 +384,11 @@ class AgentMcpEndToEndTest {
     }
 
     // -------------------------------------------------------------------------
-    // Assertion 6: tools/list is EXACTLY the 24 known names, and exactly two declare destructiveHint.
+    // Assertion 6: tools/list is EXACTLY the 27 known names, and exactly four declare destructiveHint.
     // -------------------------------------------------------------------------
 
     @Test
-    void toolCatalog_isExactlyTheTwentyFourKnownTools_andOnlyDetachAndLearningRemoveAreDestructive() {
+    void toolCatalog_isExactlyTheTwentySevenKnownTools_andOnlyTheFourRemovalsAreDestructive() {
         var bearer = mint(ENTERPRISE_ORG, ENTERPRISE_USER, Set.of("read"));
         var client = connect(bearer);
         try {
@@ -379,7 +401,9 @@ class AgentMcpEndToEndTest {
             var destructive = tools.stream().filter(t -> t.annotations() != null)
                     .filter(t -> Boolean.TRUE.equals(t.annotations().destructiveHint())).map(McpSchema.Tool::name)
                     .collect(Collectors.toSet());
-            assertThat(destructive).as("exactly two destructive tools: detaching an artifact and removing an area")
+            assertThat(destructive).as(
+                    "exactly four destructive tools: detaching an artifact, removing an area, deleting a session and "
+                            + "deleting a tag")
                     .isEqualTo(DESTRUCTIVE_TOOLS);
         } finally {
             close(client);
@@ -634,6 +658,94 @@ class AgentMcpEndToEndTest {
         } finally {
             close(client);
         }
+    }
+
+    @Test
+    void deleteLoop_aMistakenBackfillLeavesNoTrace_andACuratorDropsItsTag() {
+        var bearer = mint(ENTERPRISE_ORG, DELETE_ORGANIZER, Set.of("read", "schedule:manage", "library:contribute",
+                "session:attach", "session:delete", "tag:delete"));
+        var client = connect(bearer);
+        try {
+            client.initialize();
+
+            // given - a backfilled session the organizer then realises was a mistake
+            var sessionId = callForLong(
+                    client, "session.create", Map.of("params", Map.of("slug", DELETE_SLUG, "title",
+                            "Not a real session", "scheduledAt", "2025-04-01T08:00:00Z", "durationMinutes", 60)),
+                    "sessionId");
+            var sectionId = callForLong(client, "session.addSection",
+                    Map.of("sessionId", sessionId, "sectionTypeId", firstSectionTypeId(client), "title", "Talks"),
+                    "sectionId");
+            var slotId = callForLong(client, "session.addSlot",
+                    Map.of("params",
+                            Map.of("sessionId", sessionId, "sectionId", sectionId, "title", "Flink 101",
+                                    "durationMinutes", 15, "presenters", List.of(DELETE_PRESENTER_NAME), "tags",
+                                    List.of("flink"))),
+                    "slotId");
+            var contributeParams = new LinkedHashMap<String, Object>();
+            contributeParams.put("slug", DELETE_SLUG);
+            contributeParams.put("title", "Flink 101 slides");
+            contributeParams.put("typeId", seedArtifactType(ENTERPRISE_ORG, "E2E Undo Slides"));
+            contributeParams.put("url", "https://example.com/flink-101.pdf");
+            contributeParams.put("contributor", DELETE_PRESENTER_NAME);
+            contributeParams.put("tags", List.of("flink"));
+            var artifactId = callForLong(client, "library.contribute", Map.of("params", contributeParams), "id");
+            call(client, "session.attachArtifact",
+                    Map.of("slug", DELETE_SLUG, "sessionId", sessionId, "segmentId", slotId, "artifactId", artifactId));
+            jdbc.update(
+                    "INSERT INTO session_attendance (organization_id, session_id, user_id, created_at, updated_at, "
+                            + "version) VALUES (?, ?, ?, now(), now(), 0)",
+                    ENTERPRISE_ORG, sessionId, DELETE_PRESENTER);
+            jdbc.update("INSERT INTO bookmark (id, organization_id, community_id, saveable_type, saveable_id, "
+                    + "member_user_id, created_at, updated_at, version) VALUES (nextval('bookmark_id_seq'), ?, "
+                    + "(SELECT id FROM communities WHERE organization_id = ? AND slug = ?), 'SESSION', ?, ?, now(), "
+                    + "now(), 0)", ENTERPRISE_ORG, ENTERPRISE_ORG, DELETE_SLUG, sessionId, DELETE_PRESENTER);
+            assertThat(presentedCount(DELETE_PRESENTER)).as("the backfilled talk credits its speaker").isEqualTo(1);
+
+            // when
+            call(client, "session.delete", Map.of("sessionId", sessionId));
+
+            // then - the session is gone with everything hanging off it, and the library keeps the slides
+            var lookup = client.callTool(new McpSchema.CallToolRequest("session.get", Map.of("id", sessionId)));
+            assertThat(lookup.isError()).as("a deleted session cannot be read back").isTrue();
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM event_slot_tag WHERE slot_id = ?", Long.class, slotId))
+                    .isZero();
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM session_attendance WHERE session_id = ?", Long.class,
+                    sessionId)).isZero();
+            assertThat(attachmentCount(ENTERPRISE_ORG, artifactId)).as("nothing may point at a deleted session")
+                    .isZero();
+            assertThat(artifactIdByTitle(ENTERPRISE_ORG, "Flink 101 slides")).as("the slides stay in the library")
+                    .isEqualTo(artifactId);
+            assertThat(presentedCount(DELETE_PRESENTER)).as("a talk that never happened credits nobody").isZero();
+            assertThat(asUser(DELETE_PRESENTER, () -> bookmarks.mySaved()))
+                    .as("a member who had saved the session still opens their saved items, without it").isEmpty();
+
+            var usage = JSON.readTree(call(client, "tag.usage", Map.of("slug", DELETE_SLUG, "tag", "flink")));
+            assertThat(usage.get("talks").asInt()).as("the deleted talk no longer carries the tag").isZero();
+            assertThat(usage.get("artifacts").asInt()).isEqualTo(1);
+
+            // when - the curator drops the tag itself
+            call(client, "tag.delete", Map.of("slug", DELETE_SLUG, "tag", "flink"));
+
+            // then
+            assertThat(
+                    jdbc.queryForList("SELECT tag FROM artifact_tag WHERE artifact_id = ?", String.class, artifactId))
+                    .as("the tag is stripped from the community's content").isEmpty();
+            assertThat(whoKnows(DELETE_SLUG, "flink")).as("and from the expertise built on it").isEmpty();
+        } finally {
+            close(client);
+        }
+    }
+
+    private List<Practitioner> whoKnows(String slug, String tag) {
+
+        return asUser(DELETE_ORGANIZER, () -> expertise.whoKnows(slug, tag, /* demonstratedOnly */ false));
+    }
+
+    private int presentedCount(String userId) {
+
+        return whoKnows(DELETE_SLUG, "flink").stream().filter(p -> userId.equals(p.userId()))
+                .mapToInt(p -> p.evidence().presentedCount()).sum();
     }
 
     /** The three ids that address one slot on the agent surface. Grouped so the helper below stays readable. */

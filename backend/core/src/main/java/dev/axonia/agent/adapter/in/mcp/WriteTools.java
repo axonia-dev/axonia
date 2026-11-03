@@ -24,6 +24,7 @@ import dev.axonia.events.api.RecordSlotRequest;
 import dev.axonia.events.api.ScheduledAt;
 import dev.axonia.events.api.SectionTemplate;
 import dev.axonia.events.api.Sections;
+import dev.axonia.events.api.SessionDeletion;
 import dev.axonia.events.api.Sessions;
 import dev.axonia.events.api.Slots;
 import dev.axonia.events.api.TopicKind;
@@ -36,16 +37,16 @@ import dev.axonia.shared.api.error.ValidationException;
 import lombok.RequiredArgsConstructor;
 
 /**
- * The twelve write agent tools: contributing to a community's library, proposing a topic, raising an action item,
- * signing up to present in a session's slot, signalling attendance, joining a community, attaching or detaching a
- * session's artifacts, and backfilling a community's history by creating a past session, adding a section to it,
- * recording who presented a slot, and correcting a slot's presenter afterwards.
+ * The write agent tools: contributing to a community's library, proposing a topic, raising an action item, signing up
+ * to present in a session's slot, signalling attendance, joining a community, attaching or detaching a session's
+ * artifacts, backfilling a community's history by creating a past session, adding a section to it, recording who
+ * presented a slot, and correcting a slot's presenter afterwards, and deleting a session that never took place.
  *
  * <p>
  * Most calls are additive and not idempotent: calling one twice with the same arguments either creates a second record
  * or hits a domain conflict (e.g. "already going"). Two exceptions: {@code session.attachArtifact} is idempotent (it
- * returns any existing matching attachment), and {@code session.detachArtifact} is the only destructive tool on the
- * agent surface, gated behind its own {@code session:detach} scope.
+ * returns any existing matching attachment), and the two destructive tools, {@code session.detachArtifact} and
+ * {@code session.delete}, are each gated behind a scope of their own.
  */
 @Component
 @RequiredArgsConstructor
@@ -61,6 +62,7 @@ class WriteTools {
     private final Sessions sessions;
     private final Sections sections;
     private final ActionItems actionItems;
+    private final SessionDeletion sessionDeletion;
 
     /**
      * The tail shared by both write tools' actor-reference rule, spelled the same way so the two descriptions cannot
@@ -156,6 +158,9 @@ class WriteTools {
             @McpToolParam(description = "Tags saying what the talk was about, up to 10. They are what makes the talk "
                     + "count toward its presenters' expertise, and a slot recorded here has no other source of "
                     + "subject, so supply them.", required = false) List<String> tags) {
+    }
+
+    record DeletedSessionView(Long sessionId) {
     }
 
     record CreatedSessionView(Long sessionId, String title, Instant scheduledAt, String status) {
@@ -383,6 +388,19 @@ class WriteTools {
         return support.run("slot.addPresenter", AgentScope.SCHEDULE_MANAGE, () -> {
             var assignment = slots.addPresenter(sessionId, sectionId, slotId, presenter);
             return new PresenterAssignmentView(assignment.assigned(), assignment.reason(), assignment.candidates());
+        });
+    }
+
+    @McpTool(name = "session.delete", description = "Delete a session that never took place, for example one "
+            + "backfilled by mistake, with its sections, slots and attendance. Its topics go back to the backlog, its "
+            + "talks stop counting toward anyone's expertise, action items waiting on it move on to the next session, "
+            + "members who saved it no longer see it, and artifacts attached to it stay in the library. A held "
+            + "session cannot be deleted, nor can a session of a series: skip or cancel that one instead. Organizers "
+            + "only, and it cannot be undone.", annotations = @McpAnnotations(readOnlyHint = false, destructiveHint = true, idempotentHint = false))
+    public DeletedSessionView deleteSession(@McpToolParam(description = "Session id", required = true) Long sessionId) {
+        return support.run("session.delete", AgentScope.SESSION_DELETE, () -> {
+            sessionDeletion.delete(sessionId);
+            return new DeletedSessionView(sessionId);
         });
     }
 }

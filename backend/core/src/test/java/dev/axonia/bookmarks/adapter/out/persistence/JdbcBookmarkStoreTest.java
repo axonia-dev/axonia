@@ -121,4 +121,19 @@ class JdbcBookmarkStoreTest {
         assertThat(captor.getValue().getId()).isEqualTo(7L);
         assertThat(captor.getValue().getVersion()).isEqualTo(2L);
     }
+
+    @Test
+    void removeAllOf_drops_every_members_save_of_the_item() {
+
+        // when
+        sut.removeAllOf("default", SaveableRef.session(100L));
+
+        // then
+        var sql = ArgumentCaptor.forClass(String.class);
+        var params = ArgumentCaptor.forClass(MapSqlParameterSource.class);
+        verify(jdbc).update(sql.capture(), params.capture());
+        assertThat(sql.getValue()).startsWith("DELETE FROM bookmark");
+        assertThat(params.getValue().getValues()).containsEntry("org", "default")
+                .containsEntry("saveableType", "SESSION").containsEntry("saveableId", 100L);
+    }
 }

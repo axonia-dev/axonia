@@ -20,6 +20,8 @@ export const AGENT_SCOPES = [
   { code: "session:detach", label: "Remove artifacts from sessions" },
   { code: "schedule:manage", label: "Create and shape sessions" },
   { code: "learning:declare", label: "Declare areas to learn" },
+  { code: "session:delete", label: "Delete sessions that never took place" },
+  { code: "tag:delete", label: "Delete tags from a community" },
 ] as const;
 
 export type AgentScopeCode = (typeof AGENT_SCOPES)[number]["code"];

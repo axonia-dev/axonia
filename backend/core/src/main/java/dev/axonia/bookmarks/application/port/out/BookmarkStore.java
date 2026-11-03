@@ -18,4 +18,7 @@ public interface BookmarkStore {
     void update(Bookmark bookmark);
 
     void remove(Bookmark bookmark);
+
+    /** Every member's save of an item that no longer exists. */
+    void removeAllOf(String organizationId, SaveableRef ref);
 }

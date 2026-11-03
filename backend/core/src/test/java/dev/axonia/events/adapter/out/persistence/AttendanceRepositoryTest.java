@@ -57,6 +57,25 @@ class AttendanceRepositoryTest extends CoreJdbcTestSupport {
     }
 
     @Test
+    void deleteByOrganizationIdAndSessionId() {
+
+        // given
+        var otherSeriesId = seriesRepository.save(SeriesEntityMother.any().communityId(1L).build()).getId();
+        var otherSessionId = sessionRepository
+                .save(SessionEntityMother.any().seriesId(otherSeriesId).communityId(1L).build()).getId();
+        attendanceRepository.save(AttendanceEntityMother.any().sessionId(sessionId).userId("alice").build());
+        attendanceRepository.save(AttendanceEntityMother.any().sessionId(sessionId).userId("bob").build());
+        attendanceRepository.save(AttendanceEntityMother.any().sessionId(otherSessionId).userId("carol").build());
+
+        // when
+        attendanceRepository.deleteByOrganizationIdAndSessionId("default", sessionId);
+
+        // then
+        assertThat(attendanceRepository.countByOrganizationIdAndSessionId("default", sessionId)).isZero();
+        assertThat(attendanceRepository.countByOrganizationIdAndSessionId("default", otherSessionId)).isEqualTo(1L);
+    }
+
+    @Test
     void countBySessionIdIn() {
 
         // given - a second session with its own attendees, to prove the count is grouped per session

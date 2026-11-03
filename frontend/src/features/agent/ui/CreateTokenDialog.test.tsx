@@ -53,6 +53,26 @@ describe("CreateTokenDialog", () => {
     ).toBeInTheDocument();
   });
 
+  it("offers deleting sessions and tags as write permissions", async () => {
+    // when
+    renderDialog();
+
+    // then
+    const writes = await screen.findByRole("group", {
+      name: "Write permissions",
+    });
+    expect(
+      within(writes).getByRole("switch", {
+        name: "Delete sessions that never took place",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(writes).getByRole("switch", {
+        name: "Delete tags from a community",
+      }),
+    ).toBeInTheDocument();
+  });
+
   it("offers the member-list scope as a read permission, not a write one", async () => {
     // when
     renderDialog();

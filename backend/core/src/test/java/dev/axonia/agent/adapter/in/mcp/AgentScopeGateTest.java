@@ -74,4 +74,18 @@ class AgentScopeGateTest {
         assertThatThrownBy(() -> sut.require(AgentScope.SESSION_DETACH)).isInstanceOf(ForbiddenException.class)
                 .hasMessageContaining("session:detach");
     }
+
+    @Test
+    void require_throwsWhenSessionDeleteMissing_evenWithScheduleManage() {
+        actWithScopes("read", "schedule:manage");
+        assertThatThrownBy(() -> sut.require(AgentScope.SESSION_DELETE)).isInstanceOf(ForbiddenException.class)
+                .hasMessageContaining("session:delete");
+    }
+
+    @Test
+    void require_throwsWhenTagDeleteMissing() {
+        actWithScopes("read");
+        assertThatThrownBy(() -> sut.require(AgentScope.TAG_DELETE)).isInstanceOf(ForbiddenException.class)
+                .hasMessageContaining("tag:delete");
+    }
 }

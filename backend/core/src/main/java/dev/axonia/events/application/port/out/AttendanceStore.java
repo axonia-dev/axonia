@@ -22,4 +22,6 @@ public interface AttendanceStore {
     AttendanceRecord save(AttendanceRecord attendance);
 
     void delete(AttendanceRecord attendance);
+
+    void deleteAllForSession(String organizationId, Long sessionId);
 }

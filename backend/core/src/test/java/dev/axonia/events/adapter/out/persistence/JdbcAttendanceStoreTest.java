@@ -82,4 +82,14 @@ class JdbcAttendanceStoreTest {
         verify(attendanceRepository).delete(captor.capture());
         assertThat(captor.getValue()).usingRecursiveComparison().isEqualTo(STORED);
     }
+
+    @Test
+    void deleteAllForSession() {
+
+        // when
+        sut.deleteAllForSession("default", 7L);
+
+        // then
+        verify(attendanceRepository).deleteByOrganizationIdAndSessionId("default", 7L);
+    }
 }

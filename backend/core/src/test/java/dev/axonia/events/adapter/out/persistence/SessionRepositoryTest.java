@@ -138,6 +138,33 @@ class SessionRepositoryTest extends CoreJdbcTestSupport {
         assertThat(reloaded.getSections().get(0).getSlots().get(1).getTags()).isEmpty();
     }
 
+    @Test
+    void delete_removesTheWholeAggregateDownToPresentersAndTags() {
+
+        // given
+        var communityId = communityId();
+        var sectionTypeId = sectionTypeRepository.save(SectionTypeEntityMother.any().organizationId("default").build())
+                .getId();
+        var saved = sessionRepository.save(SessionEntity.builder().organizationId("default").communityId(communityId)
+                .status("SCHEDULED").scheduledAt(Instant.parse("2026-10-14T08:00:00Z")).notes("").recordingUrl("")
+                .sections(List.of(SectionEntity.builder().sectionTypeId(sectionTypeId).title("Talks")
+                        .slots(List.of(SlotEntity.builder().title("Talk A").durationMinutes(20)
+                                .presenters(Set.of(SlotPresenterRef.builder().userId("alice").build()))
+                                .tags(Set.of(SlotTagRef.builder().tag("kafka").build())).build()))
+                        .build()))
+                .build());
+
+        // when
+        sessionRepository.delete(saved);
+
+        // then
+        assertThat(sessionRepository.findByOrganizationIdAndId("default", saved.getId())).isEmpty();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM event_section WHERE session_id = ?", Long.class,
+                saved.getId())).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM event_slot_presenter", Long.class)).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM event_slot_tag", Long.class)).isZero();
+    }
+
     /**
      * The upcoming notice's release intent is a stored column like the wrap-up's, so it has to survive the round trip
      * in both of its meanings: an instant, and the deliberate null for a session that sends no reminder.

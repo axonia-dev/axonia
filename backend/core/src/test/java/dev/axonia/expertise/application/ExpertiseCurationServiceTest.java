@@ -15,6 +15,7 @@ import dev.axonia.community.api.TagUsageKind;
 import dev.axonia.community.api.spi.FakeCommunityTagWriter;
 import dev.axonia.community.api.spi.FakeCommunityTagWriter.Removal;
 import dev.axonia.community.api.spi.FakeCommunityTagWriter.Rename;
+import dev.axonia.expertise.api.TagUsageReport;
 import dev.axonia.expertise.application.port.out.CommunityAccess;
 import dev.axonia.expertise.application.port.out.CurrentUser;
 import dev.axonia.expertise.application.port.out.DeclarationRepository;

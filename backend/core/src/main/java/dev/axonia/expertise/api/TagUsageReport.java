@@ -1,4 +1,4 @@
-package dev.axonia.expertise.application;
+package dev.axonia.expertise.api;
 
 /**
  * What a tag is actually holding up, summed across every context that owns tagged content, plus the members who

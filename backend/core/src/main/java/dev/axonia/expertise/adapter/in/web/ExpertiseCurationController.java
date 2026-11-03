@@ -15,8 +15,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import dev.axonia.expertise.api.TagUsageReport;
 import dev.axonia.expertise.application.ExpertiseCurationService;
-import dev.axonia.expertise.application.TagUsageReport;
 import dev.axonia.expertise.domain.ExpertiseArea;
 import dev.axonia.expertise.domain.MergeSuggestion;
 import lombok.RequiredArgsConstructor;

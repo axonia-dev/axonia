@@ -8,8 +8,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import dev.axonia.ControllerTestSupport;
 import dev.axonia.CoreWebMvcTest;
+import dev.axonia.expertise.api.TagUsageReport;
 import dev.axonia.expertise.application.ExpertiseCurationService;
-import dev.axonia.expertise.application.TagUsageReport;
 import dev.axonia.expertise.domain.ExpertiseArea;
 import dev.axonia.expertise.domain.MergeSuggestion;
 import tools.jackson.core.JacksonException;

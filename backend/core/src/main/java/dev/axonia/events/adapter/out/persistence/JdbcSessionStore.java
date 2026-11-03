@@ -115,6 +115,13 @@ public class JdbcSessionStore implements SessionStore {
         return toRecord(sessionRepository.save(toEntity(session)));
     }
 
+    @Override
+    @Transactional
+    public void delete(SessionRecord session) {
+
+        sessionRepository.delete(toEntity(session));
+    }
+
     static SessionRecord toRecord(SessionEntity entity) {
 
         return SessionRecord.builder().id(entity.getId()).organizationId(entity.getOrganizationId())

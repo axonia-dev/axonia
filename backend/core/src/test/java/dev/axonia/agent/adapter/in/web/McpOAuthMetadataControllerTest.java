@@ -22,7 +22,7 @@ class McpOAuthMetadataControllerTest extends ControllerTestSupport {
 
     private static final List<String> CATALOG_ORDER = List.of("read", "library:contribute", "topic:propose",
             "actionItem:raise", "session:signup", "attendance:signal", "community:join", "session:attach",
-            "session:detach", "schedule:manage", "learning:declare", "members:read");
+            "session:detach", "schedule:manage", "learning:declare", "members:read", "session:delete", "tag:delete");
 
     @MockitoBean
     PublicUrls publicUrl;

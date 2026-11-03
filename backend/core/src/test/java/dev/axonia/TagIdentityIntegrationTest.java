@@ -26,8 +26,8 @@ import dev.axonia.events.application.AddSlotRequest;
 import dev.axonia.events.application.SessionService;
 import dev.axonia.events.application.SlotService;
 import dev.axonia.events.application.TopicService;
+import dev.axonia.expertise.api.TagUsageReport;
 import dev.axonia.expertise.application.ExpertiseCurationService;
-import dev.axonia.expertise.application.TagUsageReport;
 import dev.axonia.knowledge.api.CreateArtifactRequest;
 import dev.axonia.knowledge.application.ArtifactService;
 

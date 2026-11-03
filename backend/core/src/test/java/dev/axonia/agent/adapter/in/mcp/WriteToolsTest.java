@@ -48,6 +48,7 @@ import dev.axonia.events.api.Section;
 import dev.axonia.events.api.SectionTemplate;
 import dev.axonia.events.api.Sections;
 import dev.axonia.events.api.Session;
+import dev.axonia.events.api.SessionDeletion;
 import dev.axonia.events.api.SessionStatus;
 import dev.axonia.events.api.Sessions;
 import dev.axonia.events.api.Slots;
@@ -60,6 +61,7 @@ import dev.axonia.knowledge.api.AttachResourceRequest;
 import dev.axonia.knowledge.api.Attachment;
 import dev.axonia.knowledge.api.CreateArtifactRequest;
 import dev.axonia.knowledge.api.Resources;
+import dev.axonia.shared.api.error.ConflictException;
 import dev.axonia.shared.api.error.NotFoundException;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -96,6 +98,8 @@ class WriteToolsTest {
     Sections sections;
     @Mock
     ActionItems actionItems;
+    @Mock
+    SessionDeletion sessionDeletion;
 
     WriteTools sut;
 
@@ -104,7 +108,7 @@ class WriteToolsTest {
         var support = new AgentToolSupport(new AgentScopeGate(),
                 new ToolCallRecorder(auditRepo, Clock.fixed(Instant.parse("2026-07-07T09:00:00Z"), ZoneOffset.UTC)));
         sut = new WriteTools(support, artifacts, topics, slots, attendance, memberships, resources, sessions, sections,
-                actionItems);
+                actionItems, sessionDeletion);
         authenticateWithScopes("library:contribute", "topic:propose", "actionItem:raise", "session:signup",
                 "attendance:signal", "community:join");
     }
@@ -417,6 +421,35 @@ class WriteToolsTest {
 
         assertThatThrownBy(() -> sut.detachArtifact("kafka-guild", 100L, 7L, 9L)).isInstanceOf(AgentToolException.class)
                 .hasMessage("That item was not found.");
+    }
+
+    @Test
+    void deleteSession_delegatesAndEchoesTheDeletedId() {
+        authenticateWithScopes("session:delete");
+
+        var result = sut.deleteSession(42L);
+
+        assertThat(result).isEqualTo(new WriteTools.DeletedSessionView(42L));
+        verify(sessionDeletion).delete(42L);
+    }
+
+    @Test
+    void deleteSession_refusedWithScheduleManageOnly() {
+        authenticateWithScopes("read", "schedule:manage");
+
+        assertThatThrownBy(() -> sut.deleteSession(42L)).isInstanceOf(AgentToolException.class)
+                .hasMessageContaining("session:delete");
+        verifyNoInteractions(sessionDeletion);
+    }
+
+    @Test
+    void deleteSession_tellsWhyAHeldSessionStays() {
+        authenticateWithScopes("session:delete");
+        doThrow(new ConflictException("SESSION_ALREADY_HELD", "A held session cannot be deleted")).when(sessionDeletion)
+                .delete(42L);
+
+        assertThatThrownBy(() -> sut.deleteSession(42L)).isInstanceOf(AgentToolException.class)
+                .hasMessage("A held session cannot be deleted");
     }
 
     private static Session aSession() {

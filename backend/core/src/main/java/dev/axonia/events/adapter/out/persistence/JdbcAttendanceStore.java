@@ -58,6 +58,12 @@ public class JdbcAttendanceStore implements AttendanceStore {
         attendanceRepository.delete(toEntity(attendance));
     }
 
+    @Override
+    public void deleteAllForSession(String organizationId, Long sessionId) {
+
+        attendanceRepository.deleteByOrganizationIdAndSessionId(organizationId, sessionId);
+    }
+
     static AttendanceRecord toRecord(AttendanceEntity entity) {
 
         return AttendanceRecord.builder().id(entity.getId()).organizationId(entity.getOrganizationId())

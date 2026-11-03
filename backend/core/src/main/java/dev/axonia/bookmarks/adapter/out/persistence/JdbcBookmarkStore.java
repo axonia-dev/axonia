@@ -26,6 +26,11 @@ public class JdbcBookmarkStore implements BookmarkStore {
             ON CONFLICT (organization_id, member_user_id, saveable_type, saveable_id) DO NOTHING
             """;
 
+    private static final String REMOVE_ALL_OF_SQL = """
+            DELETE FROM bookmark
+             WHERE organization_id = :org AND saveable_type = :saveableType AND saveable_id = :saveableId
+            """;
+
     private final BookmarkRepository bookmarkRepository;
     private final NamedParameterJdbcTemplate jdbc;
     private final Clock clock;
@@ -70,6 +75,13 @@ public class JdbcBookmarkStore implements BookmarkStore {
     @Transactional
     public void remove(Bookmark bookmark) {
         bookmarkRepository.delete(toEntity(bookmark));
+    }
+
+    @Override
+    @Transactional
+    public void removeAllOf(String organizationId, SaveableRef ref) {
+        jdbc.update(REMOVE_ALL_OF_SQL, new MapSqlParameterSource("org", organizationId)
+                .addValue("saveableType", ref.type().name()).addValue("saveableId", ref.id()));
     }
 
     static Bookmark toBookmark(BookmarkEntity entity) {

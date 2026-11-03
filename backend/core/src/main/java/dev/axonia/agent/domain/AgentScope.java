@@ -24,7 +24,16 @@ public enum AgentScope {
      * The community roster. A read scope, but deliberately not part of {@link #READ}: reading a community's schedule
      * and reading the people in it are different decisions, and a member must be able to grant one without the other.
      */
-    MEMBERS_READ("members:read");
+    MEMBERS_READ("members:read"),
+
+    /**
+     * Deleting a session that never took place. Destructive and irreversible, so not part of {@link #SCHEDULE_MANAGE}:
+     * an agent trusted to backfill history is not thereby trusted to erase it.
+     */
+    SESSION_DELETE("session:delete"),
+
+    /** Stripping a tag from all of a community's content. Destructive, and a curator's act rather than a member's. */
+    TAG_DELETE("tag:delete");
 
     private final String code;
 

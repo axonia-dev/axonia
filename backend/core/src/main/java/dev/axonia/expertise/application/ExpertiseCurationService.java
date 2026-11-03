@@ -12,6 +12,8 @@ import org.springframework.transaction.annotation.Transactional;
 import dev.axonia.community.api.TagNormalizer;
 import dev.axonia.community.api.TagUsageKind;
 import dev.axonia.community.api.spi.CommunityTagWriter;
+import dev.axonia.expertise.api.TagCuration;
+import dev.axonia.expertise.api.TagUsageReport;
 import dev.axonia.expertise.application.port.out.DeclarationRepository;
 import dev.axonia.expertise.application.port.out.ExpertiseQueryRepository;
 import dev.axonia.expertise.application.port.out.NamedAreaRepository;
@@ -31,7 +33,7 @@ import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
-public class ExpertiseCurationService {
+public class ExpertiseCurationService implements TagCuration {
 
     private static final double MERGE_THRESHOLD = 0.7;
 
@@ -175,6 +177,7 @@ public class ExpertiseCurationService {
      * declared it. The members are counted once each, over the spellings a delete would remove, so the dialog names
      * what it is about to take away.
      */
+    @Override
     @Transactional(readOnly = true)
     public TagUsageReport usage(String slug, String tag) {
 
@@ -246,6 +249,7 @@ public class ExpertiseCurationService {
      * members' declarations and the named areas of it under any spelling that reads as it. A named area it empties
      * stays: a person named it, and only a person ends it.
      */
+    @Override
     @Transactional
     public void delete(String slug, String tag) {
 

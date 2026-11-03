@@ -37,4 +37,7 @@ public interface SessionStore {
     List<Long> findOverdueUnclosedSessionIds(String organizationId, int offsetDays, Instant since, Instant now);
 
     SessionRecord save(SessionRecord session);
+
+    /** Removes the session with its sections, slots, presenters and tags. */
+    void delete(SessionRecord session);
 }

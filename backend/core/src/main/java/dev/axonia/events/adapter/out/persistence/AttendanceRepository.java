@@ -6,6 +6,7 @@ import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jdbc.repository.query.Modifying;
 import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.PagingAndSortingRepository;
@@ -24,6 +25,11 @@ public interface AttendanceRepository
     long countByOrganizationIdAndSessionId(String organizationId, Long sessionId);
 
     Page<AttendanceEntity> findByOrganizationIdAndSessionId(String organizationId, Long sessionId, Pageable pageable);
+
+    @Modifying
+    @Query("DELETE FROM session_attendance WHERE organization_id = :organizationId AND session_id = :sessionId")
+    void deleteByOrganizationIdAndSessionId(@Param("organizationId") String organizationId,
+            @Param("sessionId") Long sessionId);
 
     /** Every session's attendee count in one read, so {@code SessionMapper} resolves a batch's counts once. */
     @Query("SELECT session_id, count(*) AS attendee_count FROM session_attendance "
