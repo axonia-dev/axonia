@@ -7,7 +7,9 @@ Releases follow Semantic Versioning: a minor or patch release needs no change to
 ## Upgrading
 
 - Read the release notes of every release between the current and the target.
-- Moving to a federated sign-in (`entra.md`) needs no step when upgrading: it is a setting change, and the existing sessions continue.
+- Upgrading leaves sign-in on `client-secret`, the default: nothing changes.
+  Moving to a federated sign-in later (`entra.md`) is a setting change.
+  Sessions continue as long as `OIDC_CLIENT_ID` and `SESSION_COOKIE_KEY` stay the same.
 - Back up first (`backup.md`): the database migrations run forward only, and the only way back from a migration is a restore.
 - The owner role (`DATABASE_OWNER_USERNAME`) needs `CREATE` on the database, which the database's owner holds: an upgrade that adds a schema, such as `scheduler`, fails its migration without it.
   As that role, `SELECT has_database_privilege(current_user, current_database(), 'CREATE')` answers `t` when it holds it.

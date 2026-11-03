@@ -17,7 +17,7 @@ In the Microsoft Entra admin center, signed in with a role that can register app
    Leave implicit grant and hybrid flows off.
 3. **Certificates and secrets.** Create a client secret, copy its value now, and put its expiry date in a calendar with a reminder a month earlier.
    An expired secret stops every sign-in.
-   Skip this step to sign in without a client secret ("Signing in without a client secret" below).
+   Skip this step to sign in without a client secret ("Signing in without a client secret" below), unless the Graph reads use this registration, which keeps a secret.
 4. **Expose an API.** Set the Application ID URI to `api://<client-id>`, then add a scope named `axonia`, consent by admins and users, enabled.
 5. **Manifest.** Set `requestedAccessTokenVersion` (in older manifests, `accessTokenAcceptedVersion`) to `2`, so access tokens carry the v2 issuer and the client id as audience.
 6. **Token configuration.** Add a groups claim: choose "Groups assigned to the application", emitted as Group ID, on the access token.
@@ -65,6 +65,7 @@ oidc:
   scopes: openid profile email offline_access api://99999999-8888-4777-8666-555555555555/axonia
   sessionMaxAgeSeconds: 7776000
   subjectClaim: oid
+  clientAuth: federated-token-file
 entraGraph:
   clientId: 99999999-8888-4777-8666-555555555555
   clientSecret:
@@ -140,8 +141,8 @@ Nothing needs restarting once the identity provider answers again.
 
 Recommended on Azure: the edge proves itself to Entra with a token the platform issues, so no client secret is kept and none expires.
 The app registration trusts that token through a federated credential: issuer, subject and audience must match the token exactly.
-Up to 20 federated credentials fit on one app registration, and the identity or cluster must be in the same tenant.
-Skip step 3 of the app registration, or delete the client secret once sign-in works.
+Up to 20 federated credentials fit on one app registration, and a managed identity must be in the same tenant as the app registration.
+Skip step 3 of the app registration, or delete the client secret once sign-in works, unless the Graph reads use this registration: keep the secret then, as `AXONIA_ENTRA_CLIENT_SECRET`.
 
 ### App Service or Container Apps
 
@@ -205,14 +206,16 @@ Outside Helm, `OIDC_CLIENT_AUTH=federated-token-file` reads the token from the f
 
 ## App roles instead of groups
 
-With app roles assigned in the enterprise application (Users and groups), the access token carries a `roles` claim, for example `"roles": ["owner"]`, and no `groups`.
+With app roles assigned in the enterprise application (Users and groups), the access token carries a `roles` claim, for example `"roles": ["owner"]`, and no `groups` unless step 6's groups claim is kept.
 Define the roles in the app registration (App roles), assign them to users or groups, then set:
 
 - `AXONIA_SELFHOSTED_OIDC_GROUPS_CLAIM=roles` (Helm chart: `oidc.groupsClaim: roles`).
 - `AXONIA_SELFHOSTED_OWNER_GROUP=owner` (Helm chart: `ownerGroup: owner`), the value of the role that makes someone an Owner.
 
 The role values are what Owners bind axonia roles to, as group names are with groups.
-The token no longer overflows into the overage case, so step 6 of the app registration (the groups claim) is not needed.
+The token no longer overflows into the overage case, so step 6's groups claim is not needed; keep its optional claims `email` and `preferred_username`.
+On an installation already running with groups, the role bindings Owners made to group ids stop matching once the token carries roles instead, so Owners must rebind roles to the role values.
+The earlier owner group keeps its Owner binding, but no token carries it any more.
 
 ## Rotating the client secret
 
