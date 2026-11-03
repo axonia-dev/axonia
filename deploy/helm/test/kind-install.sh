@@ -4,6 +4,8 @@
 # uninstall and a reinstall; the backend becomes ready (migrated, founded) as user 10001 on a read-only root filesystem
 # with a writable media volume, beside a Service named axonia-mail; the edge reaches it with the shared secret. The
 # settings key's lookup is first proven against a namespace that does not exist yet, then against one holding nothing.
+# The edge runs in federated mode here, signing in with a projected ServiceAccount token and no client secret, while the
+# Compose end-to-end stack covers the client secret.
 # Takes the two local images in AXONIA_BACKEND_IMAGE and AXONIA_EDGE_IMAGE, each as repository:tag, and installs the chart
 # with exactly those.
 set -euo pipefail
@@ -90,8 +92,7 @@ edge_secret="$(openssl rand -hex 32)"
 	--from-literal=AXONIA_UNSUBSCRIBE_SECRET="$(openssl rand -hex 32)" \
 	--from-literal=AXONIA_EDGE_SHARED_SECRETS="$edge_secret" \
 	--from-literal=EDGE_SHARED_SECRET="$edge_secret" \
-	--from-literal=SESSION_COOKIE_KEY="$(openssl rand -base64 32 | tr '+/' '-_' | tr -d '=')" \
-	--from-literal=OIDC_CLIENT_SECRET="$(openssl rand -hex 16)"
+	--from-literal=SESSION_COOKIE_KEY="$(openssl rand -base64 32 | tr '+/' '-_' | tr -d '=')"
 "$kubectl" --namespace "$namespace" apply --filename "$here/fixtures.yaml"
 "$kubectl" --namespace "$namespace" rollout status deployment/postgres --timeout 180s
 
@@ -111,6 +112,18 @@ for workload in axonia-backend axonia-edge; do
 	"$kubectl" --namespace "$namespace" exec "deployment/$workload" -- \
 		sh -c 'grep -qE "^[^ ]+ / [^ ]+ ro[, ]" /proc/mounts' || fail "$workload's root filesystem is not mounted read-only"
 done
+
+echo "[kind] the edge's federated token"
+token="$("$kubectl" --namespace "$namespace" exec deployment/axonia-edge -- cat /var/run/secrets/axonia/federated-token/token)" ||
+	fail "the edge cannot read its federated token"
+[ -n "$token" ] || fail "the edge's federated token is empty"
+payload="$(printf '%s' "$token" | cut -d. -f2 | tr '_-' '/+')"
+while [ $((${#payload} % 4)) -ne 0 ]; do payload="$payload="; done
+claims="$(printf '%s' "$payload" | base64 --decode)" || fail "the federated token's payload is not base64"
+[ "$(printf '%s' "$claims" | jq --raw-output '.sub')" = "system:serviceaccount:$namespace:axonia-edge" ] ||
+	fail "the federated token's subject is not the edge's ServiceAccount"
+[ "$(printf '%s' "$claims" | jq --raw-output '.aud | index("api://AzureADTokenExchange") != null')" = true ] ||
+	fail "the federated token's audience lacks api://AzureADTokenExchange"
 
 echo "[kind] through the edge"
 "$kubectl" --namespace "$namespace" port-forward service/axonia-edge 18080:80 >"$work/forward.log" 2>&1 &
