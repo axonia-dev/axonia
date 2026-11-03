@@ -1,6 +1,6 @@
 import { rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
-import type { AddressInfo } from "node:net";
+import type { AddressInfo, Socket } from "node:net";
 import {
   afterAll,
   afterEach,
@@ -194,25 +194,44 @@ describe("a sign-in with a federated client", () => {
       expect(identity.tokenRequests).toHaveLength(0);
     });
 
-    it("logs why the identity endpoint could not be reached, not only that the fetch failed", async () => {
-      const dropping = createServer((connection) => connection.destroy());
-      await new Promise<void>((resolve) => dropping.listen(0, "127.0.0.1", resolve));
-      const { port } = dropping.address() as AddressInfo;
-      onTestFinished(() => new Promise<void>((resolve) => dropping.close(() => resolve())));
-      const unreachable = await startFederated({
+    it("logs why the identity endpoint's answer could not be read, not only that the fetch failed", async () => {
+      const connections = new Set<Socket>();
+      const notHttp = createServer((connection) => {
+        connections.add(connection);
+        connection.end("not http\r\n\r\n");
+      });
+      await new Promise<void>((resolve) => notHttp.listen(0, "127.0.0.1", resolve));
+      const { port } = notHttp.address() as AddressInfo;
+      onTestFinished(
+        () =>
+          new Promise<void>((resolve) => {
+            for (const connection of connections) {
+              connection.destroy();
+            }
+            notHttp.close(() => resolve());
+          }),
+      );
+      const unreadable = await startFederated({
         OIDC_CLIENT_AUTH: "azure-managed-identity",
-        OIDC_MANAGED_IDENTITY_CLIENT_ID: "an-unreachable-identity",
+        OIDC_MANAGED_IDENTITY_CLIENT_ID: "an-unreadable-identity",
         IDENTITY_ENDPOINT: `http://127.0.0.1:${port}/msi/token`,
         IDENTITY_HEADER,
       });
       const log = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
 
-      const callback = await signInAnswer(unreachable);
+      const callback = await signInAnswer(unreadable);
 
       expect(callback.status).toBe(503);
       const [failure] = linesNamed(loggedLines(log), "client_assertion_unavailable");
       expect(JSON.parse(failure ?? "{}")).toMatchObject({
-        error: { name: "TypeError", message: "fetch failed", cause: { code: "ECONNRESET" } },
+        error: {
+          name: "TypeError",
+          message: "fetch failed",
+          cause: {
+            message:
+              "Response does not match the HTTP/1.1 protocol (Expected HTTP/, RTSP/ or ICE/)",
+          },
+        },
       });
       expect(failure).not.toContain(IDENTITY_HEADER);
     });

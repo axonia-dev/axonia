@@ -31,6 +31,23 @@ describe("a logged failure", () => {
     });
   });
 
+  it("names a system error's code, which says why a connection failed", () => {
+    const refused = Object.assign(new Error("connect ECONNREFUSED 127.0.0.1:8080"), {
+      code: "ECONNREFUSED",
+      errno: -61,
+    });
+
+    expect(loggedError(new TypeError("fetch failed", { cause: refused }))).toEqual({
+      name: "TypeError",
+      message: "fetch failed",
+      cause: {
+        name: "Error",
+        message: "connect ECONNREFUSED 127.0.0.1:8080",
+        code: "ECONNREFUSED",
+      },
+    });
+  });
+
   it("keeps a cause that is not an error out of the line", () => {
     expect(loggedError(new Error("outer", { cause: "a string" }))).toEqual({
       name: "Error",
