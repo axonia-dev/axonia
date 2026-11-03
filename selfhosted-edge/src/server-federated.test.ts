@@ -15,6 +15,8 @@ import {
   startEdge,
 } from "./test-support.ts";
 
+const BODY_SECRET = "a-body-nobody-may-log";
+
 let identity: FakeIdentityProvider;
 
 beforeAll(async () => {
@@ -100,8 +102,7 @@ describe("a sign-in with a federated client", () => {
     });
 
     afterEach(() => {
-      platform.received.length = 0;
-      platform.answer = { ...platform.answer, status: 200 };
+      platform.reset();
     });
 
     it("completes a sign-in with an Azure managed identity", async () => {
@@ -118,7 +119,7 @@ describe("a sign-in with a federated client", () => {
     });
 
     it("answers 503 and logs client_assertion_unavailable when the identity endpoint fails", async () => {
-      platform.answer = { status: 500, document: { error: "boom" } };
+      platform.answer = { status: 500, document: { error: BODY_SECRET } };
       const log = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
       const failing = await startEdge({
         OIDC_ISSUER: identity.issuer,
@@ -142,6 +143,7 @@ describe("a sign-in with a federated client", () => {
       expect(lines).toContain('"failure":"client_assertion_unavailable"');
       expect(lines).not.toContain("identity_provider_unreachable");
       expect(lines).not.toContain(IDENTITY_HEADER);
+      expect(lines).not.toContain(BODY_SECRET);
       expect(lines).not.toContain(MANAGED_IDENTITY_TOKEN);
       expect(identity.tokenRequests).toHaveLength(0);
     });

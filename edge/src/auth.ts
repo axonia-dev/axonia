@@ -1017,8 +1017,9 @@ export interface AuthConfiguration {
  * The deployment's configuration, validated, or the 502 that says it cannot sign anybody in. A
  * missing secret, with no port to authenticate the client instead, is a 502 rather than a 401 on
  * purpose: it is a deployment that cannot sign anybody in, not a caller who failed to authenticate,
- * and the two deserve different pages and different runbooks. `OIDC_ISSUER`, `SESSION_MAX_AGE_SECONDS`, `COOKIE_NAME_PREFIX`, `OIDC_SCOPES` and
- * `OIDC_SESSION_END` get the same treatment for the same reason: a Worker that cannot resolve its
+ * and the two deserve different pages and different runbooks. `OIDC_ISSUER`,
+ * `SESSION_MAX_AGE_SECONDS`, `COOKIE_NAME_PREFIX`, `OIDC_SCOPES` and `OIDC_SESSION_END` get the
+ * same treatment for the same reason: a Worker that cannot resolve its
  * own identity provider, its own session lifetime, a well-formed cookie name, the scopes it asks
  * for or how it ends a session cannot safely sign anybody in either, and the alternative - falling
  * back to a default, or trusting an unchecked value - is precisely the silent misconfiguration

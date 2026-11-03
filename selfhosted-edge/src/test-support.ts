@@ -188,11 +188,21 @@ export interface FakeIdentityEndpoint {
   received: { url: string; identityHeader: string | undefined }[];
   /** What it answers, an access token until a test says otherwise. */
   answer: { status: number; document: object };
+  /** Forgets what was received and answers a token again. */
+  reset: () => void;
   close: () => Promise<void>;
 }
 
 export const MANAGED_IDENTITY_TOKEN = "a-managed-identity-token";
 export const IDENTITY_HEADER = "a-header-nobody-may-log";
+
+const grantedIdentityToken = (): FakeIdentityEndpoint["answer"] => ({
+  status: 200,
+  document: {
+    access_token: MANAGED_IDENTITY_TOKEN,
+    expires_on: String(Math.floor(Date.now() / 1000) + 3600),
+  },
+});
 
 /** The App Service and Container Apps endpoint a managed identity's token comes from. */
 export const fakeIdentityEndpoint = async (): Promise<FakeIdentityEndpoint> => {
@@ -207,12 +217,10 @@ export const fakeIdentityEndpoint = async (): Promise<FakeIdentityEndpoint> => {
   const endpoint: FakeIdentityEndpoint = {
     endpoint: `${origin}/msi/token`,
     received: [],
-    answer: {
-      status: 200,
-      document: {
-        access_token: MANAGED_IDENTITY_TOKEN,
-        expires_on: String(Math.floor(Date.now() / 1000) + 3600),
-      },
+    answer: grantedIdentityToken(),
+    reset: () => {
+      endpoint.received.length = 0;
+      endpoint.answer = grantedIdentityToken();
     },
     close: () => closed(server),
   };
