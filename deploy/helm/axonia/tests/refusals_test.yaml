@@ -100,7 +100,7 @@ tests:
       - failedTemplate:
           errorPattern: needs entraGraph.clientSecret.existingSecret
 
-  # Given inside the table: a bare scalar is refused by the same secretRef schema, but Helm first logs "cannot
+  # Given inside the table: a bare scalar is refused too (check.sh), but Helm first logs "cannot
   # overwrite table with non table" for it, which would leave a warning in every run of this gate.
   - it: refuses a mail password given as a value rather than a Secret
     set:

@@ -1,5 +1,17 @@
 import { rmSync, writeFileSync } from "node:fs";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { createServer } from "node:net";
+import type { AddressInfo } from "node:net";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from "vitest";
 import {
   type FakeIdentityEndpoint,
   type FakeIdentityProvider,
@@ -180,6 +192,29 @@ describe("a sign-in with a federated client", () => {
       expect(lines).not.toContain(BODY_SECRET);
       expect(lines).not.toContain(MANAGED_IDENTITY_TOKEN);
       expect(identity.tokenRequests).toHaveLength(0);
+    });
+
+    it("logs why the identity endpoint could not be reached, not only that the fetch failed", async () => {
+      const dropping = createServer((connection) => connection.destroy());
+      await new Promise<void>((resolve) => dropping.listen(0, "127.0.0.1", resolve));
+      const { port } = dropping.address() as AddressInfo;
+      onTestFinished(() => new Promise<void>((resolve) => dropping.close(() => resolve())));
+      const unreachable = await startFederated({
+        OIDC_CLIENT_AUTH: "azure-managed-identity",
+        OIDC_MANAGED_IDENTITY_CLIENT_ID: "an-unreachable-identity",
+        IDENTITY_ENDPOINT: `http://127.0.0.1:${port}/msi/token`,
+        IDENTITY_HEADER,
+      });
+      const log = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+
+      const callback = await signInAnswer(unreachable);
+
+      expect(callback.status).toBe(503);
+      const [failure] = linesNamed(loggedLines(log), "client_assertion_unavailable");
+      expect(JSON.parse(failure ?? "{}")).toMatchObject({
+        error: { name: "TypeError", message: "fetch failed", cause: { code: "ECONNRESET" } },
+      });
+      expect(failure).not.toContain(IDENTITY_HEADER);
     });
   });
 });

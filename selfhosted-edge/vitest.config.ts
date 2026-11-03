@@ -5,6 +5,7 @@ export default defineConfig({
     environment: "node",
     include: ["src/**/*.test.ts"],
     restoreMocks: true,
+    globalSetup: ["vitest.global-setup.ts"],
     coverage: {
       provider: "v8",
       include: ["src/**/*.ts"],

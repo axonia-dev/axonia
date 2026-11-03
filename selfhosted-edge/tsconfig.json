@@ -25,5 +25,5 @@
     // no node_modules: this package's copy is the one they run against.
     "paths": { "vitest": ["./node_modules/vitest"] }
   },
-  "include": ["src", "vitest.config.ts"]
+  "include": ["src", "vitest.config.ts", "vitest.global-setup.ts"]
 }

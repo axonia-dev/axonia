@@ -23,7 +23,8 @@ export interface ManagedIdentity {
 
 const TOKEN_EXCHANGE_RESOURCE = "api://AzureADTokenExchange";
 const IDENTITY_API_VERSION = "2019-08-01";
-// The identity provider's own timeout: a sign-in waits no longer on the platform than on Entra.
+// The same wait as edge/src/auth.ts's PROVIDER_TIMEOUT_MS, so a sign-in waits no longer on the
+// platform than on the identity provider.
 const IDENTITY_TIMEOUT_MS = 5000;
 const REUSE_MARGIN_MS = 5 * 60_000;
 

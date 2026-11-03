@@ -34,3 +34,17 @@ done
 
 echo "[chart] unit tests"
 "$untt" "$chart"
+
+# A bare value over a Secret reference makes Helm log a coalesce warning before the schema refuses it, which no unit
+# test can do quietly, so the refusal is checked here with Helm's output kept.
+echo "[chart] refuses a secret given as a bare value"
+refusal="$("$helm" template axonia "$chart" --values "$here/examples/entra-aks-azure-blob.yaml" \
+	--set mail.password=hunter2 2>&1 >/dev/null)" && {
+	echo "[chart] a bare mail.password was accepted" >&2
+	exit 1
+}
+grep -q "at '/mail/password': got string, want object" <<<"$refusal" || {
+	echo "[chart] a bare mail.password was refused for another reason:" >&2
+	echo "$refusal" >&2
+	exit 1
+}
