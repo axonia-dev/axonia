@@ -83,6 +83,9 @@ Some names in `.env` are the compose file's own, and some feed more than one con
      --from-literal=OIDC_CLIENT_SECRET=...
    ```
 
+   `OIDC_CLIENT_SECRET` is needed only with `oidc.clientAuth: client-secret`, the default.
+   With `federated-token-file`, leave it out (`entra.md`, "Signing in without a client secret").
+
 3. Copy `deploy/helm/examples/minimal.yaml` to `values.yaml`, fill in the installation's own values, then install the release's chart and wait for the backend:
 
    ```sh

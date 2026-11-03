@@ -1,7 +1,7 @@
 # Microsoft Entra ID
 
 Members sign in to axonia through the company's Microsoft Entra ID tenant.
-This document registers the application, names the settings the registration produces, and covers checking a token, SCIM provisioning, the optional Microsoft Graph reads and the client secret's rotation.
+This document registers the application, names the settings the registration produces, and covers checking a token, SCIM provisioning, the optional Microsoft Graph reads, the client secret's rotation, and signing in without a client secret or with app roles.
 
 ## Recognising Microsoft Entra ID
 
@@ -17,6 +17,7 @@ In the Microsoft Entra admin center, signed in with a role that can register app
    Leave implicit grant and hybrid flows off.
 3. **Certificates and secrets.** Create a client secret, copy its value now, and put its expiry date in a calendar with a reminder a month earlier.
    An expired secret stops every sign-in.
+   Skip this step to sign in without a client secret ("Signing in without a client secret" below).
 4. **Expose an API.** Set the Application ID URI to `api://<client-id>`, then add a scope named `axonia`, consent by admins and users, enabled.
 5. **Manifest.** Set `requestedAccessTokenVersion` (in older manifests, `accessTokenAcceptedVersion`) to `2`, so access tokens carry the v2 issuer and the client id as audience.
 6. **Token configuration.** Add a groups claim: choose "Groups assigned to the application", emitted as Group ID, on the access token.
@@ -34,7 +35,8 @@ In the Microsoft Entra admin center, signed in with a role that can register app
 | --- | --- | --- |
 | `OIDC_ISSUER` | edge | `https://login.microsoftonline.com/<tenant-id>/v2.0` |
 | `OIDC_CLIENT_ID` | edge | the application (client) id |
-| `OIDC_CLIENT_SECRET` | edge | the secret value from step 3 |
+| `OIDC_CLIENT_SECRET` | edge | the secret value from step 3, only with `OIDC_CLIENT_AUTH` unset or `client-secret` |
+| `OIDC_CLIENT_AUTH` | edge | `client-secret` (the default), or `azure-managed-identity` or `federated-token-file` to sign in without a secret |
 | `OIDC_SCOPES` | edge | `openid profile email offline_access api://<client-id>/axonia` |
 | `OIDC_SESSION_END` | edge | `revoke` |
 | `PUBLIC_URL` | edge | `https://<host>`, the address both redirect URIs above are registered under, equal to the backend's `AXONIA_PUBLIC_BASE_URL` |
@@ -71,11 +73,13 @@ entraGraph:
 ```
 
 The audience is left empty, so it is the client id.
-The client secret is the key `OIDC_CLIENT_SECRET` of the Secret `existingSecret` names (`install.md`).
+The client secret is the key `OIDC_CLIENT_SECRET` of the Secret `existingSecret` names (`install.md`), needed only with `oidc.clientAuth: client-secret`, the default.
+The example sets `oidc.clientAuth: federated-token-file` instead, so that Secret holds no `OIDC_CLIENT_SECRET`.
 
 ## Microsoft Graph, optional
 
 - A second app registration (or the same one) with the Microsoft Graph application permissions `GroupMember.Read.All` and `ProfilePhoto.Read.All`, admin consent granted, and a client secret.
+  Graph still needs a client secret today, on the same registration too: signing in without one does not remove it.
 - Set `AXONIA_ENTRA_CLIENT_ID` and `AXONIA_ENTRA_CLIENT_SECRET` (in the Helm chart, `entraGraph.clientId` and `entraGraph.clientSecret`).
 - With the Helm chart, add the client secret to the Secret `existingSecret` names as the key `AXONIA_ENTRA_CLIENT_SECRET`, as the example above reads it, or name another Secret in `entraGraph.clientSecret.existingSecret`:
 
@@ -132,7 +136,88 @@ Once it answers, the session continues without a password and the page loads aga
 While the identity provider cannot be reached, a refused request never shows "Signed in, but this server refuses the session.", even straight after a sign-in: the page waits for the renewal instead.
 Nothing needs restarting once the identity provider answers again.
 
+## Signing in without a client secret
+
+Recommended on Azure: the edge proves itself to Entra with a token the platform issues, so no client secret is kept and none expires.
+The app registration trusts that token through a federated credential: issuer, subject and audience must match the token exactly.
+Up to 20 federated credentials fit on one app registration, and the identity or cluster must be in the same tenant.
+Skip step 3 of the app registration, or delete the client secret once sign-in works.
+
+### App Service or Container Apps
+
+1. Create a user-assigned managed identity and assign it to the edge's site.
+   Only a user-assigned identity works, not a system-assigned one.
+2. Note the identity's client id and its object (principal) id:
+
+   ```sh
+   az identity show --resource-group <group> --name <identity> --query "{clientId:clientId,principalId:principalId}"
+   ```
+
+3. Add the federated credential to the app registration, from a file `credential.json`:
+
+   ```json
+   {
+     "name": "axonia-edge",
+     "issuer": "https://login.microsoftonline.com/<tenant-id>/v2.0",
+     "subject": "<the identity's principal id>",
+     "audiences": ["api://AzureADTokenExchange"]
+   }
+   ```
+
+   ```sh
+   az ad app federated-credential create --id <application (client) id> --parameters credential.json
+   ```
+
+4. Set `OIDC_CLIENT_AUTH=azure-managed-identity` and `OIDC_MANAGED_IDENTITY_CLIENT_ID` to the identity's client id on the edge, and leave `OIDC_CLIENT_SECRET` unset: the edge refuses to start with both.
+   The platform provides `IDENTITY_ENDPOINT` and `IDENTITY_HEADER` once the site has the identity.
+
+### AKS
+
+1. Enable the cluster's OIDC issuer and read its URL:
+
+   ```sh
+   az aks update --resource-group <group> --name <cluster> --enable-oidc-issuer
+   az aks show --resource-group <group> --name <cluster> --query oidcIssuerProfile.issuerUrl --output tsv
+   ```
+
+2. Add the federated credential to the app registration, from a file `credential.json`:
+
+   ```json
+   {
+     "name": "axonia-edge",
+     "issuer": "<the cluster's OIDC issuer URL>",
+     "subject": "system:serviceaccount:<namespace>:<the edge's ServiceAccount name>",
+     "audiences": ["api://AzureADTokenExchange"]
+   }
+   ```
+
+   The edge's ServiceAccount is named `<release>-edge`, or `<fullnameOverride>-edge` when `fullnameOverride` is set.
+
+   ```sh
+   az ad app federated-credential create --id <application (client) id> --parameters credential.json
+   ```
+
+3. Set `oidc.clientAuth: federated-token-file` in `values.yaml` and leave `OIDC_CLIENT_SECRET` out of the Secret `existingSecret` names.
+   The chart creates the edge's ServiceAccount and mounts the projected token itself (`oidc.federatedTokenAudience`, default `api://AzureADTokenExchange`).
+   Do not add the Workload Identity label `azure.workload.identity/use` to the edge: the token would be mounted twice.
+
+Outside Helm, `OIDC_CLIENT_AUTH=federated-token-file` reads the token from the file `OIDC_FEDERATED_TOKEN_FILE` names.
+
+## App roles instead of groups
+
+With app roles assigned in the enterprise application (Users and groups), the access token carries a `roles` claim, for example `"roles": ["owner"]`, and no `groups`.
+Define the roles in the app registration (App roles), assign them to users or groups, then set:
+
+- `AXONIA_SELFHOSTED_OIDC_GROUPS_CLAIM=roles` (Helm chart: `oidc.groupsClaim: roles`).
+- `AXONIA_SELFHOSTED_OWNER_GROUP=owner` (Helm chart: `ownerGroup: owner`), the value of the role that makes someone an Owner.
+
+The role values are what Owners bind axonia roles to, as group names are with groups.
+The token no longer overflows into the overage case, so step 6 of the app registration (the groups claim) is not needed.
+
 ## Rotating the client secret
+
+The federated modes have nothing to rotate: the platform issues a fresh token each time.
+The rest of this section applies to `client-secret`.
 
 Rotate the client secret before its expiry: add the new one, update `OIDC_CLIENT_SECRET`, restart the edge, then delete the old one.
 An expired secret signs everybody out at their next renewal, and each sign-in then ends on "The identity provider refused to complete the sign-in. The edge's client settings may be wrong."; the edge logs `"failure":"token_refused"` with `"oauth_error":"invalid_client"` once per refused renewal and once per refused sign-in.

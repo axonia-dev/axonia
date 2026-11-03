@@ -7,6 +7,7 @@ Releases follow Semantic Versioning: a minor or patch release needs no change to
 ## Upgrading
 
 - Read the release notes of every release between the current and the target.
+- Moving to a federated sign-in (`entra.md`) needs no step when upgrading: it is a setting change, and the existing sessions continue.
 - Back up first (`backup.md`): the database migrations run forward only, and the only way back from a migration is a restore.
 - The owner role (`DATABASE_OWNER_USERNAME`) needs `CREATE` on the database, which the database's owner holds: an upgrade that adds a schema, such as `scheduler`, fails its migration without it.
   As that role, `SELECT has_database_privilege(current_user, current_database(), 'CREATE')` answers `t` when it holds it.
@@ -127,6 +128,7 @@ Every later upgrade keeps that previous key, as it found it.
 - `SESSION_COOKIE_KEY`: changing it signs everybody out; every edge instance needs the same key.
 - `OIDC_CLIENT_SECRET`: add the new secret at the identity provider, change the variable, restart the edge, then delete the old secret there.
   An expired secret signs everybody out at their next renewal.
+  With `OIDC_CLIENT_AUTH` set to `azure-managed-identity` or `federated-token-file` (`oidc.clientAuth: federated-token-file` in the chart), there is no secret to rotate.
 - `AXONIA_UNSUBSCRIBE_SECRET`: changing it breaks the unsubscribe links of mail already sent.
 
 With the Helm chart, each of these is a key of the Secret `existingSecret` names: change it there (`kubectl --namespace axonia edit secret axonia`, or the tool that manages it), then restart the container that reads it (`kubectl --namespace axonia rollout restart deployment/axonia-backend` or `deployment/axonia-edge`).
