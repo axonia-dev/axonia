@@ -28,7 +28,10 @@ export interface AuthEnv {
   /** The issuer, e.g. https://login.example.com/realms/example. Its endpoints are discovered. */
   OIDC_ISSUER: string;
   OIDC_CLIENT_ID: string;
-  /** A deployment secret. Its whole purpose is to never reach the browser. */
+  /**
+   * A deployment secret. Its whole purpose is to never reach the browser. It is the client's proof
+   * only when `clientAuthentication` is absent, and may be empty when that port is given.
+   */
   OIDC_CLIENT_SECRET: string;
   /** A deployment secret: 32 bytes, base64url. */
   SESSION_COOKIE_KEY: string;
@@ -77,7 +80,23 @@ export interface AuthEnv {
    * body.
    */
   reportFailure?: (failure: string, oauthError?: string) => void;
+  /**
+   * How the client proves itself to the identity provider, as a port each entry point may fill in:
+   * the Self-hosted edge authenticates with a federated client assertion that it must fetch, which
+   * is asynchronous and needs Node, and these modules are also compiled for the Cloud's Workers
+   * and by the Vite dev server. Absent, the client sends `OIDC_CLIENT_SECRET`, as the Cloud edge
+   * and the dev servers do. A rejection is reported as CLIENT_ASSERTION_UNAVAILABLE and answered as
+   * an unreachable provider, because the sign-in cannot proceed and nothing the member did caused it.
+   */
+  clientAuthentication?: ClientAuthentication;
 }
+
+/** The form fields that prove the client to the token endpoint, besides `client_id`. */
+export type ClientAuthentication = () => Promise<Readonly<Record<string, string>>>;
+
+const clientSecretOf =
+  (env: AuthEnv): ClientAuthentication =>
+  async () => ({ client_secret: env.OIDC_CLIENT_SECRET });
 
 /**
  * The ceiling `SESSION_MAX_AGE_SECONDS` may declare: two years. It comfortably exceeds any
@@ -279,6 +298,9 @@ export const IDENTITY_PROVIDER_UNREACHABLE = "identity_provider_unreachable";
 
 /** The token endpoint refused this client: its secret, its id or its redirect URI. */
 export const TOKEN_REFUSED = "token_refused";
+
+/** The port that proves the client could not produce its proof, so no token request was made. */
+export const CLIENT_ASSERTION_UNAVAILABLE = "client_assertion_unavailable";
 
 /** The token endpoint granted a sign-in without the refresh token every session is built on. */
 export const NO_REFRESH_TOKEN = "no_refresh_token";
@@ -511,10 +533,17 @@ async function requestTokens(
   endpoints: OidcEndpoints,
   form: Record<string, string>,
 ): Promise<TokenOutcome> {
+  let clientProof: Readonly<Record<string, string>>;
+  try {
+    clientProof = await (env.clientAuthentication ?? clientSecretOf(env))();
+  } catch {
+    env.reportFailure?.(CLIENT_ASSERTION_UNAVAILABLE);
+    return { kind: "unreachable", retryAfter: null };
+  }
   const body = new URLSearchParams({
     ...form,
     client_id: env.OIDC_CLIENT_ID,
-    client_secret: env.OIDC_CLIENT_SECRET,
+    ...clientProof,
   });
   try {
     const response = await fetch(endpoints.token, {
@@ -576,19 +605,20 @@ async function endSession(
   if (target === null) {
     return;
   }
-  const body = revoking
-    ? new URLSearchParams({
-        token: refreshToken,
-        token_type_hint: "refresh_token",
-        client_id: env.OIDC_CLIENT_ID,
-        client_secret: env.OIDC_CLIENT_SECRET,
-      })
-    : new URLSearchParams({
-        client_id: env.OIDC_CLIENT_ID,
-        client_secret: env.OIDC_CLIENT_SECRET,
-        refresh_token: refreshToken,
-      });
   try {
+    const clientProof = await (env.clientAuthentication ?? clientSecretOf(env))();
+    const body = revoking
+      ? new URLSearchParams({
+          token: refreshToken,
+          token_type_hint: "refresh_token",
+          client_id: env.OIDC_CLIENT_ID,
+          ...clientProof,
+        })
+      : new URLSearchParams({
+          client_id: env.OIDC_CLIENT_ID,
+          ...clientProof,
+          refresh_token: refreshToken,
+        });
     await fetch(target, {
       method: "POST",
       headers: { "content-type": "application/x-www-form-urlencoded" },
@@ -597,7 +627,8 @@ async function endSession(
       signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
     });
   } catch {
-    // A sign-out is not worth failing because the identity provider was briefly unreachable.
+    // A sign-out is not worth failing because the identity provider was briefly unreachable, or
+    // because the client could not prove itself to it.
   }
 }
 
@@ -980,20 +1011,21 @@ export interface AuthConfiguration {
 
 /**
  * The deployment's configuration, validated, or the 502 that says it cannot sign anybody in. A
- * missing secret is a 502 rather than a 401 on purpose: it is a deployment that cannot sign anybody
+ * missing secret, with no port to authenticate the client instead, is a 502 rather than a 401 on purpose: it is a deployment that cannot sign anybody
  * in, not a caller who failed to authenticate, and the two deserve different pages and different
  * runbooks. `OIDC_ISSUER`, `SESSION_MAX_AGE_SECONDS`, `COOKIE_NAME_PREFIX`, `OIDC_SCOPES` and
  * `OIDC_SESSION_END` get the same treatment for the same reason: a Worker that cannot resolve its
  * own identity provider, its own session lifetime, a well-formed cookie name, the scopes it asks
  * for or how it ends a session cannot safely sign anybody in either, and the alternative - falling
  * back to a default, or trusting an unchecked value - is precisely the silent misconfiguration
- * these fields exist to rule out. Seven fields are validated here, and every edge says so when it
+ * these fields exist to rule out. Seven fields are validated here, the client secret counting only
+ * while `clientAuthentication` is absent, and every edge says so when it
  * attributes this 502 to `auth_not_configured`.
  */
 export async function authConfiguration(env: AuthEnv): Promise<AuthConfiguration | Response> {
   if (
     !env.SESSION_COOKIE_KEY ||
-    !env.OIDC_CLIENT_SECRET ||
+    (!env.OIDC_CLIENT_SECRET && !env.clientAuthentication) ||
     !COOKIE_NAME_PREFIX_PATTERN.test(env.COOKIE_NAME_PREFIX)
   ) {
     return problem(502, "Bad Gateway", "The edge is not configured for authentication.");

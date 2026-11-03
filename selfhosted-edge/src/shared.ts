@@ -6,6 +6,8 @@
 export {
   type AuthEnv,
   authConfiguration,
+  CLIENT_ASSERTION_UNAVAILABLE,
+  type ClientAuthentication,
   handleAuth,
   IDENTITY_PROVIDER_UNREACHABLE,
   isAuthPath,

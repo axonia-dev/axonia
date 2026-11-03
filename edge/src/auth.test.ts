@@ -1835,3 +1835,91 @@ describe("ending a session, by setting", () => {
     expect(await response.json()).toEqual({ endSessionUrl: "https://app.example.com" });
   });
 });
+
+describe("a client that authenticates through a port", () => {
+  const ASSERTION_FIELDS = {
+    client_assertion_type: "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+    client_assertion: "an-assertion",
+  };
+  const portEnv = (overrides: Partial<AuthEnv> = {}): AuthEnv => ({
+    ...env,
+    OIDC_CLIENT_SECRET: "",
+    clientAuthentication: async () => ASSERTION_FIELDS,
+    ...overrides,
+  });
+
+  const expectAssertion = (body: URLSearchParams | undefined): void => {
+    expect(body?.get("client_assertion")).toBe("an-assertion");
+    expect(body?.get("client_assertion_type")).toBe(ASSERTION_FIELDS.client_assertion_type);
+    expect(body?.get("client_id")).toBe(env.OIDC_CLIENT_ID);
+    expect(body?.has("client_secret")).toBe(false);
+  };
+
+  it("authenticates a code exchange with the port's fields and no client secret", async () => {
+    const { cookie, state } = await startedLogin();
+
+    const response = await callback(state, cookie, portEnv());
+
+    expect(response.status).toBe(302);
+    expectAssertion(fetchCalls()[0]?.body);
+  });
+
+  it("authenticates a refresh with the port's fields and no client secret", async () => {
+    await call(
+      "https://app.example.com/auth/refresh",
+      { method: "POST", headers: { Cookie: await signedIn() } },
+      portEnv(),
+    );
+
+    expect(fetchCalls()[0]?.body.get("grant_type")).toBe("refresh_token");
+    expectAssertion(fetchCalls()[0]?.body);
+  });
+
+  it.each(["revoke", "refresh-token-post"] as const)(
+    "authenticates a sign-out in %s mode with the port's fields and no client secret",
+    async (mode) => {
+      identityProvider.serve(GENERIC_ISSUER, GENERIC_IDP);
+
+      await logout(portEnv({ OIDC_ISSUER: GENERIC_ISSUER, OIDC_SESSION_END: mode }));
+
+      expect(fetchCalls()).toHaveLength(1);
+      expectAssertion(fetchCalls()[0]?.body);
+    },
+  );
+
+  it("answers a sign-in like an unreachable provider when the port fails, and reports client_assertion_unavailable", async () => {
+    const { cookie, state } = await startedLogin("?retry=1");
+    const reportFailure = vi.fn();
+    const clientAuthentication = async (): Promise<never> => {
+      throw new Error("no federated token");
+    };
+
+    const response = await callback(
+      state,
+      cookie,
+      portEnv({ clientAuthentication, reportFailure }),
+    );
+
+    expect(response.status).toBe(503);
+    expect(reportFailure.mock.calls).toEqual([["client_assertion_unavailable"]]);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("signs out locally when the port fails", async () => {
+    const clientAuthentication = async (): Promise<never> => {
+      throw new Error("no federated token");
+    };
+
+    const response = await logout(portEnv({ clientAuthentication }));
+
+    expect(response.status).toBe(200);
+    expect(cookieNamed(response, SESSION_COOKIE)).toContain("Max-Age=0");
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("needs no client secret when a port is given", async () => {
+    const { authConfiguration } = await import("./auth");
+
+    expect(await authConfiguration(portEnv())).not.toBeInstanceOf(Response);
+  });
+});
