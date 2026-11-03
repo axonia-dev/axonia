@@ -74,8 +74,9 @@ export interface AuthEnv {
    * TOKEN_REFUSED, for a restarted sign-in or a renewal refused as `invalid_client` or
    * `unauthorized_client` (a sign-in also with no readable code), and NO_REFRESH_TOKEN, for a
    * restarted sign-in granted without a refresh token: each means the edge's own client settings
-   * are wrong, and a renewal so refused answers the same 401 as a member's spent grant. A code the
-   * caller can cause, such as `invalid_grant`, is never reported. `oauthError` is the
+   * are wrong, and a renewal so refused answers the same 401 as a member's spent grant. It also
+   * passes CLIENT_ASSERTION_UNAVAILABLE when `clientAuthentication` rejects, with no `oauthError`.
+   * A code the caller can cause, such as `invalid_grant`, is never reported. `oauthError` is the
    * provider's RFC 6749 error code when it sent a well-formed one, and never anything else from its
    * body.
    */
@@ -85,8 +86,10 @@ export interface AuthEnv {
    * the Self-hosted edge authenticates with a federated client assertion that it must fetch, which
    * is asynchronous and needs Node, and these modules are also compiled for the Cloud's Workers
    * and by the Vite dev server. Absent, the client sends `OIDC_CLIENT_SECRET`, as the Cloud edge
-   * and the dev servers do. A rejection is reported as CLIENT_ASSERTION_UNAVAILABLE and answered as
-   * an unreachable provider, because the sign-in cannot proceed and nothing the member did caused it.
+   * and the dev servers do. A rejection during a sign-in or a renewal is reported as
+   * CLIENT_ASSERTION_UNAVAILABLE and answered as an unreachable provider, because the sign-in cannot
+   * proceed and nothing the member did caused it. Ending a session swallows it, as it does any
+   * failure to reach the provider.
    */
   clientAuthentication?: ClientAuthentication;
 }
@@ -291,8 +294,9 @@ export const discoveredOrNull = async (env: AuthEnv): Promise<OidcEndpoints | nu
 /**
  * 503 rather than the 502 a misconfigured deployment answers: nothing here is wrong, and an edge
  * attributes 502 to its own secrets. The provider being briefly unreachable is a different outage
- * with a different runbook, so an edge attributes this status to IDENTITY_PROVIDER_UNREACHABLE.
- * Nothing else in this module answers 503.
+ * with a different runbook, so an edge attributes this status to IDENTITY_PROVIDER_UNREACHABLE,
+ * unless `reportFailure` named CLIENT_ASSERTION_UNAVAILABLE for the same request: a
+ * `clientAuthentication` port that failed also answers 503, and the provider was never asked.
  */
 export const IDENTITY_PROVIDER_UNREACHABLE = "identity_provider_unreachable";
 
@@ -1011,16 +1015,16 @@ export interface AuthConfiguration {
 
 /**
  * The deployment's configuration, validated, or the 502 that says it cannot sign anybody in. A
- * missing secret, with no port to authenticate the client instead, is a 502 rather than a 401 on purpose: it is a deployment that cannot sign anybody
- * in, not a caller who failed to authenticate, and the two deserve different pages and different
- * runbooks. `OIDC_ISSUER`, `SESSION_MAX_AGE_SECONDS`, `COOKIE_NAME_PREFIX`, `OIDC_SCOPES` and
+ * missing secret, with no port to authenticate the client instead, is a 502 rather than a 401 on
+ * purpose: it is a deployment that cannot sign anybody in, not a caller who failed to authenticate,
+ * and the two deserve different pages and different runbooks. `OIDC_ISSUER`, `SESSION_MAX_AGE_SECONDS`, `COOKIE_NAME_PREFIX`, `OIDC_SCOPES` and
  * `OIDC_SESSION_END` get the same treatment for the same reason: a Worker that cannot resolve its
  * own identity provider, its own session lifetime, a well-formed cookie name, the scopes it asks
  * for or how it ends a session cannot safely sign anybody in either, and the alternative - falling
  * back to a default, or trusting an unchecked value - is precisely the silent misconfiguration
  * these fields exist to rule out. Seven fields are validated here, the client secret counting only
- * while `clientAuthentication` is absent, and every edge says so when it
- * attributes this 502 to `auth_not_configured`.
+ * while `clientAuthentication` is absent, and every edge says so when it attributes this 502 to
+ * `auth_not_configured`.
  */
 export async function authConfiguration(env: AuthEnv): Promise<AuthConfiguration | Response> {
   if (
