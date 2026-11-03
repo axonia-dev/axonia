@@ -31,7 +31,8 @@ describe("the token file assertion", () => {
   });
 
   it("rejects an empty file without naming its content", async () => {
-    const path = tokenFile("\n");
+    const content = "  \t\n \t  \n";
+    const path = tokenFile(content);
 
     const failure = await tokenFileAssertion(path)().then(
       () => null,
@@ -39,7 +40,10 @@ describe("the token file assertion", () => {
     );
 
     expect(failure).toBeInstanceOf(Error);
-    expect((failure as Error).message).toContain(path);
+    const { message } = failure as Error;
+    expect(message).toContain(path);
+    expect(message).not.toContain(content);
+    expect(message).not.toContain("\t");
   });
 
   it("rejects a missing file", async () => {
