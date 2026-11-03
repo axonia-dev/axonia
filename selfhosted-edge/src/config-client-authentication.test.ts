@@ -1,9 +1,8 @@
-import { mkdtempSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it } from "vitest";
 import { ConfigurationError, readConfiguration } from "./config.ts";
 import { environment } from "./test-support.ts";
+import { scratch } from "./test-scratch.ts";
 
 const problemsOf = async (overrides: Record<string, string | undefined>): Promise<string[]> => {
   const refusal: unknown = await readConfiguration(environment(overrides)).then(
@@ -16,13 +15,13 @@ const problemsOf = async (overrides: Record<string, string | undefined>): Promis
   return [...refusal.problems];
 };
 
-const emptyDirectory = (): string => mkdtempSync(join(tmpdir(), "selfhosted-edge-empty-"));
+const files = scratch();
+const emptyDirectory = files.directory;
+const tokenFile = files.tokenFile;
 
-const tokenFile = (content: string): string => {
-  const path = join(emptyDirectory(), "token");
-  writeFileSync(path, content);
-  return path;
-};
+afterAll(() => {
+  files.remove();
+});
 
 const FEDERATED_FILE_PROBLEM =
   "OIDC_FEDERATED_TOKEN_FILE must be an absolute path to a readable, non-empty file when OIDC_CLIENT_AUTH is federated-token-file.";

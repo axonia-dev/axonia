@@ -44,7 +44,7 @@ describe("the edge process", () => {
     expect(stderr).not.toContain(settings["SESSION_COOKIE_KEY"]);
   }, 20_000);
 
-  it("refuses a federated mode that is also given a secret, printing neither", async () => {
+  it("refuses a federated mode that is also given a secret, printing neither the secret nor the session key", async () => {
     const settings = environment({
       OIDC_CLIENT_AUTH: "federated-token-file",
       OIDC_FEDERATED_TOKEN_FILE: "/etc/axonia/token",
@@ -62,5 +62,6 @@ describe("the edge process", () => {
       "OIDC_CLIENT_SECRET must not be set when OIDC_CLIENT_AUTH is federated-token-file: the edge never sends it.",
     );
     expect(stderr).not.toContain(settings["OIDC_CLIENT_SECRET"]);
+    expect(stderr).not.toContain(settings["SESSION_COOKIE_KEY"]);
   }, 20_000);
 });

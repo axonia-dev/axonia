@@ -1905,6 +1905,28 @@ describe("a client that authenticates through a port", () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
+  it("keeps the session of a renewal like an unreachable provider when the port fails, and reports client_assertion_unavailable", async () => {
+    const reportFailure = vi.fn();
+    const clientAuthentication = async (): Promise<never> => {
+      throw new Error("no federated token");
+    };
+
+    const response = await call(
+      "https://app.example.com/auth/refresh",
+      { method: "POST", headers: { Cookie: await signedIn() } },
+      portEnv({ clientAuthentication, reportFailure }),
+    );
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({
+      status: 503,
+      detail: "The identity provider could not be reached.",
+    });
+    expect(response.headers.getSetCookie()).toEqual([]);
+    expect(reportFailure.mock.calls).toEqual([["client_assertion_unavailable"]]);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   it("signs out locally when the port fails", async () => {
     const clientAuthentication = async (): Promise<never> => {
       throw new Error("no federated token");
