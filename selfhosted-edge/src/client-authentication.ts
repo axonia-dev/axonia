@@ -3,13 +3,11 @@ import type { ClientAuthentication } from "./shared.ts";
 
 export const JWT_BEARER = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer";
 
-const readUtf8 = (path: string): Promise<string> => readFile(path, "utf8");
-
 /** The kubelet rotates the projected token about hourly, so it is read fresh on every call. */
 export const tokenFileAssertion =
-  (path: string, read: (path: string) => Promise<string> = readUtf8): ClientAuthentication =>
+  (path: string): ClientAuthentication =>
   async () => {
-    const token = (await read(path)).trim();
+    const token = (await readFile(path, "utf8")).trim();
     if (token === "") {
       throw new Error(`The federated token file ${path} is empty.`);
     }
@@ -24,13 +22,31 @@ export interface ManagedIdentity {
 
 const TOKEN_EXCHANGE_RESOURCE = "api://AzureADTokenExchange";
 const IDENTITY_API_VERSION = "2019-08-01";
-const IDENTITY_TIMEOUT_MS = 10_000;
+// The identity provider's own timeout: a sign-in waits no longer on the platform than on Entra.
+const IDENTITY_TIMEOUT_MS = 5000;
 const REUSE_MARGIN_MS = 5 * 60_000;
+
+interface ManagedIdentityRuntime {
+  fetchFn?: typeof fetch;
+  now?: () => number;
+  timeoutMs?: number;
+}
 
 interface CachedToken {
   token: string;
   reuseUntil: number;
 }
+
+// Only the parse is caught: a body that could not be read fails with its own reason, a timeout or
+// a dropped connection, rather than as an answer without a token.
+const parsedObject = (text: string): Record<string, unknown> => {
+  try {
+    const parsed: unknown = JSON.parse(text);
+    return typeof parsed === "object" && parsed !== null ? (parsed as Record<string, unknown>) : {};
+  } catch {
+    return {};
+  }
+};
 
 /**
  * The token the platform's identity endpoint issues for the token-exchange audience. It is cached
@@ -40,8 +56,7 @@ interface CachedToken {
  */
 export const managedIdentityAssertion = (
   identity: ManagedIdentity,
-  fetchFn: typeof fetch = fetch,
-  now: () => number = Date.now,
+  { fetchFn = fetch, now = Date.now, timeoutMs = IDENTITY_TIMEOUT_MS }: ManagedIdentityRuntime = {},
 ): ClientAuthentication => {
   let cached: CachedToken | undefined;
   let inFlight: Promise<string> | undefined;
@@ -56,13 +71,13 @@ export const managedIdentityAssertion = (
       method: "GET",
       headers: { "X-IDENTITY-HEADER": identity.header },
       redirect: "manual",
-      signal: AbortSignal.timeout(IDENTITY_TIMEOUT_MS),
+      signal: AbortSignal.timeout(timeoutMs),
     });
     if (response.status < 200 || response.status > 299) {
+      await response.body?.cancel();
       throw new Error(`The managed identity endpoint answered ${response.status}.`);
     }
-    const body: unknown = await response.json().catch(() => null);
-    const { access_token: token, expires_on: expiresOn } = (body ?? {}) as Record<string, unknown>;
+    const { access_token: token, expires_on: expiresOn } = parsedObject(await response.text());
     if (typeof token !== "string" || token === "") {
       throw new Error(
         `The managed identity endpoint answered ${response.status} without an access token.`,

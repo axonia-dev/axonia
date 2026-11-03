@@ -1,18 +1,19 @@
-import { mkdtempSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it, vi } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
 import {
   JWT_BEARER,
   managedIdentityAssertion,
   tokenFileAssertion,
 } from "./client-authentication.ts";
+import { scratch } from "./test-scratch.ts";
 
-const tokenFile = (content: string): string => {
-  const path = join(mkdtempSync(join(tmpdir(), "selfhosted-edge-token-")), "token");
-  writeFileSync(path, content);
-  return path;
-};
+const files = scratch();
+const tokenFile = files.tokenFile;
+
+afterAll(() => {
+  files.remove();
+});
 
 describe("the token file assertion", () => {
   it("sends the file's token as the assertion, trimmed", async () => {
@@ -51,7 +52,7 @@ describe("the token file assertion", () => {
   });
 
   it("rejects a missing file", async () => {
-    const path = join(mkdtempSync(join(tmpdir(), "selfhosted-edge-token-")), "absent");
+    const path = join(files.directory(), "absent");
 
     await expect(tokenFileAssertion(path)()).rejects.toThrow(/ENOENT/);
   });
@@ -81,7 +82,7 @@ describe("the managed identity assertion", () => {
   it("asks the identity endpoint for a token-exchange token for the given identity", async () => {
     const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(tokenResponse("mi-token", 3600));
 
-    const assertion = await managedIdentityAssertion(identity, fetchFn, () => NOW)();
+    const assertion = await managedIdentityAssertion(identity, { fetchFn, now: () => NOW })();
 
     expect(assertion).toEqual({ client_assertion_type: JWT_BEARER, client_assertion: "mi-token" });
     expect(fetchFn).toHaveBeenCalledTimes(1);
@@ -104,7 +105,7 @@ describe("the managed identity assertion", () => {
       .fn<typeof fetch>()
       .mockImplementation(async () => tokenResponse("mi-token", 3600));
     let now = NOW;
-    const authenticate = managedIdentityAssertion(identity, fetchFn, () => now);
+    const authenticate = managedIdentityAssertion(identity, { fetchFn, now: () => now });
 
     await authenticate();
     now = NOW + minutes(54);
@@ -121,7 +122,7 @@ describe("the managed identity assertion", () => {
     const fetchFn = vi
       .fn<typeof fetch>()
       .mockReturnValue(new Promise((resolve) => (answer = resolve)));
-    const authenticate = managedIdentityAssertion(identity, fetchFn, () => NOW);
+    const authenticate = managedIdentityAssertion(identity, { fetchFn, now: () => NOW });
 
     const calls = [authenticate(), authenticate(), authenticate()];
     answer(tokenResponse("mi-token", 3600));
@@ -140,7 +141,7 @@ describe("the managed identity assertion", () => {
       .fn<typeof fetch>()
       .mockResolvedValueOnce(new Response("identity-secret-body", { status: 500 }))
       .mockResolvedValueOnce(tokenResponse("mi-token", 3600));
-    const authenticate = managedIdentityAssertion(identity, fetchFn, () => NOW);
+    const authenticate = managedIdentityAssertion(identity, { fetchFn, now: () => NOW });
 
     const failure = await authenticate().then(
       () => null,
@@ -157,14 +158,16 @@ describe("the managed identity assertion", () => {
   it("rejects a redirect naming its status only", async () => {
     const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 302 }));
 
-    await expect(managedIdentityAssertion(identity, fetchFn, () => NOW)()).rejects.toThrow(/302/);
+    await expect(managedIdentityAssertion(identity, { fetchFn, now: () => NOW })()).rejects.toThrow(
+      /302/,
+    );
   });
 
   it("rejects a 200 whose body is not JSON, or has no access_token, without naming the body", async () => {
     for (const body of ["not-json-secret", JSON.stringify({ other: "secret-value" })]) {
       const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(new Response(body, { status: 200 }));
 
-      const failure = await managedIdentityAssertion(identity, fetchFn, () => NOW)().then(
+      const failure = await managedIdentityAssertion(identity, { fetchFn, now: () => NOW })().then(
         () => null,
         (error: unknown) => error,
       );
@@ -175,12 +178,73 @@ describe("the managed identity assertion", () => {
     }
   });
 
+  it("rejects with the reason a 200's body could not be read, not as a missing token", async () => {
+    const unreadable = new ReadableStream({
+      start: (controller) => controller.error(new TypeError("terminated")),
+    });
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response(unreadable, { status: 200 }));
+
+    await expect(managedIdentityAssertion(identity, { fetchFn, now: () => NOW })()).rejects.toThrow(
+      /^terminated$/,
+    );
+  });
+
+  it("cancels the body of a failed answer", async () => {
+    const cancel = vi.fn<() => void>();
+    const body = new ReadableStream({ cancel });
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(new Response(body, { status: 400 }));
+
+    await expect(managedIdentityAssertion(identity, { fetchFn, now: () => NOW })()).rejects.toThrow(
+      /400/,
+    );
+    expect(cancel).toHaveBeenCalledOnce();
+  });
+
+  it("gives up on an endpoint that never answers, and asks again on the next call", async () => {
+    const neverAnswers: typeof fetch = (_url, init) =>
+      new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(init.signal?.reason));
+      });
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockImplementationOnce(neverAnswers)
+      .mockResolvedValueOnce(tokenResponse("mi-token", 3600));
+    const authenticate = managedIdentityAssertion(identity, {
+      fetchFn,
+      now: () => NOW,
+      timeoutMs: 10,
+    });
+
+    const failure = await authenticate().then(
+      () => null,
+      (error: unknown) => error,
+    );
+
+    expect(failure).toBeInstanceOf(Error);
+    expect((failure as Error).name).toBe("TimeoutError");
+    expect((failure as Error).message).not.toContain(identity.header);
+    expect((await authenticate()).client_assertion).toBe("mi-token");
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+
+  it("waits five seconds for the endpoint, as long as for the identity provider", async () => {
+    const timeout = vi.spyOn(AbortSignal, "timeout");
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(tokenResponse("mi-token", 3600));
+
+    await managedIdentityAssertion(identity, { fetchFn, now: () => NOW })();
+
+    expect(timeout).toHaveBeenLastCalledWith(5000);
+    expect(fetchFn.mock.calls[0]?.[1]?.signal).toBe(timeout.mock.results.at(-1)?.value);
+  });
+
   it("does not reuse a token whose expires_on is missing or not a number", async () => {
     for (const expiresOn of [undefined, "soon"]) {
       const fetchFn = vi
         .fn<typeof fetch>()
         .mockImplementation(async () => tokenResponse("mi-token", expiresOn));
-      const authenticate = managedIdentityAssertion(identity, fetchFn, () => NOW);
+      const authenticate = managedIdentityAssertion(identity, { fetchFn, now: () => NOW });
 
       await authenticate();
       await authenticate();

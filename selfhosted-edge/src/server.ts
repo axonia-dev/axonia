@@ -6,6 +6,7 @@ import { isBackendPath, proxyToBackend } from "./proxy.ts";
 import { type Exchange, sendProblem, sendWebResponse, writeHead } from "./respond.ts";
 import {
   CLIENT_ASSERTION_UNAVAILABLE,
+  type ClientAuthentication,
   handleAuth,
   IDENTITY_PROVIDER_UNREACHABLE,
   isAuthPath,
@@ -48,6 +49,19 @@ const sendHealth = (exchange: Exchange): void => {
   exchange.response.end(exchange.request.method === "HEAD" ? undefined : "ok");
 };
 
+// The auth module reports only that the client proof failed. Its reason, a status or a file path,
+// names the setting to check, so it is kept for the one line that logs the failure.
+const keepingFailure =
+  (port: ClientAuthentication, keep: (error: unknown) => void): ClientAuthentication =>
+  async () => {
+    try {
+      return await port();
+    } catch (error) {
+      keep(error);
+      throw error;
+    }
+  };
+
 const authenticate = async (exchange: Exchange): Promise<void> => {
   exchange.request.resume();
   // Refused here and not left to the auth module: fetch's Request throws on CONNECT and TRACE.
@@ -61,13 +75,26 @@ const authenticate = async (exchange: Exchange): Promise<void> => {
     return;
   }
   let clientProofFailed = false;
+  let clientProofError: unknown;
+  const { clientAuthentication } = exchange.configuration.auth;
   const answer = await handleAuth(
     toWebRequest(exchange),
     {
       ...exchange.configuration.auth,
+      ...(clientAuthentication === undefined
+        ? {}
+        : {
+            clientAuthentication: keepingFailure(clientAuthentication, (error) => {
+              clientProofError = error;
+            }),
+          }),
       reportFailure: (failure, oauthError) => {
-        clientProofFailed ||= failure === CLIENT_ASSERTION_UNAVAILABLE;
-        logAuthFailure(failure, exchange, oauthError);
+        if (failure === CLIENT_ASSERTION_UNAVAILABLE) {
+          clientProofFailed = true;
+          logFailure(failure, exchange, clientProofError);
+        } else {
+          logAuthFailure(failure, exchange, oauthError);
+        }
       },
     },
     exchange.url,

@@ -13,6 +13,7 @@ export default defineConfig({
       exclude: [
         "src/**/*.test.ts",
         "src/test-support.ts",
+        "src/test-scratch.ts",
         "src/main.ts",
         "src/precompress-main.ts",
       ],
