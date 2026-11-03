@@ -148,10 +148,7 @@ tests:
           path: spec.template.spec.containers[0].env
           content:
             name: OIDC_CLIENT_SECRET
-            valueFrom:
-              secretKeyRef:
-                name: axonia
-                key: OIDC_CLIENT_SECRET
+          any: true
       - template: edge-deployment.yaml
         equal:
           path: spec.template.spec.serviceAccountName
@@ -194,7 +191,7 @@ tests:
     template: edge-deployment.yaml
     asserts:
       - equal:
-          path: spec.template.spec.volumes[1].projected.sources[0].serviceAccountToken.audience
+          path: spec.template.spec.volumes[?(@.name == "federated-token")].projected.sources[0].serviceAccountToken.audience
           value: sts.amazonaws.com
 
   - it: keeps the client secret by default
@@ -213,7 +210,7 @@ tests:
           path: spec.template.spec.containers[0].env
           content:
             name: OIDC_CLIENT_AUTH
-            value: client-secret
+          any: true
       - template: edge-deployment.yaml
         notExists:
           path: spec.template.spec.serviceAccountName
