@@ -38,7 +38,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * request-carried list uses for {@code sectionTypeId()}, must also contain a call to one of the known guards - in that
  * SAME member, in a private member it directly calls, or in a private member that directly calls it (one hop, see
  * {@link #guardScope}), not merely the same file: a file-wide check let {@code SlotService}'s unrelated
- * {@code communityAccess.resolveMember} call (there to resolve a presenter, nothing to do with the topic queued three
+ * {@code communityAccess.resolvePerson} call (there to resolve a presenter, nothing to do with the topic queued three
  * methods away) satisfy the whole file, and the gap shipped anyway.
  *
  * <p>
@@ -156,13 +156,13 @@ class CrossCommunityReferenceGuardTest {
 
     /**
      * Every one qualified to its actual call site, the way {@code sectionTypeCatalog.require(} always was: a bare
-     * {@code resolveMember} sits in nine {@code src/main} files, mostly resolving a presenter, an assignee or a
+     * {@code resolvePerson} sits in nine {@code src/main} files, mostly resolving a presenter, an assignee or a
      * contributor - a membership lookup the vulnerable code already performed, not a check that the id in question
      * belongs to the community in the path.
      */
     private static final List<String> GUARDS = List.of("requireSessionInCommunity", "requireSegmentInSession",
             "requireOriginSessionInCommunity", "requireUpcomingSessionInCommunity", "requireMayQueueTopics",
-            "sectionTypeCatalog.require(", "communityAccess.resolveMember(", "facilitatorResolver.resolve(");
+            "sectionTypeCatalog.require(", "communityAccess.resolvePerson(", "facilitatorResolver.resolve(");
 
     @Test
     void everyMemberThatWritesACommunityOwnedIdFromARequestAlsoGuardsIt() throws IOException {
@@ -171,7 +171,7 @@ class CrossCommunityReferenceGuardTest {
                 A session, segment, topic, section-type or facilitator id that arrived in a request body is \
                 org-visible and sequential, so it says nothing about which community may write to it. Run \
                 it through SessionProvenanceGuard, requireOriginSessionInCommunity, requireMayQueueTopics, \
-                SectionTypeCatalog.require, CommunityAccess.resolveMember or FacilitatorResolver.resolve, from that \
+                SectionTypeCatalog.require, CommunityAccess.resolvePerson or FacilitatorResolver.resolve, from that \
                 same method or a private helper one call away, before it reaches a row.""").isEmpty();
     }
 
@@ -334,7 +334,7 @@ class CrossCommunityReferenceGuardTest {
      * guard actually runs before {@code autoAttach} is even called. Stopping at one hop, not chasing every caller's own
      * callers in turn, is deliberate: a shared trivial callee - checking whether a session is cancelled, say - links
      * most of a class's methods together, and chasing it would let a guard three calls away immunise a write the same
-     * way {@code SlotService}'s unrelated {@code communityAccess.resolveMember} once did, just one call further out.
+     * way {@code SlotService}'s unrelated {@code communityAccess.resolvePerson} once did, just one call further out.
      */
     private static String guardScope(Member member, List<Member> members) {
 

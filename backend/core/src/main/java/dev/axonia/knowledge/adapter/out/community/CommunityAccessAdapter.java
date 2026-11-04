@@ -46,7 +46,7 @@ class CommunityAccessAdapter implements CommunityAccess {
     // isOrganizer for the same reason: beside isOrganizer it would extend this run past the floor, since events'
     // adapter also carries isOrganizer immediately followed by contributionPolicy.
     @Override
-    public MemberMatch resolveMember(long communityId, String query) {
+    public MemberMatch resolvePerson(long communityId, String query) {
 
         return memberDirectory.resolvePerson(communityId, query);
     }

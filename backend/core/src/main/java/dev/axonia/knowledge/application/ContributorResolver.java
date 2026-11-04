@@ -10,29 +10,29 @@ import dev.axonia.shared.api.error.ForbiddenException;
 import lombok.RequiredArgsConstructor;
 
 /**
- * Decides whose contribution an artifact is: the caller's own, or another member's that the caller is crediting.
+ * Decides whose contribution an artifact is: the caller's own, or somebody else's that the caller is crediting.
  *
  * <p>
  * An absent or blank reference means the caller, which is the live path, and so does the caller's own user id. A caller
  * the community does not let credit contributions may otherwise only name themselves exactly, by display name or email,
  * and every other reference gets one identical refusal before the roster is asked: a match, no match or an ambiguity
  * would each tell a plain member whether some other member's name or email contains a fragment. Only a caller with the
- * Credit contributions right has the reference resolved against the roster, where a reference matching nobody or
- * several members refuses the write. There is nothing else honest to do: {@code contributor_user_id} is NOT NULL, so
- * there is no "nobody" to fall back to, and falling back to the caller is precisely the failure this type exists to
- * prevent - an organizer backfilling a library credits themselves with the whole guild's work, one expertise signal per
- * tag, and it looks exactly like success.
+ * Credit contributions right has the reference resolved against the people of the organization, members first, where a
+ * reference matching nobody or several people refuses the write. Crediting somebody makes them no member. There is
+ * nothing else honest to do: {@code contributor_user_id} is NOT NULL, so there is no "nobody" to fall back to, and
+ * falling back to the caller is precisely the failure this type exists to prevent - an organizer backfilling a library
+ * credits themselves with the whole guild's work, one expertise signal per tag, and it looks exactly like success.
  *
  * <p>
- * The resolution itself belongs to {@code community}, which owns the roster, and is reached through this module's
- * anti-corruption port.
+ * The resolution itself belongs to {@code community}, which owns the roster it prefers, and is reached through this
+ * module's anti-corruption port.
  */
 @Component
 @RequiredArgsConstructor
 public class ContributorResolver {
 
     private static final String REFUSED = "Only an organizer, or a member the community lets credit contributions, "
-            + "may credit a contribution to another member.";
+            + "may credit a contribution to somebody else.";
 
     private final CommunityAccess communityAccess;
 
@@ -73,14 +73,14 @@ public class ContributorResolver {
     private String member(long communityId, String reference) {
 
         var query = reference.strip();
-        return switch (communityAccess.resolveMember(communityId, query)) {
+        return switch (communityAccess.resolvePerson(communityId, query)) {
             case MemberMatch.Matched matched -> matched.userId();
             // The count the directory already computed is reported: told only "ambiguous", a caller cannot tell two
             // members who genuinely share a name from a reference that was simply too vague.
             case MemberMatch.Ambiguous ambiguous -> throw new ConflictException("CONTRIBUTOR_AMBIGUOUS",
-                    ambiguous.candidates() + " members of this community match: " + query);
+                    ambiguous.candidates() + " people in this organization match: " + query);
             case MemberMatch.NotFound ignored ->
-                throw new ConflictException("CONTRIBUTOR_NOT_FOUND", "No member of this community matches: " + query);
+                throw new ConflictException("CONTRIBUTOR_NOT_FOUND", "No one in this organization matches: " + query);
         };
     }
 }

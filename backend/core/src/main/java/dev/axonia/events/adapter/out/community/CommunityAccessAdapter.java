@@ -99,7 +99,7 @@ public class CommunityAccessAdapter implements CommunityAccess {
     // and what keeps it under is the events-only methods sitting between them. Regrouping the delegations, here or
     // there, fails the gate.
     @Override
-    public MemberMatch resolveMember(long communityId, String query) {
+    public MemberMatch resolvePerson(long communityId, String query) {
 
         return memberDirectory.resolvePerson(communityId, query);
     }

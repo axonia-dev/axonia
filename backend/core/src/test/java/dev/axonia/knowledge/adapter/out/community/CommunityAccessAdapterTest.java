@@ -85,23 +85,23 @@ class CommunityAccessAdapterTest {
      * second copy of that rule here would be free to drift into crediting one person's work to another.
      */
     @Test
-    void resolveMember_delegatesToTheMemberDirectory() {
+    void resolvePerson_delegatesToTheMemberDirectory() {
 
         // given
         when(memberDirectory.resolvePerson(7L, "Alice Dupont")).thenReturn(new MemberMatch.Matched("alice-id"));
 
         // then
-        assertThat(sut.resolveMember(7L, "Alice Dupont")).isEqualTo(new MemberMatch.Matched("alice-id"));
+        assertThat(sut.resolvePerson(7L, "Alice Dupont")).isEqualTo(new MemberMatch.Matched("alice-id"));
     }
 
     @Test
-    void resolveMember_creditsNobodyWhenTheReferenceMatchesNoMember() {
+    void resolvePerson_creditsNobodyWhenTheReferenceMatchesNoMember() {
 
         // given
         when(memberDirectory.resolvePerson(7L, "J. Smith")).thenReturn(new MemberMatch.NotFound());
 
         // then
-        assertThat(sut.resolveMember(7L, "J. Smith")).isEqualTo(new MemberMatch.NotFound());
+        assertThat(sut.resolvePerson(7L, "J. Smith")).isEqualTo(new MemberMatch.NotFound());
     }
 
     @Test

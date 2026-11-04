@@ -95,6 +95,7 @@ public class MemberDirectoryService implements dev.axonia.community.api.MemberDi
      * fragments of it through the picker. {@link #resolvePerson} keeps matching email too, because the agent that calls
      * it names people by email.
      */
+    @Override
     @Transactional(readOnly = true)
     public List<CreditablePerson> searchPeople(long communityId, String query) {
 

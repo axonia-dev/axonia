@@ -111,7 +111,7 @@ class TopicAttributionTest {
 
         // then
         assertThat(publishedEvent().proposerUserId()).isEqualTo("alice");
-        verify(communityAccess, never()).resolveMember(anyLong(), anyString());
+        verify(communityAccess, never()).resolvePerson(anyLong(), anyString());
     }
 
     @Test
@@ -119,7 +119,7 @@ class TopicAttributionTest {
 
         // given
         when(communityAccess.isOrganizer(1L, "alice")).thenReturn(true);
-        when(communityAccess.resolveMember(1L, "Bob Martin")).thenReturn(new MemberMatch.Matched("bob-id"));
+        when(communityAccess.resolvePerson(1L, "Bob Martin")).thenReturn(new MemberMatch.Matched("bob-id"));
 
         // when
         sut.propose("backend-guild", request("Bob Martin"));
@@ -135,7 +135,7 @@ class TopicAttributionTest {
 
         // given
         when(communityAccess.isOrganizer(1L, "alice")).thenReturn(true);
-        when(communityAccess.resolveMember(1L, "Bob Martin")).thenReturn(new MemberMatch.Matched("bob-id"));
+        when(communityAccess.resolvePerson(1L, "Bob Martin")).thenReturn(new MemberMatch.Matched("bob-id"));
 
         // when
         sut.propose("backend-guild", request("Bob Martin"));
@@ -153,7 +153,7 @@ class TopicAttributionTest {
 
         // given
         when(communityAccess.isOrganizer(1L, "alice")).thenReturn(true);
-        when(communityAccess.resolveMember(1L, "J. Smith")).thenReturn(new MemberMatch.NotFound());
+        when(communityAccess.resolvePerson(1L, "J. Smith")).thenReturn(new MemberMatch.NotFound());
 
         // when / then
         assertThatThrownBy(() -> sut.propose("backend-guild", request("J. Smith")))
@@ -168,7 +168,7 @@ class TopicAttributionTest {
 
         // given
         when(communityAccess.isOrganizer(1L, "alice")).thenReturn(true);
-        when(communityAccess.resolveMember(1L, "Bob")).thenReturn(new MemberMatch.Ambiguous(3));
+        when(communityAccess.resolvePerson(1L, "Bob")).thenReturn(new MemberMatch.Ambiguous(3));
 
         // when / then
         assertThatThrownBy(() -> sut.propose("backend-guild", request("Bob"))).isInstanceOf(ConflictException.class)
@@ -187,7 +187,7 @@ class TopicAttributionTest {
         // when / then
         assertThatThrownBy(() -> sut.propose("backend-guild", request("Bob Martin")))
                 .isInstanceOf(ForbiddenException.class);
-        verify(communityAccess, never()).resolveMember(anyLong(), anyString());
+        verify(communityAccess, never()).resolvePerson(anyLong(), anyString());
         verify(topicStore, never()).save(any());
         verify(eventPublisher, never()).publishEvent(any());
     }
@@ -200,6 +200,6 @@ class TopicAttributionTest {
 
         // then
         assertThat(publishedEvent().proposerUserId()).isEqualTo("alice");
-        verify(communityAccess, never()).resolveMember(anyLong(), anyString());
+        verify(communityAccess, never()).resolvePerson(anyLong(), anyString());
     }
 }

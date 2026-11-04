@@ -22,9 +22,9 @@ public class TopicMemberResolver {
     /**
      * Resolves whose proposal this is. An absent or blank reference means the caller's own, which is the live path. A
      * supplied reference is an organizer's act of crediting someone else, and one that does not resolve to exactly one
-     * member of the community refuses the write: {@code proposer_user_id} is NOT NULL, so there is no "nobody" to fall
-     * back to, and falling back to the caller would turn every backfilled OFFER into expertise the organizer never had,
-     * while looking exactly like success.
+     * person in the organization refuses the write: {@code proposer_user_id} is NOT NULL, so there is no "nobody" to
+     * fall back to, and falling back to the caller would turn every backfilled OFFER into expertise the organizer never
+     * had, while looking exactly like success.
      */
     public String resolveProposer(long communityId, String callerId, String reference) {
 
@@ -39,18 +39,18 @@ public class TopicMemberResolver {
             // Actionable, deliberately: the message names the field to drop. A caller that supplied its own name is
             // one keystroke from success, and a refusal that only said "not permitted" would send it looking for a
             // permission it does not need.
-            throw new ActionableForbiddenException("Only an organizer may credit a proposal to another member. "
+            throw new ActionableForbiddenException("Only an organizer may credit a proposal to somebody else. "
                     + "Omit proposer to record this proposal as your own.");
         }
         var query = reference.strip();
-        return switch (communityAccess.resolveMember(communityId, query)) {
+        return switch (communityAccess.resolvePerson(communityId, query)) {
             case MemberMatch.Matched matched -> matched.userId();
             // The count the directory already computed is reported: told only "ambiguous", a caller cannot tell two
             // members who genuinely share a name from a reference that was simply too vague.
             case MemberMatch.Ambiguous ambiguous -> throw new ConflictException("PROPOSER_AMBIGUOUS",
-                    ambiguous.candidates() + " members of this community match: " + query);
+                    ambiguous.candidates() + " people in this organization match: " + query);
             case MemberMatch.NotFound ignored ->
-                throw new ConflictException("PROPOSER_NOT_FOUND", "No member of this community matches: " + query);
+                throw new ConflictException("PROPOSER_NOT_FOUND", "No one in this organization matches: " + query);
         };
     }
 
@@ -65,12 +65,12 @@ public class TopicMemberResolver {
             return null;
         }
         var query = reference.strip();
-        return switch (communityAccess.resolveMember(communityId, query)) {
+        return switch (communityAccess.resolvePerson(communityId, query)) {
             case MemberMatch.Matched matched -> matched.userId();
             case MemberMatch.Ambiguous ambiguous -> throw new ConflictException("ASSIGNEE_AMBIGUOUS",
-                    ambiguous.candidates() + " members of this community match: " + query);
+                    ambiguous.candidates() + " people in this organization match: " + query);
             case MemberMatch.NotFound ignored ->
-                throw new ConflictException("ASSIGNEE_NOT_FOUND", "No member of this community matches: " + query);
+                throw new ConflictException("ASSIGNEE_NOT_FOUND", "No one in this organization matches: " + query);
         };
     }
 }

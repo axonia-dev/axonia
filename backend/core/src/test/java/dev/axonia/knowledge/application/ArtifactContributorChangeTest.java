@@ -77,7 +77,7 @@ class ArtifactContributorChangeTest {
         // given
         artifactIs("ACTIVE");
         when(communityAccess.canCreditContributions(1L, "olive")).thenReturn(true);
-        when(communityAccess.resolveMember(1L, "alice-id")).thenReturn(new MemberMatch.Matched("alice-id"));
+        when(communityAccess.resolvePerson(1L, "alice-id")).thenReturn(new MemberMatch.Matched("alice-id"));
 
         // when
         sut.changeContributor(7L, new ChangeContributorRequest("alice-id"));
@@ -115,7 +115,7 @@ class ArtifactContributorChangeTest {
         // given
         artifactIs("ACTIVE");
         when(communityAccess.canCreditContributions(1L, "olive")).thenReturn(true);
-        when(communityAccess.resolveMember(1L, "stranger")).thenReturn(new MemberMatch.NotFound());
+        when(communityAccess.resolvePerson(1L, "stranger")).thenReturn(new MemberMatch.NotFound());
 
         // when / then
         assertThatThrownBy(() -> sut.changeContributor(7L, new ChangeContributorRequest("stranger")))
@@ -142,7 +142,7 @@ class ArtifactContributorChangeTest {
         // given
         artifactIs("ACTIVE");
         when(communityAccess.canCreditContributions(1L, "olive")).thenReturn(true);
-        when(communityAccess.resolveMember(1L, "olive")).thenReturn(new MemberMatch.Matched("olive"));
+        when(communityAccess.resolvePerson(1L, "olive")).thenReturn(new MemberMatch.Matched("olive"));
 
         // when
         sut.changeContributor(7L, new ChangeContributorRequest("olive"));
@@ -158,7 +158,7 @@ class ArtifactContributorChangeTest {
         // given
         artifactIs("ARCHIVED");
         when(communityAccess.canCreditContributions(1L, "olive")).thenReturn(true);
-        when(communityAccess.resolveMember(1L, "alice-id")).thenReturn(new MemberMatch.Matched("alice-id"));
+        when(communityAccess.resolvePerson(1L, "alice-id")).thenReturn(new MemberMatch.Matched("alice-id"));
 
         // when
         sut.changeContributor(7L, new ChangeContributorRequest("alice-id"));

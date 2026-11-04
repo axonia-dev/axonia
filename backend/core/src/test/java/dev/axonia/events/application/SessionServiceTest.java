@@ -153,7 +153,7 @@ class SessionServiceTest {
         // exercising member resolution itself, so resolving it to that same id keeps them green. Tests that DO care
         // about resolution (a name that fails to resolve, one that resolves to someone else) stub the exact query
         // themselves, which - stubbed after this default - wins.
-        lenient().when(communityAccess.resolveMember(anyLong(), any()))
+        lenient().when(communityAccess.resolvePerson(anyLong(), any()))
                 .thenAnswer(inv -> new MemberMatch.Matched(inv.getArgument(1)));
     }
 
@@ -1126,7 +1126,7 @@ class SessionServiceTest {
      * The facilitator becomes a message recipient: AwaitingCloseProducer addresses the reminder to them. A free string
      * written straight onto the row makes "who gets told this session needs closing" a request-body field, and every
      * other person-shaped field on this context (presenter, assignee, contributor) is resolved through
-     * CommunityAccess.resolveMember instead.
+     * CommunityAccess.resolvePerson instead.
      */
     @Test
     void update_refusesAFacilitatorWhoIsNotAMemberOfThisCommunity() {
@@ -1136,7 +1136,7 @@ class SessionServiceTest {
         when(organizationContext.organizationId()).thenReturn("default");
         when(sessionStore.findByOrganizationIdAndId("default", 7L)).thenReturn(Optional.of(entity));
         when(currentUser.userId()).thenReturn("orga");
-        when(communityAccess.resolveMember(1L, "u-outsider")).thenReturn(new MemberMatch.NotFound());
+        when(communityAccess.resolvePerson(1L, "u-outsider")).thenReturn(new MemberMatch.NotFound());
 
         var moved = Instant.parse("2099-12-20T17:00:00Z");
         assertThatThrownBy(() -> sut.update(7L, new UpdateSessionRequest(stated(moved), 90, "u-outsider", null)))
@@ -1154,7 +1154,7 @@ class SessionServiceTest {
         when(organizationContext.organizationId()).thenReturn("default");
         when(sessionStore.findByOrganizationIdAndId("default", 7L)).thenReturn(Optional.of(entity));
         when(currentUser.userId()).thenReturn("orga");
-        when(communityAccess.resolveMember(1L, "u-2")).thenReturn(new MemberMatch.Matched("u-2"));
+        when(communityAccess.resolvePerson(1L, "u-2")).thenReturn(new MemberMatch.Matched("u-2"));
         when(sessionStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         var moved = Instant.parse("2099-12-20T17:00:00Z");
@@ -1164,8 +1164,8 @@ class SessionServiceTest {
     }
 
     /**
-     * An ambiguous reference is a different failure than an unresolvable one: told only "not a member", an organizer
-     * who typed a display name two members share has nothing to act on. The candidate count survives, the same way
+     * An ambiguous reference is a different failure than an unresolvable one: told only "not found", an organizer who
+     * typed a display name two members share has nothing to act on. The candidate count survives, the same way
      * TopicMemberResolver and PresenterResolver already report it.
      */
     @Test
@@ -1176,12 +1176,29 @@ class SessionServiceTest {
         when(organizationContext.organizationId()).thenReturn("default");
         when(sessionStore.findByOrganizationIdAndId("default", 7L)).thenReturn(Optional.of(entity));
         when(currentUser.userId()).thenReturn("orga");
-        when(communityAccess.resolveMember(1L, "Bob")).thenReturn(new MemberMatch.Ambiguous(3));
+        when(communityAccess.resolvePerson(1L, "Bob")).thenReturn(new MemberMatch.Ambiguous(3));
 
         var moved = Instant.parse("2099-12-20T17:00:00Z");
         assertThatThrownBy(() -> sut.update(7L, new UpdateSessionRequest(stated(moved), 90, "Bob", null)))
                 .isInstanceOf(dev.axonia.shared.api.error.ValidationException.class).extracting("code")
                 .isEqualTo("FACILITATOR_AMBIGUOUS");
+        verify(sessionStore, never()).save(any());
+    }
+
+    @Test
+    void update_refusesAFacilitatorNobodyInTheOrganizationMatches() {
+
+        givenTheSeriesMeetsIn("UTC");
+        var entity = SessionRecordMother.any().id(7L).communityId(1L).sections(List.of()).build();
+        when(organizationContext.organizationId()).thenReturn("default");
+        when(sessionStore.findByOrganizationIdAndId("default", 7L)).thenReturn(Optional.of(entity));
+        when(currentUser.userId()).thenReturn("orga");
+        when(communityAccess.resolvePerson(1L, "Nobody")).thenReturn(new MemberMatch.NotFound());
+
+        var moved = Instant.parse("2099-12-20T17:00:00Z");
+        assertThatThrownBy(() -> sut.update(7L, new UpdateSessionRequest(stated(moved), 90, "Nobody", null)))
+                .isInstanceOf(dev.axonia.shared.api.error.ValidationException.class).extracting("code")
+                .isEqualTo("FACILITATOR_NOT_FOUND");
         verify(sessionStore, never()).save(any());
     }
 
@@ -1215,7 +1232,7 @@ class SessionServiceTest {
         var actual = sut.update(7L, new UpdateSessionRequest(stated(moved), 90, submittedFacilitatorUserId, null));
 
         assertThat(actual.facilitatorUserId()).isEqualTo("u-departed");
-        verify(communityAccess, never()).resolveMember(anyLong(), any());
+        verify(communityAccess, never()).resolvePerson(anyLong(), any());
     }
 
     /** No facilitator is a legitimate state and clears the field. */
@@ -1236,7 +1253,7 @@ class SessionServiceTest {
         var actual = sut.update(7L, new UpdateSessionRequest(stated(moved), 90, null, null));
 
         assertThat(actual.facilitatorUserId()).isNull();
-        verify(communityAccess, never()).resolveMember(anyLong(), any());
+        verify(communityAccess, never()).resolvePerson(anyLong(), any());
     }
 
     /** A blank facilitator is treated the same as an absent one - cleared, not looked up. */
@@ -1257,7 +1274,7 @@ class SessionServiceTest {
         var actual = sut.update(7L, new UpdateSessionRequest(stated(moved), 90, "   ", null));
 
         assertThat(actual.facilitatorUserId()).isNull();
-        verify(communityAccess, never()).resolveMember(anyLong(), any());
+        verify(communityAccess, never()).resolvePerson(anyLong(), any());
     }
 
     /**

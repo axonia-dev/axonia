@@ -1145,7 +1145,7 @@ class SlotServiceTest {
         when(organizationContext.organizationId()).thenReturn("default");
         when(sessionStore.findByOrganizationIdAndId("default", 7L)).thenReturn(Optional.of(session));
         when(currentUser.userId()).thenReturn("orga");
-        when(communityAccess.resolveMember(1L, "Alice Dupont")).thenReturn(new MemberMatch.Matched("alice-id"));
+        when(communityAccess.resolvePerson(1L, "Alice Dupont")).thenReturn(new MemberMatch.Matched("alice-id"));
         when(sessionStore.save(any())).thenAnswer(inv -> withGeneratedSlotId(inv.getArgument(0), 55L));
 
         // when
@@ -1185,7 +1185,7 @@ class SlotServiceTest {
         when(organizationContext.organizationId()).thenReturn("default");
         when(sessionStore.findByOrganizationIdAndId("default", 7L)).thenReturn(Optional.of(session));
         when(currentUser.userId()).thenReturn("orga");
-        when(communityAccess.resolveMember(1L, "Alice Dupont")).thenReturn(new MemberMatch.Matched("alice-id"));
+        when(communityAccess.resolvePerson(1L, "Alice Dupont")).thenReturn(new MemberMatch.Matched("alice-id"));
         when(sessionStore.save(any())).thenAnswer(inv -> withGeneratedSlotId(inv.getArgument(0), 55L));
 
         // when - the same tolerance tags already have; List.copyOf here would have made this a 500
@@ -1207,9 +1207,9 @@ class SlotServiceTest {
         when(organizationContext.organizationId()).thenReturn("default");
         when(sessionStore.findByOrganizationIdAndId("default", 7L)).thenReturn(Optional.of(session));
         when(currentUser.userId()).thenReturn("orga");
-        when(communityAccess.resolveMember(1L, "Alice Dupont")).thenReturn(new MemberMatch.Matched("alice-id"));
-        when(communityAccess.resolveMember(1L, "J. Smith")).thenReturn(new MemberMatch.NotFound());
-        when(communityAccess.resolveMember(1L, "Bob")).thenReturn(new MemberMatch.Ambiguous(3));
+        when(communityAccess.resolvePerson(1L, "Alice Dupont")).thenReturn(new MemberMatch.Matched("alice-id"));
+        when(communityAccess.resolvePerson(1L, "J. Smith")).thenReturn(new MemberMatch.NotFound());
+        when(communityAccess.resolvePerson(1L, "Bob")).thenReturn(new MemberMatch.Ambiguous(3));
         when(sessionStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         // when
@@ -1231,8 +1231,8 @@ class SlotServiceTest {
         when(organizationContext.organizationId()).thenReturn("default");
         when(sessionStore.findByOrganizationIdAndId("default", 7L)).thenReturn(Optional.of(session));
         when(currentUser.userId()).thenReturn("orga");
-        when(communityAccess.resolveMember(1L, "Alice Dupont")).thenReturn(new MemberMatch.Matched("alice-id"));
-        when(communityAccess.resolveMember(1L, "alice@corp.com")).thenReturn(new MemberMatch.Matched("alice-id"));
+        when(communityAccess.resolvePerson(1L, "Alice Dupont")).thenReturn(new MemberMatch.Matched("alice-id"));
+        when(communityAccess.resolvePerson(1L, "alice@corp.com")).thenReturn(new MemberMatch.Matched("alice-id"));
         when(sessionStore.save(any())).thenAnswer(inv -> withGeneratedSlotId(inv.getArgument(0), 55L));
 
         // when
@@ -1313,7 +1313,7 @@ class SlotServiceTest {
         when(organizationContext.organizationId()).thenReturn("default");
         when(sessionStore.findByOrganizationIdAndId("default", 7L)).thenReturn(Optional.of(entity));
         when(currentUser.userId()).thenReturn("orga");
-        when(communityAccess.resolveMember(1L, "Alice Dupont")).thenReturn(new MemberMatch.Matched("alice-id"));
+        when(communityAccess.resolvePerson(1L, "Alice Dupont")).thenReturn(new MemberMatch.Matched("alice-id"));
         when(sessionStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         // when
@@ -1334,7 +1334,7 @@ class SlotServiceTest {
         when(organizationContext.organizationId()).thenReturn("default");
         when(sessionStore.findByOrganizationIdAndId("default", 7L)).thenAnswer(inv -> Optional.of(state[0]));
         when(currentUser.userId()).thenReturn("orga");
-        when(communityAccess.resolveMember(1L, "Alice Dupont")).thenReturn(new MemberMatch.Matched("alice-id"));
+        when(communityAccess.resolvePerson(1L, "Alice Dupont")).thenReturn(new MemberMatch.Matched("alice-id"));
         when(sessionStore.save(any())).thenAnswer(inv -> {
             state[0] = inv.getArgument(0);
             return state[0];
@@ -1358,7 +1358,7 @@ class SlotServiceTest {
         when(organizationContext.organizationId()).thenReturn("default");
         when(sessionStore.findByOrganizationIdAndId("default", 7L)).thenReturn(Optional.of(entity));
         when(currentUser.userId()).thenReturn("orga");
-        when(communityAccess.resolveMember(1L, "J. Smith")).thenReturn(new MemberMatch.NotFound());
+        when(communityAccess.resolvePerson(1L, "J. Smith")).thenReturn(new MemberMatch.NotFound());
 
         // when
         var result = sut.addPresenter(7L, 21L, 11L, "J. Smith");
@@ -1379,7 +1379,7 @@ class SlotServiceTest {
         when(organizationContext.organizationId()).thenReturn("default");
         when(sessionStore.findByOrganizationIdAndId("default", 7L)).thenReturn(Optional.of(entity));
         when(currentUser.userId()).thenReturn("orga");
-        when(communityAccess.resolveMember(1L, "Bob")).thenReturn(new MemberMatch.Ambiguous(3));
+        when(communityAccess.resolvePerson(1L, "Bob")).thenReturn(new MemberMatch.Ambiguous(3));
 
         // when
         var result = sut.addPresenter(7L, 21L, 11L, "Bob");

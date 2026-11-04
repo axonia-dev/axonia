@@ -51,7 +51,7 @@ import static org.mockito.Mockito.when;
 class ArtifactAttributionTest {
 
     private static final String REFUSED = "Only an organizer, or a member the community lets credit contributions, "
-            + "may credit a contribution to another member. Omit contributor to record this contribution as your own.";
+            + "may credit a contribution to somebody else. Omit contributor to record this contribution as your own.";
 
     @Mock
     private ArtifactStore artifactStore;
@@ -118,7 +118,7 @@ class ArtifactAttributionTest {
 
         // then
         assertThat(publishedEvent().contributorUserId()).isEqualTo("alice");
-        verify(communityAccess, never()).resolveMember(anyLong(), anyString());
+        verify(communityAccess, never()).resolvePerson(anyLong(), anyString());
         verify(communityAccess, never()).canCreditContributions(anyLong(), anyString());
     }
 
@@ -127,7 +127,7 @@ class ArtifactAttributionTest {
 
         // given
         when(communityAccess.canCreditContributions(1L, "alice")).thenReturn(true);
-        when(communityAccess.resolveMember(1L, "Bob Martin")).thenReturn(new MemberMatch.Matched("bob-id"));
+        when(communityAccess.resolvePerson(1L, "Bob Martin")).thenReturn(new MemberMatch.Matched("bob-id"));
 
         // when
         sut.capture("backend-guild", request("Bob Martin"));
@@ -143,7 +143,7 @@ class ArtifactAttributionTest {
 
         // given
         when(communityAccess.canCreditContributions(1L, "alice")).thenReturn(true);
-        when(communityAccess.resolveMember(1L, "Bob Martin")).thenReturn(new MemberMatch.Matched("bob-id"));
+        when(communityAccess.resolvePerson(1L, "Bob Martin")).thenReturn(new MemberMatch.Matched("bob-id"));
 
         // when
         sut.capture("backend-guild", request("Bob Martin"));
@@ -160,7 +160,7 @@ class ArtifactAttributionTest {
 
         // given
         when(communityAccess.canCreditContributions(1L, "alice")).thenReturn(true);
-        when(communityAccess.resolveMember(1L, "J. Smith")).thenReturn(new MemberMatch.NotFound());
+        when(communityAccess.resolvePerson(1L, "J. Smith")).thenReturn(new MemberMatch.NotFound());
 
         // when / then
         assertThatThrownBy(() -> sut.capture("backend-guild", request("J. Smith")))
@@ -175,7 +175,7 @@ class ArtifactAttributionTest {
 
         // given
         when(communityAccess.canCreditContributions(1L, "alice")).thenReturn(true);
-        when(communityAccess.resolveMember(1L, "Bob")).thenReturn(new MemberMatch.Ambiguous(3));
+        when(communityAccess.resolvePerson(1L, "Bob")).thenReturn(new MemberMatch.Ambiguous(3));
 
         // when / then
         assertThatThrownBy(() -> sut.capture("backend-guild", request("Bob"))).isInstanceOf(ConflictException.class)
@@ -200,12 +200,12 @@ class ArtifactAttributionTest {
 
         // given
         when(communityAccess.canCreditContributions(1L, "alice")).thenReturn(false);
-        lenient().when(communityAccess.resolveMember(anyLong(), anyString())).thenReturn(outcome);
+        lenient().when(communityAccess.resolvePerson(anyLong(), anyString())).thenReturn(outcome);
 
         // when / then
         assertThatThrownBy(() -> sut.capture("backend-guild", request("bob")))
                 .isExactlyInstanceOf(ActionableForbiddenException.class).hasMessage(REFUSED);
-        verify(communityAccess, never()).resolveMember(anyLong(), anyString());
+        verify(communityAccess, never()).resolvePerson(anyLong(), anyString());
         verify(artifactStore, never()).save(any());
         verify(eventPublisher, never()).publishEvent(any());
     }
@@ -221,7 +221,7 @@ class ArtifactAttributionTest {
         // when / then the refusal comes before the type check, so an invalid type is no side-effect-free probe
         assertThatThrownBy(() -> sut.capture("backend-guild", request))
                 .isExactlyInstanceOf(ActionableForbiddenException.class).hasMessage(REFUSED);
-        verify(communityAccess, never()).resolveMember(anyLong(), anyString());
+        verify(communityAccess, never()).resolvePerson(anyLong(), anyString());
     }
 
     @Test
@@ -234,7 +234,7 @@ class ArtifactAttributionTest {
         // when / then
         assertThatThrownBy(() -> sut.capture("backend-guild", request("Alice")))
                 .isExactlyInstanceOf(ActionableForbiddenException.class).hasMessage(REFUSED);
-        verify(communityAccess, never()).resolveMember(anyLong(), anyString());
+        verify(communityAccess, never()).resolvePerson(anyLong(), anyString());
     }
 
     @Test
@@ -259,7 +259,7 @@ class ArtifactAttributionTest {
         // then naming yourself is not "crediting somebody else", so neither the axis nor the roster is asked
         assertThat(publishedEvent().contributorUserId()).isEqualTo("alice");
         verify(communityAccess, never()).canCreditContributions(anyLong(), anyString());
-        verify(communityAccess, never()).resolveMember(anyLong(), anyString());
+        verify(communityAccess, never()).resolvePerson(anyLong(), anyString());
     }
 
     @Test
@@ -274,7 +274,7 @@ class ArtifactAttributionTest {
 
         // then
         assertThat(publishedEvent().contributorUserId()).isEqualTo("alice");
-        verify(communityAccess, never()).resolveMember(anyLong(), anyString());
+        verify(communityAccess, never()).resolvePerson(anyLong(), anyString());
     }
 
     @Test
@@ -283,7 +283,7 @@ class ArtifactAttributionTest {
         // given an organizer backfilling a recording that was auto-attached from a session segment
         when(communityAccess.canCreditContributions(1L, "alice")).thenReturn(true);
         when(communityAccess.isOrganizer(1L, "alice")).thenReturn(true);
-        when(communityAccess.resolveMember(1L, "Bob Martin")).thenReturn(new MemberMatch.Matched("bob-id"));
+        when(communityAccess.resolvePerson(1L, "Bob Martin")).thenReturn(new MemberMatch.Matched("bob-id"));
         when(sessionAccess.session(5L)).thenReturn(new SessionRef(5L, 1L, false));
         when(sessionAccess.sessionIdOfSlot(7L)).thenReturn(Optional.of(5L));
         var provenance = new ProvenanceRequest(5L, 7L, "auto-attached");
@@ -313,7 +313,7 @@ class ArtifactAttributionTest {
 
         // then
         assertThat(publishedEvent().contributorUserId()).isEqualTo("alice");
-        verify(communityAccess, never()).resolveMember(anyLong(), anyString());
+        verify(communityAccess, never()).resolvePerson(anyLong(), anyString());
         verify(communityAccess, never()).canCreditContributions(anyLong(), anyString());
     }
 
@@ -322,7 +322,7 @@ class ArtifactAttributionTest {
 
         // given a plain member, in a community that opened Credit contributions to members
         when(communityAccess.canCreditContributions(1L, "alice")).thenReturn(true);
-        when(communityAccess.resolveMember(1L, "Bob Martin")).thenReturn(new MemberMatch.Matched("bob-id"));
+        when(communityAccess.resolvePerson(1L, "Bob Martin")).thenReturn(new MemberMatch.Matched("bob-id"));
 
         // when
         sut.capture("backend-guild", request("Bob Martin"));

@@ -135,7 +135,7 @@ class SlotTagsTest {
 
         // given - an organizer backfills a 2023 talk Alice gave, tagged by hand
         organizerOnAnEmptySession();
-        when(communityAccess.resolveMember(1L, "Alice Dupont")).thenReturn(new MemberMatch.Matched("alice-id"));
+        when(communityAccess.resolvePerson(1L, "Alice Dupont")).thenReturn(new MemberMatch.Matched("alice-id"));
 
         // when
         sut.recordSlot(7L, 21L,
@@ -167,7 +167,7 @@ class SlotTagsTest {
 
         // given
         organizerOnAnEmptySession();
-        when(communityAccess.resolveMember(1L, "Alice Dupont")).thenReturn(new MemberMatch.Matched("alice-id"));
+        when(communityAccess.resolvePerson(1L, "Alice Dupont")).thenReturn(new MemberMatch.Matched("alice-id"));
 
         // when - a presenter, but no subject at all
         sut.recordSlot(7L, 21L, new RecordSlotRequest("Kafka 101", 15, null, List.of("Alice Dupont"), null));
@@ -384,7 +384,7 @@ class SlotTagsTest {
         when(organizationContext.organizationId()).thenReturn("default");
         when(sessionStore.findByOrganizationIdAndId("default", 7L)).thenReturn(Optional.of(entity));
         when(currentUser.userId()).thenReturn("orga");
-        when(communityAccess.resolveMember(1L, "Alice Dupont")).thenReturn(new MemberMatch.Matched("alice-id"));
+        when(communityAccess.resolvePerson(1L, "Alice Dupont")).thenReturn(new MemberMatch.Matched("alice-id"));
         when(sessionStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         // when - an organizer assigns alice by name, as when a presenter is discovered after the fact
@@ -422,7 +422,7 @@ class SlotTagsTest {
 
         // given
         organizerOnAnEmptySession();
-        when(communityAccess.resolveMember(1L, "Alice Dupont")).thenReturn(new MemberMatch.Matched("alice-id"));
+        when(communityAccess.resolvePerson(1L, "Alice Dupont")).thenReturn(new MemberMatch.Matched("alice-id"));
         var messy = new ArrayList<>(Arrays.asList("  kafka  ", "KAFKA", "", "   ", null, "x".repeat(51)));
         for (var i = 1; i <= 12; i++) {
             messy.add("tag" + i);

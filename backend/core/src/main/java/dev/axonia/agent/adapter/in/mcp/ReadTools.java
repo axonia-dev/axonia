@@ -214,6 +214,10 @@ class ReadTools {
         });
     }
 
+    /** No email either: the search behind it matches names only, so it cannot be used to probe an address. */
+    record CreditablePersonView(String userId, String displayName, boolean member) {
+    }
+
     /**
      * Built here rather than accepted from the caller: {@code MemberDirectory.list} takes an unvalidated
      * {@link org.springframework.data.domain.Pageable}, so a client-supplied sort would reach the query untouched and a
@@ -224,6 +228,24 @@ class ReadTools {
         var index = page == null || page < 0 ? 0 : page;
         var pageSize = size == null ? DEFAULT_MEMBER_PAGE_SIZE : Math.clamp(size, 1, MAX_MEMBER_PAGE_SIZE);
         return PageRequest.of(index, pageSize, Sort.by(Sort.Direction.ASC, "user_id"));
+    }
+
+    @McpTool(name = "community.people", description = "Find somebody to credit from a community - a presenter, "
+            + "facilitator, contributor, proposer or assignee - by name, across the whole organization: members of the "
+            + "community first, then anybody else, saying which is which. Crediting somebody makes them no member. "
+            + "Returns user ids and display names, never emails, at most " + MemberDirectory.CANDIDATE_LIMIT
+            + ". Pass a user id straight back as a reference and it resolves exactly. You must be a member of the "
+            + "community to search from it.", annotations = @McpAnnotations(readOnlyHint = true, destructiveHint = false))
+    public List<CreditablePersonView> people(@McpToolParam(description = "Community slug", required = true) String slug,
+            @McpToolParam(description = "Part of the person's name", required = true) String query) {
+        return support.run("community.people", AgentScope.MEMBERS_READ, () -> {
+            var communityId = communities.getBySlug(slug).id();
+            if (!memberships.isMember(communityId, CurrentToken.subject())) {
+                throw new ForbiddenException("Community membership required");
+            }
+            return memberDirectory.searchPeople(communityId, query).stream()
+                    .map(p -> new CreditablePersonView(p.userId(), p.displayName(), p.member())).toList();
+        });
     }
 
     @McpTool(name = "events.sectionTypes", description = "List the section types a session's sections can be built "

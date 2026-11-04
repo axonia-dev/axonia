@@ -83,8 +83,8 @@ public class SlotService implements Slots {
     /**
      * Records a slot presented by named people, e.g. when backfilling history from another tool, or an organizer
      * editing a past session. Unlike {@link #addSlot}, the caller is never assigned as a presenter: each free-text
-     * reference in {@code request.presenters()} is resolved against the community's members, and only the ones that
-     * resolve to exactly one member are assigned. The rest are reported, not guessed.
+     * reference in {@code request.presenters()} is resolved against the people of the organization, members first, and
+     * only the ones that resolve to exactly one person are assigned. The rest are reported, not guessed.
      */
     @Override
     @Transactional
@@ -269,7 +269,7 @@ public class SlotService implements Slots {
     /**
      * Assigns a free-text presenter reference to an existing slot, e.g. when a presenter is discovered after the slot
      * was created, or an organizer corrects a past session by hand. Mirrors {@link #removePresenter}'s authorization
-     * floor. A reference that does not resolve to exactly one member leaves the slot untouched and reports why, rather
+     * floor. A reference that does not resolve to exactly one person leaves the slot untouched and reports why, rather
      * than guessing.
      */
     @Override
@@ -286,7 +286,7 @@ public class SlotService implements Slots {
         var communityId = session.getCommunityId();
         var target = new PresenterAssignmentTarget(organizationId, communityId, session, section, slot, sectionId,
                 slotId);
-        return switch (communityAccess.resolveMember(communityId, presenter)) {
+        return switch (communityAccess.resolvePerson(communityId, presenter)) {
             case MemberMatch.Matched m -> assignPresenter(target, m.userId());
             // The count the directory already computed is reported, not thrown away: a caller told only "ambiguous"
             // cannot tell two members who genuinely share a name from a reference that was simply too vague.

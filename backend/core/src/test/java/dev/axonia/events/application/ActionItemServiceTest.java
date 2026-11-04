@@ -122,7 +122,7 @@ class ActionItemServiceTest {
         lenient().when(communityAccess.communityIdForSlug(SLUG)).thenReturn(1L);
         lenient().when(communityAccess.isMember(anyLong(), any())).thenReturn(true);
         lenient().when(communityAccess.topicManagementPolicy(anyLong())).thenReturn(TopicManagementPolicy.ANY_MEMBER);
-        lenient().when(communityAccess.resolveMember(1L, BOB)).thenReturn(new MemberMatch.Matched(BOB));
+        lenient().when(communityAccess.resolvePerson(1L, BOB)).thenReturn(new MemberMatch.Matched(BOB));
         lenient().when(userProfileAccess.displayName(any(), any())).thenReturn("Test User");
     }
 
@@ -309,7 +309,7 @@ class ActionItemServiceTest {
     @Test
     void anAssigneeWhoIsNotAMemberRefusesTheWrite() {
 
-        when(communityAccess.resolveMember(1L, "nobody@example.com")).thenReturn(new MemberMatch.NotFound());
+        when(communityAccess.resolvePerson(1L, "nobody@example.com")).thenReturn(new MemberMatch.NotFound());
 
         assertThatThrownBy(() -> sut.raise(SLUG,
                 RaiseActionItemRequest.builder().title("Anything").assignee("nobody@example.com").build()))
@@ -319,11 +319,11 @@ class ActionItemServiceTest {
     @Test
     void anAssigneeMatchingSeveralMembersRefusesTheWriteAndReportsTheCount() {
 
-        when(communityAccess.resolveMember(1L, "bob")).thenReturn(new MemberMatch.Ambiguous(3));
+        when(communityAccess.resolvePerson(1L, "bob")).thenReturn(new MemberMatch.Ambiguous(3));
 
         assertThatThrownBy(
                 () -> sut.raise(SLUG, RaiseActionItemRequest.builder().title("Anything").assignee("bob").build()))
-                .isInstanceOf(ConflictException.class).hasMessageContaining("3 members").extracting("code")
+                .isInstanceOf(ConflictException.class).hasMessageContaining("3 people").extracting("code")
                 .isEqualTo("ASSIGNEE_AMBIGUOUS");
         verify(actionItemStore, never()).save(any());
     }

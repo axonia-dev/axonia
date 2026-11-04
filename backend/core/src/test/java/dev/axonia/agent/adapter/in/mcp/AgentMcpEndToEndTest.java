@@ -55,14 +55,14 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>
  * Assertions (each maps to a spec guarantee):
  * <ol>
- * <li>A scoped token lists exactly the 27 tools (surface allowlist + auth passes).</li>
+ * <li>A scoped token lists exactly the 28 tools (surface allowlist + auth passes).</li>
  * <li>A scoped {@code topic.propose} call succeeds, a topic is created, and an {@code OK} audit row is written.</li>
  * <li>An unscoped {@code library.contribute} call is refused (scope layer), a {@code SCOPE_DENIED} audit row is
  * written, and the org's artifact count is unchanged.</li>
  * <li>A bogus bearer on {@code /mcp} is rejected with 401 (chain gate).</li>
  * <li>The same {@code axp_} token presented to the REST chain ({@code /axonia/**}) is rejected with 401 (surface
  * isolation).</li>
- * <li>{@code tools/list} contains exactly the 27 known tool names, and exactly four of them declare
+ * <li>{@code tools/list} contains exactly the 28 known tool names, and exactly four of them declare
  * {@code destructiveHint}: {@code session.detachArtifact}, {@code learning.remove}, {@code session.delete} and
  * {@code tag.delete}.</li>
  * <li>The scoped {@code topic.propose} guarantee holds identically in a second, independently seeded ENTERPRISE
@@ -111,8 +111,8 @@ class AgentMcpEndToEndTest {
             "library.artifactTypes", "library.contribute", "topic.propose", "session.signup", "attendance.signal",
             "community.join", "library.search", "session.artifacts", "session.attachArtifact", "session.detachArtifact",
             "events.sectionTypes", "session.create", "session.addSection", "session.addSlot", "slot.addPresenter",
-            "community.members", "actionItem.raise", "learning.demand", "learning.learners", "learning.add",
-            "learning.remove", "session.delete", "tag.usage", "tag.delete");
+            "community.members", "community.people", "actionItem.raise", "learning.demand", "learning.learners",
+            "learning.add", "learning.remove", "session.delete", "tag.usage", "tag.delete");
 
     /** The destructive tools on the agent surface. Assertion 6 pins this list to prevent silent growth. */
     private static final Set<String> DESTRUCTIVE_TOOLS = Set.of("session.detachArtifact", "learning.remove",
@@ -255,11 +255,11 @@ class AgentMcpEndToEndTest {
     }
 
     // -------------------------------------------------------------------------
-    // Assertion 1: a scoped token lists exactly the 27 tools.
+    // Assertion 1: a scoped token lists exactly the 28 tools.
     // -------------------------------------------------------------------------
 
     @Test
-    void scopedToken_listsExactlyTheTwentySevenTools() {
+    void scopedToken_listsExactlyTheTwentyEightTools() {
         var bearer = mint(ENTERPRISE_ORG, ENTERPRISE_USER, Set.of("read", "topic:propose"));
         var client = connect(bearer);
         try {
@@ -384,11 +384,11 @@ class AgentMcpEndToEndTest {
     }
 
     // -------------------------------------------------------------------------
-    // Assertion 6: tools/list is EXACTLY the 27 known names, and exactly four declare destructiveHint.
+    // Assertion 6: tools/list is EXACTLY the 28 known names, and exactly four declare destructiveHint.
     // -------------------------------------------------------------------------
 
     @Test
-    void toolCatalog_isExactlyTheTwentySevenKnownTools_andOnlyTheFourRemovalsAreDestructive() {
+    void toolCatalog_isExactlyTheTwentyEightKnownTools_andOnlyTheFourRemovalsAreDestructive() {
         var bearer = mint(ENTERPRISE_ORG, ENTERPRISE_USER, Set.of("read"));
         var client = connect(bearer);
         try {
@@ -972,7 +972,7 @@ class AgentMcpEndToEndTest {
                     .isEqualTo(Boolean.TRUE);
             assertThat(textOf(contributed)).as("the refusal must name the field to drop, and the act it enables")
                     .contains("Only an organizer, or a member the community lets credit contributions, may credit a "
-                            + "contribution to another member.")
+                            + "contribution to somebody else.")
                     .contains("Omit contributor to record this contribution as your own.")
                     .doesNotContain("not a member");
             assertThat(artifactCount(ENTERPRISE_ORG)).as("a refused contribution must store nothing").isEqualTo(before);
@@ -988,7 +988,7 @@ class AgentMcpEndToEndTest {
             assertThat(proposed.isError()).as("proposing in another member's name as a plain member must be refused")
                     .isEqualTo(Boolean.TRUE);
             assertThat(textOf(proposed)).as("the same rule, worded for the field the caller actually supplied")
-                    .contains("Only an organizer may credit a proposal to another member.")
+                    .contains("Only an organizer may credit a proposal to somebody else.")
                     .contains("Omit proposer to record this proposal as your own.").doesNotContain("not a member");
         } finally {
             close(client);
@@ -1015,7 +1015,7 @@ class AgentMcpEndToEndTest {
                     Map.of("params", contributeArgs(typeId, "Nobody At All"))));
             assertThat(notFound.isError()).as("a name matching nobody must refuse the write").isEqualTo(Boolean.TRUE);
             assertThat(textOf(notFound)).as("the agent must learn which name failed, or it cannot fix it")
-                    .contains("No member of this community matches: Nobody At All")
+                    .contains("No one in this organization matches: Nobody At All")
                     .doesNotContain("could not be completed");
 
             // "Agent" token-matches both ENTERPRISE_USER and ORGANIZER_USER (their seeded display names both start
@@ -1025,7 +1025,7 @@ class AgentMcpEndToEndTest {
             assertThat(ambiguous.isError()).as("a name matching several members must refuse the write")
                     .isEqualTo(Boolean.TRUE);
             assertThat(textOf(ambiguous)).as("how many it matched is what tells the agent to send a fuller name")
-                    .contains("members of this community match: Agent").doesNotContain("could not be completed");
+                    .contains("people in this organization match: Agent").doesNotContain("could not be completed");
 
             assertThat(artifactCount(ENTERPRISE_ORG)).as("neither refusal may credit the caller by default")
                     .isEqualTo(before);
@@ -1035,13 +1035,13 @@ class AgentMcpEndToEndTest {
             var proposerNotFound = client.callTool(
                     new McpSchema.CallToolRequest("topic.propose", Map.of("params", proposeArgs("Nobody At All"))));
             assertThat(proposerNotFound.isError()).isEqualTo(Boolean.TRUE);
-            assertThat(textOf(proposerNotFound)).contains("No member of this community matches: Nobody At All")
+            assertThat(textOf(proposerNotFound)).contains("No one in this organization matches: Nobody At All")
                     .doesNotContain("could not be completed");
 
             var proposerAmbiguous = client
                     .callTool(new McpSchema.CallToolRequest("topic.propose", Map.of("params", proposeArgs("Agent"))));
             assertThat(proposerAmbiguous.isError()).isEqualTo(Boolean.TRUE);
-            assertThat(textOf(proposerAmbiguous)).contains("members of this community match: Agent")
+            assertThat(textOf(proposerAmbiguous)).contains("people in this organization match: Agent")
                     .doesNotContain("could not be completed");
         } finally {
             close(client);

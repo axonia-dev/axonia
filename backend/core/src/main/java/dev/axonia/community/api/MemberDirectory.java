@@ -1,5 +1,7 @@
 package dev.axonia.community.api;
 
+import java.util.List;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -20,6 +22,12 @@ public interface MemberDirectory {
      * present who holds a subject can be credited, members of the community first; crediting makes nobody a member.
      */
     MemberMatch resolvePerson(long communityId, String query);
+
+    /**
+     * The people whose display name matches typed text, members of the community first, then anybody else in the
+     * organization who can be credited: at most {@link #CANDIDATE_LIMIT}, never matched by email.
+     */
+    List<CreditablePerson> searchPeople(long communityId, String query);
 
     /** Whether a reference names this user exactly: their display name or email, normalized. */
     boolean identifiesExactly(String userId, String reference);

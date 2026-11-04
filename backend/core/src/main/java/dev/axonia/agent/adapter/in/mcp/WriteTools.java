@@ -68,9 +68,10 @@ class WriteTools {
      * The tail shared by both write tools' actor-reference rule, spelled the same way so the two descriptions cannot
      * drift on it: an agent that learns this part from one tool must find it true of the other.
      */
-    private static final String REFERENCE_RULE = "A reference that matches nobody, or more than one member, REFUSES "
-            + "the write rather than crediting you by default, so retrying it unchanged will fail again: call "
-            + "community.members to find the exact user id and pass that.";
+    private static final String REFERENCE_RULE = "A reference resolves against everyone in the organization, members "
+            + "of the community first. One that matches nobody, or more than one person, REFUSES the write rather "
+            + "than crediting you by default, so retrying it unchanged will fail again: call community.people to find "
+            + "the exact user id and pass that.";
 
     private static final String OMIT_TO_CREDIT_YOURSELF = "Omit it and the work is credited to you, which is the "
             + "live path. Supply it ONLY to credit somebody else: ";
@@ -89,7 +90,7 @@ class WriteTools {
             @McpToolParam(description = "http(s) URL", required = true) String url,
             @McpToolParam(description = "Optional description", required = false) String description,
             @McpToolParam(description = "Optional tags", required = false) Set<String> tags,
-            @McpToolParam(description = "Optional display name, email or user id of the member whose work this is. "
+            @McpToolParam(description = "Optional display name, email or user id of the person whose work this is. "
                     + CONTRIBUTOR_RULE, required = false) String contributor) {
     }
 
@@ -99,7 +100,7 @@ class WriteTools {
             @McpToolParam(description = "Title", required = true) String title,
             @McpToolParam(description = "Optional description", required = false) String description,
             @McpToolParam(description = "Optional tags", required = false) List<String> tags,
-            @McpToolParam(description = "Optional display name, email or user id of the member whose proposal this is. "
+            @McpToolParam(description = "Optional display name, email or user id of the person whose proposal this is. "
                     + PROPOSER_RULE, required = false) String proposer) {
     }
 
@@ -108,7 +109,7 @@ class WriteTools {
             @McpToolParam(description = "Title", required = true) String title,
             @McpToolParam(description = "Optional description", required = false) String description,
             @McpToolParam(description = "Optional tags", required = false) List<String> tags,
-            @McpToolParam(description = "Optional display name, email or user id of the member the work is dispatched "
+            @McpToolParam(description = "Optional display name, email or user id of the person the work is dispatched "
                     + "to. Omit it to leave the item unassigned. " + REFERENCE_RULE, required = false) String assignee,
             @McpToolParam(description = "Optional due date, ISO yyyy-MM-dd", required = false) String dueDate,
             @McpToolParam(description = "Optional id of the held session this was raised at", required = false) Long originSessionId) {
@@ -153,8 +154,9 @@ class WriteTools {
             @McpToolParam(description = "Length in minutes", required = true) Integer durationMinutes,
             @McpToolParam(description = "Optional abstract or notes", required = false) String notes,
             @McpToolParam(description = "Who presented, as display names, emails or user ids. Each is resolved against "
-                    + "the community's members; names that cannot be placed are reported back and the slot is left "
-                    + "open for them. Use community.members to place one.", required = false) List<String> presenters,
+                    + "everyone in the organization, members of the community first, and crediting makes nobody a "
+                    + "member; names that cannot be placed are reported back and the slot is left open for them. Use "
+                    + "community.people to place one.", required = false) List<String> presenters,
             @McpToolParam(description = "Tags saying what the talk was about, up to 10. They are what makes the talk "
                     + "count toward its presenters' expertise, and a slot recorded here has no other source of "
                     + "subject, so supply them.", required = false) List<String> tags) {
@@ -174,12 +176,12 @@ class WriteTools {
     }
 
     /**
-     * {@code candidates} is how many members an AMBIGUOUS reference matched, and 0 for every other outcome. Told only
-     * "ambiguous", an agent cannot tell two members who genuinely share a name from a reference that was too vague, and
+     * {@code candidates} is how many people an AMBIGUOUS reference matched, and 0 for every other outcome. Told only
+     * "ambiguous", an agent cannot tell two people who genuinely share a name from a reference that was too vague, and
      * so cannot tell whether to ask a human or simply try a fuller name.
      *
      * <p>
-     * It is a lower bound, not a fact: the member search stops at {@link MemberDirectory#CANDIDATE_LIMIT}, so a count
+     * It is a lower bound, not a fact: the person search stops at {@link MemberDirectory#CANDIDATE_LIMIT}, so a count
      * equal to that limit means "at least that many". Nothing on this surface may claim otherwise, and nothing on it
      * may name the limit as a literal either: the tool description below concatenates the constant itself, so a limit
      * that moves cannot leave the surface describing the old one.
@@ -191,7 +193,7 @@ class WriteTools {
             + "library.artifactTypes first. Leave contributor out to contribute as yourself; set it only when the "
             + "work is somebody else's, which only an organizer or a member the community lets credit contributions "
             + "may do, and refuses the write if the name cannot be "
-            + "placed on exactly one member.", annotations = @McpAnnotations(readOnlyHint = false, destructiveHint = false, idempotentHint = false))
+            + "placed on exactly one person.", annotations = @McpAnnotations(readOnlyHint = false, destructiveHint = false, idempotentHint = false))
     public ContributeResult contribute(
             @McpToolParam(description = "Artifact contribution details", required = true) ContributeParams params) {
         return support.run("library.contribute", AgentScope.LIBRARY_CONTRIBUTE, () -> {
@@ -204,7 +206,7 @@ class WriteTools {
     @McpTool(name = "topic.propose", description = "Propose a topic to a community. Kind is REQUEST (I want this) or "
             + "OFFER (I can present this). Leave proposer out to propose as yourself; set it only when the proposal is "
             + "somebody else's, which is an organizer-only act and refuses the write if the name cannot be placed on "
-            + "exactly one member.", annotations = @McpAnnotations(readOnlyHint = false, destructiveHint = false, idempotentHint = false))
+            + "exactly one person.", annotations = @McpAnnotations(readOnlyHint = false, destructiveHint = false, idempotentHint = false))
     public ProposeResult proposeTopic(
             @McpToolParam(description = "Topic proposal details", required = true) ProposeTopicParams params) {
         return support.run("topic.propose", AgentScope.TOPIC_PROPOSE, () -> {
@@ -222,8 +224,8 @@ class WriteTools {
      */
     @McpTool(name = "actionItem.raise", description = "Raise an action item in a community: a piece of operational "
             + "work tracked to done, not a talk to give. It is answered at whichever session comes next. Leave "
-            + "assignee out to leave the work unassigned; set it to dispatch the work to a "
-            + "member.", annotations = @McpAnnotations(readOnlyHint = false, destructiveHint = false, idempotentHint = false))
+            + "assignee out to leave the work unassigned; set it to dispatch the work to "
+            + "anybody in the organization.", annotations = @McpAnnotations(readOnlyHint = false, destructiveHint = false, idempotentHint = false))
     public RaiseActionItemResult raiseActionItem(
             @McpToolParam(description = "Action item details", required = true) RaiseActionItemParams params) {
         return support.run("actionItem.raise", AgentScope.ACTION_ITEM_RAISE, () -> {
@@ -376,10 +378,11 @@ class WriteTools {
     }
 
     @McpTool(name = "slot.addPresenter", description = "Record that somebody presented an existing slot, naming them "
-            + "by display name, email or user id. A name that matches no member, or more than one, assigns nobody and "
-            + "comes back with a reason: NOT_FOUND, or AMBIGUOUS with how many members it matched (a lower bound: the "
-            + "search stops counting at " + MemberDirectory.CANDIDATE_LIMIT + "). Use community.members to place the "
-            + "name exactly. Assigning the same person twice changes nothing.", annotations = @McpAnnotations(readOnlyHint = false, destructiveHint = false, idempotentHint = true))
+            + "by display name, email or user id, from anybody in the organization, members of the community first. A "
+            + "name that matches nobody, or more than one person, assigns nobody and comes back with a reason: "
+            + "NOT_FOUND, or AMBIGUOUS with how many people it matched (a lower bound: the search stops counting at "
+            + MemberDirectory.CANDIDATE_LIMIT
+            + "). Use community.people to place the name exactly. Assigning the same person twice changes nothing.", annotations = @McpAnnotations(readOnlyHint = false, destructiveHint = false, idempotentHint = true))
     public PresenterAssignmentView addPresenter(
             @McpToolParam(description = "Session id", required = true) Long sessionId,
             @McpToolParam(description = "Section id", required = true) Long sectionId,

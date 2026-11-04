@@ -12,9 +12,9 @@ import dev.axonia.events.domain.ResolvedPresenters;
 import lombok.RequiredArgsConstructor;
 
 /**
- * Resolves the free-text presenter references a backfilled slot carries against a community's members, keeping the user
- * ids to assign and the caller's original query strings to report. Never guesses: a reference that does not resolve to
- * exactly one member of the community is reported, not assigned.
+ * Resolves the free-text presenter references a backfilled slot carries against the people of the organization, members
+ * first, keeping the user ids to assign and the caller's original query strings to report. Never guesses: a reference
+ * that does not resolve to exactly one person is reported, not assigned. Crediting somebody makes them no member.
  *
  * <p>
  * The resolution itself belongs to {@code community}, which owns the roster, and is reached through this module's
@@ -42,7 +42,7 @@ public class PresenterResolver {
                 // back as unmatched either, so it is dropped exactly as a null tag is - not turned into a 500.
                 continue;
             }
-            switch (communityAccess.resolveMember(communityId, query)) {
+            switch (communityAccess.resolvePerson(communityId, query)) {
                 case MemberMatch.Matched m -> {
                     userIds.add(m.userId());
                     assigned.add(query);

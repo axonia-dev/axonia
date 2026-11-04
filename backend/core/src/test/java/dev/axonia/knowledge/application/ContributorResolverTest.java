@@ -43,7 +43,7 @@ class ContributorResolverTest {
         assertThatThrownBy(() -> sut.resolveCorrection(1L, "alice", "Bob Martin"))
                 .isExactlyInstanceOf(ForbiddenException.class)
                 .hasMessage("Only an organizer, or a member the community lets credit contributions, may credit a "
-                        + "contribution to another member.");
+                        + "contribution to somebody else.");
     }
 
     @Test
@@ -51,7 +51,7 @@ class ContributorResolverTest {
 
         // given
         when(communityAccess.canCreditContributions(1L, "alice")).thenReturn(true);
-        when(communityAccess.resolveMember(1L, "")).thenReturn(new MemberMatch.NotFound());
+        when(communityAccess.resolvePerson(1L, "")).thenReturn(new MemberMatch.NotFound());
 
         // when / then
         assertThatThrownBy(() -> sut.resolveCorrection(1L, "alice", "  ")).isInstanceOf(ConflictException.class)
@@ -63,7 +63,7 @@ class ContributorResolverTest {
 
         // given
         when(communityAccess.canCreditContributions(1L, "alice")).thenReturn(true);
-        when(communityAccess.resolveMember(1L, "Bob")).thenReturn(new MemberMatch.Ambiguous(2));
+        when(communityAccess.resolvePerson(1L, "Bob")).thenReturn(new MemberMatch.Ambiguous(2));
 
         // when / then
         assertThatThrownBy(() -> sut.resolveCorrection(1L, "alice", "Bob")).isInstanceOf(ConflictException.class)
@@ -76,7 +76,7 @@ class ContributorResolverTest {
 
         // given
         when(communityAccess.canCreditContributions(1L, "alice")).thenReturn(true);
-        when(communityAccess.resolveMember(1L, "Bob Martin")).thenReturn(new MemberMatch.Matched("bob-id"));
+        when(communityAccess.resolvePerson(1L, "Bob Martin")).thenReturn(new MemberMatch.Matched("bob-id"));
 
         // when / then
         assertThat(sut.resolveCorrection(1L, "alice", "Bob Martin")).isEqualTo("bob-id");

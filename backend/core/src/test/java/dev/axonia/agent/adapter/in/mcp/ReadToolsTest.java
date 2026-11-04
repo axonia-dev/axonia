@@ -24,6 +24,7 @@ import dev.axonia.agent.domain.ToolCall;
 import dev.axonia.community.api.Communities;
 import dev.axonia.community.api.Community;
 import dev.axonia.community.api.CommunityMember;
+import dev.axonia.community.api.CreditablePerson;
 import dev.axonia.community.api.MemberDirectory;
 import dev.axonia.community.api.Memberships;
 import dev.axonia.events.api.ScheduleEntry;
@@ -388,6 +389,32 @@ class ReadToolsTest {
         given(memberships.isMember(3L, "u-1")).willReturn(false);
 
         assertThatThrownBy(() -> sut.members("kafka-guild", null, null)).isInstanceOf(AgentToolException.class)
+                .hasMessageContaining("not a member of this community");
+
+        then(memberDirectory).shouldHaveNoInteractions();
+    }
+
+    @Test
+    void people_findsWhoMatchesAcrossTheOrganizationSayingWhoIsAMember() {
+
+        withScopes("members:read");
+        aCommunityTheCallerBelongsTo();
+        given(memberDirectory.searchPeople(3L, "omar"))
+                .willReturn(List.of(new CreditablePerson("u-7", "Omar Outside", false)));
+
+        var result = sut.people("kafka-guild", "omar");
+
+        assertThat(result).containsExactly(new ReadTools.CreditablePersonView("u-7", "Omar Outside", false));
+    }
+
+    @Test
+    void people_isRefusedForACommunityTheCallerDoesNotBelongTo() {
+
+        withScopes("members:read");
+        given(communities.getBySlug("kafka-guild")).willReturn(Community.builder().id(3L).slug("kafka-guild").build());
+        given(memberships.isMember(3L, "u-1")).willReturn(false);
+
+        assertThatThrownBy(() -> sut.people("kafka-guild", "omar")).isInstanceOf(AgentToolException.class)
                 .hasMessageContaining("not a member of this community");
 
         then(memberDirectory).shouldHaveNoInteractions();
