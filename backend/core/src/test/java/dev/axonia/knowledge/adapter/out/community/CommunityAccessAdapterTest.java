@@ -88,7 +88,7 @@ class CommunityAccessAdapterTest {
     void resolveMember_delegatesToTheMemberDirectory() {
 
         // given
-        when(memberDirectory.resolve(7L, "Alice Dupont")).thenReturn(new MemberMatch.Matched("alice-id"));
+        when(memberDirectory.resolvePerson(7L, "Alice Dupont")).thenReturn(new MemberMatch.Matched("alice-id"));
 
         // then
         assertThat(sut.resolveMember(7L, "Alice Dupont")).isEqualTo(new MemberMatch.Matched("alice-id"));
@@ -98,7 +98,7 @@ class CommunityAccessAdapterTest {
     void resolveMember_creditsNobodyWhenTheReferenceMatchesNoMember() {
 
         // given
-        when(memberDirectory.resolve(7L, "J. Smith")).thenReturn(new MemberMatch.NotFound());
+        when(memberDirectory.resolvePerson(7L, "J. Smith")).thenReturn(new MemberMatch.NotFound());
 
         // then
         assertThat(sut.resolveMember(7L, "J. Smith")).isEqualTo(new MemberMatch.NotFound());

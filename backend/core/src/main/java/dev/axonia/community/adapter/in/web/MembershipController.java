@@ -1,6 +1,5 @@
 package dev.axonia.community.adapter.in.web;
 
-import java.util.List;
 import java.util.Set;
 
 import jakarta.validation.Valid;
@@ -17,11 +16,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import dev.axonia.community.api.CommunityMember;
 import dev.axonia.community.api.Membership;
 import dev.axonia.community.application.MembershipService;
 import dev.axonia.shared.api.web.Pageables;
@@ -44,12 +41,6 @@ public class MembershipController {
 
         return membershipService.listMembers(slug,
                 Pageables.requireSortIn(pageable, Set.of("joined_at", "display_name")));
-    }
-
-    @GetMapping("/search")
-    List<CommunityMember> searchMembers(@PathVariable String slug, @RequestParam(defaultValue = "") String q) {
-
-        return membershipService.searchMembers(slug, q);
     }
 
     @PostMapping

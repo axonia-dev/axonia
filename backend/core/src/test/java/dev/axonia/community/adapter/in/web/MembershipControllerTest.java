@@ -10,12 +10,10 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import dev.axonia.ControllerTestSupport;
 import dev.axonia.CoreWebMvcTest;
-import dev.axonia.community.api.CommunityMember;
 import dev.axonia.community.api.CommunityRole;
 import dev.axonia.community.api.MembershipMother;
 import dev.axonia.community.application.MembershipService;
 import dev.axonia.shared.api.error.ConflictException;
-import dev.axonia.shared.api.error.ForbiddenException;
 import dev.axonia.shared.api.error.NotFoundException;
 import tools.jackson.core.JacksonException;
 
@@ -187,48 +185,6 @@ class MembershipControllerTest extends ControllerTestSupport {
 
         // when
         var actual = mvc.get().uri("/axonia/communities/{slug}/members/me", "backend-guild");
-
-        // then
-        actual.assertThat().hasStatus(404);
-    }
-
-    @Test
-    void searchMembers() {
-
-        // given
-        when(membershipService.searchMembers("backend-guild", "bo"))
-                .thenReturn(List.of(new CommunityMember("bob", "Bob Martin")));
-
-        // when
-        var actual = mvc.get().uri("/axonia/communities/{slug}/members/search", "backend-guild").queryParam("q", "bo");
-
-        // then
-        actual.assertThat().hasStatus2xxSuccessful().bodyJson().extractingPath("$[0].displayName")
-                .isEqualTo("Bob Martin");
-    }
-
-    @Test
-    void searchMembers_nonMemberForbidden() {
-
-        // given
-        when(membershipService.searchMembers("backend-guild", "bo"))
-                .thenThrow(new ForbiddenException("Community membership required"));
-
-        // when
-        var actual = mvc.get().uri("/axonia/communities/{slug}/members/search", "backend-guild").queryParam("q", "bo");
-
-        // then
-        actual.assertThat().hasStatus(403);
-    }
-
-    @Test
-    void searchMembers_unknownSlugNotFound() {
-
-        // given
-        when(membershipService.searchMembers("missing", "bo")).thenThrow(new NotFoundException("Community not found"));
-
-        // when
-        var actual = mvc.get().uri("/axonia/communities/{slug}/members/search", "missing").queryParam("q", "bo");
 
         // then
         actual.assertThat().hasStatus(404);

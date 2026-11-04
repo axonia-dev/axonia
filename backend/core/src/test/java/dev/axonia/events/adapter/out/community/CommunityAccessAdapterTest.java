@@ -199,7 +199,7 @@ class CommunityAccessAdapterTest {
     void resolveMember_delegatesToTheMemberDirectory() {
 
         // given
-        when(memberDirectory.resolve(7L, "Alice Dupont")).thenReturn(new MemberMatch.Matched("alice-id"));
+        when(memberDirectory.resolvePerson(7L, "Alice Dupont")).thenReturn(new MemberMatch.Matched("alice-id"));
 
         // when / then
         assertThat(sut.resolveMember(7L, "Alice Dupont")).isEqualTo(new MemberMatch.Matched("alice-id"));
@@ -209,7 +209,7 @@ class CommunityAccessAdapterTest {
     void resolveMember_reportsHowManyMembersAnAmbiguousReferenceMatched() {
 
         // given - the count is what lets a caller tell "two people share this name" from "your query was too vague"
-        when(memberDirectory.resolve(7L, "Bob")).thenReturn(new MemberMatch.Ambiguous(3));
+        when(memberDirectory.resolvePerson(7L, "Bob")).thenReturn(new MemberMatch.Ambiguous(3));
 
         // when / then
         assertThat(sut.resolveMember(7L, "Bob")).isEqualTo(new MemberMatch.Ambiguous(3));

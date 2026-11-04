@@ -14,10 +14,10 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 
 import dev.axonia.access.api.OrganizationOwners;
-import dev.axonia.community.api.CommunityMember;
 import dev.axonia.community.api.CommunityMemberLeft;
 import dev.axonia.community.api.CommunityRole;
 import dev.axonia.community.api.CommunityStatus;
+import dev.axonia.community.api.CreditablePerson;
 import dev.axonia.community.api.MemberCommunity;
 import dev.axonia.community.api.Membership;
 import dev.axonia.community.application.port.out.CommunityStore;
@@ -767,7 +767,7 @@ class MembershipServiceTest {
     }
 
     @Test
-    void searchMembers_returnsWhatTheDirectoryFindsForAMember() {
+    void searchPeople_returnsWhatTheDirectoryFindsForAMember() {
 
         // given
         when(currentUser.userId()).thenReturn("alice");
@@ -775,13 +775,14 @@ class MembershipServiceTest {
                 .thenReturn(Optional.of(CommunityRecordMother.any().id(1L).build()));
         when(membershipLedger.find("default", 1L, "alice"))
                 .thenReturn(Optional.of(MembershipRecordMother.any().build()));
-        when(memberDirectory.search(1L, "bo")).thenReturn(List.of(new CommunityMember("bob", "Bob Martin")));
+        when(memberDirectory.searchPeople(1L, "bo"))
+                .thenReturn(List.of(new CreditablePerson("bob", "Bob Martin", false)));
 
         // when
-        var actual = sut.searchMembers("backend-guild", "bo");
+        var actual = sut.searchPeople("backend-guild", "bo");
 
         // then
-        assertThat(actual).containsExactly(new CommunityMember("bob", "Bob Martin"));
+        assertThat(actual).containsExactly(new CreditablePerson("bob", "Bob Martin", false));
     }
 
     /**
@@ -789,7 +790,7 @@ class MembershipServiceTest {
      * id, so both are refused before the directory is ever asked.
      */
     @Test
-    void searchMembers_forbidsSomebodyOutsideTheCommunity() {
+    void searchPeople_forbidsSomebodyOutsideTheCommunity() {
 
         // given
         when(currentUser.userId()).thenReturn("mallory");
@@ -798,7 +799,7 @@ class MembershipServiceTest {
         when(membershipLedger.find("default", 1L, "mallory")).thenReturn(Optional.empty());
 
         // when / then
-        assertThatThrownBy(() -> sut.searchMembers("backend-guild", "bo")).isInstanceOf(ForbiddenException.class);
+        assertThatThrownBy(() -> sut.searchPeople("backend-guild", "bo")).isInstanceOf(ForbiddenException.class);
         verifyNoInteractions(memberDirectory);
     }
 }

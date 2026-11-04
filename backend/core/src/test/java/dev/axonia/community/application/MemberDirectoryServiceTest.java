@@ -3,6 +3,8 @@ package dev.axonia.community.application;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.IntStream;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -18,6 +20,7 @@ import org.springframework.data.domain.PageRequest;
 
 import dev.axonia.community.api.CommunityMember;
 import dev.axonia.community.api.CommunityRole;
+import dev.axonia.community.api.CreditablePerson;
 import dev.axonia.community.api.MemberMatch;
 import dev.axonia.community.application.port.out.MembershipLedger;
 import dev.axonia.community.application.port.out.OrganizationContext;
@@ -84,6 +87,12 @@ class MemberDirectoryServiceTest {
         given(userDirectory.searchMembers(ORG, memberIds, query.trim(), CANDIDATE_LIMIT)).willReturn(List.of(members));
     }
 
+    /** The whole organization's candidates for a reference, matched by name or email, members among them. */
+    private void organizationMatches(String query, DirectoryUser... people) {
+
+        given(userDirectory.searchPeople(ORG, query.trim(), CANDIDATE_LIMIT)).willReturn(List.of(people));
+    }
+
     /**
      * Same shape as {@link #membersAre}, but stubs the name-only port method {@link MemberDirectoryService#search}
      * calls - never the one that also matches email.
@@ -101,7 +110,7 @@ class MemberDirectoryServiceTest {
 
         given(membershipLedger.find(ORG, COMMUNITY_ID, "u9")).willReturn(Optional.of(membership("u9")));
 
-        assertThat(memberDirectory.resolve(COMMUNITY_ID, "u9")).isEqualTo(new MemberMatch.Matched("u9"));
+        assertThat(memberDirectory.resolvePerson(COMMUNITY_ID, "u9")).isEqualTo(new MemberMatch.Matched("u9"));
     }
 
     @Test
@@ -111,19 +120,82 @@ class MemberDirectoryServiceTest {
         // through a fuzzy search could hand back Ambiguous for somebody already pinned down.
         given(membershipLedger.find(ORG, COMMUNITY_ID, "u9")).willReturn(Optional.of(membership("u9")));
 
-        memberDirectory.resolve(COMMUNITY_ID, "u9");
+        memberDirectory.resolvePerson(COMMUNITY_ID, "u9");
 
         then(userDirectory).should(never()).searchMembers(any(), any(), any(), anyInt());
     }
 
     @Test
-    void doesNotResolveAUserIdOfSomeoneWhoIsNotAMember() {
+    void resolvesTheUserIdOfSomebodyPresentOutsideTheCommunity() {
 
-        // The whole point of intersecting names with membership: an agent must not credit a talk to somebody who was
-        // never in the community.
+        given(userDirectory.presentOf(ORG, List.of("u9"))).willReturn(Set.of("u9"));
+
+        assertThat(memberDirectory.resolvePerson(COMMUNITY_ID, "u9")).isEqualTo(new MemberMatch.Matched("u9"));
+        then(userDirectory).should(never()).searchPeople(any(), any(), anyInt());
+    }
+
+    @Test
+    void doesNotResolveTheUserIdOfSomebodyNoLongerPresent() {
+
+        // Deactivated, erased or never here: presentOf answers nobody, and an id is not a name to search for.
         membersAre("u9");
 
-        assertThat(memberDirectory.resolve(COMMUNITY_ID, "u9")).isEqualTo(new MemberMatch.NotFound());
+        assertThat(memberDirectory.resolvePerson(COMMUNITY_ID, "u9")).isEqualTo(new MemberMatch.NotFound());
+    }
+
+    @Test
+    void creditsSomebodyOutsideTheCommunityByName() {
+
+        organizationMatches("Omar", user("u8", "Omar Outside", "omar@corp.com"));
+
+        assertThat(memberDirectory.resolvePerson(COMMUNITY_ID, "Omar")).isEqualTo(new MemberMatch.Matched("u8"));
+    }
+
+    @Test
+    void aMemberWhoAloneMatchesKeepsTheMatchOverNamesakesOutsideTheCommunity() {
+
+        var member = user("u1", "Alex Member", "alex.m@corp.com");
+        membersAre("Alex", member);
+        organizationMatches("Alex", member, user("u2", "Alex Other", "alex.o@corp.com"),
+                user("u3", "Alex Third", "alex.t@corp.com"));
+
+        assertThat(memberDirectory.resolvePerson(COMMUNITY_ID, "Alex")).isEqualTo(new MemberMatch.Matched("u1"));
+    }
+
+    @Test
+    void anExactNameOutsideTheCommunityBeatsAMemberWhoOnlyPartlyMatches() {
+
+        var member = user("u1", "Ann Leeds", "ann.leeds@corp.com");
+        membersAre("Ann Lee", member);
+        organizationMatches("Ann Lee", member, user("u2", "Ann Lee", "ann.lee@corp.com"));
+
+        assertThat(memberDirectory.resolvePerson(COMMUNITY_ID, "Ann Lee")).isEqualTo(new MemberMatch.Matched("u2"));
+    }
+
+    @Test
+    void ofTwoExactNamesakesTheMemberIsCredited() {
+
+        var member = user("u1", "Sam Roe", "sam1@corp.com");
+        membersAre("Sam Roe", member);
+        organizationMatches("Sam Roe", member, user("u2", "Sam Roe", "sam2@corp.com"));
+
+        assertThat(memberDirectory.resolvePerson(COMMUNITY_ID, "Sam Roe")).isEqualTo(new MemberMatch.Matched("u1"));
+    }
+
+    @Test
+    void twoExactNamesakesOutsideTheCommunityAreAmbiguous() {
+
+        organizationMatches("Sam Roe", user("u2", "Sam Roe", "sam2@corp.com"), user("u3", "Sam Roe", "sam3@corp.com"));
+
+        assertThat(memberDirectory.resolvePerson(COMMUNITY_ID, "Sam Roe")).isEqualTo(new MemberMatch.Ambiguous(2));
+    }
+
+    @Test
+    void severalPartialMatchesOutsideTheCommunityAreAmbiguous() {
+
+        organizationMatches("Kim", user("u2", "Kim Park", "kim.p@corp.com"), user("u3", "Kim Lee", "kim.l@corp.com"));
+
+        assertThat(memberDirectory.resolvePerson(COMMUNITY_ID, "Kim")).isEqualTo(new MemberMatch.Ambiguous(2));
     }
 
     @Test
@@ -131,7 +203,8 @@ class MemberDirectoryServiceTest {
 
         membersAre("  ALICE DUPONT ", user("u1", "Alice Dupont", "alice@corp.com"));
 
-        assertThat(memberDirectory.resolve(COMMUNITY_ID, "  ALICE DUPONT ")).isEqualTo(new MemberMatch.Matched("u1"));
+        assertThat(memberDirectory.resolvePerson(COMMUNITY_ID, "  ALICE DUPONT "))
+                .isEqualTo(new MemberMatch.Matched("u1"));
     }
 
     @Test
@@ -139,7 +212,8 @@ class MemberDirectoryServiceTest {
 
         membersAre("ALICE@CORP.COM", user("u1", "Alice Dupont", "alice@corp.com"));
 
-        assertThat(memberDirectory.resolve(COMMUNITY_ID, "ALICE@CORP.COM")).isEqualTo(new MemberMatch.Matched("u1"));
+        assertThat(memberDirectory.resolvePerson(COMMUNITY_ID, "ALICE@CORP.COM"))
+                .isEqualTo(new MemberMatch.Matched("u1"));
     }
 
     @Test
@@ -147,7 +221,7 @@ class MemberDirectoryServiceTest {
 
         membersAre("Alice", user("u1", "Alice", "alice@corp.com"), user("u2", "Alice Dupont", "alice.d@corp.com"));
 
-        assertThat(memberDirectory.resolve(COMMUNITY_ID, "Alice")).isEqualTo(new MemberMatch.Matched("u1"));
+        assertThat(memberDirectory.resolvePerson(COMMUNITY_ID, "Alice")).isEqualTo(new MemberMatch.Matched("u1"));
     }
 
     @Test
@@ -155,7 +229,7 @@ class MemberDirectoryServiceTest {
 
         membersAre("Dupont", user("u2", "Alice Dupont", "alice.d@corp.com"));
 
-        assertThat(memberDirectory.resolve(COMMUNITY_ID, "Dupont")).isEqualTo(new MemberMatch.Matched("u2"));
+        assertThat(memberDirectory.resolvePerson(COMMUNITY_ID, "Dupont")).isEqualTo(new MemberMatch.Matched("u2"));
     }
 
     @Test
@@ -164,7 +238,7 @@ class MemberDirectoryServiceTest {
         membersAre("Bob", user("u3", "Bob Martin", "bob.m@corp.com"), user("u4", "Bob Stone", "bob.s@corp.com"),
                 user("u5", "Bob Vance", "bob.v@corp.com"));
 
-        assertThat(memberDirectory.resolve(COMMUNITY_ID, "Bob")).isEqualTo(new MemberMatch.Ambiguous(3));
+        assertThat(memberDirectory.resolvePerson(COMMUNITY_ID, "Bob")).isEqualTo(new MemberMatch.Ambiguous(3));
     }
 
     @Test
@@ -172,14 +246,14 @@ class MemberDirectoryServiceTest {
 
         membersAre("Bob Martin", user("u3", "Bob Martin", "bob3@corp.com"), user("u6", "Bob Martin", "bob6@corp.com"));
 
-        assertThat(memberDirectory.resolve(COMMUNITY_ID, "Bob Martin")).isEqualTo(new MemberMatch.Ambiguous(2));
+        assertThat(memberDirectory.resolvePerson(COMMUNITY_ID, "Bob Martin")).isEqualTo(new MemberMatch.Ambiguous(2));
     }
 
     @Test
     void returnsNotFoundForABlankQuery() {
 
-        assertThat(memberDirectory.resolve(COMMUNITY_ID, "   ")).isEqualTo(new MemberMatch.NotFound());
-        assertThat(memberDirectory.resolve(COMMUNITY_ID, null)).isEqualTo(new MemberMatch.NotFound());
+        assertThat(memberDirectory.resolvePerson(COMMUNITY_ID, "   ")).isEqualTo(new MemberMatch.NotFound());
+        assertThat(memberDirectory.resolvePerson(COMMUNITY_ID, null)).isEqualTo(new MemberMatch.NotFound());
         then(userDirectory).shouldHaveNoInteractions();
         then(membershipLedger).shouldHaveNoInteractions();
     }
@@ -189,7 +263,7 @@ class MemberDirectoryServiceTest {
 
         membersAre("Nobody");
 
-        assertThat(memberDirectory.resolve(COMMUNITY_ID, "Nobody")).isEqualTo(new MemberMatch.NotFound());
+        assertThat(memberDirectory.resolvePerson(COMMUNITY_ID, "Nobody")).isEqualTo(new MemberMatch.NotFound());
     }
 
     @Test
@@ -197,7 +271,7 @@ class MemberDirectoryServiceTest {
 
         membersAre("Dave", user("u7", "David Example", null));
 
-        assertThat(memberDirectory.resolve(COMMUNITY_ID, "Dave")).isEqualTo(new MemberMatch.Matched("u7"));
+        assertThat(memberDirectory.resolvePerson(COMMUNITY_ID, "Dave")).isEqualTo(new MemberMatch.Matched("u7"));
     }
 
     @Test
@@ -206,15 +280,16 @@ class MemberDirectoryServiceTest {
         membersMatchByName("ali", user("u1", "Alice Dupont", "alice@corp.com"),
                 user("u2", "Alina Berg", "alina@corp.com"));
 
-        assertThat(memberDirectory.search(COMMUNITY_ID, "  ali "))
-                .containsExactly(new CommunityMember("u1", "Alice Dupont"), new CommunityMember("u2", "Alina Berg"));
+        assertThat(memberDirectory.searchPeople(COMMUNITY_ID, "  ali ")).containsExactly(
+                new CreditablePerson("u1", "Alice Dupont", true), new CreditablePerson("u2", "Alina Berg", true));
     }
 
     @Test
     void searchNamesNobodyForABlankQuery() {
 
-        assertThat(memberDirectory.search(COMMUNITY_ID, "   ")).isEmpty();
+        assertThat(memberDirectory.searchPeople(COMMUNITY_ID, "   ")).isEmpty();
         then(userDirectory).should(never()).searchMembersByName(any(), any(), any(), anyInt());
+        then(userDirectory).should(never()).searchPeopleByName(any(), any(), anyInt());
     }
 
     /**
@@ -230,11 +305,36 @@ class MemberDirectoryServiceTest {
         given(membershipLedger.memberUserIds(ORG, otherCommunityId)).willReturn(List.of("outsider"));
         membersMatchByName("ali", user("u1", "Alice Dupont", "alice@corp.com"));
 
-        memberDirectory.search(COMMUNITY_ID, "ali");
-        memberDirectory.search(otherCommunityId, "ali");
+        memberDirectory.searchPeople(COMMUNITY_ID, "ali");
+        memberDirectory.searchPeople(otherCommunityId, "ali");
 
         then(userDirectory).should().searchMembersByName(ORG, List.of("u1"), "ali", CANDIDATE_LIMIT);
         then(userDirectory).should().searchMembersByName(ORG, List.of("outsider"), "ali", CANDIDATE_LIMIT);
+    }
+
+    @Test
+    void searchListsMembersFirstAndMarksWhoIsNotOne() {
+
+        var alice = user("u1", "Alice Dupont", "alice@corp.com");
+        membersMatchByName("ali", alice);
+        given(userDirectory.searchPeopleByName(ORG, "ali", CANDIDATE_LIMIT))
+                .willReturn(List.of(user("u2", "Alina Berg", "alina@corp.com"), alice));
+
+        assertThat(memberDirectory.searchPeople(COMMUNITY_ID, "ali")).containsExactly(
+                new CreditablePerson("u1", "Alice Dupont", true), new CreditablePerson("u2", "Alina Berg", false));
+    }
+
+    @Test
+    void searchStopsAtTheCandidateLimit() {
+
+        membersMatchByName("pat", user("m", "Pat Member", "pat@corp.com"));
+        var outsiders = IntStream.range(0, CANDIDATE_LIMIT)
+                .mapToObj(i -> user("o" + i, "Pat " + i, "pat" + i + "@corp.com")).toList();
+        given(userDirectory.searchPeopleByName(ORG, "pat", CANDIDATE_LIMIT)).willReturn(outsiders);
+
+        var actual = memberDirectory.searchPeople(COMMUNITY_ID, "pat");
+
+        assertThat(actual).hasSize(CANDIDATE_LIMIT).first().isEqualTo(new CreditablePerson("m", "Pat Member", true));
     }
 
     /** Same fallback as {@link #listFallsBackToTheUserIdWhenTheDirectoryHasNoNameForThem}. */
@@ -243,8 +343,8 @@ class MemberDirectoryServiceTest {
 
         membersMatchByName("ghost", user("ghost", "", "ghost@corp.com"));
 
-        assertThat(memberDirectory.search(COMMUNITY_ID, "ghost"))
-                .containsExactly(new CommunityMember("ghost", "ghost"));
+        assertThat(memberDirectory.searchPeople(COMMUNITY_ID, "ghost"))
+                .containsExactly(new CreditablePerson("ghost", "ghost", true));
     }
 
     @Test

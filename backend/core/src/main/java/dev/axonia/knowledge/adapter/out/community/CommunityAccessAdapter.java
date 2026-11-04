@@ -48,7 +48,7 @@ class CommunityAccessAdapter implements CommunityAccess {
     @Override
     public MemberMatch resolveMember(long communityId, String query) {
 
-        return memberDirectory.resolve(communityId, query);
+        return memberDirectory.resolvePerson(communityId, query);
     }
 
     @Override

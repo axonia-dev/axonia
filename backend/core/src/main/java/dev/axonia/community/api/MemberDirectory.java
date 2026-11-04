@@ -3,7 +3,7 @@ package dev.axonia.community.api;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
-/** Who the members of a community are called, and which of them a free-text reference means. */
+/** Who the members of a community are called, and which person in the organization a free-text reference means. */
 public interface MemberDirectory {
 
     /**
@@ -15,7 +15,11 @@ public interface MemberDirectory {
      */
     int CANDIDATE_LIMIT = 25;
 
-    MemberMatch resolve(long communityId, String query);
+    /**
+     * Which person in the organization a free-text reference credits: a user id, a display name or an email. Anybody
+     * present who holds a subject can be credited, members of the community first; crediting makes nobody a member.
+     */
+    MemberMatch resolvePerson(long communityId, String query);
 
     /** Whether a reference names this user exactly: their display name or email, normalized. */
     boolean identifiesExactly(String userId, String reference);

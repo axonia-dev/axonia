@@ -12,10 +12,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import dev.axonia.access.api.OrganizationOwners;
-import dev.axonia.community.api.CommunityMember;
 import dev.axonia.community.api.CommunityMemberLeft;
 import dev.axonia.community.api.CommunityRole;
 import dev.axonia.community.api.CommunityStatus;
+import dev.axonia.community.api.CreditablePerson;
 import dev.axonia.community.api.MemberCommunity;
 import dev.axonia.community.api.Membership;
 import dev.axonia.community.api.Memberships;
@@ -221,16 +221,19 @@ public class MembershipService implements Memberships {
         return new PageImpl<>(content, pageable, ordered.size());
     }
 
-    /** The members of this community whose name matches {@code query}, asked by somebody who belongs to it. */
+    /**
+     * The people in the organization whose name matches {@code query}, members of this community first, asked by
+     * somebody who belongs to it: anybody a member may credit, and nobody an outsider may list.
+     */
     @Transactional(readOnly = true)
-    public List<CommunityMember> searchMembers(String slug, String query) {
+    public List<CreditablePerson> searchPeople(String slug, String query) {
 
         var organizationId = organizationContext.organizationId();
         var community = community(organizationId, slug);
         if (!isMember(organizationId, community.getId(), currentUser.userId())) {
             throw new ForbiddenException("Community membership required");
         }
-        return memberDirectory.search(community.getId(), query);
+        return memberDirectory.searchPeople(community.getId(), query);
     }
 
     @Override
