@@ -50,14 +50,19 @@ public class SessionAuthorizer {
         }
     }
 
-    /** A slot's owner (presenter or the topic's proposer), an organizer, or a member with canManageSchedule. */
+    /**
+     * A slot's owner (presenter or the topic's proposer) who is a member, an organizer, or a member with
+     * canManageSchedule. Being credited with a slot makes nobody a member, so an owner who never joined holds no rights
+     * over it.
+     */
     public void requireSlotOwnerOrManager(String organizationId, SessionRecord session, SlotRecord slot,
             String userId) {
 
-        if (isPresenter(slot, userId) || isProposer(organizationId, slot, userId)) {
+        var communityId = session.getCommunityId();
+        if ((isPresenter(slot, userId) || isProposer(organizationId, slot, userId))
+                && communityAccess.isMember(communityId, userId)) {
             return;
         }
-        var communityId = session.getCommunityId();
         if (communityAccess.isOrganizer(communityId, userId)) {
             return;
         }

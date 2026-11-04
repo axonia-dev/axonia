@@ -34,9 +34,10 @@ import lombok.RequiredArgsConstructor;
  * out of an organization-wide search's limit.
  *
  * <p>
- * Exact-then-unique: an exact match on normalized display name or email wins outright, and of several exact matches a
- * single member wins; otherwise a token match is accepted only when it is unique, among members first and then across
- * the organization. Anything else resolves to nobody.
+ * Exact-then-unique: a whole display name or a whole email wins outright, and of several such matches a single member
+ * wins; otherwise a match on the tokens of a name - never a piece of an email, which would let any member probe the
+ * organization's addresses - is accepted only when it is unique, among members first and then across the organization.
+ * Anything else resolves to nobody.
  */
 @Service
 @RequiredArgsConstructor
@@ -58,15 +59,19 @@ public class MemberDirectoryService implements dev.axonia.community.api.MemberDi
 
         // A caller that knows the id exactly - the UI, or an agent that has just read the roster - is honoured
         // directly, rather than made to round-trip a known id through a fuzzy search that could come back ambiguous.
-        if (membershipLedger.find(organizationId, communityId, reference).isPresent()
-                || userDirectory.presentOf(organizationId, List.of(reference)).contains(reference)) {
+        // Only while that person is still here: a departed member keeps their membership row, never their credit.
+        if (userDirectory.presentOf(organizationId, List.of(reference)).contains(reference)) {
             return new MemberMatch.Matched(reference);
         }
 
         var memberIds = membershipLedger.memberUserIds(organizationId, communityId);
-        var roster = userDirectory.searchMembers(organizationId, memberIds, reference, CANDIDATE_LIMIT);
-        var everyone = userDirectory.searchPeople(organizationId, reference, CANDIDATE_LIMIT);
-        return CreditCandidates.of(roster, everyone, Set.copyOf(memberIds)).match(normalize(reference));
+        var exact = userDirectory.findPeopleNamedExactly(organizationId, reference);
+        if (!exact.isEmpty()) {
+            return CreditCandidates.exactly(exact, Set.copyOf(memberIds));
+        }
+        var roster = userDirectory.searchMembersByName(organizationId, memberIds, reference, CANDIDATE_LIMIT);
+        var everyone = userDirectory.searchPeopleByName(organizationId, reference, CANDIDATE_LIMIT);
+        return CreditCandidates.byName(roster, everyone);
     }
 
     /**
@@ -174,12 +179,12 @@ public class MemberDirectoryService implements dev.axonia.community.api.MemberDi
         return user.displayName() != null && !user.displayName().isBlank() ? user.displayName() : user.userId();
     }
 
-    static boolean matchesExactly(DirectoryUser user, String normalizedQuery) {
+    private static boolean matchesExactly(DirectoryUser user, String normalizedQuery) {
 
         return normalizedQuery.equals(normalize(user.displayName())) || normalizedQuery.equals(normalize(user.email()));
     }
 
-    static String normalize(String value) {
+    private static String normalize(String value) {
 
         return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
     }

@@ -20,8 +20,8 @@ import lombok.Builder;
  *
  * <p>
  * {@code nameOnly} matches the display name alone, never the email, so a member cannot probe another member's address
- * by trying fragments of it. Only a community's member picker sets it; every other search matches display name or
- * email.
+ * by trying fragments of it. Every search that credits or picks a person sets it; the administrative rosters match
+ * display name or email.
  *
  * <p>
  * {@code holdingSubject} leaves out anybody who holds no subject yet, a directory row nobody has signed in as and no

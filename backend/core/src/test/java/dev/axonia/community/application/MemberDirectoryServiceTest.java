@@ -1,7 +1,9 @@
 package dev.axonia.community.application;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.IntStream;
@@ -55,6 +57,8 @@ class MemberDirectoryServiceTest {
     @InjectMocks
     private MemberDirectoryService memberDirectory;
 
+    private final List<DirectoryUser> exactly = new ArrayList<>();
+
     @BeforeEach
     void nobodyIsAMemberByDefault() {
 
@@ -76,21 +80,33 @@ class MemberDirectoryServiceTest {
     }
 
     /**
-     * The community's roster, and the candidates the directory hands back for a query against it, matched by name or
-     * email - what {@link MemberDirectoryService#resolve} asks for. The directory is asked with the trimmed reference,
-     * and only ever about the community's own members.
+     * The community's roster, and the members the directory's name search hands back for a query against it. Those of
+     * them whose whole name or email is the query are also what the directory's exact lookup answers, as the real
+     * directory would.
      */
     private void membersAre(String query, DirectoryUser... members) {
 
-        var memberIds = List.of(members).stream().map(DirectoryUser::userId).toList();
-        given(membershipLedger.memberUserIds(ORG, COMMUNITY_ID)).willReturn(memberIds);
-        given(userDirectory.searchMembers(ORG, memberIds, query.trim(), CANDIDATE_LIMIT)).willReturn(List.of(members));
+        membersMatchByName(query, members);
+        knownExactly(query, members);
     }
 
-    /** The whole organization's candidates for a reference, matched by name or email, members among them. */
+    /** The whole organization's candidates for a reference by name, members among them, exact matches included. */
     private void organizationMatches(String query, DirectoryUser... people) {
 
-        given(userDirectory.searchPeople(ORG, query.trim(), CANDIDATE_LIMIT)).willReturn(List.of(people));
+        given(userDirectory.searchPeopleByName(ORG, query.trim(), CANDIDATE_LIMIT)).willReturn(List.of(people));
+        knownExactly(query, people);
+    }
+
+    private void knownExactly(String query, DirectoryUser... people) {
+
+        var normalized = query.trim().toLowerCase(Locale.ROOT);
+        List.of(people).stream().filter(person -> normalized.equalsIgnoreCase(person.displayName())
+                || normalized.equalsIgnoreCase(person.email())).forEach(person -> {
+                    if (!exactly.contains(person)) {
+                        exactly.add(person);
+                    }
+                });
+        given(userDirectory.findPeopleNamedExactly(ORG, query.trim())).willReturn(List.copyOf(exactly));
     }
 
     /**
@@ -109,6 +125,7 @@ class MemberDirectoryServiceTest {
     void resolvesAUserIdThatBelongsToAMember() {
 
         given(membershipLedger.find(ORG, COMMUNITY_ID, "u9")).willReturn(Optional.of(membership("u9")));
+        given(userDirectory.presentOf(ORG, List.of("u9"))).willReturn(Set.of("u9"));
 
         assertThat(memberDirectory.resolvePerson(COMMUNITY_ID, "u9")).isEqualTo(new MemberMatch.Matched("u9"));
     }
@@ -118,11 +135,12 @@ class MemberDirectoryServiceTest {
 
         // The UI, and an agent that has just read the roster, know exactly who they mean. Round-tripping a known id
         // through a fuzzy search could hand back Ambiguous for somebody already pinned down.
-        given(membershipLedger.find(ORG, COMMUNITY_ID, "u9")).willReturn(Optional.of(membership("u9")));
+        given(userDirectory.presentOf(ORG, List.of("u9"))).willReturn(Set.of("u9"));
 
         memberDirectory.resolvePerson(COMMUNITY_ID, "u9");
 
-        then(userDirectory).should(never()).searchMembers(any(), any(), any(), anyInt());
+        then(userDirectory).should(never()).findPeopleNamedExactly(any(), any());
+        then(userDirectory).should(never()).searchMembersByName(any(), any(), any(), anyInt());
     }
 
     @Test
@@ -131,7 +149,7 @@ class MemberDirectoryServiceTest {
         given(userDirectory.presentOf(ORG, List.of("u9"))).willReturn(Set.of("u9"));
 
         assertThat(memberDirectory.resolvePerson(COMMUNITY_ID, "u9")).isEqualTo(new MemberMatch.Matched("u9"));
-        then(userDirectory).should(never()).searchPeople(any(), any(), anyInt());
+        then(userDirectory).should(never()).searchPeopleByName(any(), any(), anyInt());
     }
 
     @Test
@@ -141,6 +159,50 @@ class MemberDirectoryServiceTest {
         membersAre("u9");
 
         assertThat(memberDirectory.resolvePerson(COMMUNITY_ID, "u9")).isEqualTo(new MemberMatch.NotFound());
+    }
+
+    @Test
+    void aDepartedMembersIdResolvesToNobody() {
+
+        given(membershipLedger.find(ORG, COMMUNITY_ID, "u9")).willReturn(Optional.of(membership("u9")));
+
+        assertThat(memberDirectory.resolvePerson(COMMUNITY_ID, "u9")).isEqualTo(new MemberMatch.NotFound());
+    }
+
+    /**
+     * A reference is matched by the name it carries, or by a whole email, never by a piece of somebody's address: an
+     * assignee or a presenter field would otherwise tell any member whose email in the organization contains a
+     * fragment.
+     */
+    @Test
+    void aPieceOfAnEmailNamesNobody() {
+
+        assertThat(memberDirectory.resolvePerson(COMMUNITY_ID, "cfo.priv")).isEqualTo(new MemberMatch.NotFound());
+        then(userDirectory).should().findPeopleNamedExactly(ORG, "cfo.priv");
+        then(userDirectory).should().searchPeopleByName(ORG, "cfo.priv", CANDIDATE_LIMIT);
+    }
+
+    /** The exact lookup is not capped: a match the name search's limit cut off is still found, and still wins. */
+    @Test
+    void anExactMatchBeyondTheSearchLimitStillWins() {
+
+        membersAre("Ann Lee", user("u1", "Ann Leeds", "ann.leeds@corp.com"));
+        given(userDirectory.findPeopleNamedExactly(ORG, "Ann Lee"))
+                .willReturn(List.of(user("u2", "Ann Lee", "ann.lee@corp.com")));
+
+        assertThat(memberDirectory.resolvePerson(COMMUNITY_ID, "Ann Lee")).isEqualTo(new MemberMatch.Matched("u2"));
+    }
+
+    @Test
+    void anAmbiguityCountStopsAtTheCandidateLimit() {
+
+        membersAre("pat", IntStream.range(0, CANDIDATE_LIMIT).mapToObj(i -> user("m" + i, "Pat M" + i, null))
+                .toArray(DirectoryUser[]::new));
+        organizationMatches("pat", IntStream.range(0, CANDIDATE_LIMIT).mapToObj(i -> user("o" + i, "Pat O" + i, null))
+                .toArray(DirectoryUser[]::new));
+
+        assertThat(memberDirectory.resolvePerson(COMMUNITY_ID, "pat"))
+                .isEqualTo(new MemberMatch.Ambiguous(CANDIDATE_LIMIT));
     }
 
     @Test
@@ -463,7 +525,7 @@ class MemberDirectoryServiceTest {
                 .willReturn(List.of(user("u1", "Alice Dupont", "alice@corp.com")));
 
         assertThat(memberDirectory.identifiesExactly("u1", "Alice")).isFalse();
-        then(userDirectory).should(never()).searchMembers(any(), any(), any(), anyInt());
+        then(userDirectory).should(never()).searchMembersByName(any(), any(), any(), anyInt());
     }
 
     @Test

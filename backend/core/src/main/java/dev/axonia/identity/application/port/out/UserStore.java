@@ -39,6 +39,12 @@ public interface UserStore {
 
     List<UserAccount> search(UserSearch search);
 
+    /**
+     * Present people holding a subject whose lower-cased, trimmed display name or lower-cased email is
+     * {@code normalizedReference}.
+     */
+    List<UserAccount> findPeopleNamedExactly(String organizationId, String normalizedReference);
+
     /** The effective clock of each named member, omitting anyone who has none. Never called with no ids. */
     List<UserTimeZoneRow> findTimeZones(String organizationId, Collection<String> userIds);
 

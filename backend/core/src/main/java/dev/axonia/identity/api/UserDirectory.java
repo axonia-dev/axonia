@@ -16,36 +16,30 @@ public interface UserDirectory {
     List<DirectoryUser> searchByOrganization(DirectorySearch search);
 
     /**
-     * The same token match, narrowed to a known set of users before the limit applies, so a genuine match cannot be
-     * pushed out of the results by namesakes outside the set. At most {@code limit} users are returned, ordered
-     * deterministically.
+     * The token match of {@link #searchByOrganization}, narrowed to a known set of users before the limit applies, so a
+     * genuine match cannot be pushed out of the results by namesakes outside the set, and matched against display name
+     * only - never email, so nobody can probe another person's address one fragment at a time. At most {@code limit}
+     * users are returned, ordered deterministically.
      *
      * <p>
      * An empty {@code userIds} matches nobody, as does a query with no usable tokens: a caller who names nobody is not
      * asking for everybody.
      */
-    List<DirectoryUser> searchMembers(String organizationId, Collection<String> userIds, String query, int limit);
-
-    /**
-     * The same narrowed, capped match as {@link #searchMembers}, but against display name only - never email. A
-     * community's member picker over HTTP calls this, not {@link #searchMembers}: a member could otherwise probe
-     * another member's email address by trying fragments of it through the picker. The agent path that resolves a
-     * free-text reference by email is the reason {@link #searchMembers} itself keeps matching both.
-     */
     List<DirectoryUser> searchMembersByName(String organizationId, Collection<String> userIds, String query, int limit);
 
     /**
-     * Anybody in the organization who can be credited: present, holding a subject, and matching every token of the
-     * query by display name or email. At most {@code limit}, in the same deterministic order as {@link #searchMembers}.
-     * A query with no usable tokens matches nobody.
-     */
-    List<DirectoryUser> searchPeople(String organizationId, String query, int limit);
-
-    /**
-     * The same organization-wide match as {@link #searchPeople}, against display name only - never email, so a picker
-     * cannot be used to probe anybody's address.
+     * Anybody in the organization who can be credited - present, and holding a subject - whose display name matches
+     * every token of the query, never their email. At most {@code limit}, in the same deterministic order as
+     * {@link #searchMembersByName}. A query with no usable tokens matches nobody.
      */
     List<DirectoryUser> searchPeopleByName(String organizationId, String query, int limit);
+
+    /**
+     * Everybody in the organization who can be credited and whose whole display name or whole email is
+     * {@code reference}, ignoring case and surrounding space. Not capped, because it is how a reference that names
+     * somebody exactly finds them however many people a name search would list first.
+     */
+    List<DirectoryUser> findPeopleNamedExactly(String organizationId, String reference);
 
     /**
      * Resolve specific users of one organization by their ids (for joining onto role bindings). Scoped to the

@@ -32,6 +32,13 @@ public class JdbcUserStore implements UserStore {
 
     @Override
     @Transactional(readOnly = true)
+    public List<UserAccount> findPeopleNamedExactly(String organizationId, String normalizedReference) {
+        return userRepository.findPeopleNamedExactly(organizationId, normalizedReference).stream()
+                .map(JdbcUserStore::toUserAccount).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<UserAccount> findByOrganizationIdAndUserIdIn(String organizationId, Collection<String> userIds) {
         return userRepository.findByOrganizationIdAndUserIdIn(organizationId, userIds).stream()
                 .map(JdbcUserStore::toUserAccount).toList();

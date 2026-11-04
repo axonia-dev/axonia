@@ -64,8 +64,18 @@ class TopicAuthorizerTest {
 
     @Test
     void requireAssigneeOrManager_skipsThePolicyLookupForTheAssigneeItself() {
+        given(communityAccess.isMember(1L, "u1")).willReturn(true);
         assertThatCode(() -> authorizer.requireAssigneeOrManager(1L, "u1", "u1")).doesNotThrowAnyException();
         verify(communityAccess, never()).topicManagementPolicy(1L);
+    }
+
+    /** Being assigned work makes nobody a member, so an assignee who never joined cannot close or drop it. */
+    @Test
+    void requireAssigneeOrManager_refusesAnAssigneeWhoIsNotAMember() {
+        given(communityAccess.isMember(1L, "u1")).willReturn(false);
+        given(communityAccess.topicManagementPolicy(1L)).willReturn(TopicManagementPolicy.ANY_MEMBER);
+        assertThatThrownBy(() -> authorizer.requireAssigneeOrManager(1L, "u1", "u1"))
+                .isInstanceOf(ForbiddenException.class);
     }
 
     @Test

@@ -202,70 +202,70 @@ class UserDirectoryAdapterTest extends CoreJdbcTestSupport {
     }
 
     @Test
-    void searchMembers_narrowsToTheGivenUsers() {
+    void searchMembersByName_narrowsToTheGivenUsers() {
 
         // when
-        var result = adapter.searchMembers("default", List.of(ALICE), "a", 10);
+        var result = adapter.searchMembersByName("default", List.of(ALICE), "a", 10);
 
-        // then: Bob's email contains an "a" too, but he is not in the set
+        // then: Bob Brown's name has no "a", but Alice's does, and only she is in the set
         assertThat(result).extracting(DirectoryUser::userId).containsExactly(ALICE);
     }
 
     @Test
-    void searchMembers_matchesEveryTokenOfAFullName() {
+    void searchMembersByName_matchesEveryTokenOfAFullName() {
 
         // when
-        var result = adapter.searchMembers("default", List.of(ALICE, BOB), "Anderson, Alice", 10);
-
-        // then
-        assertThat(result).extracting(DirectoryUser::userId).containsExactly(ALICE);
-    }
-
-    @Test
-    void searchMembers_respectsTheLimit() {
-
-        // when
-        var result = adapter.searchMembers("default", List.of(ALICE, BOB), "axonia.example", 1);
+        var result = adapter.searchMembersByName("default", List.of(ALICE, BOB), "Anderson, Alice", 10);
 
         // then
         assertThat(result).extracting(DirectoryUser::userId).containsExactly(ALICE);
     }
 
     @Test
-    void searchMembers_emptyUserIds_matchesNobody() {
+    void searchMembersByName_respectsTheLimit() {
 
         // when
-        var result = adapter.searchMembers("default", List.of(), "alice", 10);
+        var result = adapter.searchMembersByName("default", List.of(ALICE, BOB), "n", 1);
+
+        // then
+        assertThat(result).extracting(DirectoryUser::userId).containsExactly(ALICE);
+    }
+
+    @Test
+    void searchMembersByName_emptyUserIds_matchesNobody() {
+
+        // when
+        var result = adapter.searchMembersByName("default", List.of(), "alice", 10);
 
         // then
         assertThat(result).isEmpty();
     }
 
     @Test
-    void searchMembers_nullUserIds_matchesNobodyRatherThanTheWholeOrganization() {
+    void searchMembersByName_nullUserIds_matchesNobodyRatherThanTheWholeOrganization() {
 
         // when
-        var result = adapter.searchMembers("default", null, "alice", 10);
+        var result = adapter.searchMembersByName("default", null, "alice", 10);
 
         // then
         assertThat(result).isEmpty();
     }
 
     @Test
-    void searchMembers_blankQuery_matchesNobody() {
+    void searchMembersByName_blankQuery_matchesNobody() {
 
         // when
-        var result = adapter.searchMembers("default", List.of(ALICE, BOB), "  ", 10);
+        var result = adapter.searchMembersByName("default", List.of(ALICE, BOB), "  ", 10);
 
         // then
         assertThat(result).isEmpty();
     }
 
     @Test
-    void searchMembers_respectsTenantIsolation() {
+    void searchMembersByName_respectsTenantIsolation() {
 
         // when: Carol's id, asked for inside the default organization
-        var result = adapter.searchMembers("default", List.of(CAROL), "carol", 10);
+        var result = adapter.searchMembersByName("default", List.of(CAROL), "carol", 10);
 
         // then
         assertThat(result).isEmpty();
@@ -284,8 +284,7 @@ class UserDirectoryAdapterTest extends CoreJdbcTestSupport {
     /**
      * The privacy rule the HTTP member picker depends on: a member could otherwise learn a namesake's email domain, or
      * confirm somebody's exact address, one fragment at a time. "aaa-bob" appears only in Bob's email, never his
-     * display name, so a name-only match must find nobody - unlike {@link #searchMembers_respectsTheLimit}, which
-     * proves the email-matching {@link #adapter}.searchMembers finds him by the same kind of fragment.
+     * display name, so a name-only match must find nobody.
      */
     @Test
     void searchMembersByName_neverMatchesByEmail() {
@@ -298,22 +297,10 @@ class UserDirectoryAdapterTest extends CoreJdbcTestSupport {
     }
 
     @Test
-    void searchPeople_findsAnybodyInTheOrganizationByNameOrEmail() {
+    void searchPeopleByName_staysInItsOrganization() {
 
         // when
-        var byName = adapter.searchPeople("default", "alice", 10);
-        var byEmail = adapter.searchPeople("default", "aaa-bob", 10);
-
-        // then
-        assertThat(byName).extracting(DirectoryUser::userId).containsExactly(ALICE);
-        assertThat(byEmail).extracting(DirectoryUser::userId).containsExactly(BOB);
-    }
-
-    @Test
-    void searchPeople_staysInItsOrganization() {
-
-        // when
-        var actual = adapter.searchPeople("default", "carol", 10);
+        var actual = adapter.searchPeopleByName("default", "carol", 10);
 
         // then
         assertThat(actual).isEmpty();
@@ -344,6 +331,58 @@ class UserDirectoryAdapterTest extends CoreJdbcTestSupport {
 
         // when
         var actual = adapter.searchPeopleByName("default", " ", 10);
+
+        // then
+        assertThat(actual).isEmpty();
+    }
+
+    @Test
+    void findPeopleNamedExactly_matchesTheWholeNameOrTheWholeEmailIgnoringCase() {
+
+        // when
+        var byName = adapter.findPeopleNamedExactly("default", "  BOB brown ");
+        var byEmail = adapter.findPeopleNamedExactly("default", "AAA-BOB@axonia.example");
+
+        // then
+        assertThat(byName).extracting(DirectoryUser::userId).containsExactly(BOB);
+        assertThat(byEmail).extracting(DirectoryUser::userId).containsExactly(BOB);
+    }
+
+    @Test
+    void findPeopleNamedExactly_neverMatchesAFragment() {
+
+        // when
+        var actual = adapter.findPeopleNamedExactly("default", "bob");
+
+        // then
+        assertThat(actual).isEmpty();
+    }
+
+    @Test
+    void findPeopleNamedExactly_staysInItsOrganization() {
+
+        // when
+        var actual = adapter.findPeopleNamedExactly("default", "Carol Chen");
+
+        // then
+        assertThat(actual).isEmpty();
+    }
+
+    @Test
+    void findPeopleNamedExactly_leavesOutTheDepartedAndThoseHoldingNoSubject() {
+
+        // given
+        jdbc.update("""
+                INSERT INTO identity_user (organization_id, user_id, display_name, email, active, scim_id, arrival,
+                                           created_at, updated_at, version)
+                VALUES ('default', NULL, 'Dana Pending', 'dana@x.test', true, 'scim-dana-pending', 'SYNCED',
+                        now(), now(), 0),
+                       ('default', 'dana-gone', 'Dana Pending', 'dana.gone@x.test', false, 'scim-dana-gone', 'SYNCED',
+                        now(), now(), 0)
+                """, Map.of());
+
+        // when
+        var actual = adapter.findPeopleNamedExactly("default", "Dana Pending");
 
         // then
         assertThat(actual).isEmpty();

@@ -1,57 +1,55 @@
 package dev.axonia.community.application;
 
-import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
-import java.util.function.Function;
 
+import dev.axonia.community.api.MemberDirectory;
 import dev.axonia.community.api.MemberMatch;
 import dev.axonia.identity.api.UserDirectory.DirectoryUser;
 
 /**
- * The people a reference could credit, gathered from the community's roster and from the whole organization, and the
- * rule that picks one of them or refuses to guess.
+ * The rule that picks the one person a reference credits, or refuses to guess.
  *
  * <p>
- * The roster is kept apart from the organization-wide candidates because each answers a question the other cannot: the
- * roster cannot be pushed out of a capped search by namesakes elsewhere, and only the organization knows the people who
- * never joined.
+ * An ambiguity's count is capped at {@link MemberDirectory#CANDIDATE_LIMIT}, because it is reported as a lower bound
+ * that stops counting there.
  */
-record CreditCandidates(List<DirectoryUser> roster, List<DirectoryUser> everyone, Set<String> memberIds) {
+final class CreditCandidates {
 
-    static CreditCandidates of(List<DirectoryUser> roster, List<DirectoryUser> organization, Set<String> memberIds) {
-
-        var union = new LinkedHashMap<String, DirectoryUser>();
-        roster.forEach(user -> union.putIfAbsent(user.userId(), user));
-        organization.forEach(user -> union.putIfAbsent(user.userId(), user));
-        return new CreditCandidates(roster, List.copyOf(union.values()), memberIds);
+    private CreditCandidates() {
     }
 
-    MemberMatch match(String normalizedReference) {
+    /** Everybody whose whole name or email is the reference: one is them, and of several a single member is. */
+    static MemberMatch exactly(List<DirectoryUser> exact, Set<String> memberIds) {
 
-        var exact = everyone.stream().filter(user -> MemberDirectoryService.matchesExactly(user, normalizedReference))
-                .toList();
         if (exact.size() == 1) {
-            return matched(exact.getFirst());
+            return new MemberMatch.Matched(exact.getFirst().userId());
         }
-        if (exact.size() > 1) {
-            var exactMembers = exact.stream().filter(user -> memberIds.contains(user.userId())).toList();
-            return exactMembers.size() == 1
-                    ? matched(exactMembers.getFirst())
-                    : new MemberMatch.Ambiguous(exact.size());
-        }
-        return unique(roster).or(() -> unique(everyone)).map(Function.<MemberMatch>identity()).orElseGet(
-                () -> everyone.isEmpty() ? new MemberMatch.NotFound() : new MemberMatch.Ambiguous(everyone.size()));
+        var members = exact.stream().filter(user -> memberIds.contains(user.userId())).toList();
+        return members.size() == 1 ? new MemberMatch.Matched(members.getFirst().userId()) : ambiguous(exact.size());
     }
 
-    private static Optional<MemberMatch.Matched> unique(List<DirectoryUser> candidates) {
+    /**
+     * Nobody is named exactly: a member who alone matches the name keeps it over namesakes elsewhere, then somebody who
+     * alone matches across the organization.
+     */
+    static MemberMatch byName(List<DirectoryUser> roster, List<DirectoryUser> everyone) {
 
-        return candidates.size() == 1 ? Optional.of(matched(candidates.getFirst())) : Optional.empty();
+        if (roster.size() == 1) {
+            return new MemberMatch.Matched(roster.getFirst().userId());
+        }
+        var candidates = new LinkedHashSet<String>();
+        roster.forEach(user -> candidates.add(user.userId()));
+        everyone.forEach(user -> candidates.add(user.userId()));
+        if (candidates.isEmpty()) {
+            return new MemberMatch.NotFound();
+        }
+        return candidates.size() == 1 ? new MemberMatch.Matched(candidates.getFirst()) : ambiguous(candidates.size());
     }
 
-    private static MemberMatch.Matched matched(DirectoryUser user) {
+    private static MemberMatch ambiguous(int candidates) {
 
-        return new MemberMatch.Matched(user.userId());
+        return new MemberMatch.Ambiguous(Math.min(candidates, MemberDirectory.CANDIDATE_LIMIT));
     }
 }

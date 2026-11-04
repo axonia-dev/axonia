@@ -22,6 +22,14 @@ public interface UserRepository extends CrudRepository<UserEntity, Long>, UserSe
 
     List<UserEntity> findByOrganizationIdAndUserIdIn(String organizationId, Collection<String> userIds);
 
+    @Query("SELECT " + UserEntity.COLUMNS + """
+             FROM identity_user
+            WHERE organization_id = :organizationId AND active = true AND user_id IS NOT NULL
+              AND (lower(trim(display_name)) = :reference OR lower(email) = :reference)
+            ORDER BY display_name, user_id
+            """)
+    List<UserEntity> findPeopleNamedExactly(String organizationId, String reference);
+
     List<UserEntity> findByOrganizationId(String organizationId, Pageable pageable);
 
     Optional<UserEntity> findByOrganizationIdAndScimId(String organizationId, String scimId);

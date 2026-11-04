@@ -36,13 +36,12 @@ public class TopicAuthorizer {
     }
 
     /**
-     * The assignee decides their own work without needing a manage right; everyone else needs one. Short-circuits
-     * before consulting {@link CommunityAccess} at all when the caller is the assignee, so an assignee closing their
-     * own item never pays a policy lookup for a check it cannot fail.
+     * An assignee who is a member decides their own work without needing a manage right; everyone else needs one.
+     * Short-circuits before the policy lookup when the caller is such an assignee.
      */
     public void requireAssigneeOrManager(long communityId, String assigneeUserId, String userId) {
 
-        if (userId.equals(assigneeUserId)) {
+        if (userId.equals(assigneeUserId) && communityAccess.isMember(communityId, userId)) {
             return;
         }
         requireTopicManagementPermission(communityId, userId);

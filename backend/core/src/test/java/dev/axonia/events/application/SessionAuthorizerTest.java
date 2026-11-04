@@ -106,6 +106,9 @@ class SessionAuthorizerTest {
     @Test
     void requireSlotOwnerOrManager_allowsPresenter() {
 
+        // given
+        when(communityAccess.isMember(1L, "u1")).thenReturn(true);
+
         // then
         assertThatCode(() -> sut.requireSlotOwnerOrManager("t1", session(), slot(null, "u1"), "u1"))
                 .doesNotThrowAnyException();
@@ -117,9 +120,23 @@ class SessionAuthorizerTest {
         // given
         when(topicStore.findByOrganizationIdAndId("t1", 5L))
                 .thenReturn(Optional.of(TopicRecord.builder().id(5L).proposerUserId("u2").build()));
+        when(communityAccess.isMember(1L, "u2")).thenReturn(true);
 
         // then
         assertThatCode(() -> sut.requireSlotOwnerOrManager("t1", session(), slot(5L), "u2")).doesNotThrowAnyException();
+    }
+
+    /** Crediting somebody makes them no member, so a presenter who never joined holds no rights over the slot. */
+    @Test
+    void requireSlotOwnerOrManager_refusesAPresenterWhoIsNotAMember() {
+
+        // given
+        when(communityAccess.isMember(1L, "u1")).thenReturn(false);
+        when(communityAccess.contributionPolicy(1L)).thenReturn(ContributionPolicy.curated());
+
+        // then
+        assertThatThrownBy(() -> sut.requireSlotOwnerOrManager("t1", session(), slot(null, "u1"), "u1"))
+                .isInstanceOf(ForbiddenException.class);
     }
 
     @Test

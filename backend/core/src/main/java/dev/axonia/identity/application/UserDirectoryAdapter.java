@@ -2,6 +2,7 @@ package dev.axonia.identity.application;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
@@ -42,7 +43,7 @@ class UserDirectoryAdapter implements UserDirectory {
 
     @Override
     @Transactional(readOnly = true)
-    public List<DirectoryUser> searchMembers(String organizationId, Collection<String> userIds, String query,
+    public List<DirectoryUser> searchMembersByName(String organizationId, Collection<String> userIds, String query,
             int limit) {
 
         return toDirectoryUsers(memberSearch(organizationId, userIds, query, limit).build());
@@ -50,30 +51,27 @@ class UserDirectoryAdapter implements UserDirectory {
 
     @Override
     @Transactional(readOnly = true)
-    public List<DirectoryUser> searchMembersByName(String organizationId, Collection<String> userIds, String query,
-            int limit) {
-
-        return toDirectoryUsers(memberSearch(organizationId, userIds, query, limit).nameOnly(true).build());
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<DirectoryUser> searchPeople(String organizationId, String query, int limit) {
+    public List<DirectoryUser> searchPeopleByName(String organizationId, String query, int limit) {
 
         return toDirectoryUsers(peopleSearch(organizationId, query, limit).build());
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<DirectoryUser> searchPeopleByName(String organizationId, String query, int limit) {
+    public List<DirectoryUser> findPeopleNamedExactly(String organizationId, String reference) {
 
-        return toDirectoryUsers(peopleSearch(organizationId, query, limit).nameOnly(true).build());
+        var normalized = reference == null ? "" : reference.trim().toLowerCase(Locale.ROOT);
+        if (normalized.isEmpty()) {
+            return List.of();
+        }
+        return userStore.findPeopleNamedExactly(organizationId, normalized).stream()
+                .map(UserDirectoryAdapter::toDirectoryUser).toList();
     }
 
     private static UserSearch.UserSearchBuilder peopleSearch(String organizationId, String query, int limit) {
 
-        return UserSearch.builder().organizationId(organizationId).query(query).holdingSubject(true).limit(limit)
-                .offset(0);
+        return UserSearch.builder().organizationId(organizationId).query(query).holdingSubject(true).nameOnly(true)
+                .limit(limit).offset(0);
     }
 
     // A null set would reach the repository as "no restriction" and widen a member search to the whole organization.
@@ -81,7 +79,8 @@ class UserDirectoryAdapter implements UserDirectory {
             String query, int limit) {
 
         return UserSearch.builder().organizationId(organizationId).query(query)
-                .restrictToUserIds(Objects.requireNonNullElse(userIds, List.of())).limit(limit).offset(0);
+                .restrictToUserIds(Objects.requireNonNullElse(userIds, List.of())).nameOnly(true).limit(limit)
+                .offset(0);
     }
 
     @Override
