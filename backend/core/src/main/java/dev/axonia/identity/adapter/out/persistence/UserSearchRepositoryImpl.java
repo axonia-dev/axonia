@@ -64,10 +64,7 @@ class UserSearchRepositoryImpl implements UserSearchRepository {
 
         var restrictToUserIds = search.restrictToUserIds();
         var tokens = tokenize(search.query());
-        if (tokens.isEmpty() && (restrictToUserIds != null || search.holdingSubject())
-                || restrictToUserIds != null && restrictToUserIds.isEmpty()) {
-            // A restricted search has nobody to draw from, or nothing to match on. Answered without SQL, because
-            // "IN ()" is a syntax error and an unrestricted-looking query must not silently widen to the whole org.
+        if (matchesNobody(search, tokens)) {
             return List.of();
         }
 
@@ -79,12 +76,7 @@ class UserSearchRepositoryImpl implements UserSearchRepository {
         // below excludes them anyway without saying so, because NULL IN (:userIds) is never true.
         var sql = new StringBuilder(
                 "SELECT " + UserEntity.COLUMNS + " FROM identity_user WHERE organization_id = :organizationId");
-        if (!search.includeDeparted()) {
-            sql.append(" AND active = true");
-        }
-        if (search.holdingSubject()) {
-            sql.append(" AND user_id IS NOT NULL");
-        }
+        appendStandingFilters(search, sql);
         if (restrictToUserIds != null) {
             params.addValue("userIds", restrictToUserIds);
             sql.append(" AND user_id IN (:userIds)");
@@ -101,6 +93,29 @@ class UserSearchRepositoryImpl implements UserSearchRepository {
         sql.append(" ORDER BY display_name, user_id, id LIMIT :limit OFFSET :offset");
 
         return jdbc.query(sql.toString(), params, rowMapper());
+    }
+
+    /**
+     * A restricted search with nobody to draw from, or a restricted or picker search with nothing to match on. Answered
+     * without SQL, because "IN ()" is a syntax error and such a search must not silently widen to the whole org.
+     */
+    private static boolean matchesNobody(UserSearch search, List<String> tokens) {
+
+        var restrictToUserIds = search.restrictToUserIds();
+        if (restrictToUserIds != null && restrictToUserIds.isEmpty()) {
+            return true;
+        }
+        return tokens.isEmpty() && (restrictToUserIds != null || search.holdingSubject());
+    }
+
+    private static void appendStandingFilters(UserSearch search, StringBuilder sql) {
+
+        if (!search.includeDeparted()) {
+            sql.append(" AND active = true");
+        }
+        if (search.holdingSubject()) {
+            sql.append(" AND user_id IS NOT NULL");
+        }
     }
 
     private static List<String> tokenize(String query) {
