@@ -298,6 +298,58 @@ class UserDirectoryAdapterTest extends CoreJdbcTestSupport {
     }
 
     @Test
+    void searchPeople_findsAnybodyInTheOrganizationByNameOrEmail() {
+
+        // when
+        var byName = adapter.searchPeople("default", "alice", 10);
+        var byEmail = adapter.searchPeople("default", "aaa-bob", 10);
+
+        // then
+        assertThat(byName).extracting(DirectoryUser::userId).containsExactly(ALICE);
+        assertThat(byEmail).extracting(DirectoryUser::userId).containsExactly(BOB);
+    }
+
+    @Test
+    void searchPeople_staysInItsOrganization() {
+
+        // when
+        var actual = adapter.searchPeople("default", "carol", 10);
+
+        // then
+        assertThat(actual).isEmpty();
+    }
+
+    @Test
+    void searchPeopleByName_matchesDisplayName() {
+
+        // when
+        var actual = adapter.searchPeopleByName("default", "alice", 10);
+
+        // then
+        assertThat(actual).extracting(DirectoryUser::userId).containsExactly(ALICE);
+    }
+
+    @Test
+    void searchPeopleByName_neverMatchesAnEmailFragment() {
+
+        // when
+        var actual = adapter.searchPeopleByName("default", "aaa-bob", 10);
+
+        // then
+        assertThat(actual).isEmpty();
+    }
+
+    @Test
+    void searchPeopleByName_withABlankQueryListsNobody() {
+
+        // when
+        var actual = adapter.searchPeopleByName("default", " ", 10);
+
+        // then
+        assertThat(actual).isEmpty();
+    }
+
+    @Test
     void byIds_returnsMatchingUsers() {
 
         // when

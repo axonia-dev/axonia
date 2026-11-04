@@ -56,6 +56,26 @@ class UserDirectoryAdapter implements UserDirectory {
         return toDirectoryUsers(memberSearch(organizationId, userIds, query, limit).nameOnly(true).build());
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<DirectoryUser> searchPeople(String organizationId, String query, int limit) {
+
+        return toDirectoryUsers(peopleSearch(organizationId, query, limit).build());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<DirectoryUser> searchPeopleByName(String organizationId, String query, int limit) {
+
+        return toDirectoryUsers(peopleSearch(organizationId, query, limit).nameOnly(true).build());
+    }
+
+    private static UserSearch.UserSearchBuilder peopleSearch(String organizationId, String query, int limit) {
+
+        return UserSearch.builder().organizationId(organizationId).query(query).holdingSubject(true).limit(limit)
+                .offset(0);
+    }
+
     // A null set would reach the repository as "no restriction" and widen a member search to the whole organization.
     private static UserSearch.UserSearchBuilder memberSearch(String organizationId, Collection<String> userIds,
             String query, int limit) {

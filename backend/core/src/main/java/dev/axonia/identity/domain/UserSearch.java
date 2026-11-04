@@ -22,8 +22,13 @@ import lombok.Builder;
  * {@code nameOnly} matches the display name alone, never the email, so a member cannot probe another member's address
  * by trying fragments of it. Only a community's member picker sets it; every other search matches display name or
  * email.
+ *
+ * <p>
+ * {@code holdingSubject} leaves out anybody who holds no subject yet, a directory row nobody has signed in as and no
+ * directory has named the subject of: there is nothing to credit such a row under. A search that sets it is a picker
+ * over the whole organization, so it matches nobody when it has nothing to match on, rather than listing everybody.
  */
 @Builder
 public record UserSearch(String organizationId, String query, Collection<String> restrictToUserIds, int limit,
-        long offset, boolean includeDeparted, boolean nameOnly) {
+        long offset, boolean includeDeparted, boolean nameOnly, boolean holdingSubject) {
 }

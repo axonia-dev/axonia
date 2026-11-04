@@ -64,7 +64,8 @@ class UserSearchRepositoryImpl implements UserSearchRepository {
 
         var restrictToUserIds = search.restrictToUserIds();
         var tokens = tokenize(search.query());
-        if (restrictToUserIds != null && (restrictToUserIds.isEmpty() || tokens.isEmpty())) {
+        if (tokens.isEmpty() && (restrictToUserIds != null || search.holdingSubject())
+                || restrictToUserIds != null && restrictToUserIds.isEmpty()) {
             // A restricted search has nobody to draw from, or nothing to match on. Answered without SQL, because
             // "IN ()" is a syntax error and an unrestricted-looking query must not silently widen to the whole org.
             return List.of();
@@ -80,6 +81,9 @@ class UserSearchRepositoryImpl implements UserSearchRepository {
                 "SELECT " + UserEntity.COLUMNS + " FROM identity_user WHERE organization_id = :organizationId");
         if (!search.includeDeparted()) {
             sql.append(" AND active = true");
+        }
+        if (search.holdingSubject()) {
+            sql.append(" AND user_id IS NOT NULL");
         }
         if (restrictToUserIds != null) {
             params.addValue("userIds", restrictToUserIds);

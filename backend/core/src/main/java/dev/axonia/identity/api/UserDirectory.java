@@ -35,6 +35,19 @@ public interface UserDirectory {
     List<DirectoryUser> searchMembersByName(String organizationId, Collection<String> userIds, String query, int limit);
 
     /**
+     * Anybody in the organization who can be credited: present, holding a subject, and matching every token of the
+     * query by display name or email. At most {@code limit}, in the same deterministic order as {@link #searchMembers}.
+     * A query with no usable tokens matches nobody.
+     */
+    List<DirectoryUser> searchPeople(String organizationId, String query, int limit);
+
+    /**
+     * The same organization-wide match as {@link #searchPeople}, against display name only - never email, so a picker
+     * cannot be used to probe anybody's address.
+     */
+    List<DirectoryUser> searchPeopleByName(String organizationId, String query, int limit);
+
+    /**
      * Resolve specific users of one organization by their ids (for joining onto role bindings). Scoped to the
      * organization: a user id belonging to another tenant resolves to nothing.
      */

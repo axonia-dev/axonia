@@ -77,6 +77,37 @@ class UserSearchRepositoryImplTest extends CoreJdbcTestSupport {
     }
 
     @Test
+    void holdingSubjectLeavesOutSomebodyTheDirectoryHasNotGivenASubject() {
+
+        // given
+        seedUser("dana-signed", "Dana Signed", true);
+        jdbc.update("""
+                INSERT INTO identity_user (organization_id, user_id, display_name, email, active, scim_id, arrival,
+                                           created_at, updated_at, version)
+                VALUES ('default', NULL, 'Dana Directory', 'dana.directory@example.test', true, 'scim-dana-directory',
+                        'SYNCED', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', 0)
+                """, Map.of());
+
+        // when
+        var actual = userRepository.search(
+                UserSearch.builder().organizationId("default").query("dana").limit(10).holdingSubject(true).build());
+
+        // then
+        assertThat(actual).extracting(UserEntity::getDisplayName).containsExactly("Dana Signed");
+    }
+
+    @Test
+    void holdingSubjectWithNothingToMatchOnMatchesNobody() {
+
+        // when
+        var actual = userRepository.search(
+                UserSearch.builder().organizationId("default").query("  ").limit(10).holdingSubject(true).build());
+
+        // then
+        assertThat(actual).isEmpty();
+    }
+
+    @Test
     void findsAMemberByTwoNameTokensInAnyOrder() {
 
         // when
