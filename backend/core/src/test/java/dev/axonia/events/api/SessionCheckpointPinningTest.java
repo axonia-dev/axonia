@@ -2,6 +2,7 @@ package dev.axonia.events.api;
 
 import java.sql.Timestamp;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -53,6 +54,7 @@ import dev.axonia.events.application.SessionService;
 import dev.axonia.events.application.TopicAuthorizer;
 import dev.axonia.events.application.TopicMemberResolver;
 import dev.axonia.events.application.UpcomingReleasePolicy;
+import dev.axonia.events.application.WrapUpReleasePolicy;
 import dev.axonia.events.application.port.out.ActionItemCheckpointStore;
 import dev.axonia.events.application.port.out.ActionItemStore;
 import dev.axonia.events.application.port.out.AttendanceStore;
@@ -186,7 +188,7 @@ class SessionCheckpointPinningTest extends CoreJdbcTestSupport {
                 checkpointDecisionPass, mapper, sessionListing, sessionCreation, sessionAuthorizer, communityAccess,
                 currentUser, organizationContext, eventPublisher, clock, upcomingReleasePolicy,
                 new SessionInstant(seriesStore), new UsageCounters(new SimpleMeterRegistry()), sectionTypeCatalog,
-                facilitatorResolver);
+                facilitatorResolver, new WrapUpReleasePolicy(communityAccess, () -> Duration.ofDays(30)));
         occurrenceSkipService = new OccurrenceSkipService(sessionStore, seriesStore, mapper, sessionCreation,
                 communityAccess, currentUser, organizationContext, eventPublisher, clock, actionItemStore);
 
@@ -260,7 +262,7 @@ class SessionCheckpointPinningTest extends CoreJdbcTestSupport {
         var second = raiseLateBound(COMMUNITY, "Chase the vendor", alreadyWaiting);
         var versionBefore = reload(first).getVersion();
 
-        sessionService.close(sessionId, new CloseSessionRequest(true));
+        sessionService.close(sessionId, new CloseSessionRequest(true, null));
 
         var reloaded = reload(first);
         assertThat(reloaded.getCheckpointSessionId()).isEqualTo(sessionId);
@@ -280,7 +282,7 @@ class SessionCheckpointPinningTest extends CoreJdbcTestSupport {
 
         var item = raiseLateBound(COMMUNITY, "Just noticed this");
 
-        sessionService.close(sessionId, new CloseSessionRequest(true));
+        sessionService.close(sessionId, new CloseSessionRequest(true, null));
 
         assertThat(reload(item).getCheckpointSessionId()).isNull();
     }
@@ -293,7 +295,7 @@ class SessionCheckpointPinningTest extends CoreJdbcTestSupport {
         // exactly the predicate under test rather than passing for the unrelated reason the item was never waiting
         var item = raisePinned(COMMUNITY, "Renew the certificate", later, NOW.minus(10, ChronoUnit.DAYS));
 
-        sessionService.close(sessionId, new CloseSessionRequest(true));
+        sessionService.close(sessionId, new CloseSessionRequest(true, null));
 
         assertThat(reload(item).getCheckpointSessionId()).isEqualTo(later);
     }
@@ -309,10 +311,10 @@ class SessionCheckpointPinningTest extends CoreJdbcTestSupport {
 
         var earlier = seedSession(COMMUNITY, NOW.minus(3, ChronoUnit.DAYS));
         var item = raiseLateBound(COMMUNITY, "Chase the vendor", NOW.minus(10, ChronoUnit.DAYS));
-        sessionService.close(earlier, new CloseSessionRequest(true));
+        sessionService.close(earlier, new CloseSessionRequest(true, null));
         var versionBefore = reload(item).getVersion();
 
-        sessionService.close(sessionId, new CloseSessionRequest(true));
+        sessionService.close(sessionId, new CloseSessionRequest(true, null));
 
         var reloaded = reload(item);
         assertThat(reloaded.getCheckpointSessionId()).isEqualTo(sessionId);
@@ -331,7 +333,7 @@ class SessionCheckpointPinningTest extends CoreJdbcTestSupport {
         var earlier = seedSettledSession(COMMUNITY, NOW.minus(2, ChronoUnit.HOURS));
         var item = raisePinned(COMMUNITY, "Just noticed this", earlier, NOW.minus(12, ChronoUnit.HOURS));
 
-        sessionService.close(sessionId, new CloseSessionRequest(true));
+        sessionService.close(sessionId, new CloseSessionRequest(true, null));
 
         assertThat(reload(item).getCheckpointSessionId()).isEqualTo(earlier);
     }
@@ -347,7 +349,7 @@ class SessionCheckpointPinningTest extends CoreJdbcTestSupport {
         var item = raisePinned(COMMUNITY, "Renew the certificate", sessionId, NOW.minus(10, ChronoUnit.DAYS));
         var versionBefore = reload(item).getVersion();
 
-        sessionService.close(sessionId, new CloseSessionRequest(true));
+        sessionService.close(sessionId, new CloseSessionRequest(true, null));
 
         var reloaded = reload(item);
         assertThat(reloaded.getCheckpointSessionId()).isEqualTo(sessionId);
@@ -361,7 +363,7 @@ class SessionCheckpointPinningTest extends CoreJdbcTestSupport {
         // predicate under test rather than passing for the unrelated reason the item was never waiting either
         var item = raiseLateBound(OTHER_COMMUNITY, "Not our problem", NOW.minus(10, ChronoUnit.DAYS));
 
-        sessionService.close(sessionId, new CloseSessionRequest(true));
+        sessionService.close(sessionId, new CloseSessionRequest(true, null));
 
         assertThat(reload(item).getCheckpointSessionId()).isNull();
     }
@@ -381,7 +383,7 @@ class SessionCheckpointPinningTest extends CoreJdbcTestSupport {
         // Not this session: closing pins to whichever session is still upcoming, and this one is the one being held.
         assertThat(pinnedAtClose).isNotNull().isNotEqualTo(sessionId);
 
-        sessionService.close(sessionId, new CloseSessionRequest(true));
+        sessionService.close(sessionId, new CloseSessionRequest(true, null));
 
         assertThat(reload(item).getCheckpointSessionId()).isEqualTo(pinnedAtClose);
     }
@@ -398,7 +400,7 @@ class SessionCheckpointPinningTest extends CoreJdbcTestSupport {
 
         var item = raiseLateBoundInOrganization("other", COMMUNITY, "Not our tenant", NOW.minus(10, ChronoUnit.DAYS));
 
-        sessionService.close(sessionId, new CloseSessionRequest(true));
+        sessionService.close(sessionId, new CloseSessionRequest(true, null));
 
         assertThat(reload("other", item).getCheckpointSessionId()).isNull();
     }
@@ -463,7 +465,7 @@ class SessionCheckpointPinningTest extends CoreJdbcTestSupport {
 
         var item = raisePinned(COMMUNITY, "Renew the certificate", sessionId);
 
-        sessionService.close(sessionId, new CloseSessionRequest(false));
+        sessionService.close(sessionId, new CloseSessionRequest(false, null));
 
         assertThat(reload(item).getCheckpointSessionId()).isNull();
     }

@@ -156,16 +156,26 @@ class ReadToolsTest {
     }
 
     @Test
+    void session_reportsTheRecordingOfAHeldSession() {
+        when(sessions.get(5L)).thenReturn(Session.builder().id(5L).status(SessionStatus.HELD)
+                .recordingUrl("https://v.example/5").sections(List.of()).build());
+
+        assertThat(sut.session(5L).recordingUrl()).isEqualTo("https://v.example/5");
+    }
+
+    @Test
     void session_mapsToCompactViewWithSectionsAndSlots() {
         var openSlot = Slot.builder().id(21L).title("Intro").presenterUserIds(List.of()).build();
         var takenSlot = Slot.builder().id(22L).title("Deep Dive").presenterUserIds(List.of("u-9")).build();
         var section = Section.builder().id(11L).title("Talk").slots(List.of(openSlot, takenSlot)).build();
         var session = Session.builder().id(5L).title("Kafka Deep Dive")
                 .scheduledAt(Instant.parse("2026-07-10T18:00:00Z")).durationMinutes(60).status(SessionStatus.SCHEDULED)
-                .sections(List.of(section)).build();
+                .recordingUrl("").sections(List.of(section)).build();
         when(sessions.get(5L)).thenReturn(session);
 
         var result = sut.session(5L);
+
+        assertThat(result.recordingUrl()).as("a session with no recording stores an empty one").isNull();
 
         assertThat(result.id()).isEqualTo(5L);
         assertThat(result.title()).isEqualTo("Kafka Deep Dive");

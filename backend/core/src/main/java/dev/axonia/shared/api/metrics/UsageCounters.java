@@ -157,7 +157,11 @@ public class UsageCounters {
 
         public static final Event COMMUNITY_CREATED = new Event("community-created");
 
-        /** An organizer confirming a past session took place. Not a session scheduled, and not one called off. */
+        /**
+         * An organizer confirming a session took place, close enough to when it ran to be the community's activity. Not
+         * a session scheduled, not one called off, and not one closed long after the fact: a backfill of a community's
+         * history would otherwise read as a burst of sessions held the day it was imported.
+         */
         public static final Event SESSION_HELD = new Event("session-held");
 
         public static final Event EMAIL_SENT = new Event("email-sent");

@@ -1,6 +1,7 @@
 package dev.axonia.events.application;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -84,6 +85,8 @@ class SessionServiceTest {
 
     private static final Instant NOW = Instant.parse("2026-03-10T09:00:00Z");
 
+    private static final Duration WRAP_UP_WINDOW = Duration.ofDays(30);
+
     @Mock
     private SessionStore sessionStore;
     @Mock
@@ -143,7 +146,8 @@ class SessionServiceTest {
         sut = new SessionService(sessionStore, seriesStore, topicStore, actionItemStore, checkpointDecisionPass, mapper,
                 sessionListing, new SessionCreation(upcomingReleasePolicy), sessionAuthorizer, communityAccess,
                 currentUser, organizationContext, eventPublisher, clock, upcomingReleasePolicy,
-                new SessionInstant(seriesStore), usageCounters, sectionTypeCatalog, facilitatorResolver);
+                new SessionInstant(seriesStore), usageCounters, sectionTypeCatalog, facilitatorResolver,
+                new WrapUpReleasePolicy(communityAccess, () -> WRAP_UP_WINDOW));
     }
 
     @BeforeEach
@@ -1549,7 +1553,7 @@ class SessionServiceTest {
         when(sessionStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
         stubNoReleaseActivity(42L, 7L);
 
-        sut.close(42L, new CloseSessionRequest(true));
+        sut.close(42L, new CloseSessionRequest(true, null));
 
         verify(sessionStore).save(argThat(s -> "HELD".equals(s.getStatus()) && NOW.equals(s.getClosedAt())
                 && NOW.plus(48, ChronoUnit.HOURS).equals(s.getWrapUpReleaseAt())));
@@ -1568,9 +1572,44 @@ class SessionServiceTest {
         when(sessionStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
         stubNoReleaseActivity(42L, 7L);
 
-        sut.close(42L, new CloseSessionRequest(true));
+        sut.close(42L, new CloseSessionRequest(true, null));
 
         assertThat(usageEvents("session-held")).isEqualTo(1.0);
+    }
+
+    @Test
+    void confirmingHeldWithAnExplicitNoToTheWrapUp_storesNoRelease_soNoWrapUpIsEverSent() {
+
+        givenScheduledPastSession(42L);
+        when(sessionStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        stubNoReleaseActivity(42L, 7L);
+
+        sut.close(42L, new CloseSessionRequest(true, false));
+
+        verify(sessionStore).save(argThat(s -> "HELD".equals(s.getStatus()) && s.getWrapUpReleaseAt() == null));
+        assertThat(usageEvents("session-held")).as("the session ran yesterday, so it is still one held").isEqualTo(1.0);
+    }
+
+    /**
+     * Closing a session long after it ran records history rather than reporting news: its wrap-up would reach the
+     * community weeks late, and counting it would show a migration of two years of sessions as one busy afternoon.
+     */
+    @Test
+    void confirmingHeldASessionOlderThanTheWrapUpWindow_storesNoRelease_andCountsNoSessionHeld() {
+
+        var entity = SessionRecordMother.any().id(42L).communityId(7L).status("SCHEDULED")
+                .scheduledAt(NOW.minus(WRAP_UP_WINDOW).minus(1, ChronoUnit.DAYS)).sections(List.of()).build();
+        when(organizationContext.organizationId()).thenReturn("default");
+        when(sessionStore.findByOrganizationIdAndId("default", 42L)).thenReturn(Optional.of(entity));
+        when(currentUser.userId()).thenReturn("orga");
+        when(sessionStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        stubNoReleaseActivity(42L, 7L);
+
+        sut.close(42L, new CloseSessionRequest(true, null));
+
+        verify(sessionStore).save(argThat(s -> "HELD".equals(s.getStatus()) && s.getWrapUpReleaseAt() == null));
+        verify(sessionAuthorizer).requireOrganizer(any(SessionRecord.class), eq("orga"));
+        assertThat(usageEvents("session-held")).isZero();
     }
 
     @Test
@@ -1580,7 +1619,7 @@ class SessionServiceTest {
         when(sessionStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
         stubNoReleaseActivity(42L, 7L);
 
-        sut.close(42L, new CloseSessionRequest(false));
+        sut.close(42L, new CloseSessionRequest(false, null));
 
         assertThat(usageEvents("session-held")).isZero();
     }
@@ -1597,7 +1636,7 @@ class SessionServiceTest {
         when(sessionStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
         stubNoReleaseActivity(42L, 7L);
 
-        sut.close(42L, new CloseSessionRequest(false));
+        sut.close(42L, new CloseSessionRequest(false, null));
 
         verify(sessionStore).save(argThat(s -> "CANCELLED".equals(s.getStatus()) && NOW.equals(s.getClosedAt())
                 && s.getWrapUpReleaseAt() == null));
@@ -1623,7 +1662,7 @@ class SessionServiceTest {
         when(sessionStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
         stubNoReleaseActivity(42L, 7L);
 
-        sut.close(42L, new CloseSessionRequest(false));
+        sut.close(42L, new CloseSessionRequest(false, null));
 
         verify(topicStore).save(argThat(t -> t.getStatus() == TopicStatus.PROPOSED));
     }
@@ -1635,7 +1674,7 @@ class SessionServiceTest {
         when(sessionStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
         stubNoReleaseActivity(42L, 7L);
 
-        sut.close(42L, new CloseSessionRequest(false));
+        sut.close(42L, new CloseSessionRequest(false, null));
 
         verify(eventPublisher)
                 .publishEvent(argThat((Object e) -> e instanceof SessionCancelled sc && sc.sessionId().equals(42L)));
@@ -1651,8 +1690,8 @@ class SessionServiceTest {
 
         givenCancelledSession(42L);
 
-        assertThatThrownBy(() -> sut.close(42L, new CloseSessionRequest(true))).isInstanceOf(ConflictException.class)
-                .extracting("code").isEqualTo("SESSION_ALREADY_CLOSED");
+        assertThatThrownBy(() -> sut.close(42L, new CloseSessionRequest(true, null)))
+                .isInstanceOf(ConflictException.class).extracting("code").isEqualTo("SESSION_ALREADY_CLOSED");
     }
 
     @Test
@@ -1660,8 +1699,8 @@ class SessionServiceTest {
 
         givenCancelledSession(42L);
 
-        assertThatThrownBy(() -> sut.close(42L, new CloseSessionRequest(false))).isInstanceOf(ConflictException.class)
-                .extracting("code").isEqualTo("SESSION_ALREADY_CLOSED");
+        assertThatThrownBy(() -> sut.close(42L, new CloseSessionRequest(false, null)))
+                .isInstanceOf(ConflictException.class).extracting("code").isEqualTo("SESSION_ALREADY_CLOSED");
     }
 
     @Test
@@ -1669,8 +1708,8 @@ class SessionServiceTest {
 
         givenHeldSession(42L);
 
-        assertThatThrownBy(() -> sut.close(42L, new CloseSessionRequest(true))).isInstanceOf(ConflictException.class)
-                .extracting("code").isEqualTo("SESSION_ALREADY_CLOSED");
+        assertThatThrownBy(() -> sut.close(42L, new CloseSessionRequest(true, null)))
+                .isInstanceOf(ConflictException.class).extracting("code").isEqualTo("SESSION_ALREADY_CLOSED");
     }
 
     @Test
@@ -1678,8 +1717,8 @@ class SessionServiceTest {
 
         givenScheduledFutureSession(42L);
 
-        assertThatThrownBy(() -> sut.close(42L, new CloseSessionRequest(true))).isInstanceOf(ConflictException.class)
-                .extracting("code").isEqualTo("SESSION_NOT_YET_DUE");
+        assertThatThrownBy(() -> sut.close(42L, new CloseSessionRequest(true, null)))
+                .isInstanceOf(ConflictException.class).extracting("code").isEqualTo("SESSION_NOT_YET_DUE");
     }
 
     /**

@@ -24,6 +24,8 @@ import dev.axonia.events.api.RecordSlotRequest;
 import dev.axonia.events.api.ScheduledAt;
 import dev.axonia.events.api.SectionTemplate;
 import dev.axonia.events.api.Sections;
+import dev.axonia.events.api.SessionClosure;
+import dev.axonia.events.api.SessionClosureRequest;
 import dev.axonia.events.api.SessionDeletion;
 import dev.axonia.events.api.Sessions;
 import dev.axonia.events.api.Slots;
@@ -40,7 +42,8 @@ import lombok.RequiredArgsConstructor;
  * The write agent tools: contributing to a community's library, proposing a topic, raising an action item, signing up
  * to present in a session's slot, signalling attendance, joining a community, attaching or detaching a session's
  * artifacts, backfilling a community's history by creating a past session, adding a section to it, recording who
- * presented a slot, and correcting a slot's presenter afterwards, and deleting a session that never took place.
+ * presented a slot, correcting a slot's presenter afterwards, and closing it as held, and deleting a session that never
+ * took place.
  *
  * <p>
  * Most calls are additive and not idempotent: calling one twice with the same arguments either creates a second record
@@ -63,6 +66,7 @@ class WriteTools {
     private final Sections sections;
     private final ActionItems actionItems;
     private final SessionDeletion sessionDeletion;
+    private final SessionClosure sessionClosure;
 
     /**
      * The tail shared by both write tools' actor-reference rule, spelled the same way so the two descriptions cannot
@@ -160,6 +164,26 @@ class WriteTools {
             @McpToolParam(description = "Tags saying what the talk was about, up to 10. They are what makes the talk "
                     + "count toward its presenters' expertise, and a slot recorded here has no other source of "
                     + "subject, so supply them.", required = false) List<String> tags) {
+    }
+
+    /** Grouped into one record (rather than four method params) to stay under the parameter-count limit. */
+    record CloseSessionParams(@McpToolParam(description = "Session id", required = true) Long sessionId,
+            @McpToolParam(description = "true to email every member a wrap-up of the session once the community's "
+                    + "grace period has passed. Omit it, or pass false, and no wrap-up is ever sent for this session, "
+                    + "which is what a backfilled session wants. Set it only for a session that has just "
+                    + "happened.", required = false) Boolean wrapUp,
+            @McpToolParam(description = "Optional http(s) link to the recording of the whole session, shown on the "
+                    + "session as its Recording. A recording of one talk belongs in the library instead: "
+                    + "library.contribute, then session.attachArtifact with that slot's id.", required = false) String recordingUrl,
+            @McpToolParam(description = "Optional follow-up notes, shown on the held session", required = false) String notes) {
+    }
+
+    /**
+     * {@code wrapUp} is the wrap-up's release state as the session page shows it: {@code OFF} means no wrap-up will be
+     * sent, {@code SCHEDULED} that it goes out at {@code wrapUpReleaseAt}.
+     */
+    record ClosedSessionView(Long sessionId, String status, String recordingUrl, String wrapUp,
+            Instant wrapUpReleaseAt) {
     }
 
     record DeletedSessionView(Long sessionId) {
@@ -327,7 +351,8 @@ class WriteTools {
 
     @McpTool(name = "session.create", description = "Create a one-off session in a community. scheduledAt may be in "
             + "the past, which is how a community's history is backfilled from another tool; a past session comes "
-            + "back with status SCHEDULED, awaiting an organizer's confirmation that it actually took place.", annotations = @McpAnnotations(readOnlyHint = false, destructiveHint = false, idempotentHint = false))
+            + "back with status SCHEDULED, and stays so until session.close records that it actually took "
+            + "place.", annotations = @McpAnnotations(readOnlyHint = false, destructiveHint = false, idempotentHint = false))
     public CreatedSessionView createSession(
             @McpToolParam(description = "Session details", required = true) CreateSessionParams params) {
         return support.run("session.create", AgentScope.SCHEDULE_MANAGE, () -> {
@@ -391,6 +416,24 @@ class WriteTools {
         return support.run("slot.addPresenter", AgentScope.SCHEDULE_MANAGE, () -> {
             var assignment = slots.addPresenter(sessionId, sectionId, slotId, presenter);
             return new PresenterAssignmentView(assignment.assigned(), assignment.reason(), assignment.candidates());
+        });
+    }
+
+    @McpTool(name = "session.close", description = "Record that a past session took place: its status becomes "
+            + "HELD, optionally with the link to its recording and follow-up notes, and its talks count as given. "
+            + "The last step of a backfill, after session.create, session.addSection and session.addSlot. No "
+            + "wrap-up email is sent unless wrapUp is true, so closing a backfilled session mails nobody. "
+            + "Organizers only, once per session, and not before the session has started. A session that never "
+            + "took place is not closed: remove it with session.delete.", annotations = @McpAnnotations(readOnlyHint = false, destructiveHint = false, idempotentHint = false))
+    public ClosedSessionView closeSession(
+            @McpToolParam(description = "How the session went", required = true) CloseSessionParams params) {
+        return support.run("session.close", AgentScope.SCHEDULE_MANAGE, () -> {
+            var closed = sessionClosure.closeAsHeld(params.sessionId(),
+                    SessionClosureRequest.builder().wrapUp(Boolean.TRUE.equals(params.wrapUp()))
+                            .recordingUrl(params.recordingUrl()).notes(params.notes()).build());
+            return new ClosedSessionView(closed.id(), String.valueOf(closed.status()),
+                    AgentToolSupport.blankAsAbsent(closed.recordingUrl()),
+                    String.valueOf(closed.wrapUpStatus().state()), closed.wrapUpReleaseAt());
         });
     }
 

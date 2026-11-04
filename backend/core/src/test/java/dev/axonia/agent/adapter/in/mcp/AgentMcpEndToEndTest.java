@@ -3,6 +3,8 @@ package dev.axonia.agent.adapter.in.mcp;
 import java.net.URI;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +32,7 @@ import org.springframework.test.context.jdbc.Sql;
 
 import dev.axonia.CoreSpringBootTest;
 import dev.axonia.bookmarks.application.BookmarkService;
+import dev.axonia.events.application.port.out.SessionStore;
 import dev.axonia.expertise.application.ExpertisePreferenceService;
 import dev.axonia.expertise.application.ExpertiseService;
 import dev.axonia.expertise.application.Practitioner;
@@ -55,14 +58,14 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>
  * Assertions (each maps to a spec guarantee):
  * <ol>
- * <li>A scoped token lists exactly the 28 tools (surface allowlist + auth passes).</li>
+ * <li>A scoped token lists exactly the 29 tools (surface allowlist + auth passes).</li>
  * <li>A scoped {@code topic.propose} call succeeds, a topic is created, and an {@code OK} audit row is written.</li>
  * <li>An unscoped {@code library.contribute} call is refused (scope layer), a {@code SCOPE_DENIED} audit row is
  * written, and the org's artifact count is unchanged.</li>
  * <li>A bogus bearer on {@code /mcp} is rejected with 401 (chain gate).</li>
  * <li>The same {@code axp_} token presented to the REST chain ({@code /axonia/**}) is rejected with 401 (surface
  * isolation).</li>
- * <li>{@code tools/list} contains exactly the 28 known tool names, and exactly four of them declare
+ * <li>{@code tools/list} contains exactly the 29 known tool names, and exactly four of them declare
  * {@code destructiveHint}: {@code session.detachArtifact}, {@code learning.remove}, {@code session.delete} and
  * {@code tag.delete}.</li>
  * <li>The scoped {@code topic.propose} guarantee holds identically in a second, independently seeded ENTERPRISE
@@ -94,6 +97,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  * {@code tag.usage} counts what is left on the tag and {@code tag.delete} strips it from the community.</li>
  * <li>The learning round trip: a {@code learning:declare} token adds an area through {@code learning.add},
  * {@code learning.demand} lists it as held, and {@code learning.remove} takes it back out of the demand.</li>
+ * <li>A backfill finishes in one go: {@code session.close} takes a past session to {@code HELD} with its recording, and
+ * no wrap-up is ever queued for it, even in a community whose wrap-up mail is on. Closing stays an organizer's act: a
+ * plain member holding {@code schedule:manage} is refused and the session stays as it was.</li>
  * </ol>
  */
 @CoreSpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -111,8 +117,8 @@ class AgentMcpEndToEndTest {
             "library.artifactTypes", "library.contribute", "topic.propose", "session.signup", "attendance.signal",
             "community.join", "library.search", "session.artifacts", "session.attachArtifact", "session.detachArtifact",
             "events.sectionTypes", "session.create", "session.addSection", "session.addSlot", "slot.addPresenter",
-            "community.members", "community.people", "actionItem.raise", "learning.demand", "learning.learners",
-            "learning.add", "learning.remove", "session.delete", "tag.usage", "tag.delete");
+            "session.close", "community.members", "community.people", "actionItem.raise", "learning.demand",
+            "learning.learners", "learning.add", "learning.remove", "session.delete", "tag.usage", "tag.delete");
 
     /** The destructive tools on the agent surface. Assertion 6 pins this list to prevent silent growth. */
     private static final Set<String> DESTRUCTIVE_TOOLS = Set.of("session.detachArtifact", "learning.remove",
@@ -166,6 +172,8 @@ class AgentMcpEndToEndTest {
     private static final String SECOND_USER = "agent-second-user";
     private static final String SECOND_SLUG = "agent-second-guild";
 
+    private static final String RECORDING_URL = "https://videos.example.test/imported-guild";
+
     private static final AtomicBoolean SEEDED = new AtomicBoolean(false);
 
     @LocalServerPort
@@ -191,6 +199,10 @@ class AgentMcpEndToEndTest {
 
     @Autowired
     private BookmarkService bookmarks;
+
+    /** The wrap-up producer's own query, so "never queued" is asserted against what would actually mail members. */
+    @Autowired
+    private SessionStore sessionStore;
 
     /**
      * The OAuth resource-server chain needs a {@link JwtDecoder} bean to exist. Stubbed to reject any presented token
@@ -255,11 +267,11 @@ class AgentMcpEndToEndTest {
     }
 
     // -------------------------------------------------------------------------
-    // Assertion 1: a scoped token lists exactly the 28 tools.
+    // Assertion 1: a scoped token lists exactly the 29 tools.
     // -------------------------------------------------------------------------
 
     @Test
-    void scopedToken_listsExactlyTheTwentyEightTools() {
+    void scopedToken_listsExactlyTheTwentyNineTools() {
         var bearer = mint(ENTERPRISE_ORG, ENTERPRISE_USER, Set.of("read", "topic:propose"));
         var client = connect(bearer);
         try {
@@ -384,11 +396,11 @@ class AgentMcpEndToEndTest {
     }
 
     // -------------------------------------------------------------------------
-    // Assertion 6: tools/list is EXACTLY the 28 known names, and exactly four declare destructiveHint.
+    // Assertion 6: tools/list is EXACTLY the 29 known names, and exactly four declare destructiveHint.
     // -------------------------------------------------------------------------
 
     @Test
-    void toolCatalog_isExactlyTheTwentyEightKnownTools_andOnlyTheFourRemovalsAreDestructive() {
+    void toolCatalog_isExactlyTheTwentyNineKnownTools_andOnlyTheFourRemovalsAreDestructive() {
         var bearer = mint(ENTERPRISE_ORG, ENTERPRISE_USER, Set.of("read"));
         var client = connect(bearer);
         try {
@@ -655,6 +667,70 @@ class AgentMcpEndToEndTest {
             // model. It must recompute to the same answer: an idempotent re-add credits nobody new, least of all the
             // organizer who made the call.
             assertTheGraphCreditsTheSpeakerAndNotTheOrganizer();
+        } finally {
+            close(client);
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Assertion 18: the backfill finishes in one go, HELD with its recording and never a wrap-up, organizers only.
+    // -------------------------------------------------------------------------
+
+    /**
+     * Two days ago, not two years: inside the wrap-up window, where only the agent surface's own "no wrap-up unless
+     * asked" stands between a backfilled session and an email to every member a few hours after it is imported.
+     */
+    @Test
+    void closingABackfilledSession_holdsItWithItsRecording_andNeverQueuesAWrapUp() {
+        jdbc.update("UPDATE communities SET notify_session_wrap_up = true WHERE organization_id = ? AND slug = ?",
+                ENTERPRISE_ORG, ENTERPRISE_SLUG);
+        var bearer = mint(ENTERPRISE_ORG, ORGANIZER_USER, Set.of("read", "schedule:manage"));
+        var client = connect(bearer);
+        try {
+            client.initialize();
+            var twoDaysAgo = Instant.now().minus(2, ChronoUnit.DAYS).truncatedTo(ChronoUnit.HOURS);
+            var sessionId = callForLong(
+                    client, "session.create", Map.of("params", Map.of("slug", ENTERPRISE_SLUG, "title",
+                            "Imported guild", "scheduledAt", twoDaysAgo.toString(), "durationMinutes", 60)),
+                    "sessionId");
+
+            var closed = JSON.readTree(call(client, "session.close",
+                    Map.of("params", Map.of("sessionId", sessionId, "recordingUrl", RECORDING_URL))));
+
+            assertThat(closed.get("status").asString()).isEqualTo("HELD");
+            assertThat(closed.get("recordingUrl").asString()).isEqualTo(RECORDING_URL);
+            assertThat(closed.get("wrapUp").asString()).as("the session page reads the wrap-up as off")
+                    .isEqualTo("OFF");
+            var readBack = JSON.readTree(call(client, "session.get", Map.of("id", sessionId)));
+            assertThat(readBack.get("status").asString()).isEqualTo("HELD");
+            assertThat(readBack.get("recordingUrl").asString()).isEqualTo(RECORDING_URL);
+            assertThat(jdbc.queryForObject("SELECT wrap_up_release_at FROM community_session WHERE id = ?",
+                    Instant.class, sessionId)).as("no release instant, so no tick can ever claim it").isNull();
+            assertThat(sessionStore.findWrapUpSessionIds(ENTERPRISE_ORG, Instant.now().plus(365, ChronoUnit.DAYS),
+                    Instant.EPOCH)).as("the wrap-up producer never picks the backfilled session up")
+                    .doesNotContain(sessionId);
+        } finally {
+            close(client);
+        }
+    }
+
+    @Test
+    void closingASession_isRefusedToAPlainMemberHoldingScheduleManage() {
+        var sessionId = seedSession(ENTERPRISE_ORG, ENTERPRISE_SLUG, "SCHEDULED");
+        var bearer = mint(ENTERPRISE_ORG, ENTERPRISE_USER, Set.of("read", "schedule:manage"));
+        var client = connect(bearer);
+        try {
+            client.initialize();
+
+            var result = client.callTool(new McpSchema.CallToolRequest("session.close",
+                    Map.of("params", Map.of("sessionId", sessionId, "recordingUrl", RECORDING_URL))));
+
+            assertThat(result.isError()).as("the scope is what the owner allowed, not a right the owner lacks")
+                    .isTrue();
+            assertThat(textOf(result)).contains("not permitted");
+            assertThat(jdbc.queryForMap("SELECT status, recording_url FROM community_session WHERE id = ?", sessionId))
+                    .containsEntry("status", "SCHEDULED").containsEntry("recording_url", "");
+            assertThat(auditOutcomes(ENTERPRISE_ORG, ENTERPRISE_USER, "session.close")).containsExactly("DOMAIN_ERROR");
         } finally {
             close(client);
         }

@@ -29,8 +29,8 @@ import lombok.RequiredArgsConstructor;
  * about mail:
  *
  * <ul>
- * <li>{@link SessionService#close} stamps {@code wrapUpReleaseAt} at the community's grace period when the organizer
- * confirms the session was held.</li>
+ * <li>{@link SessionService#close} stamps {@code wrapUpReleaseAt} through {@code WrapUpReleasePolicy} when the
+ * organizer confirms the session was held.</li>
  * <li>{@link SessionService#update} recomputes {@code upcomingReleaseAt} through
  * {@code UpcomingReleasePolicy.afterReschedule} whenever the session moves.</li>
  * <li>All three creation paths stamp the default upcoming release through {@code SessionCreation}:
@@ -41,9 +41,9 @@ import lombok.RequiredArgsConstructor;
  *
  * <p>
  * Anybody changing what instants are admissible therefore has SEVEN writers to keep in step, not the two below. The
- * rules themselves live in {@link WrapUpReleaseClamp}, {@link UpcomingReleaseWindow} and {@code UpcomingReleasePolicy}
- * for exactly that reason - they are the shared definitions those writers reach, and a tightening applied here instead
- * of there would silently leave the lifecycle stamps on the old rule.
+ * rules themselves live in {@link WrapUpReleaseClamp}, {@link WrapUpReleasePolicy}, {@link UpcomingReleaseWindow} and
+ * {@code UpcomingReleasePolicy} for exactly that reason - they are the shared definitions those writers reach, and a
+ * tightening applied here instead of there would silently leave the lifecycle stamps on the old rule.
  *
  * <p>
  * The split also keeps both classes inside the module's class-complexity ceiling, which {@link SessionService} was one

@@ -43,11 +43,15 @@ import dev.axonia.events.api.ProposeTopicRequest;
 import dev.axonia.events.api.RaiseActionItemRequest;
 import dev.axonia.events.api.RecordSlotRequest;
 import dev.axonia.events.api.RecordedSlot;
+import dev.axonia.events.api.ReleaseState;
+import dev.axonia.events.api.ReleaseStatus;
 import dev.axonia.events.api.ScheduledAt;
 import dev.axonia.events.api.Section;
 import dev.axonia.events.api.SectionTemplate;
 import dev.axonia.events.api.Sections;
 import dev.axonia.events.api.Session;
+import dev.axonia.events.api.SessionClosure;
+import dev.axonia.events.api.SessionClosureRequest;
 import dev.axonia.events.api.SessionDeletion;
 import dev.axonia.events.api.SessionStatus;
 import dev.axonia.events.api.Sessions;
@@ -100,6 +104,8 @@ class WriteToolsTest {
     ActionItems actionItems;
     @Mock
     SessionDeletion sessionDeletion;
+    @Mock
+    SessionClosure sessionClosure;
 
     WriteTools sut;
 
@@ -108,7 +114,7 @@ class WriteToolsTest {
         var support = new AgentToolSupport(new AgentScopeGate(),
                 new ToolCallRecorder(auditRepo, Clock.fixed(Instant.parse("2026-07-07T09:00:00Z"), ZoneOffset.UTC)));
         sut = new WriteTools(support, artifacts, topics, slots, attendance, memberships, resources, sessions, sections,
-                actionItems, sessionDeletion);
+                actionItems, sessionDeletion, sessionClosure);
         authenticateWithScopes("library:contribute", "topic:propose", "actionItem:raise", "session:signup",
                 "attendance:signal", "community:join");
     }
@@ -450,6 +456,57 @@ class WriteToolsTest {
 
         assertThatThrownBy(() -> sut.deleteSession(42L)).isInstanceOf(AgentToolException.class)
                 .hasMessage("A held session cannot be deleted");
+    }
+
+    @Test
+    void closeSession_closesAsHeld_withNoWrapUpUnlessAskedFor_andReportsTheOutcome() {
+        authenticateWithScopes("schedule:manage");
+        given(sessionClosure.closeAsHeld(eq(42L), any(SessionClosureRequest.class)))
+                .willReturn(Session.builder().id(42L).status(SessionStatus.HELD).recordingUrl("https://v.example/42")
+                        .wrapUpStatus(ReleaseStatus.builder().state(ReleaseState.OFF).build()).build());
+
+        var result = sut.closeSession(new WriteTools.CloseSessionParams(42L, null, "https://v.example/42", null));
+
+        assertThat(result)
+                .isEqualTo(new WriteTools.ClosedSessionView(42L, "HELD", "https://v.example/42", "OFF", null));
+        var captor = ArgumentCaptor.forClass(SessionClosureRequest.class);
+        verify(sessionClosure).closeAsHeld(eq(42L), captor.capture());
+        assertThat(captor.getValue()).as("an omitted wrapUp must never mail the community")
+                .isEqualTo(SessionClosureRequest.builder().wrapUp(false).recordingUrl("https://v.example/42").build());
+    }
+
+    @Test
+    void closeSession_carriesAnExplicitWrapUpAndNotes() {
+        authenticateWithScopes("schedule:manage");
+        var releaseAt = Instant.parse("2026-11-06T09:00:00Z");
+        given(sessionClosure.closeAsHeld(eq(42L), any(SessionClosureRequest.class))).willReturn(
+                Session.builder().id(42L).status(SessionStatus.HELD).recordingUrl("").wrapUpReleaseAt(releaseAt)
+                        .wrapUpStatus(ReleaseStatus.builder().state(ReleaseState.SCHEDULED).build()).build());
+
+        var result = sut.closeSession(new WriteTools.CloseSessionParams(42L, true, null, "Great turnout"));
+
+        assertThat(result).isEqualTo(new WriteTools.ClosedSessionView(42L, "HELD", null, "SCHEDULED", releaseAt));
+        verify(sessionClosure).closeAsHeld(42L,
+                SessionClosureRequest.builder().wrapUp(true).notes("Great turnout").build());
+    }
+
+    @Test
+    void closeSession_saysWhyANotYetStartedSessionCannotBeClosed() {
+        authenticateWithScopes("schedule:manage");
+        given(sessionClosure.closeAsHeld(eq(42L), any(SessionClosureRequest.class)))
+                .willThrow(new ConflictException("SESSION_NOT_YET_DUE", "A session cannot be closed before it starts"));
+
+        assertThatThrownBy(() -> sut.closeSession(new WriteTools.CloseSessionParams(42L, null, null, null)))
+                .isInstanceOf(AgentToolException.class).hasMessage("A session cannot be closed before it starts");
+    }
+
+    @Test
+    void closeSession_refusedWithoutScheduleManageScope() {
+        authenticateWithScopes("read", "session:delete");
+
+        assertThatThrownBy(() -> sut.closeSession(new WriteTools.CloseSessionParams(42L, null, null, null)))
+                .isInstanceOf(AgentToolException.class).hasMessageContaining("schedule:manage");
+        verifyNoInteractions(sessionClosure);
     }
 
     private static Session aSession() {

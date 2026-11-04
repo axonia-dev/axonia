@@ -4,7 +4,6 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -73,6 +72,7 @@ public class SessionService implements Sessions {
     private final UsageCounters usageCounters;
     private final SectionTypeCatalog sectionTypeCatalog;
     private final FacilitatorResolver facilitatorResolver;
+    private final WrapUpReleasePolicy wrapUpReleasePolicy;
 
     @Transactional
     public Session materialize(Long seriesId) {
@@ -307,7 +307,7 @@ public class SessionService implements Sessions {
 
     /**
      * The organizer's confirmation that a past session took place, or their "no" that it did not. A {@code held} answer
-     * stamps the wrap-up release at the community's grace period from now; a "no" runs through the same
+     * stamps the wrap-up release {@link WrapUpReleasePolicy#atClose} decides; a "no" runs through the same
      * {@link #cancelSession} routine as the dedicated cancel endpoint instead of a separate status, so
      * {@code closedAt > scheduledAt} later tells "called off in advance" apart from "fizzled and nobody said so", and
      * the two "call it off" paths cannot silently diverge. Both branches return {@link SessionMapper#toSessionDetail}:
@@ -333,16 +333,18 @@ public class SessionService implements Sessions {
         if (!request.held()) {
             return sessionMapper.toSessionDetail(cancelSession(organizationId, entity, builder, now));
         }
-        var grace = communityAccess.communicationSettings(entity.getCommunityId()).wrapUpGraceHours();
-        var saved = sessionStore
-                .save(builder.status("HELD").wrapUpReleaseAt(now.plus(grace, ChronoUnit.HOURS)).build());
+        var saved = sessionStore.save(builder.status("HELD")
+                .wrapUpReleaseAt(wrapUpReleasePolicy.atClose(entity, request.wrapUp(), now)).build());
         // The one moment a late binding resolves. HELD is asserted by an organizer and never inferred from the clock,
         // so "the next session" becomes this session here and nowhere else.
         actionItemStore.pinLateBound(LateBindingPin.builder().organizationId(organizationId)
                 .communityId(entity.getCommunityId()).sessionId(saved.getId()).build(), entity.getScheduledAt(), now);
         // Only the held branch, and only after this method's transaction commits. The "no" branch above returns
-        // through cancelSession before reaching this line, so a session called off is never counted as one held.
-        usageCounters.recordAfterCommit(UsageCounters.Event.SESSION_HELD);
+        // through cancelSession before reaching this line, so a session called off is never counted as one held, and
+        // a session closed as history is a backfill rather than one the community just ran.
+        if (!wrapUpReleasePolicy.recordsHistory(entity, now)) {
+            usageCounters.recordAfterCommit(UsageCounters.Event.SESSION_HELD);
+        }
         return sessionMapper.toSessionDetail(saved);
     }
 

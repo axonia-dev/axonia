@@ -67,7 +67,7 @@ class ReadTools {
     }
 
     record SessionView(Long id, String title, Instant scheduledAt, Integer durationMinutes, String status,
-            List<SectionView> sections) {
+            String recordingUrl, List<SectionView> sections) {
     }
 
     record SectionView(Long sectionId, String title, List<SlotView> slots) {
@@ -132,15 +132,17 @@ class ReadTools {
                         .toList());
     }
 
-    @McpTool(name = "session.get", description = "Get one session with its sections and slots, so you can find the "
-            + "sectionId and slotId needed to sign up to present.", annotations = @McpAnnotations(readOnlyHint = true, destructiveHint = false))
+    @McpTool(name = "session.get", description = "Get one session with its status, its recording "
+            + "link and its sections and slots, so you can find the sectionId and slotId needed to sign up to "
+            + "present, or check a backfilled session after session.close.", annotations = @McpAnnotations(readOnlyHint = true, destructiveHint = false))
     public SessionView session(@McpToolParam(description = "Session id", required = true) Long id) {
         return support.run("session.get", AgentScope.READ, () -> toSessionView(sessions.get(id)));
     }
 
     private SessionView toSessionView(Session session) {
         return new SessionView(session.id(), session.title(), session.scheduledAt(), session.durationMinutes(),
-                String.valueOf(session.status()), session.sections().stream().map(this::toSectionView).toList());
+                String.valueOf(session.status()), AgentToolSupport.blankAsAbsent(session.recordingUrl()),
+                session.sections().stream().map(this::toSectionView).toList());
     }
 
     private SectionView toSectionView(Section section) {

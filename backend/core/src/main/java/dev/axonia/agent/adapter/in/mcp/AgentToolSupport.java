@@ -46,6 +46,12 @@ class AgentToolSupport {
         }
     }
 
+    /** A session stores an absent recording or note as an empty string; an agent is told it is absent. */
+    static String blankAsAbsent(String value) {
+
+        return value == null || value.isBlank() ? null : value;
+    }
+
     private String mapMessage(RuntimeException e) {
         // Checked before the ForbiddenException branch below, which is the sanitizer: this refusal's message is the
         // point of it. Told only "you are not a member", an agent that credited a colleague would rationally call

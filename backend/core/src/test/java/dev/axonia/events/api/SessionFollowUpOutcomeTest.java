@@ -1,6 +1,7 @@
 package dev.axonia.events.api;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
@@ -52,6 +53,7 @@ import dev.axonia.events.application.SessionInstant;
 import dev.axonia.events.application.SessionMapper;
 import dev.axonia.events.application.SessionService;
 import dev.axonia.events.application.UpcomingReleasePolicy;
+import dev.axonia.events.application.WrapUpReleasePolicy;
 import dev.axonia.events.application.port.out.ActionItemCheckpointStore;
 import dev.axonia.events.application.port.out.ActionItemStore;
 import dev.axonia.events.application.port.out.AttendanceStore;
@@ -179,7 +181,8 @@ class SessionFollowUpOutcomeTest extends CoreJdbcTestSupport {
         sessionService = new SessionService(sessionStore, seriesStore, topicStore, actionItemStore,
                 checkpointDecisionPass, mapper, sessionListing, sessionCreation, sessionAuthorizer, communityAccess,
                 currentUser, organizationContext, events, clock, upcomingReleasePolicy, new SessionInstant(seriesStore),
-                new UsageCounters(new SimpleMeterRegistry()), sectionTypeCatalog, facilitatorResolver);
+                new UsageCounters(new SimpleMeterRegistry()), sectionTypeCatalog, facilitatorResolver,
+                new WrapUpReleasePolicy(communityAccess, () -> Duration.ofDays(30)));
     }
 
     @BeforeEach
