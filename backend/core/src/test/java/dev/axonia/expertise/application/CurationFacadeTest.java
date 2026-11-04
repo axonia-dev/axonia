@@ -11,8 +11,10 @@ import org.mockito.junit.jupiter.MockitoSettings;
 
 import dev.axonia.expertise.api.CuratedNamedArea;
 import dev.axonia.expertise.api.NamedAreaAssignment;
+import dev.axonia.expertise.api.TagCuration;
 import dev.axonia.expertise.api.TagMergeSuggestion;
 import dev.axonia.expertise.api.TagSplit;
+import dev.axonia.expertise.api.TagUnassignment;
 import dev.axonia.expertise.api.TagUsageReport;
 import dev.axonia.expertise.api.VocabularyTag;
 import dev.axonia.expertise.api.VocabularyTag.NamedAreaRef;
@@ -69,6 +71,18 @@ class CurationFacadeTest {
         assertThat(sut.suggestions(SLUG))
                 .containsExactly(new TagMergeSuggestion(new TagMergeSuggestion.Side("kafka", List.of(), 3, kafka),
                         new TagMergeSuggestion.Side("kafak", List.of(), 0, kafak), 0.8));
+    }
+
+    @Test
+    void suggestionsStopAtTheLimit_soTheirUsageStaysBounded() {
+
+        var pairs = java.util.stream.IntStream.range(0, TagCuration.SUGGESTION_LIMIT + 5)
+                .mapToObj(i -> new MergeSuggestion("tag-" + i, "tag-" + i + "x", 0.9)).toList();
+        when(tags.suggestions(SLUG)).thenReturn(pairs);
+        when(tags.vocabulary(SLUG)).thenReturn(List.of());
+        when(tags.usages(org.mockito.ArgumentMatchers.eq(SLUG), anyCollection())).thenReturn(Map.of());
+
+        assertThat(sut.suggestions(SLUG)).hasSize(TagCuration.SUGGESTION_LIMIT);
     }
 
     @Test
@@ -151,13 +165,14 @@ class CurationFacadeTest {
         when(namedAreas.createNamedArea(SLUG, "Messaging")).thenReturn(messaging);
         when(namedAreas.renameNamedArea(SLUG, 5L, "Messaging")).thenReturn(messaging);
         when(namedAreas.deleteNamedArea(SLUG, 5L)).thenReturn(messaging);
-        when(namedAreas.removeFromNamedArea(SLUG, "spring")).thenReturn(Optional.of(messaging));
+        when(namedAreas.removeFromNamedArea(SLUG, "spring"))
+                .thenReturn(new NamedAreaCurationService.TagRemoval("spring", Optional.of(messaging)));
 
         assertThat(sut.namedAreas(SLUG)).containsExactly(curated);
         assertThat(sut.create(SLUG, "Messaging")).isEqualTo(curated);
         assertThat(sut.rename(SLUG, 5L, "Messaging")).isEqualTo(curated);
         assertThat(sut.delete(SLUG, 5L)).isEqualTo(curated);
-        assertThat(sut.unassign(SLUG, "spring")).contains(curated);
+        assertThat(sut.unassign(SLUG, "spring")).isEqualTo(new TagUnassignment("spring", Optional.of(curated)));
     }
 
     @Test

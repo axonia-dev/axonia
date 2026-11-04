@@ -1,6 +1,6 @@
 package dev.axonia.expertise.application;
 
-import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -8,13 +8,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import dev.axonia.community.api.TagNormalizer;
 import dev.axonia.expertise.api.CommunityAreas;
 import dev.axonia.expertise.api.CommunityVocabulary;
-import dev.axonia.expertise.api.TagReading;
+import dev.axonia.expertise.api.TagSnapshot;
 import dev.axonia.expertise.application.port.out.OrganizationContext;
 import dev.axonia.expertise.application.port.out.TagAliasRepository;
 import dev.axonia.expertise.application.port.out.VocabularyLock;
+import dev.axonia.expertise.domain.AliasResolver;
 import dev.axonia.expertise.domain.ExpertiseArea;
 import dev.axonia.expertise.domain.TagCurationRules;
 import lombok.RequiredArgsConstructor;
@@ -76,21 +76,26 @@ public class ExpertiseVocabulary implements CommunityVocabulary {
         return TagCurationRules.requireWritableName(raw);
     }
 
-    /**
-     * Reads the caller's organization from the request, so it must not be called off a request. A merged tag is
-     * reported as merged even when no content carries it yet, since the merge already folds it.
-     */
+    /** Reads the caller's organization from the request, so it must not be called off a request. */
     @Override
     @Transactional(readOnly = true)
-    public TagReading read(long communityId, Collection<String> rawTags) {
+    public List<String> visibleTags(String slug) {
 
-        var vocabulary = curationScope.vocabularyOf(organizationContext.organizationId(), communityId);
-        var aliases = vocabulary.aliases();
-        var tags = rawTags.stream().map(TagNormalizer::normalize).filter(tag -> !tag.isBlank()).distinct().toList();
-        var merged = tags.stream().filter(aliases::containsKey).map(tag -> new TagReading.Merged(tag, aliases.get(tag)))
-                .toList();
-        var created = tags.stream().filter(tag -> !aliases.containsKey(tag) && !vocabulary.names().contains(tag))
-                .toList();
-        return new TagReading(created, merged);
+        var communityId = curationScope.requireMembership(slug);
+        var org = organizationContext.organizationId();
+        var aliases = tagAliasRepository.aliasMap(org, communityId);
+        return curationScope.visibleTagsOf(org, communityId).stream()
+                .map(tag -> AliasResolver.canonicalOf(tag, aliases)).distinct().sorted().toList();
+    }
+
+    /** Reads the caller's organization from the request, so it must not be called off a request. */
+    @Override
+    @Transactional(readOnly = true)
+    public TagSnapshot snapshot(long communityId) {
+
+        var org = organizationContext.organizationId();
+        var aliases = tagAliasRepository.aliasMap(org, communityId);
+        return new TagSnapshot(TagCurationRules.vocabularyOf(curationScope.visibleTagsOf(org, communityId), aliases),
+                aliases);
     }
 }

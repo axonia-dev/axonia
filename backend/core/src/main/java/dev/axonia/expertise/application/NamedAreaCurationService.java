@@ -73,6 +73,7 @@ public class NamedAreaCurationService {
 
         var communityId = curationScope.requireCurationAccess(slug);
         var org = organizationContext.organizationId();
+        vocabularyLock.lock(org, communityId);
         var before = namedAreaRepository.findAll(org, communityId).stream().filter(area -> area.id() == id).findFirst();
         requireFound(namedAreaRepository.delete(org, communityId, id), id);
         return before.orElseThrow();
@@ -118,10 +119,11 @@ public class NamedAreaCurationService {
     /**
      * Open on a tag the community no longer carries, so a membership the map drops can still be taken back.
      *
-     * @return the named area the tag left, without it, or empty when no named area held it
+     * @return the canonical the tag was taken out as, and the named area it left, without it, or none when no named
+     *         area held it
      */
     @Transactional
-    public Optional<NamedArea> removeFromNamedArea(String slug, String tag) {
+    public TagRemoval removeFromNamedArea(String slug, String tag) {
 
         var communityId = curationScope.requireCurationAccess(slug);
         var org = organizationContext.organizationId();
@@ -130,7 +132,12 @@ public class NamedAreaCurationService {
                 tagAliasRepository.aliasMap(org, communityId));
         var holder = holderOf(canonical, namedAreaRepository.findAll(org, communityId));
         namedAreaRepository.remove(org, communityId, canonical);
-        return holder.map(area -> new NamedArea(area.id(), area.name(), tagsOf(org, communityId, area.id())));
+        return new TagRemoval(canonical,
+                holder.map(area -> new NamedArea(area.id(), area.name(), tagsOf(org, communityId, area.id()))));
+    }
+
+    /** The canonical a tag was taken out of a named area as, and the area it left, if any held it. */
+    public record TagRemoval(String tag, Optional<NamedArea> from) {
     }
 
     private List<String> tagsOf(String org, long communityId, long id) {

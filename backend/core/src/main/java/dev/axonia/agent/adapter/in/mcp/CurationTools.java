@@ -8,6 +8,8 @@ import org.springframework.ai.mcp.annotation.McpToolParam;
 import org.springframework.stereotype.Component;
 
 import dev.axonia.agent.domain.AgentScope;
+import dev.axonia.community.api.TagNormalizer;
+import dev.axonia.expertise.api.CommunityVocabulary;
 import dev.axonia.expertise.api.TagCuration;
 import dev.axonia.expertise.api.TagMergeSuggestion;
 import dev.axonia.expertise.api.TagUsageReport;
@@ -30,6 +32,7 @@ class CurationTools {
 
     private final AgentToolSupport support;
     private final TagCuration tagCuration;
+    private final CommunityVocabulary communityVocabulary;
 
     record TagUsageView(String tag, int artifacts, int topics, int talks, int declarations, int learningIntents) {
 
@@ -75,21 +78,27 @@ class CurationTools {
     record SuggestionPairView(String tagA, String tagB, boolean dismissed) {
     }
 
-    @McpTool(name = "tag.vocabulary", description = "List a community's tags: each canonical tag with the spellings "
-            + "merged into it (its variants), how many people can be asked about it, and the named area it belongs "
-            + "to. Call it before tagging anything and reuse an existing tag rather than inventing a near-duplicate. "
-            + "Curators only.", annotations = @McpAnnotations(readOnlyHint = true, destructiveHint = false))
+    @McpTool(name = "tag.list", description = "List the tags a community already uses, by their canonical names, "
+            + "sorted. Call it before tagging anything and reuse an existing tag rather than inventing a "
+            + "near-duplicate. Open to any member.", annotations = @McpAnnotations(readOnlyHint = true, destructiveHint = false))
+    public List<String> list(@McpToolParam(description = "Community slug", required = true) String slug) {
+        return support.run("tag.list", AgentScope.READ, () -> communityVocabulary.visibleTags(slug));
+    }
+
+    @McpTool(name = "tag.vocabulary", description = "List a community's tags for curating them: each canonical tag "
+            + "with the spellings merged into it that content still carries (its variants), how many people can be "
+            + "asked about it, and the named area it belongs to. Curators only.", annotations = @McpAnnotations(readOnlyHint = true, destructiveHint = false))
     public List<VocabularyTagView> vocabulary(
             @McpToolParam(description = "Community slug", required = true) String slug) {
         return support.run("tag.vocabulary", AgentScope.READ,
                 () -> tagCuration.vocabulary(slug).stream().map(VocabularyTagView::of).toList());
     }
 
-    @McpTool(name = "tag.suggestions", description = "List pairs of a community's tags whose names are alike enough to "
-            + "be duplicates, each with its similarity from 0 to 1, the spellings already merged into each tag, how "
+    @McpTool(name = "tag.suggestions", description = "List the " + TagCuration.SUGGESTION_LIMIT + " most alike pairs "
+            + "of a community's tags, the likeliest duplicates, each with its similarity from 0 to 1, the spellings already merged into each tag, how "
             + "many people can be asked about it and what content carries it. Judge each pair: merge a real duplicate "
             + "with tag.merge, usually the rarer spelling into the more used one, and park two distinct things with "
-            + "tag.dismissSuggestion so the pair is not suggested again. Curators only.", annotations = @McpAnnotations(readOnlyHint = true, destructiveHint = false))
+            + "tag.dismissSuggestion so the pair is not suggested again; the next pairs then surface. Curators only.", annotations = @McpAnnotations(readOnlyHint = true, destructiveHint = false))
     public List<MergeSuggestionView> suggestions(
             @McpToolParam(description = "Community slug", required = true) String slug) {
         return support.run("tag.suggestions", AgentScope.READ, () -> tagCuration.suggestions(slug).stream().map(
@@ -100,8 +109,9 @@ class CurationTools {
     @McpTool(name = "tag.merge", description = "Merge one or more variant tags into a canonical tag in a community, "
             + "all of them or none. Content keeps the spelling it was tagged with and is read as the canonical "
             + "everywhere, so tag.split undoes a merge. A variant already merged elsewhere moves to this canonical. "
-            + "The canonical cannot itself be a variant, and every tag must already be in the community's vocabulary. "
-            + "Answers the canonical with every variant now merged into it. Curators only.", annotations = @McpAnnotations(readOnlyHint = false, destructiveHint = false, idempotentHint = true))
+            + "The canonical cannot itself be a variant, a variant cannot have tags merged into it, and every tag must "
+            + "already be in the community's vocabulary. Answers the canonical with the variants content still "
+            + "carries. Curators only.", annotations = @McpAnnotations(readOnlyHint = false, destructiveHint = false, idempotentHint = true))
     public VocabularyTagView merge(@McpToolParam(description = "Community slug", required = true) String slug,
             @McpToolParam(description = "The tags to merge away, at least one", required = true) List<String> variants,
             @McpToolParam(description = "The tag they are merged into", required = true) String canonical) {
@@ -139,7 +149,7 @@ class CurationTools {
             @McpToolParam(description = "The other tag of the pair", required = true) String tagB) {
         return support.run("tag.dismissSuggestion", AgentScope.TAG_CURATE, () -> {
             tagCuration.dismiss(slug, tagA, tagB);
-            return new SuggestionPairView(tagA, tagB, true);
+            return new SuggestionPairView(TagNormalizer.normalize(tagA), TagNormalizer.normalize(tagB), true);
         });
     }
 
@@ -151,7 +161,7 @@ class CurationTools {
             @McpToolParam(description = "The other tag of the pair", required = true) String tagB) {
         return support.run("tag.undismissSuggestion", AgentScope.TAG_CURATE, () -> {
             tagCuration.undismiss(slug, tagA, tagB);
-            return new SuggestionPairView(tagA, tagB, false);
+            return new SuggestionPairView(TagNormalizer.normalize(tagA), TagNormalizer.normalize(tagB), false);
         });
     }
 

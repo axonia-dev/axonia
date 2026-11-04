@@ -93,11 +93,14 @@ class NamedAreaTools {
     }
 
     @McpTool(name = "namedArea.unassignTag", description = "Take a tag out of whichever named area holds it; the tag "
-            + "itself stays. Answers the area it left, without it, or null for fromArea when no area held it. "
+            + "itself stays. A merged variant is unassigned as its canonical, so the answer names the canonical. Answers the area it left, without it, or null for fromArea when no area held it. "
             + "Curators only.", annotations = @McpAnnotations(readOnlyHint = false, destructiveHint = false, idempotentHint = true))
     public UnassignmentView unassignTag(@McpToolParam(description = "Community slug", required = true) String slug,
             @McpToolParam(description = "Tag", required = true) String tag) {
-        return support.run("namedArea.unassignTag", AgentScope.TAG_CURATE, () -> new UnassignmentView(tag,
-                namedAreaCuration.unassign(slug, tag).map(NamedAreaView::of).orElse(null)));
+        return support.run("namedArea.unassignTag", AgentScope.TAG_CURATE, () -> {
+            var unassignment = namedAreaCuration.unassign(slug, tag);
+            return new UnassignmentView(unassignment.tag(),
+                    unassignment.fromArea().map(NamedAreaView::of).orElse(null));
+        });
     }
 }

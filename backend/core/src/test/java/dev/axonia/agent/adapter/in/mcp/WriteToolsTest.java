@@ -9,6 +9,7 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
@@ -26,6 +27,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 
+import dev.axonia.agent.adapter.in.mcp.TagReports.Pending;
 import dev.axonia.agent.adapter.in.mcp.TagReports.TagReportView;
 import dev.axonia.agent.application.ToolCallRecorder;
 import dev.axonia.agent.application.port.out.ToolCallAudit;
@@ -56,10 +58,12 @@ import dev.axonia.events.api.SessionClosureRequest;
 import dev.axonia.events.api.SessionDeletion;
 import dev.axonia.events.api.SessionStatus;
 import dev.axonia.events.api.Sessions;
+import dev.axonia.events.api.Slot;
 import dev.axonia.events.api.Slots;
 import dev.axonia.events.api.Topic;
 import dev.axonia.events.api.TopicKind;
 import dev.axonia.events.api.Topics;
+import dev.axonia.expertise.api.TagSnapshot;
 import dev.axonia.knowledge.api.Artifact;
 import dev.axonia.knowledge.api.Artifacts;
 import dev.axonia.knowledge.api.AttachResourceRequest;
@@ -75,6 +79,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -110,7 +115,14 @@ class WriteToolsTest {
     @Mock
     TagReports tagReports;
 
-    /** A report naming one created tag and one merged one, so a test proves the tool hands it back untouched. */
+    /** The community's tags before a write: kubernetes, with k8s merged into it. */
+    private static final Pending PENDING = new Pending(
+            new TagSnapshot(Set.of("kubernetes"), Map.of("k8s", "kubernetes")));
+
+    /** The tags the domain stored, one new to the community and one merged away. */
+    private static final List<String> STORED_TAGS = List.of("azure-pim", "k8s");
+
+    /** What the tool must report for {@link #STORED_TAGS}, read against {@link #PENDING}. */
     private static final TagReportView TAG_REPORT = new TagReportView(List.of("azure-pim"),
             List.of(new TagReports.MergedTagView("k8s", "kubernetes")));
 
@@ -122,6 +134,8 @@ class WriteToolsTest {
                 new ToolCallRecorder(auditRepo, Clock.fixed(Instant.parse("2026-07-07T09:00:00Z"), ZoneOffset.UTC)));
         sut = new WriteTools(support, artifacts, topics, slots, attendance, memberships, resources, sessions, sections,
                 actionItems, sessionDeletion, sessionClosure, tagReports);
+        lenient().when(tagReports.inCommunity(any(), any())).thenReturn(Pending.NOTHING);
+        lenient().when(tagReports.inSession(any(), any())).thenReturn(Pending.NOTHING);
         authenticateWithScopes("library:contribute", "topic:propose", "actionItem:raise", "session:signup",
                 "attendance:signal", "community:join");
     }
@@ -140,10 +154,10 @@ class WriteToolsTest {
 
     @Test
     void contribute_buildsRequestAndCallsAndReturnsCompactResult() {
-        when(artifacts.capture(eq("kafka-guild"), any(CreateArtifactRequest.class)))
-                .thenReturn(Artifact.builder().id(11L).title("Slides").url("https://x.dev/s").build());
+        when(artifacts.capture(eq("kafka-guild"), any(CreateArtifactRequest.class))).thenReturn(
+                Artifact.builder().id(11L).title("Slides").url("https://x.dev/s").tags(STORED_TAGS).build());
 
-        when(tagReports.inCommunity("kafka-guild", Set.of("kafka"))).thenReturn(TAG_REPORT);
+        when(tagReports.inCommunity("kafka-guild", Set.of("kafka"))).thenReturn(PENDING);
 
         var result = sut.contribute(new WriteTools.ContributeParams("kafka-guild", "Slides", 2L, "https://x.dev/s",
                 "notes", Set.of("kafka"), null));
@@ -184,9 +198,9 @@ class WriteToolsTest {
     @Test
     void proposeTopic_mapsKindAndReturnsCompactResult() {
         when(topics.propose(eq("kafka-guild"), any(ProposeTopicRequest.class)))
-                .thenReturn(Topic.builder().id(5L).title("Streams").kind(TopicKind.REQUEST).build());
+                .thenReturn(Topic.builder().id(5L).title("Streams").kind(TopicKind.REQUEST).tags(STORED_TAGS).build());
 
-        when(tagReports.inCommunity("kafka-guild", List.of("kafka"))).thenReturn(TAG_REPORT);
+        when(tagReports.inCommunity("kafka-guild", List.of("kafka"))).thenReturn(PENDING);
 
         var result = sut.proposeTopic(
                 new WriteTools.ProposeTopicParams("kafka-guild", "REQUEST", "Streams", "desc", List.of("kafka"), null));
@@ -236,9 +250,9 @@ class WriteToolsTest {
     void raiseActionItem_buildsRequestAndReturnsCompactResult() {
         when(actionItems.raise(eq("kafka-guild"), any(RaiseActionItemRequest.class)))
                 .thenReturn(ActionItem.builder().id(8L).title("Rotate the certificate").assigneeUserId("u-2")
-                        .dueDate(LocalDate.parse("2026-10-31")).build());
+                        .dueDate(LocalDate.parse("2026-10-31")).tags(STORED_TAGS).build());
 
-        when(tagReports.inCommunity("kafka-guild", List.of("tls"))).thenReturn(TAG_REPORT);
+        when(tagReports.inCommunity("kafka-guild", List.of("tls"))).thenReturn(PENDING);
 
         var result = sut.raiseActionItem(new WriteTools.RaiseActionItemParams("kafka-guild", "Rotate the certificate",
                 "before it expires", List.of("tls"), "Alice Dupont", "2026-10-31", 12L));
@@ -524,6 +538,14 @@ class WriteToolsTest {
         verifyNoInteractions(sessionClosure);
     }
 
+    /** A session whose section holds an untagged slot beside slot {@code slotId}, which carries the stored tags. */
+    private static Session sessionWithTaggedSlot(Long slotId) {
+        var slots = List.of(Slot.builder().id(slotId + 1).tags(List.of("other")).build(),
+                Slot.builder().id(slotId).tags(STORED_TAGS).build());
+        return Session.builder().id(42L)
+                .sections(List.of(Section.builder().id(7L).sectionTypeId(3L).slots(slots).build())).build();
+    }
+
     private static Session aSession() {
         return Session.builder().id(42L).title("Guild #42").build();
     }
@@ -638,10 +660,10 @@ class WriteToolsTest {
 
         authenticateWithScopes("schedule:manage");
         given(slots.recordSlot(eq(42L), eq(7L), any(RecordSlotRequest.class)))
-                .willReturn(new RecordedSlot(aSession(), 9L, PresenterResolution.builder()
+                .willReturn(new RecordedSlot(sessionWithTaggedSlot(9L), 9L, PresenterResolution.builder()
                         .assigned(List.of("Alice Dupont")).unmatched(List.of()).ambiguous(List.of()).build()));
 
-        when(tagReports.inSession(42L, List.of("kafka", "streaming"))).thenReturn(TAG_REPORT);
+        when(tagReports.inSession(42L, List.of("kafka", "streaming"))).thenReturn(PENDING);
 
         var result = sut.addSlot(new WriteTools.AddSlotParams(42L, 7L, "Kafka 101", 15, null, List.of("Alice Dupont"),
                 List.of("kafka", "streaming")));

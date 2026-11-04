@@ -22,6 +22,7 @@ import dev.axonia.events.api.CreateOneOffRequest;
 import dev.axonia.events.api.ProposeTopicRequest;
 import dev.axonia.events.api.RaiseActionItemRequest;
 import dev.axonia.events.api.RecordSlotRequest;
+import dev.axonia.events.api.RecordedSlot;
 import dev.axonia.events.api.ScheduledAt;
 import dev.axonia.events.api.SectionTemplate;
 import dev.axonia.events.api.Sections;
@@ -99,7 +100,7 @@ class WriteTools {
             @McpToolParam(description = "Artifact type id", required = true) Long typeId,
             @McpToolParam(description = "http(s) URL", required = true) String url,
             @McpToolParam(description = "Optional description", required = false) String description,
-            @McpToolParam(description = "Optional tags. Reuse names from tag.vocabulary.", required = false) Set<String> tags,
+            @McpToolParam(description = "Optional tags. Reuse names from tag.list.", required = false) Set<String> tags,
             @McpToolParam(description = "Optional display name, email or user id of the person whose work this is. "
                     + CONTRIBUTOR_RULE, required = false) String contributor) {
     }
@@ -109,7 +110,7 @@ class WriteTools {
             @McpToolParam(description = "REQUEST or OFFER", required = true) String kind,
             @McpToolParam(description = "Title", required = true) String title,
             @McpToolParam(description = "Optional description", required = false) String description,
-            @McpToolParam(description = "Optional tags. Reuse names from tag.vocabulary.", required = false) List<String> tags,
+            @McpToolParam(description = "Optional tags. Reuse names from tag.list.", required = false) List<String> tags,
             @McpToolParam(description = "Optional display name, email or user id of the person whose proposal this is. "
                     + PROPOSER_RULE, required = false) String proposer) {
     }
@@ -118,7 +119,7 @@ class WriteTools {
     record RaiseActionItemParams(@McpToolParam(description = "Community slug", required = true) String slug,
             @McpToolParam(description = "Title", required = true) String title,
             @McpToolParam(description = "Optional description", required = false) String description,
-            @McpToolParam(description = "Optional tags. Reuse names from tag.vocabulary.", required = false) List<String> tags,
+            @McpToolParam(description = "Optional tags. Reuse names from tag.list.", required = false) List<String> tags,
             @McpToolParam(description = "Optional display name, email or user id of the person the work is dispatched "
                     + "to. Omit it to leave the item unassigned. " + REFERENCE_RULE, required = false) String assignee,
             @McpToolParam(description = "Optional due date, ISO yyyy-MM-dd", required = false) String dueDate,
@@ -170,7 +171,7 @@ class WriteTools {
                     + "community.people to place one.", required = false) List<String> presenters,
             @McpToolParam(description = "Tags saying what the talk was about, up to 10. They are what makes the talk "
                     + "count toward its presenters' expertise, and a slot recorded here has no other source of "
-                    + "subject, so supply them, reusing names from tag.vocabulary.", required = false) List<String> tags) {
+                    + "subject, so supply them, reusing names from tag.list.", required = false) List<String> tags) {
     }
 
     /** Grouped into one record (rather than four method params) to stay under the parameter-count limit. */
@@ -228,10 +229,11 @@ class WriteTools {
     public ContributeResult contribute(
             @McpToolParam(description = "Artifact contribution details", required = true) ContributeParams params) {
         return support.run("library.contribute", AgentScope.LIBRARY_CONTRIBUTE, () -> {
-            var tagReport = tagReports.inCommunity(params.slug(), params.tags());
+            var pending = tagReports.inCommunity(params.slug(), params.tags());
             var artifact = artifacts.capture(params.slug(), new CreateArtifactRequest(params.title(), params.typeId(),
                     params.url(), params.description(), params.tags(), null, params.contributor()));
-            return new ContributeResult(artifact.id(), artifact.title(), artifact.url(), tagReport);
+            return new ContributeResult(artifact.id(), artifact.title(), artifact.url(),
+                    pending.reportOn(artifact.tags()));
         });
     }
 
@@ -243,10 +245,11 @@ class WriteTools {
     public ProposeResult proposeTopic(
             @McpToolParam(description = "Topic proposal details", required = true) ProposeTopicParams params) {
         return support.run("topic.propose", AgentScope.TOPIC_PROPOSE, () -> {
-            var tagReport = tagReports.inCommunity(params.slug(), params.tags());
+            var pending = tagReports.inCommunity(params.slug(), params.tags());
             var topic = topics.propose(params.slug(), new ProposeTopicRequest(proposableKind(params.kind()),
                     params.title(), params.description(), params.tags(), params.proposer()));
-            return new ProposeResult(topic.id(), topic.title(), String.valueOf(topic.kind()), tagReport);
+            return new ProposeResult(topic.id(), topic.title(), String.valueOf(topic.kind()),
+                    pending.reportOn(topic.tags()));
         });
     }
 
@@ -264,12 +267,13 @@ class WriteTools {
     public RaiseActionItemResult raiseActionItem(
             @McpToolParam(description = "Action item details", required = true) RaiseActionItemParams params) {
         return support.run("actionItem.raise", AgentScope.ACTION_ITEM_RAISE, () -> {
-            var tagReport = tagReports.inCommunity(params.slug(), params.tags());
+            var pending = tagReports.inCommunity(params.slug(), params.tags());
             var item = actionItems.raise(params.slug(),
                     RaiseActionItemRequest.builder().title(params.title()).description(params.description())
                             .tags(params.tags()).assignee(params.assignee()).dueDate(dueDate(params.dueDate()))
                             .originSessionId(params.originSessionId()).build());
-            return new RaiseActionItemResult(item.id(), item.title(), item.assigneeUserId(), item.dueDate(), tagReport);
+            return new RaiseActionItemResult(item.id(), item.title(), item.assigneeUserId(), item.dueDate(),
+                    pending.reportOn(item.tags()));
         });
     }
 
@@ -407,13 +411,19 @@ class WriteTools {
             + TagReports.REUSE_TAGS, annotations = @McpAnnotations(readOnlyHint = false, destructiveHint = false, idempotentHint = false))
     public RecordedSlotView addSlot(@McpToolParam(description = "Slot details", required = true) AddSlotParams params) {
         return support.run("session.addSlot", AgentScope.SCHEDULE_MANAGE, () -> {
-            var tagReport = tagReports.inSession(params.sessionId(), params.tags());
+            var pending = tagReports.inSession(params.sessionId(), params.tags());
             var recorded = slots.recordSlot(params.sessionId(), params.sectionId(), new RecordSlotRequest(
                     params.title(), params.durationMinutes(), params.notes(), params.presenters(), params.tags()));
             var report = recorded.presenters();
             return new RecordedSlotView(recorded.slotId(), params.title(), report.assigned(), report.unmatched(),
-                    report.ambiguous(), tagReport);
+                    report.ambiguous(), pending.reportOn(storedTags(recorded)));
         });
+    }
+
+    private static List<String> storedTags(RecordedSlot recorded) {
+
+        return recorded.session().sections().stream().flatMap(section -> section.slots().stream())
+                .filter(slot -> slot.id().equals(recorded.slotId())).flatMap(slot -> slot.tags().stream()).toList();
     }
 
     @McpTool(name = "slot.addPresenter", description = "Record that somebody presented an existing slot, naming them "

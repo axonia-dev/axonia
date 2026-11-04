@@ -2,7 +2,6 @@ package dev.axonia.expertise.application;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -17,6 +16,7 @@ import dev.axonia.expertise.api.NamedAreaCuration;
 import dev.axonia.expertise.api.TagCuration;
 import dev.axonia.expertise.api.TagMergeSuggestion;
 import dev.axonia.expertise.api.TagSplit;
+import dev.axonia.expertise.api.TagUnassignment;
 import dev.axonia.expertise.api.TagUsageReport;
 import dev.axonia.expertise.api.VocabularyTag;
 import dev.axonia.expertise.domain.ExpertiseArea;
@@ -47,7 +47,7 @@ public class CurationFacade implements TagCuration, NamedAreaCuration {
     @Transactional(readOnly = true)
     public List<TagMergeSuggestion> suggestions(String slug) {
 
-        var suggestions = tags.suggestions(slug);
+        var suggestions = tags.suggestions(slug).stream().limit(SUGGESTION_LIMIT).toList();
         if (suggestions.isEmpty()) {
             return List.of();
         }
@@ -143,9 +143,10 @@ public class CurationFacade implements TagCuration, NamedAreaCuration {
     }
 
     @Override
-    public Optional<CuratedNamedArea> unassign(String slug, String tag) {
+    public TagUnassignment unassign(String slug, String tag) {
 
-        return namedAreas.removeFromNamedArea(slug, tag).map(CurationFacade::toCurated);
+        var removal = namedAreas.removeFromNamedArea(slug, tag);
+        return new TagUnassignment(removal.tag(), removal.from().map(CurationFacade::toCurated));
     }
 
     private VocabularyTag vocabularyTag(String slug, String tag) {

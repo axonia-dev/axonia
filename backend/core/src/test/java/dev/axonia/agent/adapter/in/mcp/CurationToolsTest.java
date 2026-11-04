@@ -16,6 +16,7 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 
 import dev.axonia.agent.application.ToolCallRecorder;
 import dev.axonia.agent.application.port.out.ToolCallAudit;
+import dev.axonia.expertise.api.CommunityVocabulary;
 import dev.axonia.expertise.api.TagCuration;
 import dev.axonia.expertise.api.TagMergeSuggestion;
 import dev.axonia.expertise.api.TagSplit;
@@ -36,6 +37,8 @@ class CurationToolsTest {
     @Mock
     TagCuration tagCuration;
     @Mock
+    CommunityVocabulary communityVocabulary;
+    @Mock
     ToolCallAudit auditRepo;
 
     CurationTools sut;
@@ -44,7 +47,7 @@ class CurationToolsTest {
     void setUp() {
         var support = new AgentToolSupport(new AgentScopeGate(),
                 new ToolCallRecorder(auditRepo, Clock.fixed(Instant.parse("2026-11-03T09:00:00Z"), ZoneOffset.UTC)));
-        sut = new CurationTools(support, tagCuration);
+        sut = new CurationTools(support, tagCuration, communityVocabulary);
     }
 
     @AfterEach
@@ -94,6 +97,14 @@ class CurationToolsTest {
                 "kafka");
 
         assertThatThrownBy(() -> sut.tagDelete("backend-guild", "kafka")).isInstanceOf(AgentToolException.class);
+    }
+
+    @Test
+    void list_readsTheTagsAnyMemberCanSee() {
+        authenticateWithScopes("read");
+        when(communityVocabulary.visibleTags("backend-guild")).thenReturn(List.of("kafka", "kubernetes"));
+
+        assertThat(sut.list("backend-guild")).containsExactly("kafka", "kubernetes");
     }
 
     @Test
@@ -196,11 +207,11 @@ class CurationToolsTest {
     void dismissAndUndismiss_answerThePairAndWhetherItIsParked() {
         authenticateWithScopes("tag:curate");
 
-        assertThat(sut.dismissSuggestion("backend-guild", "kafka", "kafak"))
+        assertThat(sut.dismissSuggestion("backend-guild", "Kafka", "kafak"))
                 .isEqualTo(new CurationTools.SuggestionPairView("kafka", "kafak", true));
         assertThat(sut.undismissSuggestion("backend-guild", "kafka", "kafak"))
                 .isEqualTo(new CurationTools.SuggestionPairView("kafka", "kafak", false));
-        verify(tagCuration).dismiss("backend-guild", "kafka", "kafak");
+        verify(tagCuration).dismiss("backend-guild", "Kafka", "kafak");
         verify(tagCuration).undismiss("backend-guild", "kafka", "kafak");
     }
 }

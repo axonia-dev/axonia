@@ -58,14 +58,14 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>
  * Assertions (each maps to a spec guarantee):
  * <ol>
- * <li>A scoped token lists exactly the 42 tools (surface allowlist + auth passes).</li>
+ * <li>A scoped token lists exactly the 43 tools (surface allowlist + auth passes).</li>
  * <li>A scoped {@code topic.propose} call succeeds, a topic is created, and an {@code OK} audit row is written.</li>
  * <li>An unscoped {@code library.contribute} call is refused (scope layer), a {@code SCOPE_DENIED} audit row is
  * written, and the org's artifact count is unchanged.</li>
  * <li>A bogus bearer on {@code /mcp} is rejected with 401 (chain gate).</li>
  * <li>The same {@code axp_} token presented to the REST chain ({@code /axonia/**}) is rejected with 401 (surface
  * isolation).</li>
- * <li>{@code tools/list} contains exactly the 42 known tool names, and exactly six of them declare
+ * <li>{@code tools/list} contains exactly the 43 known tool names, and exactly six of them declare
  * {@code destructiveHint}: {@code session.detachArtifact}, {@code learning.remove}, {@code session.delete},
  * {@code tag.delete}, {@code tag.rename} and {@code namedArea.delete}.</li>
  * <li>The scoped {@code topic.propose} guarantee holds identically in a second, independently seeded ENTERPRISE
@@ -120,8 +120,8 @@ class AgentMcpEndToEndTest {
             "community.join", "library.search", "session.artifacts", "session.attachArtifact", "session.detachArtifact",
             "events.sectionTypes", "session.create", "session.addSection", "session.addSlot", "slot.addPresenter",
             "session.close", "community.members", "community.people", "actionItem.raise", "learning.demand", "learning.learners",
-            "learning.add", "learning.remove", "session.delete", "tag.usage", "tag.delete", "tag.vocabulary",
-            "tag.suggestions", "tag.merge", "tag.split", "tag.rename", "tag.dismissSuggestion",
+            "learning.add", "learning.remove", "session.delete", "tag.usage", "tag.delete", "tag.list",
+            "tag.vocabulary", "tag.suggestions", "tag.merge", "tag.split", "tag.rename", "tag.dismissSuggestion",
             "tag.undismissSuggestion", "namedArea.list", "namedArea.create", "namedArea.rename", "namedArea.delete",
             "namedArea.assignTags", "namedArea.unassignTag");
 
@@ -272,11 +272,11 @@ class AgentMcpEndToEndTest {
     }
 
     // -------------------------------------------------------------------------
-    // Assertion 1: a scoped token lists exactly the 42 tools.
+    // Assertion 1: a scoped token lists exactly the 43 tools.
     // -------------------------------------------------------------------------
 
     @Test
-    void scopedToken_listsExactlyTheFortyTwoTools() {
+    void scopedToken_listsExactlyTheFortyThreeTools() {
         var bearer = mint(ENTERPRISE_ORG, ENTERPRISE_USER, Set.of("read", "topic:propose"));
         var client = connect(bearer);
         try {
@@ -401,11 +401,11 @@ class AgentMcpEndToEndTest {
     }
 
     // -------------------------------------------------------------------------
-    // Assertion 6: tools/list is EXACTLY the 42 known names, and exactly six declare destructiveHint.
+    // Assertion 6: tools/list is EXACTLY the 43 known names, and exactly six declare destructiveHint.
     // -------------------------------------------------------------------------
 
     @Test
-    void toolCatalog_isExactlyTheFortyTwoKnownTools_andOnlyTheSixIrreversibleWritesAreDestructive() {
+    void toolCatalog_isExactlyTheFortyThreeKnownTools_andOnlyTheSixIrreversibleWritesAreDestructive() {
         var bearer = mint(ENTERPRISE_ORG, ENTERPRISE_USER, Set.of("read"));
         var client = connect(bearer);
         try {

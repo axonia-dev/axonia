@@ -14,6 +14,7 @@ import dev.axonia.expertise.application.port.out.CurrentUser;
 import dev.axonia.expertise.application.port.out.DeclarationRepository;
 import dev.axonia.expertise.application.port.out.ExpertiseQueryRepository;
 import dev.axonia.expertise.application.port.out.TagAliasRepository;
+import dev.axonia.expertise.domain.Declaration;
 import dev.axonia.expertise.domain.TagCurationRules;
 import dev.axonia.shared.api.error.ForbiddenException;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +39,28 @@ public class CurationScope {
             throw new ForbiddenException("Tag curation is not open to you");
         }
         return communityId;
+    }
+
+    /** @return the id of the community the slug names, once the current user is shown to be a member of it */
+    public long requireMembership(String slug) {
+
+        var communityId = communityAccess.communityIdForSlug(slug);
+        if (!communityAccess.isMember(communityId, currentUser.userId())) {
+            throw new ForbiddenException("Not a member of this community");
+        }
+        return communityId;
+    }
+
+    /**
+     * The tags this community carries where any member can see them: on its content, and in the declarations its
+     * members did not hide. A declaration hidden from the community never shows here.
+     */
+    @Transactional(readOnly = true)
+    public List<String> visibleTagsOf(String org, long communityId) {
+
+        var fromWriters = tagWriters.stream().flatMap(writer -> writer.tagsIn(communityId).stream());
+        var declared = declarationRepository.allVisibleIn(org, communityId).stream().map(Declaration::tag);
+        return Stream.concat(fromWriters, declared).distinct().toList();
     }
 
     /**

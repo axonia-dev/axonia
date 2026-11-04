@@ -1,5 +1,6 @@
 package dev.axonia.expertise.application;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -9,7 +10,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
-import dev.axonia.expertise.api.TagReading;
+import dev.axonia.community.api.spi.FakeCommunityTagWriter;
+import dev.axonia.expertise.api.TagSnapshot;
 import dev.axonia.expertise.application.port.out.CommunityAccess;
 import dev.axonia.expertise.application.port.out.CurrentUser;
 import dev.axonia.expertise.application.port.out.DeclarationRepository;
@@ -17,7 +19,9 @@ import dev.axonia.expertise.application.port.out.ExpertiseQueryRepository;
 import dev.axonia.expertise.application.port.out.FakeTagAliasRepository;
 import dev.axonia.expertise.application.port.out.OrganizationContext;
 import dev.axonia.expertise.application.port.out.VocabularyLock;
+import dev.axonia.expertise.domain.Declaration;
 import dev.axonia.expertise.domain.ExpertiseArea;
+import dev.axonia.shared.api.error.ForbiddenException;
 import dev.axonia.shared.api.error.ValidationException;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -44,6 +48,7 @@ class ExpertiseVocabularyTest {
     private DeclarationRepository declarationRepository;
 
     private FakeTagAliasRepository aliases;
+    private FakeCommunityTagWriter writer;
 
     private ExpertiseVocabulary sut;
 
@@ -51,8 +56,9 @@ class ExpertiseVocabularyTest {
     void setUp() {
 
         aliases = new FakeTagAliasRepository();
+        writer = new FakeCommunityTagWriter();
         var curationScope = new CurationScope(currentUser, communityAccess, expertiseQueryRepository,
-                declarationRepository, aliases, List.of());
+                declarationRepository, aliases, List.of(writer));
         sut = new ExpertiseVocabulary(organizationContext, aliases, vocabularyLock, expertiseService, curationScope);
         when(organizationContext.organizationId()).thenReturn("org-1");
     }
@@ -96,31 +102,46 @@ class ExpertiseVocabularyTest {
     }
 
     @Test
-    void readingTagsNamesThoseTheCommunityNeverCarried() {
+    void theVisibleTagsAreContentAndUnhiddenDeclarations_foldedSortedAndOnce() {
 
-        when(expertiseQueryRepository.allTags("org-1", 7L)).thenReturn(List.of("kafka"));
-
-        var reading = sut.read(7L, List.of("Kafka", "Azure PIM", "azure-pim"));
-
-        assertThat(reading).isEqualTo(new TagReading(List.of("azure-pim"), List.of()));
-    }
-
-    @Test
-    void readingTagsNamesThoseMergedIntoAnother() {
-
-        when(expertiseQueryRepository.allTags("org-1", 7L)).thenReturn(List.of("kubernetes"));
+        givenMember(true);
+        writer.carry(7L, "kafka");
+        writer.carry(7L, "k8s");
         aliases.addAlias("org-1", 7L, "k8s", "kubernetes");
-        aliases.addAlias("org-1", 7L, "kube", "kubernetes");
+        when(declarationRepository.allVisibleIn("org-1", 7L)).thenReturn(List.of(
+                new Declaration(7L, "u-1", "helm", Instant.EPOCH), new Declaration(7L, "u-2", "kafka", Instant.EPOCH)));
+        when(expertiseQueryRepository.allTags("org-1", 7L)).thenReturn(List.of("hidden-signal"));
+        when(declarationRepository.tagsIn("org-1", 7L)).thenReturn(List.of("hidden-declaration"));
 
-        var reading = sut.read(7L, List.of("K8s", "kube", "kubernetes"));
-
-        assertThat(reading).isEqualTo(new TagReading(List.of(),
-                List.of(new TagReading.Merged("k8s", "kubernetes"), new TagReading.Merged("kube", "kubernetes"))));
+        assertThat(sut.visibleTags("platform")).containsExactly("helm", "kafka", "kubernetes");
     }
 
     @Test
-    void readingTagsIgnoresBlankOnes() {
+    void theVisibleTagsAreRefusedToANonMember() {
 
-        assertThat(sut.read(7L, List.of(" !! ", ""))).isEqualTo(new TagReading(List.of(), List.of()));
+        givenMember(false);
+
+        assertThatThrownBy(() -> sut.visibleTags("platform")).isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    void aSnapshotKnowsTheVisibleTagsAndTheMerges_neverAHiddenDeclaration() {
+
+        writer.carry(7L, "kubernetes");
+        aliases.addAlias("org-1", 7L, "k8s", "kubernetes");
+        when(declarationRepository.tagsIn("org-1", 7L)).thenReturn(List.of("burnout"));
+
+        var reading = sut.snapshot(7L).read(List.of("k8s", "kubernetes", "burnout", "terraform"));
+
+        assertThat(reading.merged()).containsExactly(new TagSnapshot.TagReading.Merged("k8s", "kubernetes"));
+        assertThat(reading.created()).as("a hidden declaration reads as new, so the report cannot reveal it")
+                .containsExactly("burnout", "terraform");
+    }
+
+    private void givenMember(boolean member) {
+
+        when(communityAccess.communityIdForSlug("platform")).thenReturn(7L);
+        when(currentUser.userId()).thenReturn("u-9");
+        when(communityAccess.isMember(7L, "u-9")).thenReturn(member);
     }
 }

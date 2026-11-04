@@ -230,12 +230,23 @@ class AgentTagCurationEndToEndTest {
             member.initialize();
             contribute(curator, REFUSAL_SLUG, "Streams", List.of("kafka", "kafka-streams"));
 
-            var refusals = Map.<String, Map<String, Object>>of("tag.vocabulary", Map.of("slug", REFUSAL_SLUG),
-                    "tag.suggestions", Map.of("slug", REFUSAL_SLUG), "namedArea.list", Map.of("slug", REFUSAL_SLUG),
-                    "tag.merge",
-                    Map.of("slug", REFUSAL_SLUG, "variants", List.of("kafka-streams"), "canonical", "kafka"),
-                    "tag.rename", Map.of("slug", REFUSAL_SLUG, "from", "kafka", "to", "streaming"), "namedArea.create",
-                    Map.of("slug", REFUSAL_SLUG, "name", "Messaging"));
+            // a plain member reads the tags to reuse, but nothing a curator decides
+            assertThat(strings(read(member, "tag.list", Map.of("slug", REFUSAL_SLUG)))).containsExactly("kafka",
+                    "kafka-streams");
+            var slug = Map.<String, Object>of("slug", REFUSAL_SLUG);
+            var pair = Map.<String, Object>of("slug", REFUSAL_SLUG, "tagA", "kafka", "tagB", "kafka-streams");
+            var refusals = Map.<String, Map<String, Object>>ofEntries(Map.entry("tag.vocabulary", slug),
+                    Map.entry("tag.suggestions", slug), Map.entry("namedArea.list", slug),
+                    Map.entry("tag.merge",
+                            Map.of("slug", REFUSAL_SLUG, "variants", List.of("kafka-streams"), "canonical", "kafka")),
+                    Map.entry("tag.split", Map.of("slug", REFUSAL_SLUG, "variant", "kafka-streams")),
+                    Map.entry("tag.rename", Map.of("slug", REFUSAL_SLUG, "from", "kafka", "to", "streaming")),
+                    Map.entry("tag.dismissSuggestion", pair), Map.entry("tag.undismissSuggestion", pair),
+                    Map.entry("namedArea.create", Map.of("slug", REFUSAL_SLUG, "name", "Messaging")),
+                    Map.entry("namedArea.rename", Map.of("slug", REFUSAL_SLUG, "id", 1L, "name", "Streaming")),
+                    Map.entry("namedArea.delete", Map.of("slug", REFUSAL_SLUG, "id", 1L)),
+                    Map.entry("namedArea.assignTags", Map.of("slug", REFUSAL_SLUG, "id", 1L, "tags", List.of("kafka"))),
+                    Map.entry("namedArea.unassignTag", Map.of("slug", REFUSAL_SLUG, "tag", "kafka")));
             refusals.forEach((tool, args) -> assertThat(refusal(member, tool, args)).as(tool)
                     .contains("not permitted to do this"));
 

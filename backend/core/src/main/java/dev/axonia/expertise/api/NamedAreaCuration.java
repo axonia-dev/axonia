@@ -1,7 +1,6 @@
 package dev.axonia.expertise.api;
 
 import java.util.List;
-import java.util.Optional;
 
 /**
  * A curator's grouping of a community's canonical tags into named areas, for callers outside the expertise module.
@@ -27,6 +26,6 @@ public interface NamedAreaCuration {
     /** Assigns every tag, each under its canonical, or none of them. */
     NamedAreaAssignment assign(String slug, long id, List<String> tags);
 
-    /** @return the named area the tag left, without it, or empty when no named area held it */
-    Optional<CuratedNamedArea> unassign(String slug, String tag);
+    /** Takes the tag, under its canonical, out of whichever named area holds it. */
+    TagUnassignment unassign(String slug, String tag);
 }

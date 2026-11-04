@@ -8,10 +8,16 @@ import java.util.List;
  */
 public interface TagCuration {
 
+    /** How many suggestions {@link #suggestions} answers at most: each one costs a usage count of both its tags. */
+    int SUGGESTION_LIMIT = 25;
+
     /** Every tag the community carries, folded onto its canonical, with the named area it belongs to. */
     List<VocabularyTag> vocabulary(String slug);
 
-    /** The pairs of tags alike enough to be one, minus the pairs a curator dismissed. */
+    /**
+     * The {@link #SUGGESTION_LIMIT} most alike pairs of tags, minus the pairs a curator dismissed. Acting on a pair
+     * lets the next one in.
+     */
     List<TagMergeSuggestion> suggestions(String slug);
 
     /**

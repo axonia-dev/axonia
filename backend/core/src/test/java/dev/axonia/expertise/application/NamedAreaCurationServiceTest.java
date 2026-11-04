@@ -1,6 +1,7 @@
 package dev.axonia.expertise.application;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.BeforeEach;
@@ -293,8 +294,9 @@ class NamedAreaCurationServiceTest {
         var id = namedAreaRepository.create(ORG, COMMUNITY_ID, "Backend");
         namedAreaRepository.place(ORG, COMMUNITY_ID, id, "spring");
 
-        sut.removeFromNamedArea(SLUG, "Spring Boot");
+        var removal = sut.removeFromNamedArea(SLUG, "Spring Boot");
 
+        assertThat(removal.tag()).as("a variant is taken out as its canonical").isEqualTo("spring");
         assertThat(namedAreaRepository.findAll(ORG, COMMUNITY_ID).getFirst().tags()).isEmpty();
     }
 
@@ -342,9 +344,10 @@ class NamedAreaCurationServiceTest {
         namedAreaRepository.place(ORG, COMMUNITY_ID, id, "kafka");
         namedAreaRepository.place(ORG, COMMUNITY_ID, id, "spring");
 
-        var left = sut.removeFromNamedArea(SLUG, "kafka");
+        var removal = sut.removeFromNamedArea(SLUG, "kafka");
 
-        assertThat(left).contains(new NamedArea(id, "Messaging", List.of("spring")));
+        assertThat(removal).isEqualTo(new NamedAreaCurationService.TagRemoval("kafka",
+                Optional.of(new NamedArea(id, "Messaging", List.of("spring")))));
     }
 
     @Test
@@ -352,7 +355,7 @@ class NamedAreaCurationServiceTest {
 
         namedAreaRepository.create(ORG, COMMUNITY_ID, "Messaging");
 
-        assertThat(sut.removeFromNamedArea(SLUG, "kafka")).isEmpty();
+        assertThat(sut.removeFromNamedArea(SLUG, "kafka").from()).isEmpty();
     }
 
     // -----------------------------------------------------------------------

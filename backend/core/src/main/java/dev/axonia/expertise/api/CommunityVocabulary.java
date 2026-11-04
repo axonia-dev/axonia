@@ -1,6 +1,6 @@
 package dev.axonia.expertise.api;
 
-import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -27,9 +27,15 @@ public interface CommunityVocabulary {
     String writableName(String raw);
 
     /**
-     * How the community's vocabulary reads tags a record is about to be stored under: those it never carried, and those
-     * merged into another tag. It checks no access, so a caller discloses it only alongside a write the caller was
+     * The tags the community carries where its members can see them, folded onto their canonicals and sorted, for a
+     * member choosing tags to reuse. Requires membership of the community.
+     */
+    List<String> visibleTags(String slug);
+
+    /**
+     * What the community carries where its members can see them, and its merges, to read a record's tags against once
+     * it is stored. It checks no access, so a caller discloses the reading only alongside a write the caller was
      * allowed to make.
      */
-    TagReading read(long communityId, Collection<String> rawTags);
+    TagSnapshot snapshot(long communityId);
 }

@@ -20,6 +20,7 @@ import dev.axonia.agent.application.port.out.ToolCallAudit;
 import dev.axonia.expertise.api.CuratedNamedArea;
 import dev.axonia.expertise.api.NamedAreaAssignment;
 import dev.axonia.expertise.api.NamedAreaCuration;
+import dev.axonia.expertise.api.TagUnassignment;
 import dev.axonia.shared.api.error.ForbiddenException;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -98,16 +99,17 @@ class NamedAreaToolsTest {
     @Test
     void unassignTag_answersTheAreaItLeft() {
         authenticateWithScopes("tag:curate");
-        when(namedAreaCuration.unassign(SLUG, "spring")).thenReturn(Optional.of(MESSAGING));
+        when(namedAreaCuration.unassign(SLUG, "Spring Boot"))
+                .thenReturn(new TagUnassignment("spring", Optional.of(MESSAGING)));
 
-        assertThat(sut.unassignTag(SLUG, "spring"))
+        assertThat(sut.unassignTag(SLUG, "Spring Boot")).as("the answer names the canonical it took out")
                 .isEqualTo(new NamedAreaTools.UnassignmentView("spring", MESSAGING_VIEW));
     }
 
     @Test
     void unassignTag_ofATagNoAreaHeld_hasNoFromArea() {
         authenticateWithScopes("tag:curate");
-        when(namedAreaCuration.unassign(SLUG, "spring")).thenReturn(Optional.empty());
+        when(namedAreaCuration.unassign(SLUG, "spring")).thenReturn(new TagUnassignment("spring", Optional.empty()));
 
         assertThat(sut.unassignTag(SLUG, "spring")).isEqualTo(new NamedAreaTools.UnassignmentView("spring", null));
     }
