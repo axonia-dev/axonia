@@ -29,6 +29,23 @@ vi.mock("@/features/recognition/api/use-reactions", () => ({
 vi.mock("@/features/admin/api/use-current-organization", () => ({
   useCurrentOrganization: vi.fn(),
 }));
+/** The real catalog is two thousand glyphs: whichever test it lands in renders them all
+ *  and pays seconds of role queries on a loaded runner. */
+vi.mock(
+  "@/features/recognition/domain/emoji-search",
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import("@/features/recognition/domain/emoji-search")
+    >()),
+    loadEmojiCatalog: () =>
+      Promise.resolve([
+        {
+          group: "Smileys & Emotion",
+          emoji: [{ c: "😀", n: "grinning face" }],
+        },
+      ]),
+  }),
+);
 
 const CONTRIBUTION = {
   contributionType: "SLOT_PRESENTED",

@@ -69,6 +69,13 @@ async function loadedGroups(): Promise<HTMLElement[]> {
   return screen.getAllByRole("group");
 }
 
+/** Scoped to its own group: a name query across the whole catalog weighs every one of its
+ *  two thousand buttons, seconds on a loaded runner. */
+async function brainButton(): Promise<HTMLElement> {
+  const group = await screen.findByRole("group", { name: "People & Body" });
+  return within(group).getByRole("button", { name: "brain" });
+}
+
 describe("EmojiPicker", () => {
   it("heads the organization's own reactions with its bare name, before every other group", async () => {
     render(<EmojiPicker onPick={vi.fn()} onPropose={vi.fn()} />);
@@ -109,7 +116,7 @@ describe("EmojiPicker", () => {
   it("remembers a standard emoji the moment it is picked", async () => {
     render(<EmojiPicker onPick={vi.fn()} onPropose={vi.fn()} />);
 
-    await user.click(await screen.findByRole("button", { name: "brain" }));
+    await user.click(await brainButton());
 
     expect(storedRecents()).toEqual(["🧠"]);
   });
@@ -125,7 +132,7 @@ describe("EmojiPicker", () => {
   it("names the entry under the pointer, for a grid whose buttons carry no words", async () => {
     render(<EmojiPicker onPick={vi.fn()} onPropose={vi.fn()} />);
 
-    await user.hover(await screen.findByRole("button", { name: "brain" }));
+    await user.hover(await brainButton());
 
     expect(await screen.findByText("brain")).toBeInTheDocument();
   });
@@ -213,7 +220,7 @@ describe("EmojiPicker", () => {
     const onPick = vi.fn();
     render(<EmojiPicker onPick={onPick} onPropose={vi.fn()} />);
 
-    await user.click(await screen.findByRole("button", { name: "brain" }));
+    await user.click(await brainButton());
 
     expect(onPick).toHaveBeenCalledWith({ kind: "EMOJI", emoji: "🧠" });
   });
