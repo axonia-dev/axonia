@@ -2,8 +2,6 @@ import type { CSSProperties } from "react";
 
 import { sessionMorphId } from "@/components/patterns/morph/MorphPart";
 import type { ScheduleEntry } from "@/features/events/domain/schedule";
-import { resolveLabel } from "@/features/events/domain/schedule";
-import type { Series } from "@/features/events/domain/series";
 import { entryKey } from "@/features/events/ui/DayCell";
 import { longDayLabel } from "@/features/events/ui/schedule-dates";
 import { Chip, chipHref } from "@/features/events/ui/ScheduleChip";
@@ -14,7 +12,6 @@ import type { User } from "@/features/identity/domain/user";
  *  repeats the entry-to-panel-props mapping. */
 export function SelectedSessionPanel({
   selected,
-  seriesList,
   slug,
   users,
   panelId,
@@ -24,7 +21,6 @@ export function SelectedSessionPanel({
   style,
 }: Readonly<{
   selected: ScheduleEntry;
-  seriesList: Series[];
   slug: string;
   users: Record<string, User>;
   panelId: string;
@@ -43,7 +39,7 @@ export function SelectedSessionPanel({
     <SessionPanel
       entry={selected}
       id={panelId}
-      label={resolveLabel(selected, seriesList)}
+      label={selected.displayTitle}
       href={chipHref(selected, slug)}
       users={users}
       focusOnOpen={pickedHere}
@@ -58,7 +54,6 @@ export function SelectedSessionPanel({
 interface DayDetailProps {
   selectedDate: string;
   dayEntries: ScheduleEntry[];
-  seriesList: Series[];
   slug: string;
   onOpen: (entry: ScheduleEntry) => void;
   onSelect: (entry: ScheduleEntry) => void;
@@ -78,7 +73,6 @@ interface DayDetailProps {
 export function DayDetail({
   selectedDate,
   dayEntries,
-  seriesList,
   slug,
   onOpen,
   onSelect,
@@ -97,7 +91,6 @@ export function DayDetail({
             <Chip
               key={entryKey(entry, selectedDate, idx)}
               entry={entry}
-              seriesList={seriesList}
               selected={entry === panel.selected}
               panelId={panel.panelId}
               onSelect={() => onSelect(entry)}
@@ -109,7 +102,6 @@ export function DayDetail({
       {panel.selected !== null && (
         <SelectedSessionPanel
           selected={panel.selected}
-          seriesList={seriesList}
           slug={slug}
           users={panel.users}
           panelId={panel.panelId}

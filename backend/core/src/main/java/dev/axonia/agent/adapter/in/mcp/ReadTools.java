@@ -62,12 +62,12 @@ class ReadTools {
     record ArtifactTypeView(Long id, String label, long artifactCount) {
     }
 
-    record ScheduleView(Long sessionId, String title, Instant scheduledAt, Integer durationMinutes, String status,
-            boolean virtual) {
+    record ScheduleView(Long sessionId, String title, String displayTitle, Instant scheduledAt, Integer durationMinutes,
+            String status, boolean virtual) {
     }
 
-    record SessionView(Long id, String title, Instant scheduledAt, Integer durationMinutes, String status,
-            String recordingUrl, List<SectionView> sections) {
+    record SessionView(Long id, String title, String displayTitle, Instant scheduledAt, Integer durationMinutes,
+            String status, String recordingUrl, List<SectionView> sections) {
     }
 
     record SectionView(Long sectionId, String title, List<SlotView> slots) {
@@ -127,8 +127,8 @@ class ReadTools {
             @McpToolParam(description = "Range end, ISO-8601 instant", required = true) String to) {
         return support.run("schedule.read", AgentScope.READ,
                 () -> schedule.schedule(slug, Instant.parse(from), Instant.parse(to)).stream()
-                        .map(e -> new ScheduleView(e.sessionId(), e.title(), e.scheduledAt(), e.durationMinutes(),
-                                String.valueOf(e.status()), e.virtual()))
+                        .map(e -> new ScheduleView(e.sessionId(), e.title(), e.displayTitle(), e.scheduledAt(),
+                                e.durationMinutes(), String.valueOf(e.status()), e.virtual()))
                         .toList());
     }
 
@@ -140,8 +140,9 @@ class ReadTools {
     }
 
     private SessionView toSessionView(Session session) {
-        return new SessionView(session.id(), session.title(), session.scheduledAt(), session.durationMinutes(),
-                String.valueOf(session.status()), AgentToolSupport.blankAsAbsent(session.recordingUrl()),
+        return new SessionView(session.id(), session.title(), session.displayTitle(), session.scheduledAt(),
+                session.durationMinutes(), String.valueOf(session.status()),
+                AgentToolSupport.blankAsAbsent(session.recordingUrl()),
                 session.sections().stream().map(this::toSectionView).toList());
     }
 

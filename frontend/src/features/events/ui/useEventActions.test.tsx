@@ -60,6 +60,8 @@ const heldSession: Session = {
   communityId: 1,
   status: "HELD",
   title: null,
+  displayTitle: "Session",
+  automaticTitle: "Session",
   occurrenceDate: null,
   scheduledAt: "2026-01-01T18:00:00Z",
   hasTime: true,

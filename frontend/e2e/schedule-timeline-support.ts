@@ -18,6 +18,7 @@ function entry(sessionId: number, scheduledAt: string, title: string) {
     sessionId,
     seriesId: null,
     title,
+    displayTitle: title,
     status: "HELD",
     occurrenceDate: null,
     scheduledAt,

@@ -2,11 +2,7 @@ import { z } from "zod";
 
 import { meetingPlaceSchema } from "@/features/events/domain/meeting-place";
 import { sectionSchema } from "@/features/events/domain/section";
-import type { Series } from "@/features/events/domain/series";
-import {
-  sessionStatusSchema,
-  sessionTitle,
-} from "@/features/events/domain/session";
+import { sessionStatusSchema } from "@/features/events/domain/session";
 import type { Slot } from "@/features/events/domain/slot";
 import { isOpen } from "@/features/events/domain/slot";
 
@@ -23,6 +19,9 @@ export const scheduleEntrySchema = z.object({
   sessionId: z.number().nullable(),
   seriesId: z.number().nullable(),
   title: z.string().nullable(),
+  /** What the entry is called, by the same rule a session is (see `sessionSchema`). A ghost has
+   *  no title or titled slot yet, so it reads as its series. */
+  displayTitle: z.string(),
   occurrenceDate: z.string().nullable(),
   scheduledAt: z.string().nullable(),
   /** Whether anybody chose an hour for this occurrence. A stored fact rather than a shape read off
@@ -54,21 +53,6 @@ export function hasPassed(
   now: Date = new Date(),
 ): boolean {
   return entry.scheduledAt !== null && new Date(entry.scheduledAt) <= now;
-}
-
-/** What to call an entry on screen: its own title, else the title of the series projecting it. */
-export function resolveLabel(
-  entry: ScheduleEntry,
-  seriesList: Series[],
-): string {
-  if (entry.title !== null) return entry.title;
-  const series = seriesList.find((s) => s.id === entry.seriesId);
-  return series?.title ?? "Session";
-}
-
-/** The heading the session page gives this entry, by the page's own rule (`sessionTitle`). */
-export function pageTitleOf(entry: ScheduleEntry): string {
-  return sessionTitle(entry);
 }
 
 export const scheduleActivitySchema = z.array(

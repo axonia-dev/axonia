@@ -5,11 +5,7 @@ import { MorphPart } from "@/components/patterns/morph/MorphPart";
 import { IconButton } from "@/components/ui/IconButton";
 import { entryDayIso } from "@/features/events/domain/occurrence-day";
 import type { ScheduleEntry } from "@/features/events/domain/schedule";
-import {
-  openSpotLabel,
-  pageTitleOf,
-  timeLabel,
-} from "@/features/events/domain/schedule";
+import { openSpotLabel, timeLabel } from "@/features/events/domain/schedule";
 import { JoinControl } from "@/features/events/ui/JoinControl";
 import { ProjectedNotice } from "@/features/events/ui/ProjectedNotice";
 import { longDayLabel } from "@/features/events/ui/schedule-dates";
@@ -17,6 +13,7 @@ import { SessionAgenda } from "@/features/events/ui/SessionAgenda";
 import { SessionOpenLink } from "@/features/events/ui/SessionOpenLink";
 import { stillToHappen } from "@/features/events/ui/SessionPlace";
 import { SpotsPill } from "@/features/events/ui/SpotsPill";
+import { useTitleMorphId } from "@/features/events/ui/title-morph";
 import type { User } from "@/features/identity/domain/user";
 import { cn } from "@/lib/cn";
 
@@ -134,6 +131,7 @@ export function SessionPanel({
   morphId,
 }: Readonly<SessionPanelProps>) {
   const panelRef = useRef<HTMLElement>(null);
+  const titleMorphId = useTitleMorphId(entry.sessionId, label, morphId);
   const openerRef = useRef<HTMLElement | null>(null);
 
   // Opening moves the reader into the panel, so the footer's link to the session is one Tab from
@@ -201,10 +199,7 @@ export function SessionPanel({
               </p>
             )}
             <h2 className="font-display text-foreground mt-1 text-lg leading-tight font-bold">
-              <MorphPart
-                part="title"
-                id={label === pageTitleOf(entry) ? morphId : undefined}
-              >
+              <MorphPart part="title" id={titleMorphId}>
                 <span className="inline-block max-w-full align-top">
                   {label}
                 </span>

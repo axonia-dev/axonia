@@ -87,7 +87,7 @@ public class SessionAuthorizer {
                 && communityAccess.isMember(communityId, userId)) {
             return;
         }
-        throw new ForbiddenException("Recording a slot requires schedule-management rights");
+        throw new ForbiddenException("Managing the schedule requires schedule-management rights");
     }
 
     public void requireStructureEditor(SessionRecord session, String userId) {

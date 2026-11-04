@@ -128,10 +128,12 @@ public class ScheduleService implements Schedules {
     private ScheduleEntry toGhost(SeriesRecord series, LocalDate anchor) {
 
         var scheduledAt = OccurrenceInstant.at(anchor, series.getPreferredTime(), ZoneId.of(series.getTimeZone()));
-        return ScheduleEntry.builder().seriesId(series.getId()).occurrenceDate(anchor).scheduledAt(scheduledAt)
-                .hasTime(series.getPreferredTime() != null).seriesTimeZone(series.getTimeZone())
-                .durationMinutes(series.getDurationMinutes()).status(SessionStatus.SCHEDULED)
-                .place(MeetingPlaces.of(series)).version(0L).updatedAt(series.getUpdatedAt()).virtual(true)
-                .sections(sessionMapper.projectSections(series)).build();
+        var sections = sessionMapper.projectSections(series);
+        return ScheduleEntry.builder().seriesId(series.getId())
+                .displayTitle(SessionMapper.nameOf(null, sections, series.getTitle())).occurrenceDate(anchor)
+                .scheduledAt(scheduledAt).hasTime(series.getPreferredTime() != null)
+                .seriesTimeZone(series.getTimeZone()).durationMinutes(series.getDurationMinutes())
+                .status(SessionStatus.SCHEDULED).place(MeetingPlaces.of(series)).version(0L)
+                .updatedAt(series.getUpdatedAt()).virtual(true).sections(sections).build();
     }
 }

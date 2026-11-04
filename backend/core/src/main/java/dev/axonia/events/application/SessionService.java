@@ -40,6 +40,7 @@ import dev.axonia.events.domain.SectionRecord;
 import dev.axonia.events.domain.SeriesRecord;
 import dev.axonia.events.domain.SeriesStatus;
 import dev.axonia.events.domain.SessionCancelled;
+import dev.axonia.events.domain.SessionName;
 import dev.axonia.events.domain.SessionRecord;
 import dev.axonia.events.domain.SessionRescheduled;
 import dev.axonia.events.domain.SlotRecord;
@@ -297,11 +298,11 @@ public class SessionService implements Sessions {
         var sections = request.sections().stream().map(t -> SectionRecord.builder().sectionTypeId(t.sectionTypeId())
                 .title(t.title()).durationMinutes(t.durationMinutes()).notes(null).slots(new ArrayList<>()).build())
                 .toList();
-        var saved = sessionStore.save(sessionCreation.newSession(
-                NewSession.builder().organizationId(organizationId).communityId(communityId).title(request.title())
-                        .status("SCHEDULED").scheduledAt(sessionInstant.ofOneOff(request.scheduledAt())).hasTime(true)
-                        .timeZone(request.scheduledAt().zone()).durationMinutes(request.durationMinutes())
-                        .place(request.place()).sections(sections).build()));
+        var saved = sessionStore.save(sessionCreation.newSession(NewSession.builder().organizationId(organizationId)
+                .communityId(communityId).title(SessionName.ownTitle(request.title())).status("SCHEDULED")
+                .scheduledAt(sessionInstant.ofOneOff(request.scheduledAt())).hasTime(true)
+                .timeZone(request.scheduledAt().zone()).durationMinutes(request.durationMinutes())
+                .place(request.place()).sections(sections).build()));
         return sessionMapper.toSession(saved);
     }
 

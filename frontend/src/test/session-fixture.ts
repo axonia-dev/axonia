@@ -24,8 +24,27 @@ export const A_PLACE: MeetingPlace = {
  * one-off carries, and that zone is deliberately neither UTC nor the zone the suite pins the
  * viewer to: a test that starts reading it cannot then pass by agreeing with either by accident.
  */
+/**
+ * The name the server would give a session built from these overrides: its own title, else its
+ * first titled talk, else "Session". A fixture has no series title to fall back on, so a test that
+ * needs one sets `displayTitle` itself.
+ */
+function serverNames(overrides: {
+  title?: string | null | undefined;
+  sections?:
+    readonly { slots: readonly { title: string | null }[] }[] | undefined;
+}) {
+  const own = overrides.title?.trim() || null;
+  const slotTitles = (overrides.sections ?? []).flatMap((section) =>
+    section.slots.map((slot) => slot.title?.trim()),
+  );
+  const automaticTitle = slotTitles.find(Boolean) ?? "Session";
+  return { displayTitle: own ?? automaticTitle, automaticTitle };
+}
+
 export function aScheduledSession(overrides: Partial<Session> = {}): Session {
   return {
+    ...serverNames(overrides),
     id: 10,
     seriesId: 3,
     communityId: 1,
@@ -68,6 +87,7 @@ export function aScheduleEntry(
   overrides: Partial<ScheduleEntry> = {},
 ): ScheduleEntry {
   return {
+    displayTitle: serverNames(overrides).displayTitle,
     sessionId: 7,
     seriesId: 1,
     title: null,

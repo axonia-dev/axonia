@@ -8,7 +8,6 @@ import {
   isSkipped,
   needsCloseAnswer,
   sessionSchema,
-  sessionTitle,
   slotCount,
 } from "@/features/events/domain/session";
 
@@ -55,6 +54,8 @@ const raw = {
   placeOverride: EMPTY_PLACE,
   seriesPlace: EMPTY_PLACE,
   seriesTimeZone: "Europe/Paris",
+  displayTitle: "Pairing on hexagons",
+  automaticTitle: "Pairing on hexagons",
   sections: [section],
   createdAt: "2026-06-03T10:00:00Z",
   updatedAt: "2026-06-03T10:00:00Z",
@@ -127,52 +128,30 @@ describe("needsCloseAnswer", () => {
   });
 });
 
-describe("sessionTitle", () => {
-  it("uses the first titled slot across sections", () => {
-    expect(sessionTitle(sessionSchema.parse(raw))).toBe("Pairing on hexagons");
+describe("session names", () => {
+  it("takes the name the server resolved, so the page agrees with mail and the calendar", () => {
+    // when
+    const session = sessionSchema.parse({
+      ...raw,
+      title: "S26E10 - DevTool",
+      displayTitle: "S26E10 - DevTool",
+    });
+
+    // then
+    expect(session.displayTitle).toBe("S26E10 - DevTool");
+    expect(session.automaticTitle).toBe("Pairing on hexagons");
   });
 
-  it("falls back to a generic label when no slot is titled", () => {
-    const untitled = { ...section, slots: [{ ...slot, title: null }] };
-    expect(
-      sessionTitle(sessionSchema.parse({ ...raw, sections: [untitled] })),
-    ).toBe("Session");
-  });
+  it("refuses a session sent without a name to show", () => {
+    // given
+    const nameless: Record<string, unknown> = { ...raw };
+    delete nameless["displayTitle"];
 
-  it("falls back to a generic label for an unshaped session", () => {
-    expect(sessionTitle(sessionSchema.parse({ ...raw, sections: [] }))).toBe(
-      "Session",
-    );
-  });
+    // when
+    const actual = sessionSchema.safeParse(nameless);
 
-  it("uses the session's own title before the generic label", () => {
-    // A one-off created with a title and nothing slotted yet. The mail a session sends is
-    // headed with this exact field, so the page its own button leads to has to agree.
-    expect(
-      sessionTitle(
-        sessionSchema.parse({
-          ...raw,
-          title: "Inside lead window",
-          sections: [],
-        }),
-      ),
-    ).toBe("Inside lead window");
-  });
-
-  it("still prefers a titled slot to the session's own title", () => {
-    // A series occurrence carries no title of its own, so nothing about its identity moves;
-    // where both exist the content is the more useful name.
-    expect(
-      sessionTitle(
-        sessionSchema.parse({ ...raw, title: "Inside lead window" }),
-      ),
-    ).toBe("Pairing on hexagons");
-  });
-
-  it("ignores a blank title rather than heading a page with whitespace", () => {
-    expect(
-      sessionTitle(sessionSchema.parse({ ...raw, title: "   ", sections: [] })),
-    ).toBe("Session");
+    // then
+    expect(actual.success).toBe(false);
   });
 });
 

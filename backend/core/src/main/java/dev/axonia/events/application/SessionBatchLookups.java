@@ -41,19 +41,20 @@ public class SessionBatchLookups {
     private final SeriesStore seriesStore;
 
     /**
-     * What a session inherits from the series it belongs to: the standing place it falls back to, and the zone its wall
-     * clock is read in. The two travel together because they are looked up together - the series row is already in hand
-     * for the place, and reading the zone off it costs nothing - and because widening {@link #standingPlacesOf}'s
-     * return type a second time is how a batch method quietly becomes an N+1 again. {@link #NO_SERIES} is what a
-     * one-off answers: no place to fall back to, and no zone but the caller's.
+     * What a session inherits from the series it belongs to: the standing place it falls back to, the zone its wall
+     * clock is read in, and the title it is named by when nothing closer names it. The two travel together because they
+     * are looked up together - the series row is already in hand for the place, and reading the zone off it costs
+     * nothing - and because widening {@link #standingPlacesOf}'s return type a second time is how a batch method
+     * quietly becomes an N+1 again. {@link #NO_SERIES} is what a one-off answers: no place to fall back to, and no zone
+     * but the caller's.
      */
-    public record Standing(MeetingPlace place, String timeZone) {
+    public record Standing(MeetingPlace place, String timeZone, String title) {
 
-        public static final Standing NO_SERIES = new Standing(MeetingPlace.NONE, null);
+        public static final Standing NO_SERIES = new Standing(MeetingPlace.NONE, null, null);
 
         static Standing of(SeriesRecord series) {
 
-            return new Standing(MeetingPlaces.of(series), series.getTimeZone());
+            return new Standing(MeetingPlaces.of(series), series.getTimeZone(), series.getTitle());
         }
     }
 

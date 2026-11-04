@@ -1,13 +1,16 @@
+import { QueryClient } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
+import { sessionKeys } from "@/features/events/api/query-keys";
 import { EMPTY_PLACE } from "@/features/events/domain/meeting-place";
 import type { ScheduleEntry } from "@/features/events/domain/schedule";
 import { SessionPanel } from "@/features/events/ui/SessionPanel";
 import { morphNames } from "@/test/morph-names";
-import { aSlot } from "@/test/session-fixture";
+import { inQueryClient } from "@/test/query-client";
+import { aScheduledSession } from "@/test/session-fixture";
 
 const ready = vi.hoisted(() => ({
   ready: vi.fn(() => Promise.resolve()),
@@ -29,6 +32,7 @@ function entry(overrides: Partial<ScheduleEntry> = {}): ScheduleEntry {
     sessionId: 7,
     seriesId: 1,
     title: "Guild Sync",
+    displayTitle: "Guild Sync",
     occurrenceDate: "2026-08-20",
     scheduledAt: "2026-08-20T12:00:00Z",
     hasTime: true,
@@ -42,7 +46,11 @@ function entry(overrides: Partial<ScheduleEntry> = {}): ScheduleEntry {
   };
 }
 
-function renderPanel(e: ScheduleEntry, morphId?: string) {
+function renderPanel(
+  e: ScheduleEntry,
+  morphId?: string,
+  client = new QueryClient(),
+) {
   return render(
     <MemoryRouter initialEntries={["/schedule"]}>
       <Routes>
@@ -63,6 +71,7 @@ function renderPanel(e: ScheduleEntry, morphId?: string) {
         <Route path={HREF} element={<p>Session page</p>} />
       </Routes>
     </MemoryRouter>,
+    inQueryClient(client),
   );
 }
 
@@ -79,26 +88,15 @@ describe("SessionPanel morph", () => {
   });
 
   it("leaves its heading unnamed when the session page heads it otherwise", () => {
-    // given
-    const titled = entry({
-      sections: [
-        {
-          id: 1,
-          sessionId: 7,
-          position: 0,
-          sectionTypeId: null,
-          sectionType: null,
-          sectionTypeIcon: null,
-          sectionTypeAccentColor: null,
-          title: null,
-          durationMinutes: null,
-          slots: [aSlot({ title: "Virtual threads deep dive" })],
-        },
-      ],
-    });
+    // given a session renamed since the schedule was read
+    const client = new QueryClient();
+    client.setQueryData(
+      sessionKeys.detail(7),
+      aScheduledSession({ id: 7, displayTitle: "Virtual threads deep dive" }),
+    );
 
     // when
-    const { container } = renderPanel(titled, "session-7");
+    const { container } = renderPanel(entry(), "session-7", client);
 
     // then
     expect(morphNames(container)).toEqual([]);

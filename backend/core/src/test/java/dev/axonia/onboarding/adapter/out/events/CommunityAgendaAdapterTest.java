@@ -73,8 +73,9 @@ class CommunityAgendaAdapterTest {
     void lastHeldPointsAtTheMostRecentPastSession() {
 
         when(clock.instant()).thenReturn(Instant.parse("2026-09-12T00:00:00Z"));
-        when(sessions.past(any(PastSessionsRequest.class))).thenReturn(new PageImpl<>(List.of(Session.builder().id(5L)
-                .title("Retro: what broke in Q3").occurrenceDate(LocalDate.of(2026, 8, 1)).build())));
+        when(sessions.past(any(PastSessionsRequest.class)))
+                .thenReturn(new PageImpl<>(List.of(Session.builder().id(5L).title(null)
+                        .displayTitle("Retro: what broke in Q3").occurrenceDate(LocalDate.of(2026, 8, 1)).build())));
 
         assertThat(adapter.lastHeld("guild")).contains(new Pick(5L, "Retro: what broke in Q3"));
     }
@@ -100,8 +101,9 @@ class CommunityAgendaAdapterTest {
     @Test
     void nextUpPointsAtTheNextUpcomingSession() {
 
-        when(sessions.upcoming(eq("guild"), any())).thenReturn(new PageImpl<>(List.of(Session.builder().id(6L)
-                .title("Deploying with confidence").occurrenceDate(LocalDate.of(2026, 10, 1)).build())));
+        when(sessions.upcoming(eq("guild"), any()))
+                .thenReturn(new PageImpl<>(List.of(Session.builder().id(6L).title(null)
+                        .displayTitle("Deploying with confidence").occurrenceDate(LocalDate.of(2026, 10, 1)).build())));
 
         assertThat(adapter.nextUp("guild")).contains(new Pick(6L, "Deploying with confidence"));
     }

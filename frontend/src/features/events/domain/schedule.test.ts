@@ -4,7 +4,6 @@ import { EMPTY_PLACE } from "@/features/events/domain/meeting-place";
 import {
   openSpotLabel,
   presenterIdsOf,
-  resolveLabel,
   scheduleSchema,
   timeLabel,
 } from "@/features/events/domain/schedule";
@@ -49,6 +48,8 @@ const realEntry = {
   scheduledAt: "2026-06-19T18:00:00Z",
   hasTime: true,
   seriesTimeZone: "Europe/Paris",
+  displayTitle: "Session",
+  automaticTitle: "Session",
   durationMinutes: 60,
   status: "SCHEDULED",
   virtual: false,
@@ -64,6 +65,8 @@ const ghostEntry = {
   scheduledAt: "2026-06-26T18:00:00Z",
   hasTime: true,
   seriesTimeZone: "Europe/Paris",
+  displayTitle: "Session",
+  automaticTitle: "Session",
   durationMinutes: 60,
   status: "SCHEDULED",
   virtual: true,
@@ -151,28 +154,6 @@ describe("scheduleSchema", () => {
     ]);
     expect(entry?.place).toEqual(populatedPlace);
     expect(entry?.place.joinUrl).toBe("https://meet.example/dojo");
-  });
-});
-
-const seriesList = [{ id: 1, title: "Frontend Dojo" }] as never;
-
-describe("resolveLabel", () => {
-  it("prefers the entry's own title", () => {
-    expect(resolveLabel(aScheduleEntry({ title: "Kickoff" }), seriesList)).toBe(
-      "Kickoff",
-    );
-  });
-
-  it("falls back to the series it belongs to", () => {
-    expect(resolveLabel(aScheduleEntry({ seriesId: 1 }), seriesList)).toBe(
-      "Frontend Dojo",
-    );
-  });
-
-  it("names an entry belonging to neither", () => {
-    expect(resolveLabel(aScheduleEntry({ seriesId: 99 }), seriesList)).toBe(
-      "Session",
-    );
   });
 });
 

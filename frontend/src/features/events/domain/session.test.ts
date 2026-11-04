@@ -46,6 +46,8 @@ const raw = {
   placeOverride: EMPTY_PLACE,
   seriesPlace: EMPTY_PLACE,
   seriesTimeZone: "Europe/Paris",
+  displayTitle: "Session",
+  automaticTitle: "Session",
   sections: [section],
   createdAt: "2026-06-03T10:00:00Z",
   updatedAt: "2026-06-03T10:00:00Z",

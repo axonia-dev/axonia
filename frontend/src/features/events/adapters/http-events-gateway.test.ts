@@ -21,6 +21,8 @@ const session = {
   placeOverride: A_PLACE,
   seriesPlace: EMPTY_PLACE,
   seriesTimeZone: "Europe/Paris",
+  displayTitle: "Session",
+  automaticTitle: "Session",
   sections: [],
   createdAt: "x",
   updatedAt: "x",
@@ -131,6 +133,40 @@ describe("httpEventsGateway", () => {
     const call = vi.mocked(fetch).mock.calls[0];
     expect(urlOf(call?.[0])).toContain("/axonia/sessions/9/cancel");
     expect(call?.[1]?.method).toBe("POST");
+  });
+
+  it("renameSession PUTs the title and reads back the name the session now goes by", async () => {
+    // given
+    vi.mocked(fetch).mockResolvedValue(
+      jsonResponse({
+        ...session,
+        title: "S26E10 - DevTool",
+        displayTitle: "S26E10 - DevTool",
+      }),
+    );
+
+    // when
+    const actual = await httpEventsGateway.renameSession(9, "S26E10 - DevTool");
+
+    // then
+    expect(actual.displayTitle).toBe("S26E10 - DevTool");
+    const call = vi.mocked(fetch).mock.calls[0];
+    expect(urlOf(call?.[0])).toContain("/axonia/sessions/9/title");
+    expect(call?.[1]?.method).toBe("PUT");
+    expect(call?.[1]?.body).toBe(JSON.stringify({ title: "S26E10 - DevTool" }));
+  });
+
+  it("renameSession sends a null title to clear it", async () => {
+    // given
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(session));
+
+    // when
+    await httpEventsGateway.renameSession(9, null);
+
+    // then
+    expect(vi.mocked(fetch).mock.calls[0]?.[1]?.body).toBe(
+      JSON.stringify({ title: null }),
+    );
   });
 
   it("listAttendance GETs the session attendance page", async () => {

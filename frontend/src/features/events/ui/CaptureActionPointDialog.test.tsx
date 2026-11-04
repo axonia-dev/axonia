@@ -41,6 +41,8 @@ function buildSession(id: number, scheduledAt: string): Session {
     communityId: 1,
     status: "SCHEDULED",
     title: null,
+    displayTitle: "Session",
+    automaticTitle: "Session",
     occurrenceDate: scheduledAt.slice(0, 10),
     scheduledAt,
     hasTime: true,

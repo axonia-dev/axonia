@@ -1,8 +1,6 @@
 package dev.axonia.events.domain;
 
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
@@ -16,7 +14,6 @@ import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 import org.thymeleaf.templateresolver.ClassLoaderTemplateResolver;
 
-import dev.axonia.RepositoryRoot;
 import dev.axonia.community.api.CommunityIdentity;
 import dev.axonia.events.api.ActionItemOutcome;
 import dev.axonia.events.api.MeetingPlace;
@@ -36,13 +33,6 @@ class SessionFactsTest {
             "recordingUrl", "attendeeCount", "nextSession", "sender", "nudgeArm", "openSlotCount", "backlogUrl");
     private static final Set<String> TALK_KEYS = Set.of("title", "presenter", "presenters", "subjects",
             "durationMinutes", "resources");
-
-    /**
-     * Read from the repository rather than the classpath, the same way {@code KindHueTest} reads {@code kind-hue.ts}: a
-     * frontend source file is not a backend test resource, so the path is resolved from the repository root. Note the
-     * real path is {@code features/events/domain/}, not a {@code lib/} path.
-     */
-    private static final Path SESSION_TS = RepositoryRoot.file("frontend/src/features/events/domain/session.ts");
 
     private TemplateEngine mailTemplateEngine;
 
@@ -393,12 +383,9 @@ class SessionFactsTest {
     @Test
     void sessionTitleScheduledAtAndAttendeeCountPassThroughUnformatted() {
 
-        // No titled slot: SessionMother's default section carries one ("Intro talk"), which would otherwise win
-        // over the session's own title under the app's naming rule and defeat the very pass-through this test
-        // means to check.
         var scheduledAt = Instant.parse("2026-08-01T18:00:00Z");
-        var facts = SessionFacts.of(SessionMother.aHeldSession().title("Signals in React").sections(List.of())
-                .scheduledAt(scheduledAt).attendeeCount(12L).build(), aContext().build());
+        var facts = SessionFacts.of(SessionMother.aHeldSession().title("Signals in React").scheduledAt(scheduledAt)
+                .attendeeCount(12L).build(), aContext().build());
 
         assertThat(facts).containsEntry("sessionTitle", "Signals in React").containsEntry("scheduledAt", scheduledAt)
                 .containsEntry("attendeeCount", 12L);
@@ -445,100 +432,56 @@ class SessionFactsTest {
     @Test
     void aBlankSessionTitleIsAbsentNotAnEmptyHeading() {
 
-        // No titled slot: see sessionTitleScheduledAtAndAttendeeCountPassThroughUnformatted for why the default
-        // section must be cleared here too.
-        var facts = SessionFacts.of(SessionMother.aHeldSession().title("").sections(List.of()).build(),
+        var facts = SessionFacts.of(SessionMother.aHeldSession().title(" ").sections(List.of()).build(),
                 aContext().build());
 
         assertThat(facts).containsEntry("sessionTitle", null);
     }
 
     /**
-     * The app names an untitled session by its first titled slot (session.ts:99-112). Reading session.title alone meant
-     * the same session was "Colamaiar" on its page and "This session" in the mail whose button links to that page - and
-     * the mail's subject line inherited the wrong name too.
+     * Session #4 of backend-guild was "S26E10 - DevTool" in its mails and "P1s", its first slot, on its page. A mail is
+     * headed with the name the page shows, never one it works out for itself.
      */
     @Test
-    void anUntitledSessionIsNamedByItsFirstTitledSlotTheWayTheAppNamesIt() {
-
-        var facts = SessionFacts.of(SessionMother.aHeldSession().title(null)
-                .sections(List.of(aSection()
-                        .slots(List.of(aSlot().title(null).build(), aSlot().id(12L).title("Colamaiar").build()))
-                        .build()))
-                .build(), aContext().build());
-
-        assertThat(facts).containsEntry("sessionTitle", "Colamaiar");
-    }
-
-    @Test
-    void aTitledSlotWinsOverTheSessionsOwnTitleExactlyAsItDoesInTheApp() {
-
-        var facts = SessionFacts.of(SessionMother.aHeldSession().title("Weekly FG")
-                .sections(List.of(aSection().slots(List.of(aSlot().title("Colamaiar").build())).build())).build(),
-                aContext().build());
-
-        assertThat(facts).containsEntry("sessionTitle", "Colamaiar");
-    }
-
-    @Test
-    void aSessionWithNoTitledSlotFallsBackToItsOwnTitle() {
+    void aMailIsHeadedWithTheNameThePageShows() {
 
         var facts = SessionFacts.of(
-                SessionMother.aHeldSession().title("Weekly FG")
-                        .sections(List.of(aSection().slots(List.of(aSlot().title("   ").build())).build())).build(),
+                SessionMother.aHeldSession().title("S26E10 - DevTool")
+                        .sections(List.of(aSection().slots(List.of(aSlot().title("P1s").build())).build())).build(),
                 aContext().build());
 
-        assertThat(facts).containsEntry("sessionTitle", "Weekly FG");
+        assertThat(facts).containsEntry("sessionTitle", "S26E10 - DevTool");
+    }
+
+    @Test
+    void anUntitledSessionIsHeadedByItsFirstTitledTalk() {
+
+        var facts = SessionFacts.of(SessionMother.aHeldSession().title(null)
+                .sections(List.of(
+                        aSection().slots(List.of(aSlot().title(" ").build(), aSlot().title("P1s").build())).build()))
+                .build(), aContext().build());
+
+        assertThat(facts).containsEntry("sessionTitle", "P1s");
     }
 
     /**
-     * The naming rule is pinned against the app's own, in the same spirit as
-     * {@code KindHueTest#theEightHuesMatchTheFrontendsOwnPaletteInOrder}. The cases above pin what this port DOES; this
-     * pins what it is a port OF, so deleting or reordering a step in {@code session.ts} - swapping the two lookups, or
-     * dropping the blank-title guard that makes a whitespace-only slot title fall through - fails here rather than
-     * leaving a mail headed differently from the page its own button links to.
-     *
-     * <p>
-     * Only the two ported steps are asserted. The app's final {@code return "Session"} is deliberately NOT ported (see
-     * {@link SessionFacts}), so it is pinned as present-in-the-app-and-absent-here rather than as a shared rule.
+     * A series date nobody titled is named by its series on its page, and the mail states that series above its
+     * headline already. Printing it again as the headline, or the bare "Session" the page falls back to, reads worse
+     * than the mail's own "This session".
      */
     @Test
-    void theNamingRuleMatchesTheFrontendsOwnInOrder() throws Exception {
+    void aSessionNamedOnlyByItsSeriesIsHeadedAsThisSession() {
 
-        // Bounded at both ends. An open-ended slice runs on through distinctPresenters and everything after it, so
-        // the ordering assertion would still hold even if a step had been moved out of sessionTitle entirely and
-        // merely happened to reappear further down the file - it would bite by accident rather than by design.
-        var source = Files.readString(SESSION_TS);
-        var body = source.substring(source.indexOf("export function sessionTitle("));
-        var rule = body.substring(0, body.indexOf("\n}\n") + "\n}".length());
-        assertThat(rule).doesNotContain("export function distinctPresenters(");
-        var steps = List.of("for (const section of session.sections)", "section.slots.find(",
-                "slot.title !== null && slot.title.trim() !== \"\"", "return titled.title;",
-                "session.title !== null && session.title.trim() !== \"\"", "return session.title;",
-                "return \"Session\";");
+        var facts = SessionFacts.of(
+                SessionMother.aHeldSession().title(null).displayTitle("Backend Dojo").sections(List.of()).build(),
+                aContext().seriesTitle("Backend Dojo").build());
 
-        assertThat(rule).contains(steps);
-        var positions = steps.stream().map(rule::indexOf).toList();
-        for (int i = 1; i < positions.size(); i++) {
-            assertThat(positions.get(i)).as("step %d follows step %d", i, i - 1).isGreaterThan(positions.get(i - 1));
-        }
-
-        var untitledSection = aSection()
-                .slots(List.of(aSlot().title("   ").build(), aSlot().id(12L).title("Colamaiar").build())).build();
-        assertThat(SessionFacts.of(
-                SessionMother.aHeldSession().title("Weekly FG").sections(List.of(untitledSection)).build(),
-                aContext().build())).containsEntry("sessionTitle", "Colamaiar");
-        assertThat(SessionFacts.of(SessionMother.aHeldSession().title(null).sections(List.of()).build(),
-                aContext().build())).containsEntry("sessionTitle", null);
-    }
-
-    @Test
-    void aSessionWithNeitherIsAbsentSoTheTemplatesOwnFallbackFires() {
-
-        var facts = SessionFacts.of(SessionMother.aHeldSession().title(null).sections(List.of()).build(),
-                aContext().build());
+        var html = render("session-wrap-up.html", facts);
+        var text = render("session-wrap-up.txt", facts);
 
         assertThat(facts).containsEntry("sessionTitle", null);
+        assertThat(text).startsWith("This session: what happened");
+        assertThat(html).contains("This session").doesNotContain(">Session<");
     }
 
     @Test

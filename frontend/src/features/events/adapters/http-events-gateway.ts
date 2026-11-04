@@ -8,7 +8,6 @@ import type {
   PastSessionParams,
   SectionTemplateInput,
   SeriesInput,
-  UpdateSessionInput,
 } from "@/features/events/domain/events-gateway";
 import { memberZoneListSchema } from "@/features/events/domain/member-zone";
 import {
@@ -25,6 +24,7 @@ import { buildQuery as query } from "@/lib/query";
 import { actionItemEndpoints } from "./http-action-item-endpoints";
 import { calendarSubscriptionEndpoints } from "./http-calendar-subscription-endpoints";
 import { memoryEndpoints } from "./http-memory-endpoints";
+import { sessionEndpoints } from "./http-session-endpoints";
 import { slotEndpoints } from "./http-slot-endpoints";
 import { topicEndpoints } from "./http-topic-endpoints";
 
@@ -38,6 +38,7 @@ const messagePreviewSchema = z.object({
 });
 
 export const httpEventsGateway: EventsGateway = {
+  ...sessionEndpoints,
   ...slotEndpoints,
   ...topicEndpoints,
   ...calendarSubscriptionEndpoints,
@@ -276,23 +277,10 @@ export const httpEventsGateway: EventsGateway = {
     return sessionSchema.parse(data);
   },
 
-  async updateSession(id, input: UpdateSessionInput) {
-    const data = await apiFetch<unknown>(`/axonia/sessions/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(input),
-    });
-    return sessionSchema.parse(data);
-  },
-
   async memberZones(slug) {
     const data = await apiFetch<unknown>(
       `/axonia/communities/${encodeURIComponent(slug)}/member-zones`,
     );
     return memberZoneListSchema.parse(data);
-  },
-
-  async getSession(id) {
-    const data = await apiFetch<unknown>(`/axonia/sessions/${id}`);
-    return sessionSchema.parse(data);
   },
 };

@@ -20,7 +20,6 @@ import { aScheduledSession, aSection, aSlot } from "@/test/session-fixture";
 export const HELD = aScheduledSession({
   id: 10,
   status: "HELD",
-  title: "Cutting p95",
   scheduledAt: "2026-09-15T18:00:00Z",
   attendeeCount: 9,
   sections: [

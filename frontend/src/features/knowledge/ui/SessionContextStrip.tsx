@@ -1,11 +1,7 @@
 import { Link } from "react-router-dom";
 
-import { useSeriesList } from "@/features/events/api/use-series";
 import { useSession } from "@/features/events/api/use-session";
-import {
-  distinctPresenters,
-  sessionTitle,
-} from "@/features/events/domain/session";
+import { distinctPresenters } from "@/features/events/domain/session";
 
 interface Props {
   slug: string;
@@ -22,25 +18,19 @@ function formatDate(iso: string): string {
 }
 
 /**
- * The header for an active session facet: the session's series title (or its own
- * title), occurrence date, presenters, and a link to the session page. Resolved
- * entirely from the events gateway — surface composition, no new backend.
+ * The header for an active session facet: the session's name, occurrence date, presenters,
+ * and a link to the session page. Resolved entirely from the events gateway: surface
+ * composition, no new backend.
  */
 export function SessionContextStrip({ slug, sessionId }: Readonly<Props>) {
   const query = useSession(sessionId);
-  const series = useSeriesList(slug);
   const session = query.data;
 
   if (!session) {
     return null;
   }
 
-  const seriesTitle =
-    session.seriesId !== null
-      ? series.data?.content.find((entry) => entry.id === session.seriesId)
-          ?.title
-      : undefined;
-  const title = seriesTitle ?? sessionTitle(session);
+  const title = session.displayTitle;
   const presenters = distinctPresenters(session);
 
   return (

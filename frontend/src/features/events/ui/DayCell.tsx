@@ -2,8 +2,6 @@ import { useDraggable, useDroppable } from "@dnd-kit/core";
 
 import type { GridCell } from "@/features/events/domain/month-grid";
 import type { ScheduleEntry } from "@/features/events/domain/schedule";
-import { resolveLabel } from "@/features/events/domain/schedule";
-import type { Series } from "@/features/events/domain/series";
 import { dragId, isDraggableEntry } from "@/features/events/ui/CalendarDnd";
 import { Chip, type ChipProps } from "@/features/events/ui/ScheduleChip";
 import type { ContextTarget } from "@/features/events/ui/ScheduleContextMenu";
@@ -42,7 +40,6 @@ export function entryKey(
 /** A chip an organizer can drag onto another day to reschedule the occurrence. */
 function DraggableChip({
   entry,
-  seriesList,
   selected,
   nextUp,
   panelId,
@@ -65,7 +62,6 @@ function DraggableChip({
     >
       <Chip
         entry={entry}
-        seriesList={seriesList}
         {...(selected !== undefined && { selected })}
         {...(nextUp !== undefined && { nextUp })}
         {...(panelId !== undefined && { panelId })}
@@ -84,7 +80,6 @@ interface DayCellProps {
   highlighted?: boolean;
   dayLabel: string;
   onSelectDay: () => void;
-  seriesList: Series[];
   canManage?: boolean;
   onContextMenu?: OnContextMenu;
   selectedKey?: string;
@@ -103,7 +98,6 @@ export function DayCell({
   highlighted = false,
   dayLabel,
   onSelectDay,
-  seriesList,
   canManage = false,
   onContextMenu,
   selectedKey,
@@ -122,10 +116,7 @@ export function DayCell({
     data: { iso: cell.isoDate },
   });
 
-  function chipPropsFor(
-    entry: ScheduleEntry,
-    idx: number,
-  ): Omit<ChipProps, "seriesList"> {
+  function chipPropsFor(entry: ScheduleEntry, idx: number): ChipProps {
     return {
       entry,
       selected: selectedKey === entryKey(entry, cell.isoDate, idx),
@@ -184,7 +175,7 @@ export function DayCell({
                         {
                           kind: "entry",
                           entry,
-                          label: resolveLabel(entry, seriesList),
+                          label: entry.displayTitle,
                         },
                         e.clientX,
                         e.clientY,
@@ -194,12 +185,9 @@ export function DayCell({
               }
             >
               {canManage && isDraggableEntry(entry) ? (
-                <DraggableChip
-                  {...chipPropsFor(entry, idx)}
-                  seriesList={seriesList}
-                />
+                <DraggableChip {...chipPropsFor(entry, idx)} />
               ) : (
-                <Chip {...chipPropsFor(entry, idx)} seriesList={seriesList} />
+                <Chip {...chipPropsFor(entry, idx)} />
               )}
             </div>
           ))}

@@ -5,7 +5,6 @@ import { useMorphNavigate } from "@/components/patterns/morph/use-morph-navigate
 import { useReadySession } from "@/features/events/api/use-ready-session";
 import { useSchedule } from "@/features/events/api/use-schedule";
 import { useScheduleActivity } from "@/features/events/api/use-schedule-activity";
-import { useSeriesList } from "@/features/events/api/use-series";
 import {
   type GridCell,
   groupByDate,
@@ -31,7 +30,7 @@ import {
   SelectedSessionPanel,
 } from "@/features/events/ui/DayDetail";
 import { MonthNav } from "@/features/events/ui/MonthNav";
-import { pageItems, queryItems } from "@/features/events/ui/page-items";
+import { queryItems } from "@/features/events/ui/page-items";
 import { longDayLabel } from "@/features/events/ui/schedule-dates";
 import { chipHref } from "@/features/events/ui/ScheduleChip";
 import {
@@ -121,13 +120,11 @@ export function MonthCalendar({
 
   const { fromIso, toIso } = monthWindow(month.year, month.monthIndex0);
   const scheduleQuery = useSchedule(slug, fromIso, toIso);
-  const seriesQuery = useSeriesList(slug);
   const activityQuery = useScheduleActivity(slug);
 
   const selectedDate = selectedDateFor(picked, month);
 
   const entries = scheduleQuery.data ?? [];
-  const seriesList = pageItems(seriesQuery);
   const cells = monthGrid(month.year, month.monthIndex0);
   const today = todayIso();
 
@@ -206,7 +203,6 @@ export function MonthCalendar({
                 highlighted={highlightedDate === cell.isoDate}
                 dayLabel={longDayLabel(cell.isoDate, true)}
                 onSelectDay={() => selectDay(cell)}
-                seriesList={seriesList}
                 canManage={canManage}
                 nextUpEntry={nextUp}
                 panelId={selection.desktopPanelId}
@@ -227,7 +223,6 @@ export function MonthCalendar({
         {selection.entry !== null && (
           <SelectedSessionPanel
             selected={selection.entry}
-            seriesList={seriesList}
             slug={slug}
             users={users}
             panelId={selection.desktopPanelId}
@@ -254,7 +249,6 @@ export function MonthCalendar({
       <DayDetail
         selectedDate={selectedDate}
         dayEntries={byDate.get(selectedDate) ?? []}
-        seriesList={seriesList}
         slug={slug}
         onOpen={openEntry}
         onSelect={(entry) => selection.select(entry, "phone")}

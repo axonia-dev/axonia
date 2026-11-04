@@ -2,6 +2,7 @@ import { act, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AuthContextProps } from "@/auth/core/session";
+import { inQueryClient } from "@/test/query-client";
 import {
   authState,
   KEPT_NOTICE,
@@ -10,7 +11,6 @@ import {
   ShellGuard,
   SIGNING_IN,
 } from "@/test/session-guard-shell";
-import { inQueryClient } from "@/test/session-probe";
 
 const signIn = vi.fn();
 

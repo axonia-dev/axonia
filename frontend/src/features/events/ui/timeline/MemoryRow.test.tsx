@@ -14,6 +14,7 @@ const ENTRY: ScheduleEntry = {
   sessionId: 7,
   seriesId: 1,
   title: null,
+  displayTitle: "Session",
   occurrenceDate: "2026-01-02",
   scheduledAt: SCHEDULED_AT,
   hasTime: true,

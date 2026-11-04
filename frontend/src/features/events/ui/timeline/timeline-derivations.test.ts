@@ -46,6 +46,7 @@ function entry(overrides: Partial<ScheduleEntry>): ScheduleEntry {
     sessionId: 1,
     seriesId: 1,
     title: null,
+    displayTitle: "Session",
     occurrenceDate: "2026-01-09",
     scheduledAt: "2026-01-09T12:00:00Z",
     hasTime: true,

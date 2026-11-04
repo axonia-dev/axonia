@@ -71,13 +71,15 @@ class TopicRepositoryCustomImpl implements TopicRepositoryCustom {
         if (topicIds.isEmpty()) {
             return List.of();
         }
+        // The session's name, the one its page shows, down to the generic "Session" the backlog has no other state for.
         var sql = """
                 SELECT sl.topic_id, cs.id AS session_id, sec.id AS section_id, sl.id AS slot_id,
-                       cs.scheduled_at, COALESCE(sr.title, cs.title) AS schedule_label
+                       cs.scheduled_at, COALESCE(""" + SessionNameSql.NAME + """
+                , 'Session') AS schedule_label
                 FROM event_slot sl
                 JOIN event_section sec ON sl.section_id = sec.id
                 JOIN community_session cs ON sec.session_id = cs.id
-                LEFT JOIN event_series sr ON cs.series_id = sr.id
+                """ + SessionNameSql.SOURCES + """
                 WHERE cs.organization_id = :organizationId AND cs.status <> 'CANCELLED' AND sl.topic_id IN (:topicIds)
                 ORDER BY sl.topic_id, (cs.scheduled_at < now()),
                          CASE WHEN cs.scheduled_at < now()

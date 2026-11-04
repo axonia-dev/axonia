@@ -52,7 +52,15 @@ export const sessionSchema = z.object({
   seriesId: z.number().nullable(),
   communityId: z.number(),
   status: sessionStatusSchema,
+  /** The session's own title, the one an organizer chose. Null when nobody did. */
   title: z.string().nullable().default(null),
+  /** What the session is called on every surface: its own title, then its first titled slot,
+   *  then its series' title, then "Session". The backend's `SessionName` resolves it, so the page,
+   *  the calendar, a mail and an agent cannot disagree; a reader shows it and never re-derives it.
+   *  Required, so a response that lost it fails the parse instead of naming every session the same. */
+  displayTitle: z.string(),
+  /** What the session would be called without a title of its own: the name clearing it goes back to. */
+  automaticTitle: z.string(),
   occurrenceDate: z.string().nullable().default(null),
   scheduledAt: z.string(),
   /** Whether anybody ever chose an hour for this occurrence. A stored fact rather than a shape read
@@ -164,38 +172,6 @@ export function nextSessionMark(
   if (session.status !== "SCHEDULED") return null;
   const marks = [new Date(session.scheduledAt).getTime(), endOf(session)];
   return marks.find((mark) => mark !== null && mark > now.getTime()) ?? null;
-}
-
-export interface TitledSession {
-  title: string | null;
-  sections: ReadonlyArray<{ slots: ReadonlyArray<{ title: string | null }> }>;
-}
-
-/**
- * What to call a session on screen, in the order a reader would recognise it.
- *
- * A session's content lives in its sections' slots, so the first titled slot wins: for a series
- * occurrence that is the only identity it has, and nothing about those changes here.
- *
- * A one-off session created with a title of its own comes next. Skipping it was a real defect
- * rather than a simplification: the backend's `SessionFactsAssembler` reads that title directly,
- * so a session mail could be headed with it while the page its own button led to said
- * "Session". The generic label is the last resort, for a session that is neither shaped nor
- * named.
- */
-export function sessionTitle(session: TitledSession): string {
-  for (const section of session.sections) {
-    const titled = section.slots.find(
-      (slot) => slot.title !== null && slot.title.trim() !== "",
-    );
-    if (titled?.title) {
-      return titled.title;
-    }
-  }
-  if (session.title !== null && session.title.trim() !== "") {
-    return session.title;
-  }
-  return "Session";
 }
 
 /** Distinct presenter ids across every slot of the session, in first-appearance order. */

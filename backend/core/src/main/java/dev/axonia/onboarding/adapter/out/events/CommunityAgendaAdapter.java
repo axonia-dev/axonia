@@ -50,14 +50,14 @@ class CommunityAgendaAdapter implements CommunityAgenda {
         return sessions
                 .past(PastSessionsRequest.builder().slug(slug).from(now.minus(LOOKBACK)).to(now)
                         .status(SessionStatus.HELD).pageable(PageRequest.of(0, 1)).build())
-                .getContent().stream().findFirst().map(session -> new Pick(session.id(), session.title()));
+                .getContent().stream().findFirst().map(session -> new Pick(session.id(), session.displayTitle()));
     }
 
     @Override
     public Optional<Pick> nextUp(String slug) {
 
         return sessions.upcoming(slug, PageRequest.of(0, 1)).getContent().stream().findFirst()
-                .map(session -> new Pick(session.id(), session.title()));
+                .map(session -> new Pick(session.id(), session.displayTitle()));
     }
 
     @Override

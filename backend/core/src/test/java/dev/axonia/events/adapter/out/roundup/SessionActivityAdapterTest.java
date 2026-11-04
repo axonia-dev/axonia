@@ -1,7 +1,10 @@
 package dev.axonia.events.adapter.out.roundup;
 
+import java.sql.Date;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -373,8 +376,37 @@ class SessionActivityAdapterTest extends CoreJdbcTestSupport {
         // when
         var actual = sut.heldInPeriod(ORG, QUARTER_START, QUARTER_END);
 
-        // then: the same blank-is-absent rule SessionFacts.sessionTitle applies in Java
+        // then: the same blank-is-absent rule SessionName applies in Java
         assertThat(actual).singleElement().extracting(HeldSession::title).isNull();
+    }
+
+    @Test
+    void heldInPeriod_aSessionsOwnTitleNamesItBeforeItsFirstTitledTalk() {
+
+        // given
+        var guild = community("backend-guild", ORG);
+        slot(section(titled(guild, THIS_QUARTER, "S26E10 - DevTool")), "P1s");
+
+        // when
+        var actual = sut.heldInPeriod(ORG, QUARTER_START, QUARTER_END);
+
+        // then
+        assertThat(actual).singleElement().extracting(HeldSession::title).isEqualTo("S26E10 - DevTool");
+    }
+
+    @Test
+    void aSeriesDateWithNothingTitledIsNamedAfterItsSeries() {
+
+        // given
+        var guild = community("backend-guild", ORG);
+        var dojo = series(guild, "Backend Dojo");
+        slot(section(seriesDate(dojo, guild, THIS_QUARTER)), " ");
+
+        // when
+        var actual = sut.heldInPeriod(ORG, QUARTER_START, QUARTER_END);
+
+        // then
+        assertThat(actual).singleElement().extracting(HeldSession::title).isEqualTo("Backend Dojo");
     }
 
     @Test
@@ -637,6 +669,32 @@ class SessionActivityAdapterTest extends CoreJdbcTestSupport {
                 new MapSqlParameterSource().addValue("communityId", communityId).addValue("status", status)
                         .addValue("scheduledAt", Timestamp.from(scheduledAt)).addValue("org", organizationId)
                         .addValue("title", title),
+                Long.class);
+    }
+
+    private long series(long communityId, String title) {
+
+        return jdbc.queryForObject("""
+                INSERT INTO event_series (organization_id, community_id, title, cadence_count, cadence_unit,
+                        starts_on, time_zone, status, created_at, updated_at, version)
+                VALUES (:org, :communityId, :title, 1, 'WEEK', '2026-01-01', 'UTC', 'ACTIVE', now(), now(), 0)
+                RETURNING id
+                """, new MapSqlParameterSource().addValue("org", ORG).addValue("communityId", communityId)
+                .addValue("title", title), Long.class);
+    }
+
+    private long seriesDate(long seriesId, long communityId, Instant scheduledAt) {
+
+        return jdbc.queryForObject("""
+                INSERT INTO community_session (organization_id, series_id, community_id, status, scheduled_at,
+                        occurrence_date, notes, recording_url, has_time, created_at, updated_at, version)
+                VALUES (:org, :seriesId, :communityId, 'HELD', :scheduledAt, :occurrenceDate, '', '', true, now(),
+                        now(), 0)
+                RETURNING id
+                """,
+                new MapSqlParameterSource().addValue("org", ORG).addValue("seriesId", seriesId)
+                        .addValue("communityId", communityId).addValue("scheduledAt", Timestamp.from(scheduledAt))
+                        .addValue("occurrenceDate", Date.valueOf(LocalDate.ofInstant(scheduledAt, ZoneOffset.UTC))),
                 Long.class);
     }
 

@@ -39,6 +39,7 @@ const ghost: ScheduleEntry = {
   sessionId: null,
   seriesId: 5,
   title: null,
+  displayTitle: "Frontend Dojo",
   occurrenceDate: "2026-07-02",
   scheduledAt: "2026-07-02T18:00:00Z",
   hasTime: true,

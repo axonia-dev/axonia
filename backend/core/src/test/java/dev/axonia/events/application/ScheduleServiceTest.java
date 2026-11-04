@@ -99,6 +99,8 @@ class ScheduleServiceTest {
         assertThat(result).allMatch(e -> e.status() == SessionStatus.SCHEDULED);
         assertThat(result).extracting(ScheduleEntry::occurrenceDate).containsExactly(LocalDate.parse("2026-06-16"),
                 LocalDate.parse("2026-06-23"), LocalDate.parse("2026-06-30"));
+        // a date nobody has named yet is called after its series, as the session it becomes will be
+        assertThat(result).extracting(ScheduleEntry::displayTitle).containsOnly(series.getTitle());
     }
 
     @Test

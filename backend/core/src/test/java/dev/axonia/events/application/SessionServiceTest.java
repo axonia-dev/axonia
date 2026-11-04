@@ -64,6 +64,7 @@ import dev.axonia.events.domain.TopicRecordMother;
 import dev.axonia.shared.api.error.ConflictException;
 import dev.axonia.shared.api.error.ForbiddenException;
 import dev.axonia.shared.api.error.NotFoundException;
+import dev.axonia.shared.api.error.ValidationException;
 import dev.axonia.shared.api.metrics.UsageCounters;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
@@ -562,6 +563,23 @@ class SessionServiceTest {
 
         assertThat(actual.hasTime()).isTrue();
         verify(sessionStore).save(argThat(e -> e.isHasTime()));
+    }
+
+    /** A one-off is titled by the same rule a rename follows, so neither path stores what the other would refuse. */
+    @Test
+    void createOneOff_storesItsTitleTrimmedAndRefusesOneLongerThanTheColumn() {
+
+        givenOrganizerOfFrontend();
+        leadDays(1L, 3);
+        when(sessionStore.save(any()))
+                .thenAnswer(inv -> ((SessionRecord) inv.getArgument(0)).toBuilder().id(55L).build());
+        var at = stated(Instant.parse("2099-12-20T18:00:00Z"));
+        var tooLong = new CreateOneOffRequest("x".repeat(256), at, null, 60, List.of());
+
+        sut.createOneOff("frontend", new CreateOneOffRequest("  Lightning talks  ", at, null, 60, List.of()));
+
+        verify(sessionStore).save(argThat(e -> "Lightning talks".equals(e.getTitle())));
+        assertThatThrownBy(() -> sut.createOneOff("frontend", tooLong)).isInstanceOf(ValidationException.class);
     }
 
     /**

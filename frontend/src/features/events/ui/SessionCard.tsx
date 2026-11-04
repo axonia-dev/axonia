@@ -6,7 +6,6 @@ import { StatusChip } from "@/components/ui/StatusChip";
 import { governingZone } from "@/features/events/domain/reschedule-target";
 import type { Section } from "@/features/events/domain/section";
 import type { Session } from "@/features/events/domain/session";
-import { sessionTitle } from "@/features/events/domain/session";
 import type { SessionPhase } from "@/features/events/domain/session-phase";
 import type { Slot } from "@/features/events/domain/slot";
 import { instantToZoned } from "@/features/events/domain/zoned-instant";
@@ -23,6 +22,7 @@ import type { SessionMode } from "@/features/events/ui/session-mode";
 import { SessionFacts } from "@/features/events/ui/SessionFacts";
 import { SessionOutcomes } from "@/features/events/ui/SessionOutcomes";
 import { SessionPlace, stillToHappen } from "@/features/events/ui/SessionPlace";
+import { SessionTitleEditor } from "@/features/events/ui/SessionTitleEditor";
 import { WrapUpChip } from "@/features/events/ui/WrapUpChip";
 
 interface Props {
@@ -77,7 +77,9 @@ function CardFooter({ slug, session, canManage }: Readonly<FooterProps>) {
 }
 
 interface HeaderProps {
+  slug: string;
   session: Session;
+  canRename: boolean;
   statusChip: { tone: StatusTone; label: string };
   headerActions?: ReactNode;
   morphId: string | undefined;
@@ -85,11 +87,14 @@ interface HeaderProps {
 
 /**
  * The title, told once as the page's own heading, beside the facts and controls a wide layout
- * has room for next to it. The phone layout gets the date again below, in its own row, because
- * the header's copy is hidden there rather than reflowed.
+ * has room for next to it. Whoever manages the schedule renames the session right there. The
+ * phone layout gets the date again below, in its own row, because the header's copy is hidden
+ * there rather than reflowed.
  */
 function SessionCardHeader({
+  slug,
   session,
+  canRename,
   statusChip,
   headerActions,
   morphId,
@@ -102,13 +107,12 @@ function SessionCardHeader({
   return (
     <>
       <header className="flex flex-wrap items-center gap-2">
-        <h2 className="text-foreground font-display min-w-0 text-xl font-bold break-words max-sm:basis-full sm:flex-1">
-          <MorphPart part="title" id={morphId}>
-            <span className="inline-block max-w-full align-top sm:truncate">
-              {sessionTitle(session)}
-            </span>
-          </MorphPart>
-        </h2>
+        <SessionTitleEditor
+          slug={slug}
+          session={session}
+          canRename={canRename}
+          morphId={morphId}
+        />
         <span className="text-muted-foreground hidden shrink-0 text-sm sm:inline">
           {whenLabel(session)}
         </span>
@@ -235,7 +239,9 @@ export function SessionCard(props: Readonly<Props>) {
     <MorphPart part="surface" id={morphId}>
       <article className="border-border-strong bg-surface flex flex-col gap-3 rounded border p-4 shadow-sm">
         <SessionCardHeader
+          slug={slug}
           session={session}
+          canRename={canManageSchedule}
           statusChip={statusChip}
           headerActions={headerActions}
           morphId={morphId}

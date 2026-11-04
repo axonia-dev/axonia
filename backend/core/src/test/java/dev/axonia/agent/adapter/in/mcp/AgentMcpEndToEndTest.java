@@ -5,6 +5,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -58,14 +59,14 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>
  * Assertions (each maps to a spec guarantee):
  * <ol>
- * <li>A scoped token lists exactly the 43 tools (surface allowlist + auth passes).</li>
+ * <li>A scoped token lists exactly the 44 tools (surface allowlist + auth passes).</li>
  * <li>A scoped {@code topic.propose} call succeeds, a topic is created, and an {@code OK} audit row is written.</li>
  * <li>An unscoped {@code library.contribute} call is refused (scope layer), a {@code SCOPE_DENIED} audit row is
  * written, and the org's artifact count is unchanged.</li>
  * <li>A bogus bearer on {@code /mcp} is rejected with 401 (chain gate).</li>
  * <li>The same {@code axp_} token presented to the REST chain ({@code /axonia/**}) is rejected with 401 (surface
  * isolation).</li>
- * <li>{@code tools/list} contains exactly the 43 known tool names, and exactly six of them declare
+ * <li>{@code tools/list} contains exactly the 44 known tool names, and exactly six of them declare
  * {@code destructiveHint}: {@code session.detachArtifact}, {@code learning.remove}, {@code session.delete},
  * {@code tag.delete}, {@code tag.rename} and {@code namedArea.delete}.</li>
  * <li>The scoped {@code topic.propose} guarantee holds identically in a second, independently seeded ENTERPRISE
@@ -119,11 +120,11 @@ class AgentMcpEndToEndTest {
             "library.artifactTypes", "library.contribute", "topic.propose", "session.signup", "attendance.signal",
             "community.join", "library.search", "session.artifacts", "session.attachArtifact", "session.detachArtifact",
             "events.sectionTypes", "session.create", "session.addSection", "session.addSlot", "slot.addPresenter",
-            "session.close", "community.members", "community.people", "actionItem.raise", "learning.demand", "learning.learners",
-            "learning.add", "learning.remove", "session.delete", "tag.usage", "tag.delete", "tag.list",
-            "tag.vocabulary", "tag.suggestions", "tag.merge", "tag.split", "tag.rename", "tag.dismissSuggestion",
-            "tag.undismissSuggestion", "namedArea.list", "namedArea.create", "namedArea.rename", "namedArea.delete",
-            "namedArea.assignTags", "namedArea.unassignTag");
+            "session.close", "community.members", "community.people", "actionItem.raise", "learning.demand",
+            "learning.learners", "learning.add", "learning.remove", "session.delete", "tag.usage", "tag.delete",
+            "tag.list", "tag.vocabulary", "tag.suggestions", "tag.merge", "tag.split", "tag.rename",
+            "tag.dismissSuggestion", "tag.undismissSuggestion", "namedArea.list", "namedArea.create",
+            "namedArea.rename", "namedArea.delete", "namedArea.assignTags", "namedArea.unassignTag", "session.rename");
 
     /** The destructive tools on the agent surface. Assertion 6 pins this list to prevent silent growth. */
     private static final Set<String> DESTRUCTIVE_TOOLS = Set.of("session.detachArtifact", "learning.remove",
@@ -167,6 +168,11 @@ class AgentMcpEndToEndTest {
     private static final String DELETE_ORGANIZER = "agent-ent-undo-organizer";
     private static final String DELETE_PRESENTER = "agent-ent-undo-presenter";
     private static final String DELETE_PRESENTER_NAME = "Undo Presenter";
+
+    // The rename loop's own community, so naming and clearing a session leaves every other loop's schedule as it was.
+    private static final String RENAME_SLUG = "agent-ent-rename";
+    private static final String RENAME_ORGANIZER = "agent-ent-rename-organizer";
+    private static final String RENAME_MEMBER = "agent-ent-rename-member";
     private static final List<String> ROSTER_SEED_ORDER = List.of("roster-user-3", "roster-user-1", "roster-user-2");
     private static final List<String> ROSTER_ASCENDING = List.of(ENTERPRISE_USER, "roster-user-1", "roster-user-2",
             "roster-user-3");
@@ -261,6 +267,12 @@ class AgentMcpEndToEndTest {
             seedActiveMember(ENTERPRISE_ORG, DELETE_PRESENTER, DELETE_PRESENTER_NAME, null);
             seedMembership(ENTERPRISE_ORG, DELETE_SLUG, DELETE_PRESENTER);
 
+            seedActiveMember(ENTERPRISE_ORG, RENAME_ORGANIZER);
+            seedCommunityWithKind(ENTERPRISE_ORG, RENAME_SLUG, RENAME_ORGANIZER, enterpriseKindId);
+            promoteToOrganizer(ENTERPRISE_ORG, RENAME_SLUG, RENAME_ORGANIZER);
+            seedActiveMember(ENTERPRISE_ORG, RENAME_MEMBER);
+            seedMembership(ENTERPRISE_ORG, RENAME_SLUG, RENAME_MEMBER);
+
             // A second, independently seeded ENTERPRISE organization. The MCP surface is Enterprise-only (the
             // agent-access-and-open-docs kind gate), so a HUB org can no longer authenticate here at all; this proves
             // the tool code path works from a second organization rather than proving anything about kind.
@@ -272,11 +284,11 @@ class AgentMcpEndToEndTest {
     }
 
     // -------------------------------------------------------------------------
-    // Assertion 1: a scoped token lists exactly the 43 tools.
+    // Assertion 1: a scoped token lists exactly the 44 tools.
     // -------------------------------------------------------------------------
 
     @Test
-    void scopedToken_listsExactlyTheFortyThreeTools() {
+    void scopedToken_listsExactlyTheFortyFourTools() {
         var bearer = mint(ENTERPRISE_ORG, ENTERPRISE_USER, Set.of("read", "topic:propose"));
         var client = connect(bearer);
         try {
@@ -401,7 +413,7 @@ class AgentMcpEndToEndTest {
     }
 
     // -------------------------------------------------------------------------
-    // Assertion 6: tools/list is EXACTLY the 43 known names, and exactly six declare destructiveHint.
+    // Assertion 6: tools/list is EXACTLY the 44 known names, and exactly six declare destructiveHint.
     // -------------------------------------------------------------------------
 
     @Test
@@ -738,6 +750,53 @@ class AgentMcpEndToEndTest {
             assertThat(auditOutcomes(ENTERPRISE_ORG, ENTERPRISE_USER, "session.close")).containsExactly("DOMAIN_ERROR");
         } finally {
             close(client);
+        }
+    }
+
+    @Test
+    void renameLoop_anOrganizerNamesAHeldPastSessionAndClearsIt_andAPlainMemberCannot() {
+        var organizer = connect(mint(ENTERPRISE_ORG, RENAME_ORGANIZER, Set.of("read", "schedule:manage")));
+        var member = connect(mint(ENTERPRISE_ORG, RENAME_MEMBER, Set.of("read", "schedule:manage")));
+        try {
+            organizer.initialize();
+            member.initialize();
+
+            // given - a backfilled session somebody confirmed took place
+            var sessionId = callForLong(organizer, "session.create", Map.of("params", Map.of("slug", RENAME_SLUG,
+                    "title", "Guild #10", "scheduledAt", "2025-05-06T16:00:00Z", "durationMinutes", 60)), "sessionId");
+            jdbc.update("UPDATE community_session SET status = 'HELD', closed_at = scheduled_at WHERE id = ?",
+                    sessionId);
+
+            // when - it is named after the fact
+            var renamed = JSON.readTree(
+                    call(organizer, "session.rename", Map.of("sessionId", sessionId, "title", "  S26E10 - DevTool  ")));
+
+            // then - the name is what the session is called, and it is still the held session it was
+            assertThat(renamed.get("title").asString()).isEqualTo("S26E10 - DevTool");
+            assertThat(renamed.get("displayTitle").asString()).isEqualTo("S26E10 - DevTool");
+            var read = JSON.readTree(call(organizer, "session.get", Map.of("id", sessionId)));
+            assertThat(read.get("displayTitle").asString()).isEqualTo("S26E10 - DevTool");
+            assertThat(read.get("status").asString()).isEqualTo("HELD");
+
+            // and a member without schedule rights is refused, whatever the token's scopes, and changes nothing
+            var refused = member.callTool(new McpSchema.CallToolRequest("session.rename",
+                    Map.of("sessionId", sessionId, "title", "Mine now")));
+            assertThat(refused.isError()).as("a plain member cannot rename a session").isTrue();
+            assertThat(jdbc.queryForObject("SELECT title FROM community_session WHERE id = ?", String.class, sessionId))
+                    .isEqualTo("S26E10 - DevTool");
+
+            // when - the title is cleared
+            var arguments = new HashMap<String, Object>();
+            arguments.put("sessionId", sessionId);
+            arguments.put("title", null);
+            var cleared = JSON.readTree(call(organizer, "session.rename", arguments));
+
+            // then - nothing names it any more, so it is called what every unnamed session is
+            assertThat(cleared.get("title").isNull()).isTrue();
+            assertThat(cleared.get("displayTitle").asString()).isEqualTo("Session");
+        } finally {
+            close(organizer);
+            close(member);
         }
     }
 

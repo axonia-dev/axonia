@@ -21,6 +21,8 @@ const session = {
   placeOverride: A_PLACE,
   seriesPlace: EMPTY_PLACE,
   seriesTimeZone: "Europe/Paris",
+  displayTitle: "Session",
+  automaticTitle: "Session",
   sections: [],
   createdAt: "x",
   updatedAt: "x",

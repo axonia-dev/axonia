@@ -3,6 +3,7 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AuthContextProps } from "@/auth/core/session";
+import { inQueryClient } from "@/test/query-client";
 import {
   authState as aSession,
   KEPT_NOTICE,
@@ -10,7 +11,6 @@ import {
   refuse,
   ShellGuard,
 } from "@/test/session-guard-shell";
-import { inQueryClient } from "@/test/session-probe";
 
 const mockUseAuth = vi.fn<() => AuthContextProps>();
 

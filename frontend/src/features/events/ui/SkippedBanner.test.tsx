@@ -18,6 +18,8 @@ const session = {
   communityId: 1,
   status: "SKIPPED",
   title: null,
+  displayTitle: "Session",
+  automaticTitle: "Session",
   occurrenceDate: "2099-12-12",
   scheduledAt: "2099-12-12T18:00:00Z",
   hasTime: true,

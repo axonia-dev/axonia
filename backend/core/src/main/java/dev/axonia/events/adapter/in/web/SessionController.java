@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 import dev.axonia.events.api.CreateOneOffRequest;
 import dev.axonia.events.api.ScheduleEntry;
 import dev.axonia.events.api.Session;
+import dev.axonia.events.api.SessionNaming;
 import dev.axonia.events.application.CloseSessionRequest;
 import dev.axonia.events.application.FollowUpRequest;
 import dev.axonia.events.application.MessagePreview;
@@ -45,6 +46,7 @@ public class SessionController {
     private final SessionReleaseService sessionReleaseService;
     private final OccurrenceSkipService occurrenceSkipService;
     private final ScheduleService scheduleService;
+    private final SessionNaming sessionNaming;
 
     @PostMapping("/communities/{slug}/sessions")
     @ResponseStatus(HttpStatus.CREATED)
@@ -103,6 +105,12 @@ public class SessionController {
     Session update(@PathVariable Long id, @Valid @RequestBody UpdateSessionRequest request) {
 
         return sessionService.update(id, request);
+    }
+
+    @PutMapping("/sessions/{id}/title")
+    Session rename(@PathVariable Long id, @RequestBody RenameSessionRequest request) {
+
+        return sessionNaming.rename(id, request.title());
     }
 
     @PostMapping("/sessions/{id}/cancel")

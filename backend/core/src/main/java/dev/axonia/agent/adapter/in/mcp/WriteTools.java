@@ -29,6 +29,7 @@ import dev.axonia.events.api.Sections;
 import dev.axonia.events.api.SessionClosure;
 import dev.axonia.events.api.SessionClosureRequest;
 import dev.axonia.events.api.SessionDeletion;
+import dev.axonia.events.api.SessionNaming;
 import dev.axonia.events.api.Sessions;
 import dev.axonia.events.api.Slots;
 import dev.axonia.events.api.TopicKind;
@@ -44,14 +45,15 @@ import lombok.RequiredArgsConstructor;
  * The write agent tools: contributing to a community's library, proposing a topic, raising an action item, signing up
  * to present in a session's slot, signalling attendance, joining a community, attaching or detaching a session's
  * artifacts, backfilling a community's history by creating a past session, adding a section to it, recording who
- * presented a slot, correcting a slot's presenter afterwards, and closing it as held, and deleting a session that never
- * took place.
+ * presented a slot, correcting a slot's presenter afterwards, and closing it as held, naming a session, and deleting a
+ * session that never took place.
  *
  * <p>
  * Most calls are additive and not idempotent: calling one twice with the same arguments either creates a second record
- * or hits a domain conflict (e.g. "already going"). Two exceptions: {@code session.attachArtifact} is idempotent (it
- * returns any existing matching attachment), and the two destructive tools, {@code session.detachArtifact} and
- * {@code session.delete}, are each gated behind a scope of their own.
+ * or hits a domain conflict (e.g. "already going"). The exceptions: {@code session.attachArtifact} is idempotent (it
+ * returns any existing matching attachment), {@code session.rename} sets a title and so lands the same way twice, and
+ * the two destructive tools, {@code session.detachArtifact} and {@code session.delete}, are each gated behind a scope
+ * of their own.
  *
  * <p>
  * The four tools that tag what they create also answer with a {@link TagReports tag report}, so an agent sees which of
@@ -74,6 +76,7 @@ class WriteTools {
     private final SessionDeletion sessionDeletion;
     private final SessionClosure sessionClosure;
     private final TagReports tagReports;
+    private final SessionNaming sessionNaming;
 
     /**
      * The tail shared by both write tools' actor-reference rule, spelled the same way so the two descriptions cannot
@@ -201,6 +204,9 @@ class WriteTools {
     }
 
     record CreatedSectionView(Long sectionId, Long sectionTypeId, String title) {
+    }
+
+    record RenamedSessionView(Long sessionId, String title, String displayTitle) {
     }
 
     record RecordedSlotView(Long slotId, String title, List<String> assigned, List<String> unmatched,
@@ -388,6 +394,19 @@ class WriteTools {
 
         var utc = Instant.parse(instant).atZone(ZoneOffset.UTC);
         return new ScheduledAt(utc.toLocalDate(), utc.toLocalTime(), "UTC");
+    }
+
+    @McpTool(name = "session.rename", description = "Set, change or clear a session's own title, for a one-off "
+            + "session or a date of a series. Works on past and held sessions too, so a backfilled history can be "
+            + "named once it is in. Pass a null or blank title to clear it: the session is then called by its first "
+            + "titled slot, else its series' title, else \"Session\", and displayTitle reports that name. Organizers, "
+            + "or members the community lets manage the schedule.", annotations = @McpAnnotations(readOnlyHint = false, destructiveHint = false, idempotentHint = true))
+    public RenamedSessionView renameSession(@McpToolParam(description = "Session id", required = true) Long sessionId,
+            @McpToolParam(description = "The new title, up to 255 characters. Null or blank clears it.", required = false) String title) {
+        return support.run("session.rename", AgentScope.SCHEDULE_MANAGE, () -> {
+            var session = sessionNaming.rename(sessionId, title);
+            return new RenamedSessionView(session.id(), session.title(), session.displayTitle());
+        });
     }
 
     @McpTool(name = "session.addSection", description = "Add a section to a session. Get a valid sectionTypeId from "

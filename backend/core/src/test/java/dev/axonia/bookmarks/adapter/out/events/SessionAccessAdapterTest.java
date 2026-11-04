@@ -2,6 +2,7 @@ package dev.axonia.bookmarks.adapter.out.events;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -27,28 +28,28 @@ class SessionAccessAdapterTest {
     private SessionAccessAdapter sut;
 
     @Test
-    void get_resolvesTitleFromFirstNonBlankSlotTitleAndSumsSlotsAcrossSections() {
+    void get_namesTheSavedSessionAsItsPageDoesAndSumsSlotsAcrossSections() {
 
-        // given a session whose first section's first slot has a blank title, but a later slot is titled
+        // given a session named on its own, whose slots carry titles of their own
         var scheduledAt = Instant.parse("2026-04-15T18:00:00Z");
         var occurrenceDate = LocalDate.of(2026, 4, 15);
-        var firstSection = Section.builder().slots(
-                java.util.List.of(Slot.builder().title("  ").build(), Slot.builder().title("Live Coding").build()))
+        var firstSection = Section.builder()
+                .slots(List.of(Slot.builder().title("P1s").build(), Slot.builder().title("Live Coding").build()))
                 .build();
-        var secondSection = Section.builder().slots(java.util.List.of(Slot.builder().title(null).build())).build();
+        var secondSection = Section.builder().slots(List.of(Slot.builder().title(null).build())).build();
         var session = Session.builder().id(100L).communityId(7L).status(SessionStatus.SCHEDULED)
-                .scheduledAt(scheduledAt).occurrenceDate(occurrenceDate).facilitatorUserId("alice")
-                .recordingUrl("https://example.test/rec.mp4").sections(java.util.List.of(firstSection, secondSection))
-                .build();
+                .title("S26E10 - DevTool").displayTitle("S26E10 - DevTool").scheduledAt(scheduledAt)
+                .occurrenceDate(occurrenceDate).facilitatorUserId("alice").recordingUrl("https://example.test/rec.mp4")
+                .sections(List.of(firstSection, secondSection)).build();
         when(sessionService.get(100L)).thenReturn(session);
 
         // when
         var actual = sut.get(100L);
 
-        // then the first non-blank slot title wins, and slotCount sums slots across both sections
+        // then the row carries the page's name, and slotCount sums slots across both sections
         assertThat(actual.id()).isEqualTo(100L);
         assertThat(actual.communityId()).isEqualTo(7L);
-        assertThat(actual.title()).isEqualTo("Live Coding");
+        assertThat(actual.title()).isEqualTo("S26E10 - DevTool");
         assertThat(actual.status()).isEqualTo(SessionStatus.SCHEDULED);
         assertThat(actual.scheduledAt()).isEqualTo(scheduledAt);
         assertThat(actual.occurrenceDate()).isEqualTo(occurrenceDate);
@@ -58,58 +59,11 @@ class SessionAccessAdapterTest {
     }
 
     @Test
-    void get_fallsBackToTheSessionsOwnTitleWhenNoSlotHasATitle() {
+    void get_countsZeroSlotsWhenTheSessionHasNoSections() {
 
         // given
-        var section = Section.builder().slots(java.util.List.of(Slot.builder().title(" ").build())).build();
-        var session = Session.builder().id(103L).communityId(7L).status(SessionStatus.SCHEDULED)
-                .title("Architecture kata").sections(java.util.List.of(section)).build();
-        when(sessionService.get(103L)).thenReturn(session);
-
-        // when
-        var actual = sut.get(103L);
-
-        // then
-        assertThat(actual.title()).isEqualTo("Architecture kata");
-    }
-
-    @Test
-    void get_fallsBackToGenericTitleWhenNeitherSlotNorSessionHasATitle() {
-
-        // given
-        var session = Session.builder().id(104L).communityId(7L).status(SessionStatus.SCHEDULED).title("  ").build();
-        when(sessionService.get(104L)).thenReturn(session);
-
-        // when
-        var actual = sut.get(104L);
-
-        // then
-        assertThat(actual.title()).isEqualTo("Session");
-    }
-
-    @Test
-    void get_fallsBackToGenericTitleWhenNoSlotHasATitle() {
-
-        // given sections/slots exist but none carries a non-blank title
-        var section = Section.builder()
-                .slots(java.util.List.of(Slot.builder().title("").build(), Slot.builder().title(null).build())).build();
-        var session = Session.builder().id(101L).communityId(7L).status(SessionStatus.HELD)
-                .sections(java.util.List.of(section)).build();
-        when(sessionService.get(101L)).thenReturn(session);
-
-        // when
-        var actual = sut.get(101L);
-
-        // then
-        assertThat(actual.title()).isEqualTo("Session");
-        assertThat(actual.slotCount()).isEqualTo(2);
-    }
-
-    @Test
-    void get_fallsBackToGenericTitleAndZeroSlotsWhenSessionHasNoSections() {
-
-        // given
-        var session = Session.builder().id(102L).communityId(7L).status(SessionStatus.SCHEDULED).build();
+        var session = Session.builder().id(102L).communityId(7L).status(SessionStatus.SCHEDULED).displayTitle("Session")
+                .build();
         when(sessionService.get(102L)).thenReturn(session);
 
         // when

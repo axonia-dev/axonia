@@ -1,14 +1,9 @@
 // frontend/src/features/events/ui/ScheduleTimeline.tsx
 import { type MouseEvent as ReactMouseEvent, useRef, useState } from "react";
 
-import { useSeriesList } from "@/features/events/api/use-series";
 import type { Memory } from "@/features/events/domain/memory";
 import type { ScheduleEntry } from "@/features/events/domain/schedule";
-import {
-  presenterIdsOf,
-  resolveLabel,
-} from "@/features/events/domain/schedule";
-import { pageItems } from "@/features/events/ui/page-items";
+import { presenterIdsOf } from "@/features/events/domain/schedule";
 import {
   type MenuState,
   ScheduleContextMenu,
@@ -64,6 +59,8 @@ function oldestOf(memories: Memory[]): number {
   return Math.min(Infinity, ...memories.map((m) => entryAtMs(m.entry)));
 }
 
+const labelOf = (entry: ScheduleEntry) => entry.displayTitle;
+
 function entriesOf(memories: Memory[], ahead: ScheduleEntry[]) {
   return [...memories.map((memory) => memory.entry), ...ahead];
 }
@@ -80,8 +77,6 @@ export function ScheduleTimeline({
   const { scheduleQuery, reachedMs, reachForward, complete, growWhenNear } =
     useHorizon(slug, fromIso);
   useGrowWhenNear(end, growWhenNear);
-  const seriesQuery = useSeriesList(slug);
-  const seriesList = pageItems(seriesQuery);
   const { now, ahead, memories, arriving, memoriesQuery } = useMemoryStream(
     slug,
     scheduleQuery.data,
@@ -100,7 +95,6 @@ export function ScheduleTimeline({
   useTailRoom(rootRef, complete);
   const usersQuery = useUsers(presenterIdsIn(items));
   const users = usersQuery.data ?? {};
-  const labelOf = (entry: ScheduleEntry) => resolveLabel(entry, seriesList);
 
   function renderItem(item: TimelineItem, idx: number) {
     if (item.kind === "month")

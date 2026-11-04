@@ -504,4 +504,40 @@ class SessionMapperTest {
         assertThat(actual.seriesPlace()).isEqualTo(MeetingPlace.NONE);
         assertThat(actual.place()).isEqualTo(MeetingPlace.NONE);
     }
+
+    @Test
+    void toSession_namesASessionByItsOwnTitleBeforeItsFirstTitledSlot() {
+
+        stubReadModel();
+        var entity = sessionWithSlot(linkedSlot(null)).toBuilder().title("S26E10 - DevTool").build();
+
+        var actual = sut.toSession(entity);
+
+        assertThat(actual.title()).isEqualTo("S26E10 - DevTool");
+        assertThat(actual.displayTitle()).isEqualTo("S26E10 - DevTool");
+        assertThat(actual.automaticTitle()).isEqualTo("Review carbon footprint");
+    }
+
+    @Test
+    void toSession_namesAnUntitledSessionByItsFirstTitledSlot() {
+
+        stubReadModel();
+
+        var actual = sut.toSession(sessionWithSlot(linkedSlot(null)));
+
+        assertThat(actual.title()).isNull();
+        assertThat(actual.displayTitle()).isEqualTo("Review carbon footprint");
+    }
+
+    @Test
+    void toSession_namesASeriesDateWithNothingTitledAfterItsSeries() {
+
+        when(attendanceStore.countBySessionIdIn("default", Set.of(5L))).thenReturn(List.of());
+        when(seriesStore.findByOrganizationIdAndIdIn("default", Set.of(1L)))
+                .thenReturn(List.of(SeriesRecordMother.any().id(1L).title("Backend Guild").build()));
+
+        var actual = sut.toSession(SessionRecordMother.any().id(5L).build());
+
+        assertThat(actual.displayTitle()).isEqualTo("Backend Guild");
+    }
 }

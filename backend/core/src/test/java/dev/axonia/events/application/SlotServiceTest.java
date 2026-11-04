@@ -1269,8 +1269,8 @@ class SlotServiceTest {
         when(organizationContext.organizationId()).thenReturn("default");
         when(sessionStore.findByOrganizationIdAndId("default", 7L)).thenReturn(Optional.of(session));
         when(currentUser.userId()).thenReturn("stranger");
-        doThrow(new ForbiddenException("Recording a slot requires schedule-management rights")).when(sessionAuthorizer)
-                .requireScheduleManager(1L, "stranger");
+        doThrow(new ForbiddenException("Managing the schedule requires schedule-management rights"))
+                .when(sessionAuthorizer).requireScheduleManager(1L, "stranger");
 
         // then
         assertThatThrownBy(() -> sut.recordSlot(7L, 21L, new RecordSlotRequest("Kafka 101", 15, null, List.of(), null)))

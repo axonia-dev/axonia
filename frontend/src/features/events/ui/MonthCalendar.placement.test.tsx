@@ -61,6 +61,7 @@ describe("MonthCalendar entry placement", () => {
     // given an occurrence moved off the Friday its series anchors it to
     renderJune2026([
       aScheduleEntry({
+        displayTitle: "Backend Guild Series",
         occurrenceDate: "2026-06-12",
         scheduledAt: "2026-06-17T18:00:00Z",
       }),
@@ -74,6 +75,7 @@ describe("MonthCalendar entry placement", () => {
     // given midnight in Paris, which is the evening before in UTC
     renderJune2026([
       aScheduleEntry({
+        displayTitle: "Backend Guild Series",
         occurrenceDate: "2026-06-12",
         scheduledAt: "2026-06-11T22:00:00Z",
         hasTime: false,

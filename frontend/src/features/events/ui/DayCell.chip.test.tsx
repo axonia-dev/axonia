@@ -18,6 +18,7 @@ function entry(overrides: Partial<ScheduleEntry> = {}): ScheduleEntry {
     sessionId: 7,
     seriesId: 1,
     title: "Guild Sync",
+    displayTitle: "Guild Sync",
     occurrenceDate: "2026-08-20",
     scheduledAt: "2026-08-20T12:00:00Z",
     hasTime: true,
@@ -34,7 +35,7 @@ function entry(overrides: Partial<ScheduleEntry> = {}): ScheduleEntry {
 function renderChip(e: ScheduleEntry) {
   render(
     <MemoryRouter>
-      <Chip entry={e} seriesList={[]} />
+      <Chip entry={e} />
     </MemoryRouter>,
   );
 }
@@ -61,7 +62,7 @@ describe("Chip gestures", () => {
       <MemoryRouter>
         <Chip
           entry={entry()}
-          seriesList={[]}
+
           onSelect={onSelect}
           onOpen={onOpen}
         />
@@ -78,7 +79,7 @@ describe("Chip gestures", () => {
       <MemoryRouter>
         <Chip
           entry={entry()}
-          seriesList={[]}
+
           onSelect={vi.fn()}
           onOpen={onOpen}
         />
@@ -91,7 +92,7 @@ describe("Chip gestures", () => {
   it("marks the chip that is up next", () => {
     render(
       <MemoryRouter>
-        <Chip entry={entry()} seriesList={[]} nextUp />
+        <Chip entry={entry()} nextUp />
       </MemoryRouter>,
     );
     expect(screen.getByTestId("chip-next-up")).toBeInTheDocument();
@@ -101,7 +102,7 @@ describe("Chip gestures", () => {
     const onOpen = vi.fn();
     render(
       <MemoryRouter>
-        <Chip entry={entry()} seriesList={[]} onOpen={onOpen} />
+        <Chip entry={entry()} onOpen={onOpen} />
       </MemoryRouter>,
     );
     await user.click(screen.getByRole("button", { name: /guild sync/i }));
@@ -112,7 +113,7 @@ describe("Chip gestures", () => {
     const onOpen = vi.fn();
     render(
       <MemoryRouter>
-        <Chip entry={entry()} seriesList={[]} onOpen={onOpen} />
+        <Chip entry={entry()} onOpen={onOpen} />
       </MemoryRouter>,
     );
     screen.getByRole("button", { name: /guild sync/i }).focus();
@@ -128,7 +129,7 @@ describe("Chip gestures", () => {
         <MemoryRouter>
           <Chip
             entry={entry()}
-            seriesList={[]}
+
             panelId="calendar-panel"
             selected={selected}
             onSelect={vi.fn()}

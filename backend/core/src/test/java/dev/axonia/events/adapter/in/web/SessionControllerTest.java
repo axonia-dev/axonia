@@ -12,6 +12,7 @@ import dev.axonia.ControllerTestSupport;
 import dev.axonia.CoreWebMvcTest;
 import dev.axonia.events.api.ScheduleEntry;
 import dev.axonia.events.api.SessionMother;
+import dev.axonia.events.api.SessionNaming;
 import dev.axonia.events.api.SessionStatus;
 import dev.axonia.events.application.MessagePreview;
 import dev.axonia.events.application.OccurrenceSkipService;
@@ -21,6 +22,8 @@ import dev.axonia.events.application.SessionService;
 import dev.axonia.events.application.UpcomingReleaseRequest;
 import dev.axonia.events.domain.CheckpointDecision;
 import dev.axonia.events.domain.CheckpointOutcome;
+import dev.axonia.shared.api.error.ForbiddenException;
+import dev.axonia.shared.api.error.ValidationException;
 import tools.jackson.core.JacksonException;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -44,6 +47,9 @@ class SessionControllerTest extends ControllerTestSupport {
 
     @MockitoBean
     private ScheduleService scheduleService;
+
+    @MockitoBean
+    private SessionNaming sessionNaming;
 
     /**
      * A schedule as the wire now carries one: a civil date, a wall-clock time and the zone it is read in. The server
@@ -207,6 +213,68 @@ class SessionControllerTest extends ControllerTestSupport {
 
         // then
         actual.assertThat().hasStatus(200).bodyJson().extractingPath("$.id").isEqualTo(7);
+    }
+
+    @Test
+    void rename_answersTheRenamedSessionWithTheNameEverySurfaceShows() throws JacksonException {
+
+        // given
+        var renamed = SessionMother.aHeldSession().id(4L).title("S26E10 - DevTool").displayTitle("S26E10 - DevTool")
+                .build();
+        when(sessionNaming.rename(4L, "S26E10 - DevTool")).thenReturn(renamed);
+
+        // when
+        var actual = mvc.put().uri("/axonia/sessions/{id}/title", 4L)
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .content("{\"title\":\"S26E10 - DevTool\"}");
+
+        // then
+        actual.assertThat().hasStatus(200).bodyJson().isEqualTo(jsonMapper.writeValueAsString(renamed));
+    }
+
+    @Test
+    void rename_passesANullTitleThroughToClearIt() {
+
+        // given
+        when(sessionNaming.rename(4L, null)).thenReturn(SessionMother.any().id(4L).displayTitle("Intro talk").build());
+
+        // when
+        var actual = mvc.put().uri("/axonia/sessions/{id}/title", 4L)
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON).content("{\"title\":null}");
+
+        // then
+        actual.assertThat().hasStatus(200).bodyJson().extractingPath("$.displayTitle").isEqualTo("Intro talk");
+    }
+
+    @Test
+    void rename_refusesSomebodyWhoCannotManageTheSchedule() {
+
+        // given
+        when(sessionNaming.rename(4L, "Mine now"))
+                .thenThrow(new ForbiddenException("Managing the schedule requires schedule-management rights"));
+
+        // when
+        var actual = mvc.put().uri("/axonia/sessions/{id}/title", 4L)
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON).content("{\"title\":\"Mine now\"}");
+
+        // then
+        actual.assertThat().hasStatus(403);
+    }
+
+    @Test
+    void rename_refusesATitleLongerThanTheColumnAsABadRequest() {
+
+        // given
+        when(sessionNaming.rename(any(), any())).thenThrow(
+                new ValidationException("SESSION_TITLE_TOO_LONG", "A session title is at most 255 characters"));
+
+        // when
+        var actual = mvc.put().uri("/axonia/sessions/{id}/title", 4L)
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .content("{\"title\":\"" + "x".repeat(256) + "\"}");
+
+        // then
+        actual.assertThat().hasStatus(400);
     }
 
     /**

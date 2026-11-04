@@ -1,10 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { saveKeys } from "@/features/bookmarks/api/query-keys";
 import { httpEventsGateway } from "@/features/events/adapters/http-events-gateway";
 import {
   actionItemKeys,
   scheduleKeys,
   sessionKeys,
+  topicKeys,
 } from "@/features/events/api/query-keys";
 import type {
   CreateOneOffInput,
@@ -159,6 +161,26 @@ export function useCreateOneOff(slug: string) {
   return useMutation({
     mutationFn: (input: CreateOneOffInput) => gateway.createOneOff(slug, input),
     onSuccess: () => invalidateScheduleAndSessions(queryClient, slug),
+  });
+}
+
+/**
+ * A session's name is read on its page, the calendar, every list, the backlog and a member's saved items, so a
+ * rename refreshes all of them rather than leaving one still calling the session by its old name.
+ */
+export function useRenameSession(slug: string, sessionId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (title: string | null) =>
+      gateway.renameSession(sessionId, title),
+    onSuccess: (session) => {
+      queryClient.setQueryData(sessionKeys.detail(session.id), session);
+      return Promise.all([
+        invalidateScheduleAndSessions(queryClient, slug, session.id),
+        queryClient.invalidateQueries({ queryKey: saveKeys.mine() }),
+        queryClient.invalidateQueries({ queryKey: topicKeys.community(slug) }),
+      ]);
+    },
   });
 }
 

@@ -13,7 +13,6 @@ import {
   isHeld,
   isSkipped,
   nextSessionMark,
-  sessionTitle,
 } from "@/features/events/domain/session";
 import type { SessionPhase } from "@/features/events/domain/session-phase";
 import {
@@ -151,7 +150,7 @@ export function SessionDetailPage({ slug }: Readonly<{ slug: string }>) {
   const query = useSession(id);
   const session = query.data ?? null;
   const [editing, setEditing] = useState(false);
-  useCommunityCrumbs(session ? [{ label: sessionTitle(session) }] : []);
+  useCommunityCrumbs(session ? [{ label: session.displayTitle }] : []);
   // Hooks run every render regardless of the loading/error returns below, so the ids a session
   // has not loaded yet resolve to none rather than skip a hook call.
   const activeId = useScrollSpy(anchorIdsFor(session));

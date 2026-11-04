@@ -67,6 +67,7 @@ function agenda(talk: string) {
 const occurrence = {
   seriesId: null,
   title: TITLE,
+  displayTitle: TITLE,
   status: "SCHEDULED",
   occurrenceDate: null,
   scheduledAt: inTwoDays,
@@ -87,6 +88,7 @@ const session = {
   recordingUrl: null,
   placeOverride: null,
   seriesPlace: null,
+  automaticTitle: TITLE,
   createdAt: "2026-05-31T10:00:00Z",
   updatedAt: "2026-05-31T10:00:00Z",
 };
@@ -161,7 +163,7 @@ async function visitSession(
     [`/axonia/communities/${SLUG}/schedule`]: [
       { ...scheduleEntry, sections: agenda(talk) },
     ],
-    [`/axonia/sessions/${SESSION_ID}`]: { ...session, sections: agenda(talk) },
+    [SESSION_READ]: { ...session, displayTitle: talk, sections: agenda(talk) },
     "/axonia/me/saved": [savedSession],
   });
   await page.goto(from);

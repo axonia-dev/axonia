@@ -22,6 +22,8 @@ function aSession(overrides: Partial<Session> = {}): Session {
     communityId: 1,
     status: "SCHEDULED",
     title: null,
+    displayTitle: "Session",
+    automaticTitle: "Session",
     occurrenceDate: null,
     scheduledAt: "2099-01-01T18:00:00Z",
     hasTime: true,

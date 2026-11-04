@@ -60,17 +60,24 @@ import lombok.Builder;
  * first that is present.
  *
  * <p>
+ * {@code title} is the session's own title, the one an organizer chose, and {@code null} when nobody did.
+ * {@code displayTitle} is what the session is called on every surface, resolved by
+ * {@link dev.axonia.events.domain.SessionName}: a reader shows it and never re-derives it from the other fields.
+ * {@code automaticTitle} is what it would be called without a title of its own, the name clearing the title goes back
+ * to, so a title editor can say so before anything is saved.
+ *
+ * <p>
  * {@code version} is the row's optimistic-locking counter, carried for the same reason {@code createdAt} and
  * {@code updatedAt} are: it is row metadata the reader may need, and its absence was the anomaly among the three. The
  * calendar feed is the first caller to need it, as the {@code SEQUENCE} an updated occurrence has to advance.
  */
 @Builder
-public record Session(Long id, Long seriesId, Long communityId, String title, LocalDate occurrenceDate,
-        SessionStatus status, Instant scheduledAt, boolean hasTime, Integer durationMinutes, String facilitatorUserId,
-        Long attendeeCount, String notes, String recordingUrl, MeetingPlace place, MeetingPlace placeOverride,
-        MeetingPlace seriesPlace, String seriesTimeZone, String timeZone, List<Section> sections, Instant createdAt,
-        Instant updatedAt, Long version, Instant closedAt, Instant wrapUpReleaseAt, Instant upcomingReleaseAt,
-        ReleaseStatus wrapUpStatus, ReleaseStatus upcomingStatus) {
+public record Session(Long id, Long seriesId, Long communityId, String title, String displayTitle,
+        String automaticTitle, LocalDate occurrenceDate, SessionStatus status, Instant scheduledAt, boolean hasTime,
+        Integer durationMinutes, String facilitatorUserId, Long attendeeCount, String notes, String recordingUrl,
+        MeetingPlace place, MeetingPlace placeOverride, MeetingPlace seriesPlace, String seriesTimeZone,
+        String timeZone, List<Section> sections, Instant createdAt, Instant updatedAt, Long version, Instant closedAt,
+        Instant wrapUpReleaseAt, Instant upcomingReleaseAt, ReleaseStatus wrapUpStatus, ReleaseStatus upcomingStatus) {
 
     public Session {
         sections = sections == null ? List.of() : List.copyOf(sections);

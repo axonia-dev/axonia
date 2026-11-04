@@ -22,6 +22,7 @@ const MESSAGES: Record<string, string> = {
   UPCOMING_RELEASE_IN_PAST: "That time has already passed. Pick a later one.",
   UPCOMING_RELEASE_AFTER_START:
     "The reminder has to go out before the session starts.",
+  SESSION_TITLE_TOO_LONG: "A session title is at most 255 characters.",
   SESSION_NOT_SCHEDULED:
     "This session is no longer scheduled, so it sends no reminder.",
   SESSION_ALREADY_STARTED:

@@ -2,7 +2,6 @@ import { type ReactNode } from "react";
 
 import type { Section } from "@/features/events/domain/section";
 import type { Session } from "@/features/events/domain/session";
-import { sessionTitle } from "@/features/events/domain/session";
 import type { Slot } from "@/features/events/domain/slot";
 import { PresenterStack } from "@/features/events/ui/PresenterStack";
 import { RemoveSlotPopover } from "@/features/events/ui/RemoveSlotPopover";
@@ -51,7 +50,7 @@ function provenanceLabel(slot: Slot): string {
 /** What a captured resource defaults to when nobody names it: the slot's own title, or - for
  *  an open slot - the session's, so a backfilled recording is never left called nothing. */
 function slotDefaultTitle(slot: Slot, session: Session): string {
-  return slot.title ?? sessionTitle(session);
+  return slot.title ?? session.displayTitle;
 }
 
 const pillClass =

@@ -11,6 +11,7 @@ import type { ScheduleEntry } from "@/features/events/domain/schedule";
 import { MonthCalendar } from "@/features/events/ui/MonthCalendar";
 import { useUsers } from "@/features/identity/api/use-users";
 import { morphNames } from "@/test/morph-names";
+import { inQueryClient } from "@/test/query-client";
 
 vi.mock("react", async (original) => ({
   ...(await original<typeof import("react")>()),
@@ -49,6 +50,7 @@ function entry(overrides: Partial<ScheduleEntry> = {}): ScheduleEntry {
     sessionId: 1,
     seriesId: 1,
     title: "Guild Sync",
+    displayTitle: "Guild Sync",
     occurrenceDate: "2026-06-05",
     scheduledAt: "2026-06-05T18:00:00Z",
     hasTime: true,
@@ -76,6 +78,7 @@ function renderCalendar(entries: ScheduleEntry[]) {
         onMonthChange={() => {}}
       />
     </MemoryRouter>,
+    inQueryClient(),
   );
 }
 

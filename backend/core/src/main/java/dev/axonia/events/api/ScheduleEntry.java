@@ -28,15 +28,19 @@ import lombok.Builder;
  * directly, so a ghost and the session it becomes are read on the same clock.
  *
  * <p>
+ * {@code displayTitle} is what the entry is called, by the same {@link dev.axonia.events.domain.SessionName} rule a
+ * {@link Session} follows. A ghost has no title or titled slot of its own yet, so it reads as its series.
+ *
+ * <p>
  * {@code version} and {@code updatedAt} exist for the calendar feed, which has to emit a {@code SEQUENCE} and a
  * {@code LAST-MODIFIED} for every occurrence it publishes. A ghost reports version {@code 0} and the series'
  * {@code updatedAt}: nothing has ever been revised about an occurrence nobody has touched, and the only revision a
  * subscriber can observe is one to the series that projects it.
  */
 @Builder
-public record ScheduleEntry(Long sessionId, Long seriesId, String title, LocalDate occurrenceDate, Instant scheduledAt,
-        boolean hasTime, String seriesTimeZone, Integer durationMinutes, SessionStatus status, MeetingPlace place,
-        Long version, Instant updatedAt, boolean virtual, List<Section> sections) {
+public record ScheduleEntry(Long sessionId, Long seriesId, String title, String displayTitle, LocalDate occurrenceDate,
+        Instant scheduledAt, boolean hasTime, String seriesTimeZone, Integer durationMinutes, SessionStatus status,
+        MeetingPlace place, Long version, Instant updatedAt, boolean virtual, List<Section> sections) {
 
     public ScheduleEntry {
         sections = sections == null ? List.of() : List.copyOf(sections);

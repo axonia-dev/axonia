@@ -7,14 +7,11 @@ import {
 } from "@/components/patterns/morph/MorphPart";
 import type { Memory } from "@/features/events/domain/memory";
 import { isAwaitingAnswer } from "@/features/events/domain/memory";
-import {
-  pageTitleOf,
-  slotsOf,
-  timeLabel,
-} from "@/features/events/domain/schedule";
+import { slotsOf, timeLabel } from "@/features/events/domain/schedule";
 import { isOpen } from "@/features/events/domain/slot";
 import { SessionMorphLink } from "@/features/events/ui/SessionMorphLink";
 import { accessibleName } from "@/features/events/ui/timeline/timeline";
+import { useTitleMorphId } from "@/features/events/ui/title-morph";
 
 interface Props {
   memory: Memory;
@@ -106,6 +103,7 @@ export function MemoryCard({
   const { entry, traces } = memory;
   const { sessionId } = entry;
   const morphId = sessionId === null ? undefined : sessionMorphId(sessionId);
+  const titleMorphId = useTitleMorphId(sessionId, label, morphId);
   const awaiting = isAwaitingAnswer(entry);
   const meta = metaLine(memory);
 
@@ -118,10 +116,7 @@ export function MemoryCard({
         style={paperStyle(fade)}
         className="text-ink-sepia group-hover:border-ink-sepia-soft block rounded-md border border-[color:var(--memory-edge)] p-4 transition-[border-color] duration-200"
       >
-        <MorphPart
-          part="title"
-          id={label === pageTitleOf(entry) ? morphId : undefined}
-        >
+        <MorphPart part="title" id={titleMorphId}>
           <span className="font-display inline-block font-medium">{label}</span>
         </MorphPart>
         {meta !== "" && <p className="mt-1 text-xs">{meta}</p>}

@@ -56,6 +56,7 @@ import dev.axonia.events.api.Session;
 import dev.axonia.events.api.SessionClosure;
 import dev.axonia.events.api.SessionClosureRequest;
 import dev.axonia.events.api.SessionDeletion;
+import dev.axonia.events.api.SessionNaming;
 import dev.axonia.events.api.SessionStatus;
 import dev.axonia.events.api.Sessions;
 import dev.axonia.events.api.Slot;
@@ -71,6 +72,7 @@ import dev.axonia.knowledge.api.Attachment;
 import dev.axonia.knowledge.api.CreateArtifactRequest;
 import dev.axonia.knowledge.api.Resources;
 import dev.axonia.shared.api.error.ConflictException;
+import dev.axonia.shared.api.error.ForbiddenException;
 import dev.axonia.shared.api.error.NotFoundException;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -114,6 +116,8 @@ class WriteToolsTest {
     SessionClosure sessionClosure;
     @Mock
     TagReports tagReports;
+    @Mock
+    SessionNaming sessionNaming;
 
     /** The community's tags before a write: kubernetes, with k8s merged into it. */
     private static final Pending PENDING = new Pending(
@@ -133,7 +137,7 @@ class WriteToolsTest {
         var support = new AgentToolSupport(new AgentScopeGate(),
                 new ToolCallRecorder(auditRepo, Clock.fixed(Instant.parse("2026-07-07T09:00:00Z"), ZoneOffset.UTC)));
         sut = new WriteTools(support, artifacts, topics, slots, attendance, memberships, resources, sessions, sections,
-                actionItems, sessionDeletion, sessionClosure, tagReports);
+                actionItems, sessionDeletion, sessionClosure, tagReports, sessionNaming);
         lenient().when(tagReports.inCommunity(any(), any())).thenReturn(Pending.NOTHING);
         lenient().when(tagReports.inSession(any(), any())).thenReturn(Pending.NOTHING);
         authenticateWithScopes("library:contribute", "topic:propose", "actionItem:raise", "session:signup",
@@ -544,6 +548,46 @@ class WriteToolsTest {
                 Slot.builder().id(slotId).tags(STORED_TAGS).build());
         return Session.builder().id(42L)
                 .sections(List.of(Section.builder().id(7L).sectionTypeId(3L).slots(slots).build())).build();
+    }
+
+    @Test
+    void renameSession_namesAHeldPastSessionAndAnswersBothTitles() {
+        authenticateWithScopes("schedule:manage");
+        given(sessionNaming.rename(42L, "S26E10 - DevTool")).willReturn(Session.builder().id(42L)
+                .title("S26E10 - DevTool").displayTitle("S26E10 - DevTool").status(SessionStatus.HELD).build());
+
+        var result = sut.renameSession(42L, "S26E10 - DevTool");
+
+        assertThat(result).isEqualTo(new WriteTools.RenamedSessionView(42L, "S26E10 - DevTool", "S26E10 - DevTool"));
+    }
+
+    @Test
+    void renameSession_clearsTheTitleAndReportsTheNameTheSessionFallsBackTo() {
+        authenticateWithScopes("schedule:manage");
+        given(sessionNaming.rename(42L, null))
+                .willReturn(Session.builder().id(42L).title(null).displayTitle("Kafka 101").build());
+
+        var result = sut.renameSession(42L, null);
+
+        assertThat(result).isEqualTo(new WriteTools.RenamedSessionView(42L, null, "Kafka 101"));
+    }
+
+    @Test
+    void renameSession_refusedWithoutScheduleManageScope() {
+        authenticateWithScopes("read");
+
+        assertThatThrownBy(() -> sut.renameSession(42L, "S26E10 - DevTool")).isInstanceOf(AgentToolException.class)
+                .hasMessageContaining("schedule:manage");
+        verifyNoInteractions(sessionNaming);
+    }
+
+    @Test
+    void renameSession_tellsAnAgentWithoutScheduleRightsWhy() {
+        authenticateWithScopes("schedule:manage");
+        given(sessionNaming.rename(42L, "Mine now"))
+                .willThrow(new ForbiddenException("Managing the schedule requires schedule-management rights"));
+
+        assertThatThrownBy(() -> sut.renameSession(42L, "Mine now")).isInstanceOf(AgentToolException.class);
     }
 
     private static Session aSession() {

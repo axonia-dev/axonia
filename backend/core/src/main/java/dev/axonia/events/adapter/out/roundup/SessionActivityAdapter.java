@@ -14,6 +14,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import dev.axonia.events.adapter.out.persistence.SessionNameSql;
 import dev.axonia.events.application.port.out.UserProfileAccess;
 import dev.axonia.events.domain.SessionFacts;
 import dev.axonia.roundup.api.spi.SessionActivity;
@@ -33,26 +34,12 @@ import lombok.RequiredArgsConstructor;
 class SessionActivityAdapter implements SessionActivity {
 
     /**
-     * The title the app and every session mail already show: the first titled slot in the session, then the session's
-     * own title. A series occurrence routinely carries no title of its own - it is identified by its series and its
-     * date - so reading {@code community_session.title} alone would head most of a roundup's lines with nothing.
-     *
-     * <p>
-     * Both arms run through the same blank-is-absent rule {@code SessionFacts.sessionTitle} applies in Java, hence the
-     * {@code NULLIF(btrim(...), '')} on the session's own title as well as on the slot's: {@code
-     * community_session.title} is nullable but not checked against empty, and a blank one returned as {@code ""} would
-     * leave the renderer's no-title state unfired and print an empty heading.
+     * The session's name by {@link SessionNameSql}. Its generic last step is left to the renderer, which has a no-title
+     * state of its own.
      */
-    private static final String FIRST_SLOT_TITLE = """
-            LEFT JOIN LATERAL (
-                SELECT sl.title
-                FROM event_slot sl
-                JOIN event_section sec ON sl.section_id = sec.id
-                WHERE sec.session_id = cs.id AND btrim(coalesce(sl.title, '')) <> ''
-                ORDER BY sec.position, sl.position
-                LIMIT 1
-            ) slot_title ON true
-            """;
+    private static final String TITLE = SessionNameSql.NAME + " AS title\n";
+
+    private static final String TITLE_SOURCES = SessionNameSql.SOURCES;
 
     /**
      * How many talks one session's agenda carried, across all of its sections. A correlated subquery rather than a join
@@ -70,10 +57,9 @@ class SessionActivityAdapter implements SessionActivity {
 
     private static final String HELD_SESSIONS = """
             SELECT cs.id, cs.community_id, cs.scheduled_at,
-                   COALESCE(slot_title.title, NULLIF(btrim(cs.title), '')) AS title,
-            """ + TALK_COUNT + """
+            """ + TITLE + "," + TALK_COUNT + """
             FROM community_session cs
-            """ + FIRST_SLOT_TITLE + """
+            """ + TITLE_SOURCES + """
             WHERE cs.organization_id = :organizationId
               AND cs.status NOT IN ('CANCELLED', 'SKIPPED')
               AND cs.scheduled_at >= :from AND cs.scheduled_at < :to
@@ -82,9 +68,9 @@ class SessionActivityAdapter implements SessionActivity {
 
     private static final String UPCOMING_SESSIONS = """
             SELECT cs.community_id, cs.scheduled_at,
-                   COALESCE(slot_title.title, NULLIF(btrim(cs.title), '')) AS title
+            """ + TITLE + """
             FROM community_session cs
-            """ + FIRST_SLOT_TITLE + """
+            """ + TITLE_SOURCES + """
             WHERE cs.organization_id = :organizationId
               AND cs.status = 'SCHEDULED'
               AND cs.scheduled_at >= :from AND cs.scheduled_at < :to
@@ -144,8 +130,8 @@ class SessionActivityAdapter implements SessionActivity {
 
     /**
      * Every titled slot of the given sessions, in agenda order. Blank titles are dropped here rather than in Java, by
-     * the same {@code btrim(coalesce(sl.title, '')) <> ''} predicate {@link #FIRST_SLOT_TITLE} already picks its one
-     * slot with, so a slot titled with a space cannot reach a template as an empty line.
+     * the same {@code btrim(coalesce(sl.title, '')) <> ''} predicate {@link SessionNameSql#SOURCES} already picks its
+     * one slot with, so a slot titled with a space cannot reach a template as an empty line.
      */
     private static final String TALK_TITLES_OF_SESSIONS = """
             SELECT sec.session_id, sl.title

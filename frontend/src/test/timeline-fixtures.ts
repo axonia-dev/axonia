@@ -3,7 +3,7 @@ import type { ScheduleEntry } from "@/features/events/domain/schedule";
 import type { Series } from "@/features/events/domain/series";
 import { aScheduleEntry } from "@/test/session-fixture";
 
-/** A weekly series, whose title is the only fact a schedule view reads off it. */
+/** A weekly series, whose title names every occurrence that has no title or titled talk of its own. */
 export const SERIES_LIST: Series[] = [
   {
     id: 1,
@@ -26,6 +26,7 @@ export const SERIES_LIST: Series[] = [
 /** An occurrence of that series that already happened. */
 export const heldSeriesEntry: ScheduleEntry = aScheduleEntry({
   sessionId: 1,
+  displayTitle: "Backend Guild Series",
   occurrenceDate: "2026-06-05",
   scheduledAt: "2026-06-05T18:00:00Z",
   status: "HELD",

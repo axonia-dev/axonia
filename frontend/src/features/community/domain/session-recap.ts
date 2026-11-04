@@ -3,7 +3,7 @@ import {
   sectionAccentColor,
   sectionLabel,
 } from "@/features/events/domain/section";
-import { type Session, sessionTitle } from "@/features/events/domain/session";
+import type { Session } from "@/features/events/domain/session";
 import { isOpen } from "@/features/events/domain/slot";
 
 /** How many talks the marquee's strip draws before it starts counting the rest instead. */
@@ -101,8 +101,8 @@ function talksOf(session: Session): RecapTalk[] {
 /**
  * The talks the strip has left to say, given a headline that already named one of them.
  *
- * `sessionTitle` names a session after its first titled talk, so on a surface that also lists the
- * talks the headline is one of the tiles. Printing it twice reads as a duplicate rather than as an
+ * A session with no title of its own is named after its first titled talk (`displayTitle`), so on a
+ * surface that also lists the talks the headline is one of the tiles. Printing it twice reads as a duplicate rather than as an
  * agenda. A session titled in its own right names no talk, and keeps all of them.
  */
 function unsaidOf(talks: readonly RecapTalk[], headline: string): RecapTalk[] {
@@ -156,7 +156,7 @@ export function recapOf({
   now,
 }: RecapInput): SessionRecap {
   const talks = talksOf(session);
-  const title = sessionTitle(session);
+  const title = session.displayTitle;
   const unsaid = unsaidOf(talks, title);
   const strip = unsaid.slice(0, STRIP_SIZE);
   return {
@@ -189,7 +189,7 @@ export function nextUpOf(session: Session | null): NextUp | null {
   const slots = session.sections.flatMap((section) => section.slots);
   return {
     sessionId: session.id,
-    title: sessionTitle(session),
+    title: session.displayTitle,
     scheduledAt: session.scheduledAt,
     booked: slots.filter((slot) => !isOpen(slot)).length,
     openSpots: slots.filter(isOpen).length,

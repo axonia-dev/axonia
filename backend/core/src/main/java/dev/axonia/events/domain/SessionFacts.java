@@ -5,7 +5,6 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 import dev.axonia.events.api.ActionItemOutcome;
 import dev.axonia.events.api.MeetingPlace;
@@ -43,10 +42,17 @@ public final class SessionFacts {
     private SessionFacts() {
     }
 
+    private static List<String> slotTitles(Session session) {
+
+        return session.sections().stream().flatMap(section -> section.slots().stream()).map(Slot::title).toList();
+    }
+
     public static Map<String, Object> of(Session session, SessionFactsContext context) {
 
         var facts = new LinkedHashMap<String, Object>();
-        facts.put("sessionTitle", sessionTitle(session));
+        // The name the session gives itself, which is the one its page shows. A session named only by its series goes
+        // without: the mail already states the series above the headline, and the templates say "This session".
+        facts.put("sessionTitle", SessionName.ofItsOwn(session.title(), slotTitles(session)));
         facts.put("seriesTitle", blankToNull(context.seriesTitle()));
         facts.put("scheduledAt", session.scheduledAt());
         facts.put("hasTime", session.hasTime());
@@ -123,25 +129,6 @@ public final class SessionFacts {
         if (value != null) {
             facts.put(key, value);
         }
-    }
-
-    /**
-     * The same rule {@code session.ts}'s own {@code sessionTitle} applies: the first titled slot across the session's
-     * sections, in order, then the session's own title. A session routinely carries no title of its own - a series
-     * occurrence is identified by its series and its date - and the app has always named those by what is on them.
-     * Reading {@code session.title} alone meant a mail was headed differently from the page its own button links to,
-     * and its subject line carried the same wrong name.
-     *
-     * <p>
-     * The final fallback is deliberately NOT ported. The app ends at the literal "Session"; the templates end at "This
-     * session", which reads as a heading rather than as a list row, and only fires for a session with no title anywhere
-     * in it.
-     */
-    private static String sessionTitle(Session session) {
-
-        return session.sections().stream().flatMap(section -> section.slots().stream()).map(Slot::title)
-                .map(SessionFacts::blankToNull).filter(Objects::nonNull).findFirst()
-                .orElseGet(() -> blankToNull(session.title()));
     }
 
     private static List<Map<String, Object>> talks(Session session, SessionFactsContext context) {

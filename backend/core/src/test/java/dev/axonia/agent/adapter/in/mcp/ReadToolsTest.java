@@ -137,7 +137,7 @@ class ReadToolsTest {
 
     @Test
     void schedule_mapsEntriesToCompactView() {
-        var entry = ScheduleEntry.builder().sessionId(9L).title("Kafka Deep Dive")
+        var entry = ScheduleEntry.builder().sessionId(9L).title(null).displayTitle("Kafka Deep Dive")
                 .scheduledAt(Instant.parse("2026-07-10T18:00:00Z")).hasTime(true).durationMinutes(60)
                 .status(SessionStatus.SCHEDULED).virtual(false).build();
         when(schedule.schedule(eq("kafka-guild"), eq(Instant.parse("2026-07-10T00:00:00Z")),
@@ -147,7 +147,8 @@ class ReadToolsTest {
 
         assertThat(result).singleElement().satisfies(v -> {
             assertThat(v.sessionId()).isEqualTo(9L);
-            assertThat(v.title()).isEqualTo("Kafka Deep Dive");
+            assertThat(v.title()).isEqualTo(null);
+            assertThat(v.displayTitle()).isEqualTo("Kafka Deep Dive");
             assertThat(v.scheduledAt()).isEqualTo(Instant.parse("2026-07-10T18:00:00Z"));
             assertThat(v.durationMinutes()).isEqualTo(60);
             assertThat(v.status()).isEqualTo("SCHEDULED");
@@ -168,7 +169,7 @@ class ReadToolsTest {
         var openSlot = Slot.builder().id(21L).title("Intro").presenterUserIds(List.of()).build();
         var takenSlot = Slot.builder().id(22L).title("Deep Dive").presenterUserIds(List.of("u-9")).build();
         var section = Section.builder().id(11L).title("Talk").slots(List.of(openSlot, takenSlot)).build();
-        var session = Session.builder().id(5L).title("Kafka Deep Dive")
+        var session = Session.builder().id(5L).title("Kafka Deep Dive").displayTitle("Kafka Deep Dive")
                 .scheduledAt(Instant.parse("2026-07-10T18:00:00Z")).durationMinutes(60).status(SessionStatus.SCHEDULED)
                 .recordingUrl("").sections(List.of(section)).build();
         when(sessions.get(5L)).thenReturn(session);
@@ -179,6 +180,7 @@ class ReadToolsTest {
 
         assertThat(result.id()).isEqualTo(5L);
         assertThat(result.title()).isEqualTo("Kafka Deep Dive");
+        assertThat(result.displayTitle()).isEqualTo("Kafka Deep Dive");
         assertThat(result.scheduledAt()).isEqualTo(Instant.parse("2026-07-10T18:00:00Z"));
         assertThat(result.durationMinutes()).isEqualTo(60);
         assertThat(result.status()).isEqualTo("SCHEDULED");

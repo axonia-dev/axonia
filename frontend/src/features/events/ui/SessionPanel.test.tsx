@@ -10,6 +10,7 @@ import {
 import { EMPTY_PLACE } from "@/features/events/domain/meeting-place";
 import type { ScheduleEntry } from "@/features/events/domain/schedule";
 import { SessionPanel } from "@/features/events/ui/SessionPanel";
+import { inQueryClient } from "@/test/query-client";
 
 let user: ReturnType<typeof userEvent.setup>;
 
@@ -35,6 +36,7 @@ function entry(overrides: Partial<ScheduleEntry> = {}): ScheduleEntry {
     sessionId: 7,
     seriesId: 1,
     title: "Guild Sync",
+    displayTitle: "Guild Sync",
     occurrenceDate: "2026-08-20",
     scheduledAt: "2026-08-20T12:00:00Z",
     hasTime: true,
@@ -69,6 +71,7 @@ function renderPanel(
         {...(extra.now && { now: extra.now })}
       />
     </MemoryRouter>,
+    inQueryClient(),
   );
   return onClose;
 }

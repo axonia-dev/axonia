@@ -26,6 +26,7 @@ import dev.axonia.events.domain.PlannedSection;
 import dev.axonia.events.domain.SectionRecord;
 import dev.axonia.events.domain.SectionTypeRecord;
 import dev.axonia.events.domain.SeriesRecord;
+import dev.axonia.events.domain.SessionName;
 import dev.axonia.events.domain.SessionRecord;
 import dev.axonia.events.domain.SlotPresenter;
 import dev.axonia.events.domain.SlotRecord;
@@ -86,6 +87,12 @@ public class SessionMapper {
         return entities.stream().map(e -> toSession(e, null, null, lookups)).toList();
     }
 
+    static String nameOf(String ownTitle, List<Section> sections, String seriesTitle) {
+
+        var slotTitles = sections.stream().flatMap(section -> section.slots().stream()).map(Slot::title).toList();
+        return SessionName.of(ownTitle, slotTitles, seriesTitle);
+    }
+
     /**
      * The series id is asked for explicitly rather than handed straight to {@link Map#get}, because a one-off session
      * has none and an immutable map rejects a null key outright: a page of nothing but one-offs used to end in a
@@ -139,13 +146,15 @@ public class SessionMapper {
             sections.add(toSection(e, list.get(i), i, lookups.sectionTypes()));
         }
         return Session.builder().id(e.getId()).seriesId(e.getSeriesId()).communityId(e.getCommunityId())
-                .title(e.getTitle()).occurrenceDate(e.getOccurrenceDate()).status(derivedStatus(e))
-                .scheduledAt(e.getScheduledAt()).hasTime(e.isHasTime()).durationMinutes(e.getDurationMinutes())
-                .facilitatorUserId(e.getFacilitatorUserId()).attendeeCount(attendees).notes(e.getNotes())
-                .recordingUrl(e.getRecordingUrl()).place(MeetingPlace.resolve(MeetingPlaces.of(e), standingPlace))
-                .placeOverride(MeetingPlaces.of(e)).seriesPlace(standingPlace).seriesTimeZone(standing.timeZone())
-                .timeZone(e.getTimeZone()).sections(sections).createdAt(e.getCreatedAt()).updatedAt(e.getUpdatedAt())
-                .version(e.getVersion()).closedAt(e.getClosedAt()).wrapUpReleaseAt(e.getWrapUpReleaseAt())
+                .title(e.getTitle()).displayTitle(nameOf(e.getTitle(), sections, standing.title()))
+                .automaticTitle(nameOf(null, sections, standing.title())).occurrenceDate(e.getOccurrenceDate())
+                .status(derivedStatus(e)).scheduledAt(e.getScheduledAt()).hasTime(e.isHasTime())
+                .durationMinutes(e.getDurationMinutes()).facilitatorUserId(e.getFacilitatorUserId())
+                .attendeeCount(attendees).notes(e.getNotes()).recordingUrl(e.getRecordingUrl())
+                .place(MeetingPlace.resolve(MeetingPlaces.of(e), standingPlace)).placeOverride(MeetingPlaces.of(e))
+                .seriesPlace(standingPlace).seriesTimeZone(standing.timeZone()).timeZone(e.getTimeZone())
+                .sections(sections).createdAt(e.getCreatedAt()).updatedAt(e.getUpdatedAt()).version(e.getVersion())
+                .closedAt(e.getClosedAt()).wrapUpReleaseAt(e.getWrapUpReleaseAt())
                 .upcomingReleaseAt(e.getUpcomingReleaseAt()).wrapUpStatus(wrapUpStatus).upcomingStatus(upcomingStatus)
                 .build();
     }

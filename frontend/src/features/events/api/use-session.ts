@@ -19,6 +19,7 @@ import type {
   UpcomingReleaseInput,
   WrapUpReleaseInput,
 } from "@/features/events/domain/events-gateway";
+import type { Session } from "@/features/events/domain/session";
 
 const gateway = httpEventsGateway;
 
@@ -46,6 +47,23 @@ export function useSession(sessionId: number | null) {
       ? { queryKey: sessionKeys.detail(null), queryFn: skipToken }
       : sessionQuery(sessionId),
   );
+}
+
+/**
+ * The name a session's page will head it with, read from what is already loaded and never fetched.
+ * Undefined until a hover or a morph has readied the session.
+ *
+ * A schedule entry and the session behind it are separate reads, so right after a rename one can
+ * still carry the old name. A card asks this before morphing its title into the page's heading,
+ * so two different names never melt into each other.
+ */
+export function useSessionHeading(sessionId: number | null) {
+  const { data } = useQuery({
+    queryKey: sessionKeys.detail(sessionId),
+    queryFn: skipToken,
+    select: (session: Session) => session.displayTitle,
+  });
+  return data;
 }
 
 function invalidateSessionAndSchedule(

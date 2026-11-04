@@ -36,6 +36,7 @@ function entry(overrides: Partial<ScheduleEntry> = {}): ScheduleEntry {
     sessionId: 7,
     seriesId: 1,
     title: null,
+    displayTitle: overrides.title ?? "Session",
     occurrenceDate: "2026-01-02",
     scheduledAt: "2026-01-02T18:00:00Z",
     hasTime: true,

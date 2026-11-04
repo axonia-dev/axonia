@@ -11,9 +11,10 @@ class ScheduleEntries {
     ScheduleEntry of(Session session) {
 
         return ScheduleEntry.builder().sessionId(session.id()).seriesId(session.seriesId()).title(session.title())
-                .occurrenceDate(session.occurrenceDate()).scheduledAt(session.scheduledAt()).hasTime(session.hasTime())
-                .seriesTimeZone(session.seriesTimeZone()).durationMinutes(session.durationMinutes())
-                .status(session.status()).place(session.place()).version(session.version())
-                .updatedAt(session.updatedAt()).virtual(false).sections(session.sections()).build();
+                .displayTitle(session.displayTitle()).occurrenceDate(session.occurrenceDate())
+                .scheduledAt(session.scheduledAt()).hasTime(session.hasTime()).seriesTimeZone(session.seriesTimeZone())
+                .durationMinutes(session.durationMinutes()).status(session.status()).place(session.place())
+                .version(session.version()).updatedAt(session.updatedAt()).virtual(false).sections(session.sections())
+                .build();
     }
 }

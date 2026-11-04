@@ -11,7 +11,6 @@ import {
 import type { ScheduleEntry } from "@/features/events/domain/schedule";
 import {
   openSpotLabel,
-  pageTitleOf,
   presenterIdsOf,
   timeLabel,
 } from "@/features/events/domain/schedule";
@@ -27,6 +26,7 @@ import {
   accessibleName,
   sneakPeek,
 } from "@/features/events/ui/timeline/timeline";
+import { useTitleMorphId } from "@/features/events/ui/title-morph";
 import type { User } from "@/features/identity/domain/user";
 import { cn } from "@/lib/cn";
 import { useLocalClock } from "@/lib/use-local-clock";
@@ -188,6 +188,7 @@ export function TimelineCard({
   const muted = entry.virtual || entry.status === "HELD";
   const { sessionId } = entry;
   const morphId = sessionId === null ? undefined : sessionMorphId(sessionId);
+  const titleMorphId = useTitleMorphId(sessionId, label, morphId);
 
   return (
     <MorphPart part="surface" id={morphId}>
@@ -214,7 +215,7 @@ export function TimelineCard({
           meta={metaLine(entry)}
           nextUp={nextUp}
           muted={muted}
-          morphId={label === pageTitleOf(entry) ? morphId : undefined}
+          morphId={titleMorphId}
         />
         {nextUp && <NextCountdown entry={entry} />}
         {peek !== null && (

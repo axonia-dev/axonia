@@ -10,6 +10,7 @@ import { EMPTY_PLACE } from "@/features/events/domain/meeting-place";
 import type { ScheduleEntry } from "@/features/events/domain/schedule";
 import { MonthCalendar } from "@/features/events/ui/MonthCalendar";
 import { useUsers } from "@/features/identity/api/use-users";
+import { inQueryClient } from "@/test/query-client";
 
 vi.mock(
   "@/features/events/api/use-ready-session",
@@ -20,7 +21,7 @@ vi.mock("@/features/events/api/use-schedule-activity", () => ({
   useScheduleActivity: vi.fn(),
 }));
 vi.mock("@/features/events/api/use-series", () => ({ useSeriesList: vi.fn() }));
-// No network, no QueryClient needed, same way SlotRow.test.tsx mocks it.
+// No network, same way SlotRow.test.tsx mocks it.
 vi.mock("@/features/identity/api/use-users", () => ({ useUsers: vi.fn() }));
 
 // Loaded activity result (isSuccess mirrors the resolved query).
@@ -39,7 +40,6 @@ beforeEach(() => {
 });
 afterEach(() => vi.useRealTimers());
 
-// Only fields resolveLabel() reads: id + title.
 const SERIES_LIST = [{ id: 1, title: "Backend Guild Series" }] as never[];
 
 function entry(overrides: Partial<ScheduleEntry> = {}): ScheduleEntry {
@@ -47,6 +47,7 @@ function entry(overrides: Partial<ScheduleEntry> = {}): ScheduleEntry {
     sessionId: 1,
     seriesId: 1,
     title: null,
+    displayTitle: overrides.title ?? "Backend Guild Series",
     occurrenceDate: "2026-06-05",
     scheduledAt: "2026-06-05T18:00:00Z",
     hasTime: true,
@@ -101,6 +102,7 @@ function renderCalendar() {
         onMonthChange={() => {}}
       />
     </MemoryRouter>,
+    inQueryClient(),
   );
 }
 
@@ -149,6 +151,7 @@ describe("MonthCalendar session panel", () => {
           onMonthChange={() => {}}
         />
       </MemoryRouter>,
+      inQueryClient(),
     );
     await clickChip(/backend guild series/i);
     rerender(
@@ -210,6 +213,7 @@ describe("MonthCalendar session panel", () => {
           onMonthChange={() => {}}
         />
       </MemoryRouter>,
+      inQueryClient(),
     );
     await clickChip(/backend guild series/i);
     expect(desktopPanel()).toBeInTheDocument();

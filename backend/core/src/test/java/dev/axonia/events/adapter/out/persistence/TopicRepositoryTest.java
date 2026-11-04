@@ -12,6 +12,7 @@ import dev.axonia.events.api.TopicKind;
 import dev.axonia.events.api.TopicStatus;
 import dev.axonia.events.application.TopicFilter;
 import dev.axonia.events.domain.TopicCounts;
+import dev.axonia.events.domain.TopicSchedule;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -165,6 +166,44 @@ class TopicRepositoryTest extends CoreJdbcTestSupport {
         assertThat(rows.get(0).slotId()).isEqualTo(slotId);
         assertThat(rows.get(0).scheduleLabel()).isEqualTo("Frontend Dojo");
         assertThat(rows.get(0).scheduledAt()).isEqualTo(java.time.Instant.parse("2099-06-14T18:00:00Z"));
+    }
+
+    @Test
+    void findSchedules_namesASeriesDateByItsOwnTitleThenItsFirstTitledTalkBeforeItsSeries() {
+        // given a series and two of its dates, one titled and one named only by its talk
+        var seriesId = jdbc.queryForObject(
+                "INSERT INTO event_series (organization_id, community_id, title, cadence_count, cadence_unit, starts_on, time_zone, status, created_at, updated_at, version) "
+                        + "VALUES ('default', 1, 'Backend Dojo', 1, 'WEEK', DATE '2026-06-03', 'UTC', 'ACTIVE', now(), now(), 0) RETURNING id",
+                Long.class);
+        var sectionTypeId = jdbc.queryForObject(
+                "INSERT INTO event_section_type (organization_id, label, expects_presenter, created_at, updated_at, version) "
+                        + "VALUES ('default', 'Talks of the dojo', true, now(), now(), 0) RETURNING id",
+                Long.class);
+        var titledTopic = scheduledOn(seriesId, sectionTypeId, "'S26E10 - DevTool'", "2099-06-14", "P1s");
+        var untitledTopic = scheduledOn(seriesId, sectionTypeId, "NULL", "2099-06-21", "Kafka 101");
+
+        // when
+        var rows = topicRepository.findSchedules("default", java.util.List.of(titledTopic, untitledTopic));
+
+        // then
+        assertThat(rows).extracting(TopicSchedule::scheduleLabel).containsExactly("S26E10 - DevTool", "Kafka 101");
+    }
+
+    private long scheduledOn(long seriesId, long sectionTypeId, String titleSql, String date, String slotTitle) {
+
+        var topicId = topicRepository.save(TopicEntityMother.any().communityId(1L).build()).getId();
+        var sessionId = jdbc.queryForObject(
+                "INSERT INTO community_session (organization_id, series_id, community_id, status, scheduled_at, occurrence_date, title, notes, recording_url, has_time, created_at, updated_at, version) "
+                        + "VALUES ('default', ?, 1, 'SCHEDULED', TIMESTAMPTZ '" + date + "T18:00:00Z', DATE '" + date
+                        + "', " + titleSql + ", '', '', true, now(), now(), 0) RETURNING id",
+                Long.class, seriesId);
+        var sectionId = jdbc.queryForObject(
+                "INSERT INTO event_section (session_id, position, section_type_id) VALUES (?, 0, ?) RETURNING id",
+                Long.class, sessionId, sectionTypeId);
+        jdbc.update(
+                "INSERT INTO event_slot (section_id, position, topic_id, title, duration_minutes) VALUES (?, 0, ?, ?, 20)",
+                sectionId, topicId, slotTitle);
+        return topicId;
     }
 
     @Test

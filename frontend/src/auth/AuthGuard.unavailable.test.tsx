@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { AuthGuard } from "@/auth/AuthGuard";
 import { notifyUnauthorized, setAccessToken } from "@/auth/token";
 import { toastQueue, ToastViewport } from "@/components/ui/toast";
-import { inQueryClient } from "@/test/session-probe";
+import { inQueryClient } from "@/test/query-client";
 
 const mockUseAuth = vi.fn();
 

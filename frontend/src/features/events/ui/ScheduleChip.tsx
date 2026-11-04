@@ -3,8 +3,7 @@ import {
   nextPhaseChange,
 } from "@/features/events/domain/join-window";
 import type { ScheduleEntry } from "@/features/events/domain/schedule";
-import { resolveLabel, timeLabel } from "@/features/events/domain/schedule";
-import type { Series } from "@/features/events/domain/series";
+import { timeLabel } from "@/features/events/domain/schedule";
 import { cn } from "@/lib/cn";
 import { useNow, useWakeAt } from "@/lib/use-wake-at";
 
@@ -88,7 +87,6 @@ function disclosureProps(
 
 export interface ChipProps {
   entry: ScheduleEntry;
-  seriesList: Series[];
   selected?: boolean;
   nextUp?: boolean;
   /** The id of the panel this chip opens, so the button states what it controls and whether it is
@@ -117,14 +115,13 @@ function useLivePhase(entry: ScheduleEntry): boolean {
 
 export function Chip({
   entry,
-  seriesList,
   selected = false,
   nextUp = false,
   panelId,
   onSelect,
   onOpen,
 }: Readonly<ChipProps>) {
-  const label = resolveLabel(entry, seriesList);
+  const label = entry.displayTitle;
   const live = useLivePhase(entry);
 
   const className = cn(

@@ -5,12 +5,10 @@ import { useIsOrganizer } from "@/features/community/api/use-organizer";
 import { useCommunityCrumbs } from "@/features/community/ui/community-chrome";
 import { useOpenOccurrence } from "@/features/events/api/use-open-occurrence";
 import { useSchedule } from "@/features/events/api/use-schedule";
-import { useSeriesList } from "@/features/events/api/use-series";
 import { useSkipOccurrence } from "@/features/events/api/use-sessions";
 import type { ScheduleEntry } from "@/features/events/domain/schedule";
 import { hasPassed } from "@/features/events/domain/schedule";
 import { addDaysIso } from "@/features/events/domain/schedule-window";
-import { pageItems } from "@/features/events/ui/page-items";
 
 function sectionHeading(section: ScheduleEntry["sections"][number]): string {
   const sectionType = section.sectionType ?? "Section";
@@ -45,7 +43,6 @@ export function OccurrencePreviewPage({
   const fromIso = `${date}T00:00:00.000Z`;
   const toIso = addDaysIso(fromIso, 1);
   const scheduleQuery = useSchedule(slug, fromIso, toIso);
-  const seriesList = pageItems(useSeriesList(slug));
   const { open, isPending } = useOpenOccurrence(slug);
   const navigate = useNavigate();
   const canManage = useIsOrganizer(slug);
@@ -55,9 +52,7 @@ export function OccurrencePreviewPage({
     (scheduleQuery.data ?? []).find(
       (e) => e.virtual && e.seriesId === seriesId && e.occurrenceDate === date,
     ) ?? null;
-  const seriesTitle =
-    seriesList.find((s) => s.id === seriesId)?.title ?? "Session";
-  const label = entry?.title ?? seriesTitle;
+  const label = entry?.displayTitle ?? "Session";
   useCommunityCrumbs([{ label }]);
 
   if (scheduleQuery.isLoading) {

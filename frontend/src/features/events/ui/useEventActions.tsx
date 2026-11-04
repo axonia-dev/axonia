@@ -5,7 +5,7 @@ import { useManagementAccess } from "@/features/community/api/use-management-acc
 import { useIsOrganizer } from "@/features/community/api/use-organizer";
 import type { Section } from "@/features/events/domain/section";
 import type { Session } from "@/features/events/domain/session";
-import { isHeld, sessionTitle } from "@/features/events/domain/session";
+import { isHeld } from "@/features/events/domain/session";
 import type { Slot } from "@/features/events/domain/slot";
 import { isOpen } from "@/features/events/domain/slot";
 import { AddResourceButton } from "@/features/knowledge/ui/AddResourceButton";
@@ -44,11 +44,11 @@ export function useEventActions(slug: string): EventActions {
       <AddResourceButton
         slug={slug}
         sessionId={session.id}
-        defaultTitle={sessionTitle(session)}
+        defaultTitle={session.displayTitle}
         {...(session.recordingUrl !== null
           ? { defaultUrl: session.recordingUrl }
           : {})}
-        provenanceLabel={sessionTitle(session)}
+        provenanceLabel={session.displayTitle}
       />
     );
   }

@@ -22,6 +22,7 @@ const ghostEntry: ScheduleEntry = {
   sessionId: null,
   seriesId: 1,
   title: null,
+  displayTitle: "Backend Guild Series",
   occurrenceDate: "2026-06-12",
   scheduledAt: "2026-06-12T18:00:00Z",
   hasTime: true,

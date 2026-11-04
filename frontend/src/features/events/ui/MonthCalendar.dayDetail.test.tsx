@@ -61,6 +61,7 @@ function entry(overrides: Partial<ScheduleEntry>): ScheduleEntry {
     sessionId: 1,
     seriesId: 1,
     title: null,
+    displayTitle: overrides.title ?? "Backend Guild Series",
     occurrenceDate: "2026-06-05",
     scheduledAt: "2026-06-05T18:00:00Z",
     hasTime: true,

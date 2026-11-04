@@ -230,6 +230,8 @@ export interface EventsGateway extends SlotGateway {
   unskipOccurrence(seriesId: number, occurrenceDate: string): Promise<Session>;
   createOneOff(slug: string, input: CreateOneOffInput): Promise<Session>;
   updateSession(id: number, input: UpdateSessionInput): Promise<Session>;
+  /** Sets the session's own title, or clears it with null. */
+  renameSession(id: number, title: string | null): Promise<Session>;
   getSession(id: number): Promise<Session>;
   listUpcoming(slug: string, params: PageParams): Promise<Page<Session>>;
   listPast(slug: string, params: PastSessionParams): Promise<Page<Session>>;

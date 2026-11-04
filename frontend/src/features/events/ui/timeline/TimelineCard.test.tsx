@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { sessionKeys } from "@/features/events/api/query-keys";
 import { EMPTY_PLACE } from "@/features/events/domain/meeting-place";
 import { countdownSpeech } from "@/features/events/domain/next-countdown";
 import type { ScheduleEntry } from "@/features/events/domain/schedule";
@@ -10,6 +11,7 @@ import type { Slot } from "@/features/events/domain/slot";
 import { TimelineCard } from "@/features/events/ui/timeline/TimelineCard";
 import type { User } from "@/features/identity/domain/user";
 import { morphNames } from "@/test/morph-names";
+import { aScheduledSession } from "@/test/session-fixture";
 
 vi.mock("react", async (original) => ({
   ...(await original<typeof import("react")>()),
@@ -53,6 +55,7 @@ function entry(overrides: Partial<ScheduleEntry>): ScheduleEntry {
     sessionId: 1,
     seriesId: 1,
     title: null,
+    displayTitle: overrides.title ?? "Session",
     occurrenceDate: "2026-01-09",
     scheduledAt: "2026-01-09T18:00:00Z",
     hasTime: true,
@@ -83,9 +86,9 @@ function sections(slots: Slot[]): ScheduleEntry["sections"] {
   ];
 }
 
-function setup(e: ScheduleEntry, nextUp = false) {
+function setup(e: ScheduleEntry, nextUp = false, client = new QueryClient()) {
   const { container } = render(
-    <QueryClientProvider client={new QueryClient()}>
+    <QueryClientProvider client={client}>
       <MemoryRouter>
         <TimelineCard
           entry={e}
@@ -213,13 +216,18 @@ describe("TimelineCard", () => {
   });
 
   it("leaves the title unnamed when the session page heads it otherwise", () => {
+    // given a session renamed since the schedule was read
+    const client = new QueryClient();
+    client.setQueryData(
+      sessionKeys.detail(42),
+      aScheduledSession({ id: 42, displayTitle: "Virtual threads deep dive" }),
+    );
+
     // when
     const container = setup(
-      entry({
-        sessionId: 42,
-        status: "HELD",
-        sections: sections([slot({ title: "Virtual threads deep dive" })]),
-      }),
+      entry({ sessionId: 42, status: "HELD" }),
+      false,
+      client,
     );
 
     // then

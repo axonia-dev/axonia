@@ -7,19 +7,15 @@ import { SessionContextStrip } from "@/features/knowledge/ui/SessionContextStrip
 vi.mock("@/features/events/api/use-session", () => ({
   useSession: vi.fn(),
 }));
-vi.mock("@/features/events/api/use-series", () => ({
-  useSeriesList: vi.fn(),
-}));
 
-import { useSeriesList } from "@/features/events/api/use-series";
 import { useSession } from "@/features/events/api/use-session";
 
 const mockSession = vi.mocked(useSession);
-const mockSeries = vi.mocked(useSeriesList);
 
 const session = {
   id: 9,
   seriesId: 2,
+  displayTitle: "Backend Dojo",
   occurrenceDate: "2026-06-06",
   scheduledAt: "2026-06-06T10:00:00Z",
   sections: [
@@ -37,13 +33,10 @@ function renderStrip() {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockSeries.mockReturnValue({
-    data: { content: [{ id: 2, title: "Backend Dojo" }] },
-  } as never);
 });
 
 describe("SessionContextStrip", () => {
-  it("shows the series title, presenters, and a link to the session", () => {
+  it("shows the session's name, presenters, and a link to the session", () => {
     // given
     mockSession.mockReturnValue({ data: session } as never);
 

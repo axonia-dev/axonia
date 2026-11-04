@@ -11,7 +11,7 @@ import {
 import { AuthGuard } from "@/auth/AuthGuard";
 import { currentUserId } from "@/auth/current-user";
 import { getAccessToken, setAccessToken } from "@/auth/token";
-import { inQueryClient } from "@/test/session-probe";
+import { inQueryClient } from "@/test/query-client";
 
 const mockUseAuth = vi.fn();
 

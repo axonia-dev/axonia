@@ -1,6 +1,5 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
-import { type ReactNode, useState } from "react";
+import { useState } from "react";
 import { expect } from "vitest";
 
 import { AuthProvider, type SessionNames, useAuth } from "@/auth/core/session";
@@ -77,15 +76,4 @@ export async function signedIn(): Promise<void> {
   await waitFor(() =>
     expect(screen.getByTestId("state")).toHaveTextContent("in"),
   );
-}
-
-/** The guard reloads reads refused during an outage, so it renders inside a query client. */
-export function inQueryClient(
-  client = new QueryClient({ defaultOptions: { queries: { retry: false } } }),
-) {
-  return {
-    wrapper: ({ children }: { children: ReactNode }) => (
-      <QueryClientProvider client={client}>{children}</QueryClientProvider>
-    ),
-  };
 }

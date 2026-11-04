@@ -33,6 +33,7 @@ function makeEntry(overrides: Partial<ScheduleEntry> = {}): ScheduleEntry {
     sessionId: null,
     seriesId: 3,
     title: null,
+    displayTitle: "Session",
     occurrenceDate: "2026-08-13",
     scheduledAt: "2026-08-13T15:00:00Z",
     hasTime: true,

@@ -25,7 +25,7 @@ beforeEach(() => {
 });
 
 describe("SessionMarquee", () => {
-  /** A session is known by what it was about, which is `sessionTitle`'s rule everywhere else too. */
+  /** A session is known by what it was about, the name the server gives it everywhere. */
   it("leads with what the last held session was about, and links to it", () => {
     renderMarquee();
 
