@@ -21,6 +21,10 @@ export const AGENT_SCOPES = [
   { code: "schedule:manage", label: "Create and shape sessions" },
   { code: "learning:declare", label: "Declare areas to learn" },
   { code: "session:delete", label: "Delete sessions that never took place" },
+  {
+    code: "tag:curate",
+    label: "Merge, rename and group tags in a community",
+  },
   { code: "tag:delete", label: "Delete tags from a community" },
 ] as const;
 

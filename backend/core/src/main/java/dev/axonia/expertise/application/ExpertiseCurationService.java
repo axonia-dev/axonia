@@ -2,8 +2,13 @@ package dev.axonia.expertise.application;
 
 import java.util.Collection;
 import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.springframework.stereotype.Service;
@@ -12,7 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 import dev.axonia.community.api.TagNormalizer;
 import dev.axonia.community.api.TagUsageKind;
 import dev.axonia.community.api.spi.CommunityTagWriter;
-import dev.axonia.expertise.api.TagCuration;
 import dev.axonia.expertise.api.TagUsageReport;
 import dev.axonia.expertise.application.port.out.DeclarationRepository;
 import dev.axonia.expertise.application.port.out.ExpertiseQueryRepository;
@@ -33,7 +37,7 @@ import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
-public class ExpertiseCurationService implements TagCuration {
+public class ExpertiseCurationService {
 
     private static final double MERGE_THRESHOLD = 0.7;
 
@@ -132,9 +136,11 @@ public class ExpertiseCurationService implements TagCuration {
 
     /**
      * Unmerges the variant. A member who hid the area, or dismissed a signal under it, stays hidden under the variant.
+     *
+     * @return the canonical the variant was merged into, or empty when it was not merged
      */
     @Transactional
-    public void split(String slug, String variant) {
+    public Optional<String> split(String slug, String variant) {
 
         var communityId = curationScope.requireCurationAccess(slug);
         var org = organizationContext.organizationId();
@@ -145,6 +151,7 @@ public class ExpertiseCurationService implements TagCuration {
         if (canonical != null) {
             unmerge(org, communityId, normVariant, canonical);
         }
+        return Optional.ofNullable(canonical);
     }
 
     public void dismiss(String slug, String tagA, String tagB) {
@@ -177,15 +184,28 @@ public class ExpertiseCurationService implements TagCuration {
      * declared it. The members are counted once each, over the spellings a delete would remove, so the dialog names
      * what it is about to take away.
      */
-    @Override
     @Transactional(readOnly = true)
     public TagUsageReport usage(String slug, String tag) {
 
+        var normalized = TagNormalizer.normalize(tag);
+        return usages(slug, List.of(normalized)).get(normalized);
+    }
+
+    /** {@link #usage} for several tags at once, over one read of the vocabulary, keyed by normalized tag. */
+    @Transactional(readOnly = true)
+    public Map<String, TagUsageReport> usages(String slug, Collection<String> tags) {
+
         var communityId = curationScope.requireCurationAccess(slug);
         var org = organizationContext.organizationId();
-        var normalized = TagNormalizer.normalize(tag);
+        var normalized = tags.stream().map(TagNormalizer::normalize).distinct().toList();
         var vocabulary = curationScope.vocabularyOf(org, communityId);
-        TagCurationRules.requireInVocabulary(vocabulary.names(), List.of(normalized));
+        TagCurationRules.requireInVocabulary(vocabulary.names(), normalized);
+        return normalized.stream().collect(Collectors.toMap(Function.identity(),
+                tag -> usageOf(org, communityId, tag, vocabulary), (a, b) -> a, LinkedHashMap::new));
+    }
+
+    private TagUsageReport usageOf(String org, long communityId, String normalized,
+            CurationScope.CommunityVocabulary vocabulary) {
 
         var counts = new EnumMap<TagUsageKind, Integer>(TagUsageKind.class);
         for (var writer : tagWriters) {
@@ -249,7 +269,6 @@ public class ExpertiseCurationService implements TagCuration {
      * members' declarations and the named areas of it under any spelling that reads as it. A named area it empties
      * stays: a person named it, and only a person ends it.
      */
-    @Override
     @Transactional
     public void delete(String slug, String tag) {
 

@@ -32,6 +32,13 @@ public enum AgentScope {
      */
     SESSION_DELETE("session:delete"),
 
+    /**
+     * Keeping a community's tags small and consistent: merging, splitting and renaming tags, parking merge suggestions,
+     * and grouping tags into named areas. A curator's act, like {@link #TAG_DELETE}, but kept apart from it: every one
+     * of these keeps the content and the tag's history, while a delete erases both.
+     */
+    TAG_CURATE("tag:curate"),
+
     /** Stripping a tag from all of a community's content. Destructive, and a curator's act rather than a member's. */
     TAG_DELETE("tag:delete");
 

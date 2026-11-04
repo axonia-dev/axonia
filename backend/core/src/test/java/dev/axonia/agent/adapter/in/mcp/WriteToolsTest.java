@@ -26,6 +26,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 
+import dev.axonia.agent.adapter.in.mcp.TagReports.TagReportView;
 import dev.axonia.agent.application.ToolCallRecorder;
 import dev.axonia.agent.application.port.out.ToolCallAudit;
 import dev.axonia.agent.domain.AgentScope;
@@ -106,6 +107,12 @@ class WriteToolsTest {
     SessionDeletion sessionDeletion;
     @Mock
     SessionClosure sessionClosure;
+    @Mock
+    TagReports tagReports;
+
+    /** A report naming one created tag and one merged one, so a test proves the tool hands it back untouched. */
+    private static final TagReportView TAG_REPORT = new TagReportView(List.of("azure-pim"),
+            List.of(new TagReports.MergedTagView("k8s", "kubernetes")));
 
     WriteTools sut;
 
@@ -114,7 +121,7 @@ class WriteToolsTest {
         var support = new AgentToolSupport(new AgentScopeGate(),
                 new ToolCallRecorder(auditRepo, Clock.fixed(Instant.parse("2026-07-07T09:00:00Z"), ZoneOffset.UTC)));
         sut = new WriteTools(support, artifacts, topics, slots, attendance, memberships, resources, sessions, sections,
-                actionItems, sessionDeletion, sessionClosure);
+                actionItems, sessionDeletion, sessionClosure, tagReports);
         authenticateWithScopes("library:contribute", "topic:propose", "actionItem:raise", "session:signup",
                 "attendance:signal", "community:join");
     }
@@ -136,9 +143,12 @@ class WriteToolsTest {
         when(artifacts.capture(eq("kafka-guild"), any(CreateArtifactRequest.class)))
                 .thenReturn(Artifact.builder().id(11L).title("Slides").url("https://x.dev/s").build());
 
+        when(tagReports.inCommunity("kafka-guild", Set.of("kafka"))).thenReturn(TAG_REPORT);
+
         var result = sut.contribute(new WriteTools.ContributeParams("kafka-guild", "Slides", 2L, "https://x.dev/s",
                 "notes", Set.of("kafka"), null));
 
+        assertThat(result.tagReport()).isEqualTo(TAG_REPORT);
         assertThat(result.id()).isEqualTo(11L);
         assertThat(result.title()).isEqualTo("Slides");
         assertThat(result.url()).isEqualTo("https://x.dev/s");
@@ -176,9 +186,12 @@ class WriteToolsTest {
         when(topics.propose(eq("kafka-guild"), any(ProposeTopicRequest.class)))
                 .thenReturn(Topic.builder().id(5L).title("Streams").kind(TopicKind.REQUEST).build());
 
+        when(tagReports.inCommunity("kafka-guild", List.of("kafka"))).thenReturn(TAG_REPORT);
+
         var result = sut.proposeTopic(
                 new WriteTools.ProposeTopicParams("kafka-guild", "REQUEST", "Streams", "desc", List.of("kafka"), null));
 
+        assertThat(result.tagReport()).isEqualTo(TAG_REPORT);
         assertThat(result.id()).isEqualTo(5L);
         assertThat(result.title()).isEqualTo("Streams");
         assertThat(result.kind()).isEqualTo("REQUEST");
@@ -225,11 +238,13 @@ class WriteToolsTest {
                 .thenReturn(ActionItem.builder().id(8L).title("Rotate the certificate").assigneeUserId("u-2")
                         .dueDate(LocalDate.parse("2026-10-31")).build());
 
+        when(tagReports.inCommunity("kafka-guild", List.of("tls"))).thenReturn(TAG_REPORT);
+
         var result = sut.raiseActionItem(new WriteTools.RaiseActionItemParams("kafka-guild", "Rotate the certificate",
                 "before it expires", List.of("tls"), "Alice Dupont", "2026-10-31", 12L));
 
         assertThat(result).isEqualTo(new WriteTools.RaiseActionItemResult(8L, "Rotate the certificate", "u-2",
-                LocalDate.parse("2026-10-31")));
+                LocalDate.parse("2026-10-31"), TAG_REPORT));
 
         var captor = ArgumentCaptor.forClass(RaiseActionItemRequest.class);
         verify(actionItems).raise(eq("kafka-guild"), captor.capture());
@@ -626,9 +641,13 @@ class WriteToolsTest {
                 .willReturn(new RecordedSlot(aSession(), 9L, PresenterResolution.builder()
                         .assigned(List.of("Alice Dupont")).unmatched(List.of()).ambiguous(List.of()).build()));
 
-        sut.addSlot(new WriteTools.AddSlotParams(42L, 7L, "Kafka 101", 15, null, List.of("Alice Dupont"),
+        when(tagReports.inSession(42L, List.of("kafka", "streaming"))).thenReturn(TAG_REPORT);
+
+        var result = sut.addSlot(new WriteTools.AddSlotParams(42L, 7L, "Kafka 101", 15, null, List.of("Alice Dupont"),
                 List.of("kafka", "streaming")));
 
+        assertThat(result.tagReport()).as("the agent learns which of its tags were new to the community")
+                .isEqualTo(TAG_REPORT);
         var captor = ArgumentCaptor.forClass(RecordSlotRequest.class);
         verify(slots).recordSlot(eq(42L), eq(7L), captor.capture());
         assertThat(captor.getValue().tags()).containsExactly("kafka", "streaming");

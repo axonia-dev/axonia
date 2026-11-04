@@ -1,5 +1,6 @@
 package dev.axonia.expertise.application;
 
+import java.util.Collection;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -7,8 +8,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import dev.axonia.community.api.TagNormalizer;
 import dev.axonia.expertise.api.CommunityAreas;
 import dev.axonia.expertise.api.CommunityVocabulary;
+import dev.axonia.expertise.api.TagReading;
 import dev.axonia.expertise.application.port.out.OrganizationContext;
 import dev.axonia.expertise.application.port.out.TagAliasRepository;
 import dev.axonia.expertise.application.port.out.VocabularyLock;
@@ -29,6 +32,7 @@ public class ExpertiseVocabulary implements CommunityVocabulary {
     private final TagAliasRepository tagAliasRepository;
     private final VocabularyLock vocabularyLock;
     private final ExpertiseService expertiseService;
+    private final CurationScope curationScope;
 
     /**
      * Takes the community's vocabulary lock shared until the caller's transaction ends, so no curator rewrites the
@@ -70,5 +74,23 @@ public class ExpertiseVocabulary implements CommunityVocabulary {
     public String writableName(String raw) {
 
         return TagCurationRules.requireWritableName(raw);
+    }
+
+    /**
+     * Reads the caller's organization from the request, so it must not be called off a request. A merged tag is
+     * reported as merged even when no content carries it yet, since the merge already folds it.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public TagReading read(long communityId, Collection<String> rawTags) {
+
+        var vocabulary = curationScope.vocabularyOf(organizationContext.organizationId(), communityId);
+        var aliases = vocabulary.aliases();
+        var tags = rawTags.stream().map(TagNormalizer::normalize).filter(tag -> !tag.isBlank()).distinct().toList();
+        var merged = tags.stream().filter(aliases::containsKey).map(tag -> new TagReading.Merged(tag, aliases.get(tag)))
+                .toList();
+        var created = tags.stream().filter(tag -> !aliases.containsKey(tag) && !vocabulary.names().contains(tag))
+                .toList();
+        return new TagReading(created, merged);
     }
 }

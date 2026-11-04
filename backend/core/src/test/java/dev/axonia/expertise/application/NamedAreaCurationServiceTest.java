@@ -2,6 +2,7 @@ package dev.axonia.expertise.application;
 
 import java.util.List;
 
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
@@ -17,6 +18,7 @@ import dev.axonia.expertise.application.port.out.FakeTagAliasRepository;
 import dev.axonia.expertise.application.port.out.OrganizationContext;
 import dev.axonia.expertise.application.port.out.VocabularyLock;
 import dev.axonia.expertise.domain.NamedArea;
+import dev.axonia.expertise.domain.NamedAreaPlacement;
 import dev.axonia.shared.api.error.ForbiddenException;
 import dev.axonia.shared.api.error.NotFoundException;
 import dev.axonia.shared.api.error.ValidationException;
@@ -304,6 +306,142 @@ class NamedAreaCurationServiceTest {
 
         sut.removeFromNamedArea(SLUG, "rabbitmq");
 
+        assertThat(namedAreaRepository.findAll(ORG, COMMUNITY_ID).getFirst().tags()).isEmpty();
+    }
+
+    // -----------------------------------------------------------------------
+    // answering with the state a curator acts on next
+    // -----------------------------------------------------------------------
+
+    @Test
+    void renamingANamedAreaAnswersItWithItsTags() {
+
+        var id = namedAreaRepository.create(ORG, COMMUNITY_ID, "Messaging");
+        namedAreaRepository.place(ORG, COMMUNITY_ID, id, "kafka");
+
+        var renamed = sut.renameNamedArea(SLUG, id, "Streaming");
+
+        assertThat(renamed).isEqualTo(new NamedArea(id, "Streaming", List.of("kafka")));
+    }
+
+    @Test
+    void deletingANamedAreaAnswersItAsItWas() {
+
+        var id = namedAreaRepository.create(ORG, COMMUNITY_ID, "Messaging");
+        namedAreaRepository.place(ORG, COMMUNITY_ID, id, "kafka");
+
+        var deleted = sut.deleteNamedArea(SLUG, id);
+
+        assertThat(deleted).isEqualTo(new NamedArea(id, "Messaging", List.of("kafka")));
+    }
+
+    @Test
+    void removingATagAnswersTheAreaItLeft() {
+
+        var id = namedAreaRepository.create(ORG, COMMUNITY_ID, "Messaging");
+        namedAreaRepository.place(ORG, COMMUNITY_ID, id, "kafka");
+        namedAreaRepository.place(ORG, COMMUNITY_ID, id, "spring");
+
+        var left = sut.removeFromNamedArea(SLUG, "kafka");
+
+        assertThat(left).contains(new NamedArea(id, "Messaging", List.of("spring")));
+    }
+
+    @Test
+    void removingATagNoAreaHoldsAnswersNothing() {
+
+        namedAreaRepository.create(ORG, COMMUNITY_ID, "Messaging");
+
+        assertThat(sut.removeFromNamedArea(SLUG, "kafka")).isEmpty();
+    }
+
+    // -----------------------------------------------------------------------
+    // placing several tags at once
+    // -----------------------------------------------------------------------
+
+    @Test
+    void placingSeveralTagsBuildsTheAreaInOneCall() {
+
+        var id = namedAreaRepository.create(ORG, COMMUNITY_ID, "Backend");
+
+        var placement = sut.placeAllInNamedArea(SLUG, id, List.of("kafka", "Spring"));
+
+        assertThat(placement.area()).isEqualTo(new NamedArea(id, "Backend", List.of("kafka", "spring")));
+        assertThat(placement.moves()).isEmpty();
+    }
+
+    @Test
+    void placingATagHeldElsewhereMovesItAndSaysFromWhere() {
+
+        var messaging = namedAreaRepository.create(ORG, COMMUNITY_ID, "Messaging");
+        var backend = namedAreaRepository.create(ORG, COMMUNITY_ID, "Backend");
+        namedAreaRepository.place(ORG, COMMUNITY_ID, messaging, "kafka");
+
+        var placement = sut.placeAllInNamedArea(SLUG, backend, List.of("kafka", "spring"));
+
+        assertThat(placement.area().tags()).containsExactly("kafka", "spring");
+        assertThat(placement.moves()).containsExactly(new NamedAreaPlacement.Move("kafka", messaging, "Messaging"));
+        assertThat(namedAreaRepository.findAll(ORG, COMMUNITY_ID)).filteredOn(area -> area.id() == messaging)
+                .singleElement().extracting(NamedArea::tags).asInstanceOf(InstanceOfAssertFactories.LIST).isEmpty();
+    }
+
+    @Test
+    void placingATagTheAreaAlreadyHoldsIsNoMove() {
+
+        var id = namedAreaRepository.create(ORG, COMMUNITY_ID, "Messaging");
+        namedAreaRepository.place(ORG, COMMUNITY_ID, id, "kafka");
+
+        var placement = sut.placeAllInNamedArea(SLUG, id, List.of("kafka"));
+
+        assertThat(placement.moves()).isEmpty();
+        assertThat(placement.area().tags()).containsExactly("kafka");
+    }
+
+    @Test
+    void placingSpellingsOfOneAreaStoresItsCanonicalOnce() {
+
+        tagAliasRepository.addAlias(ORG, COMMUNITY_ID, "spring-boot", "spring");
+        var id = namedAreaRepository.create(ORG, COMMUNITY_ID, "Backend");
+
+        var placement = sut.placeAllInNamedArea(SLUG, id, List.of("Spring Boot", "spring"));
+
+        assertThat(placement.area().tags()).containsExactly("spring");
+    }
+
+    @Test
+    void oneTagOutsideTheVocabularyRefusesTheWholePlacement() {
+
+        var id = namedAreaRepository.create(ORG, COMMUNITY_ID, "Messaging");
+
+        assertThatThrownBy(() -> sut.placeAllInNamedArea(SLUG, id, List.of("kafka", "rabbitmq")))
+                .isInstanceOf(ValidationException.class).hasMessageContaining("rabbitmq");
+        assertThat(namedAreaRepository.findAll(ORG, COMMUNITY_ID).getFirst().tags()).isEmpty();
+    }
+
+    @Test
+    void placingNoTagsIsRefused() {
+
+        var id = namedAreaRepository.create(ORG, COMMUNITY_ID, "Messaging");
+
+        assertThatThrownBy(() -> sut.placeAllInNamedArea(SLUG, id, List.of())).isInstanceOf(ValidationException.class)
+                .hasFieldOrPropertyWithValue("code", "NAMED_AREA_NO_TAGS");
+    }
+
+    @Test
+    void placingSeveralIntoAnUnknownNamedAreaIsNotFound() {
+
+        assertThatThrownBy(() -> sut.placeAllInNamedArea(SLUG, UNKNOWN_ID, List.of("kafka")))
+                .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void placingSeveralIsRefusedWithoutTheCurationGrant() {
+
+        var id = namedAreaRepository.create(ORG, COMMUNITY_ID, "Messaging");
+        givenNoCurationGrant();
+
+        assertThatThrownBy(() -> sut.placeAllInNamedArea(SLUG, id, List.of("kafka")))
+                .isInstanceOf(ForbiddenException.class);
         assertThat(namedAreaRepository.findAll(ORG, COMMUNITY_ID).getFirst().tags()).isEmpty();
     }
 

@@ -9,6 +9,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
+import dev.axonia.expertise.api.TagReading;
+import dev.axonia.expertise.application.port.out.CommunityAccess;
+import dev.axonia.expertise.application.port.out.CurrentUser;
+import dev.axonia.expertise.application.port.out.DeclarationRepository;
+import dev.axonia.expertise.application.port.out.ExpertiseQueryRepository;
 import dev.axonia.expertise.application.port.out.FakeTagAliasRepository;
 import dev.axonia.expertise.application.port.out.OrganizationContext;
 import dev.axonia.expertise.application.port.out.VocabularyLock;
@@ -29,6 +34,14 @@ class ExpertiseVocabularyTest {
     private VocabularyLock vocabularyLock;
     @Mock
     private ExpertiseService expertiseService;
+    @Mock
+    private CurrentUser currentUser;
+    @Mock
+    private CommunityAccess communityAccess;
+    @Mock
+    private ExpertiseQueryRepository expertiseQueryRepository;
+    @Mock
+    private DeclarationRepository declarationRepository;
 
     private FakeTagAliasRepository aliases;
 
@@ -38,7 +51,9 @@ class ExpertiseVocabularyTest {
     void setUp() {
 
         aliases = new FakeTagAliasRepository();
-        sut = new ExpertiseVocabulary(organizationContext, aliases, vocabularyLock, expertiseService);
+        var curationScope = new CurationScope(currentUser, communityAccess, expertiseQueryRepository,
+                declarationRepository, aliases, List.of());
+        sut = new ExpertiseVocabulary(organizationContext, aliases, vocabularyLock, expertiseService, curationScope);
         when(organizationContext.organizationId()).thenReturn("org-1");
     }
 
@@ -78,5 +93,34 @@ class ExpertiseVocabularyTest {
 
         assertThatThrownBy(() -> sut.writableName(" !! ")).isInstanceOf(ValidationException.class)
                 .hasFieldOrPropertyWithValue("code", "TAG_BLANK");
+    }
+
+    @Test
+    void readingTagsNamesThoseTheCommunityNeverCarried() {
+
+        when(expertiseQueryRepository.allTags("org-1", 7L)).thenReturn(List.of("kafka"));
+
+        var reading = sut.read(7L, List.of("Kafka", "Azure PIM", "azure-pim"));
+
+        assertThat(reading).isEqualTo(new TagReading(List.of("azure-pim"), List.of()));
+    }
+
+    @Test
+    void readingTagsNamesThoseMergedIntoAnother() {
+
+        when(expertiseQueryRepository.allTags("org-1", 7L)).thenReturn(List.of("kubernetes"));
+        aliases.addAlias("org-1", 7L, "k8s", "kubernetes");
+        aliases.addAlias("org-1", 7L, "kube", "kubernetes");
+
+        var reading = sut.read(7L, List.of("K8s", "kube", "kubernetes"));
+
+        assertThat(reading).isEqualTo(new TagReading(List.of(),
+                List.of(new TagReading.Merged("k8s", "kubernetes"), new TagReading.Merged("kube", "kubernetes"))));
+    }
+
+    @Test
+    void readingTagsIgnoresBlankOnes() {
+
+        assertThat(sut.read(7L, List.of(" !! ", ""))).isEqualTo(new TagReading(List.of(), List.of()));
     }
 }

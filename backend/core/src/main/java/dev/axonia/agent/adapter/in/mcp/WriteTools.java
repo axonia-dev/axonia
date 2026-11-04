@@ -12,6 +12,7 @@ import org.springframework.ai.mcp.annotation.McpTool.McpAnnotations;
 import org.springframework.ai.mcp.annotation.McpToolParam;
 import org.springframework.stereotype.Component;
 
+import dev.axonia.agent.adapter.in.mcp.TagReports.TagReportView;
 import dev.axonia.agent.domain.AgentScope;
 import dev.axonia.community.api.MemberDirectory;
 import dev.axonia.community.api.Memberships;
@@ -50,6 +51,10 @@ import lombok.RequiredArgsConstructor;
  * or hits a domain conflict (e.g. "already going"). Two exceptions: {@code session.attachArtifact} is idempotent (it
  * returns any existing matching attachment), and the two destructive tools, {@code session.detachArtifact} and
  * {@code session.delete}, are each gated behind a scope of their own.
+ *
+ * <p>
+ * The four tools that tag what they create also answer with a {@link TagReports tag report}, so an agent sees which of
+ * its tags were new to the community before the vocabulary sprawls.
  */
 @Component
 @RequiredArgsConstructor
@@ -67,6 +72,7 @@ class WriteTools {
     private final ActionItems actionItems;
     private final SessionDeletion sessionDeletion;
     private final SessionClosure sessionClosure;
+    private final TagReports tagReports;
 
     /**
      * The tail shared by both write tools' actor-reference rule, spelled the same way so the two descriptions cannot
@@ -93,7 +99,7 @@ class WriteTools {
             @McpToolParam(description = "Artifact type id", required = true) Long typeId,
             @McpToolParam(description = "http(s) URL", required = true) String url,
             @McpToolParam(description = "Optional description", required = false) String description,
-            @McpToolParam(description = "Optional tags", required = false) Set<String> tags,
+            @McpToolParam(description = "Optional tags. Reuse names from tag.vocabulary.", required = false) Set<String> tags,
             @McpToolParam(description = "Optional display name, email or user id of the person whose work this is. "
                     + CONTRIBUTOR_RULE, required = false) String contributor) {
     }
@@ -103,7 +109,7 @@ class WriteTools {
             @McpToolParam(description = "REQUEST or OFFER", required = true) String kind,
             @McpToolParam(description = "Title", required = true) String title,
             @McpToolParam(description = "Optional description", required = false) String description,
-            @McpToolParam(description = "Optional tags", required = false) List<String> tags,
+            @McpToolParam(description = "Optional tags. Reuse names from tag.vocabulary.", required = false) List<String> tags,
             @McpToolParam(description = "Optional display name, email or user id of the person whose proposal this is. "
                     + PROPOSER_RULE, required = false) String proposer) {
     }
@@ -112,20 +118,21 @@ class WriteTools {
     record RaiseActionItemParams(@McpToolParam(description = "Community slug", required = true) String slug,
             @McpToolParam(description = "Title", required = true) String title,
             @McpToolParam(description = "Optional description", required = false) String description,
-            @McpToolParam(description = "Optional tags", required = false) List<String> tags,
+            @McpToolParam(description = "Optional tags. Reuse names from tag.vocabulary.", required = false) List<String> tags,
             @McpToolParam(description = "Optional display name, email or user id of the person the work is dispatched "
                     + "to. Omit it to leave the item unassigned. " + REFERENCE_RULE, required = false) String assignee,
             @McpToolParam(description = "Optional due date, ISO yyyy-MM-dd", required = false) String dueDate,
             @McpToolParam(description = "Optional id of the held session this was raised at", required = false) Long originSessionId) {
     }
 
-    record ContributeResult(Long id, String title, String url) {
+    record ContributeResult(Long id, String title, String url, TagReportView tagReport) {
     }
 
-    record RaiseActionItemResult(Long id, String title, String assigneeUserId, LocalDate dueDate) {
+    record RaiseActionItemResult(Long id, String title, String assigneeUserId, LocalDate dueDate,
+            TagReportView tagReport) {
     }
 
-    record ProposeResult(Long id, String title, String kind) {
+    record ProposeResult(Long id, String title, String kind, TagReportView tagReport) {
     }
 
     record SignupResult(Long sessionId, Long sectionId, Long slotId) {
@@ -163,7 +170,7 @@ class WriteTools {
                     + "community.people to place one.", required = false) List<String> presenters,
             @McpToolParam(description = "Tags saying what the talk was about, up to 10. They are what makes the talk "
                     + "count toward its presenters' expertise, and a slot recorded here has no other source of "
-                    + "subject, so supply them.", required = false) List<String> tags) {
+                    + "subject, so supply them, reusing names from tag.vocabulary.", required = false) List<String> tags) {
     }
 
     /** Grouped into one record (rather than four method params) to stay under the parameter-count limit. */
@@ -196,7 +203,7 @@ class WriteTools {
     }
 
     record RecordedSlotView(Long slotId, String title, List<String> assigned, List<String> unmatched,
-            List<String> ambiguous) {
+            List<String> ambiguous, TagReportView tagReport) {
     }
 
     /**
@@ -216,27 +223,30 @@ class WriteTools {
     @McpTool(name = "library.contribute", description = "Add a link to a community's library. Get a valid typeId from "
             + "library.artifactTypes first. Leave contributor out to contribute as yourself; set it only when the "
             + "work is somebody else's, which only an organizer or a member the community lets credit contributions "
-            + "may do, and refuses the write if the name cannot be "
-            + "placed on exactly one person.", annotations = @McpAnnotations(readOnlyHint = false, destructiveHint = false, idempotentHint = false))
+            + "may do, and refuses the write if the name cannot be " + "placed on exactly one person. "
+            + TagReports.REUSE_TAGS, annotations = @McpAnnotations(readOnlyHint = false, destructiveHint = false, idempotentHint = false))
     public ContributeResult contribute(
             @McpToolParam(description = "Artifact contribution details", required = true) ContributeParams params) {
         return support.run("library.contribute", AgentScope.LIBRARY_CONTRIBUTE, () -> {
+            var tagReport = tagReports.inCommunity(params.slug(), params.tags());
             var artifact = artifacts.capture(params.slug(), new CreateArtifactRequest(params.title(), params.typeId(),
                     params.url(), params.description(), params.tags(), null, params.contributor()));
-            return new ContributeResult(artifact.id(), artifact.title(), artifact.url());
+            return new ContributeResult(artifact.id(), artifact.title(), artifact.url(), tagReport);
         });
     }
 
     @McpTool(name = "topic.propose", description = "Propose a topic to a community. Kind is REQUEST (I want this) or "
             + "OFFER (I can present this). Leave proposer out to propose as yourself; set it only when the proposal is "
             + "somebody else's, which is an organizer-only act and refuses the write if the name cannot be placed on "
-            + "exactly one person.", annotations = @McpAnnotations(readOnlyHint = false, destructiveHint = false, idempotentHint = false))
+            + "exactly one person. "
+            + TagReports.REUSE_TAGS, annotations = @McpAnnotations(readOnlyHint = false, destructiveHint = false, idempotentHint = false))
     public ProposeResult proposeTopic(
             @McpToolParam(description = "Topic proposal details", required = true) ProposeTopicParams params) {
         return support.run("topic.propose", AgentScope.TOPIC_PROPOSE, () -> {
+            var tagReport = tagReports.inCommunity(params.slug(), params.tags());
             var topic = topics.propose(params.slug(), new ProposeTopicRequest(proposableKind(params.kind()),
                     params.title(), params.description(), params.tags(), params.proposer()));
-            return new ProposeResult(topic.id(), topic.title(), String.valueOf(topic.kind()));
+            return new ProposeResult(topic.id(), topic.title(), String.valueOf(topic.kind()), tagReport);
         });
     }
 
@@ -249,15 +259,17 @@ class WriteTools {
     @McpTool(name = "actionItem.raise", description = "Raise an action item in a community: a piece of operational "
             + "work tracked to done, not a talk to give. It is answered at whichever session comes next. Leave "
             + "assignee out to leave the work unassigned; set it to dispatch the work to "
-            + "anybody in the organization.", annotations = @McpAnnotations(readOnlyHint = false, destructiveHint = false, idempotentHint = false))
+            + "anybody in the organization. "
+            + TagReports.REUSE_TAGS, annotations = @McpAnnotations(readOnlyHint = false, destructiveHint = false, idempotentHint = false))
     public RaiseActionItemResult raiseActionItem(
             @McpToolParam(description = "Action item details", required = true) RaiseActionItemParams params) {
         return support.run("actionItem.raise", AgentScope.ACTION_ITEM_RAISE, () -> {
+            var tagReport = tagReports.inCommunity(params.slug(), params.tags());
             var item = actionItems.raise(params.slug(),
                     RaiseActionItemRequest.builder().title(params.title()).description(params.description())
                             .tags(params.tags()).assignee(params.assignee()).dueDate(dueDate(params.dueDate()))
                             .originSessionId(params.originSessionId()).build());
-            return new RaiseActionItemResult(item.id(), item.title(), item.assigneeUserId(), item.dueDate());
+            return new RaiseActionItemResult(item.id(), item.title(), item.assigneeUserId(), item.dueDate(), tagReport);
         });
     }
 
@@ -391,14 +403,16 @@ class WriteTools {
             + "and what it was about. Unlike session.signup, this never signs you up: name the presenters explicitly, "
             + "or leave the list empty for an open slot. Always tag it: this tool never fills a slot from a backlog "
             + "topic, so the slot has no topic to take its subject from, and an untagged talk counts toward nobody's "
-            + "expertise.", annotations = @McpAnnotations(readOnlyHint = false, destructiveHint = false, idempotentHint = false))
+            + "expertise. "
+            + TagReports.REUSE_TAGS, annotations = @McpAnnotations(readOnlyHint = false, destructiveHint = false, idempotentHint = false))
     public RecordedSlotView addSlot(@McpToolParam(description = "Slot details", required = true) AddSlotParams params) {
         return support.run("session.addSlot", AgentScope.SCHEDULE_MANAGE, () -> {
+            var tagReport = tagReports.inSession(params.sessionId(), params.tags());
             var recorded = slots.recordSlot(params.sessionId(), params.sectionId(), new RecordSlotRequest(
                     params.title(), params.durationMinutes(), params.notes(), params.presenters(), params.tags()));
             var report = recorded.presenters();
             return new RecordedSlotView(recorded.slotId(), params.title(), report.assigned(), report.unmatched(),
-                    report.ambiguous());
+                    report.ambiguous(), tagReport);
         });
     }
 

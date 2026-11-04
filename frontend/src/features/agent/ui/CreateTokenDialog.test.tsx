@@ -53,7 +53,7 @@ describe("CreateTokenDialog", () => {
     ).toBeInTheDocument();
   });
 
-  it("offers deleting sessions and tags as write permissions", async () => {
+  it("offers deleting sessions, curating tags and deleting tags as write permissions", async () => {
     // when
     renderDialog();
 
@@ -64,6 +64,11 @@ describe("CreateTokenDialog", () => {
     expect(
       within(writes).getByRole("switch", {
         name: "Delete sessions that never took place",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(writes).getByRole("switch", {
+        name: "Merge, rename and group tags in a community",
       }),
     ).toBeInTheDocument();
     expect(

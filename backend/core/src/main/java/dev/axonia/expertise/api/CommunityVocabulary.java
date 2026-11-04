@@ -1,5 +1,6 @@
 package dev.axonia.expertise.api;
 
+import java.util.Collection;
 import java.util.Map;
 
 /**
@@ -24,4 +25,11 @@ public interface CommunityVocabulary {
 
     /** The normalized name a record may be stored under, or a rejection of it. */
     String writableName(String raw);
+
+    /**
+     * How the community's vocabulary reads tags a record is about to be stored under: those it never carried, and those
+     * merged into another tag. It checks no access, so a caller discloses it only alongside a write the caller was
+     * allowed to make.
+     */
+    TagReading read(long communityId, Collection<String> rawTags);
 }

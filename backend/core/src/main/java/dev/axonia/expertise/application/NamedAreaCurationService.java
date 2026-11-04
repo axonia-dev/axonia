@@ -1,6 +1,7 @@
 package dev.axonia.expertise.application;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,6 +13,7 @@ import dev.axonia.expertise.application.port.out.TagAliasRepository;
 import dev.axonia.expertise.application.port.out.VocabularyLock;
 import dev.axonia.expertise.domain.AliasResolver;
 import dev.axonia.expertise.domain.NamedArea;
+import dev.axonia.expertise.domain.NamedAreaPlacement;
 import dev.axonia.expertise.domain.TagCurationRules;
 import dev.axonia.shared.api.error.NotFoundException;
 import dev.axonia.shared.api.error.ValidationException;
@@ -50,19 +52,30 @@ public class NamedAreaCurationService {
         return new NamedArea(id, trimmed, List.of());
     }
 
+    /** @return the named area under its new name, with its tags */
     @Transactional
-    public void renameNamedArea(String slug, long id, String name) {
+    public NamedArea renameNamedArea(String slug, long id, String name) {
 
         var communityId = curationScope.requireCurationAccess(slug);
+        var org = organizationContext.organizationId();
         var trimmed = requireName(name);
-        requireFound(namedAreaRepository.rename(organizationContext.organizationId(), communityId, id, trimmed), id);
+        requireFound(namedAreaRepository.rename(org, communityId, id, trimmed), id);
+        return new NamedArea(id, trimmed, tagsOf(org, communityId, id));
     }
 
+    /**
+     * Its tags stay in the vocabulary and simply belong to no named area anymore.
+     *
+     * @return the named area as it was, with the tags it released
+     */
     @Transactional
-    public void deleteNamedArea(String slug, long id) {
+    public NamedArea deleteNamedArea(String slug, long id) {
 
         var communityId = curationScope.requireCurationAccess(slug);
-        requireFound(namedAreaRepository.delete(organizationContext.organizationId(), communityId, id), id);
+        var org = organizationContext.organizationId();
+        var before = namedAreaRepository.findAll(org, communityId).stream().filter(area -> area.id() == id).findFirst();
+        requireFound(namedAreaRepository.delete(org, communityId, id), id);
+        return before.orElseThrow();
     }
 
     /**
@@ -72,25 +85,69 @@ public class NamedAreaCurationService {
     @Transactional
     public void placeInNamedArea(String slug, long id, String tag) {
 
+        placeAllInNamedArea(slug, id, List.of(tag));
+    }
+
+    /**
+     * Places every tag, each under the canonical the community reads it as, or none of them: one tag outside the
+     * vocabulary refuses the whole call. A tag another named area held moves, and the answer says from where.
+     */
+    @Transactional
+    public NamedAreaPlacement placeAllInNamedArea(String slug, long id, List<String> tags) {
+
         var communityId = curationScope.requireCurationAccess(slug);
+        if (tags.isEmpty()) {
+            throw new ValidationException("NAMED_AREA_NO_TAGS", "Name at least one tag to place");
+        }
         var org = organizationContext.organizationId();
         vocabularyLock.lock(org, communityId);
         var vocabulary = curationScope.vocabularyOf(org, communityId);
-        var canonical = AliasResolver.canonicalOf(TagNormalizer.normalize(tag), vocabulary.aliases());
-        TagCurationRules.requireInVocabulary(vocabulary.names(), List.of(canonical));
-        requireFound(namedAreaRepository.place(org, communityId, id, canonical), id);
+        var canonicals = tags.stream()
+                .map(tag -> AliasResolver.canonicalOf(TagNormalizer.normalize(tag), vocabulary.aliases())).distinct()
+                .toList();
+        TagCurationRules.requireInVocabulary(vocabulary.names(), canonicals);
+        var before = namedAreaRepository.findAll(org, communityId);
+        for (var canonical : canonicals) {
+            requireFound(namedAreaRepository.place(org, communityId, id, canonical), id);
+        }
+        var area = namedAreaRepository.findAll(org, communityId).stream().filter(placed -> placed.id() == id)
+                .findFirst().orElseThrow();
+        return new NamedAreaPlacement(area, movesInto(id, canonicals, before));
     }
 
-    /** Open on a tag the community no longer carries, so a membership the map drops can still be taken back. */
+    /**
+     * Open on a tag the community no longer carries, so a membership the map drops can still be taken back.
+     *
+     * @return the named area the tag left, without it, or empty when no named area held it
+     */
     @Transactional
-    public void removeFromNamedArea(String slug, String tag) {
+    public Optional<NamedArea> removeFromNamedArea(String slug, String tag) {
 
         var communityId = curationScope.requireCurationAccess(slug);
         var org = organizationContext.organizationId();
         vocabularyLock.lock(org, communityId);
         var canonical = AliasResolver.canonicalOf(TagNormalizer.normalize(tag),
                 tagAliasRepository.aliasMap(org, communityId));
+        var holder = holderOf(canonical, namedAreaRepository.findAll(org, communityId));
         namedAreaRepository.remove(org, communityId, canonical);
+        return holder.map(area -> new NamedArea(area.id(), area.name(), tagsOf(org, communityId, area.id())));
+    }
+
+    private List<String> tagsOf(String org, long communityId, long id) {
+
+        return namedAreaRepository.findAll(org, communityId).stream().filter(area -> area.id() == id)
+                .flatMap(area -> area.tags().stream()).toList();
+    }
+
+    private static List<NamedAreaPlacement.Move> movesInto(long id, List<String> canonicals, List<NamedArea> before) {
+
+        return canonicals.stream().flatMap(tag -> holderOf(tag, before).filter(area -> area.id() != id).stream()
+                .map(area -> new NamedAreaPlacement.Move(tag, area.id(), area.name()))).toList();
+    }
+
+    private static Optional<NamedArea> holderOf(String tag, List<NamedArea> areas) {
+
+        return areas.stream().filter(area -> area.tags().contains(tag)).findFirst();
     }
 
     private static String requireName(String name) {

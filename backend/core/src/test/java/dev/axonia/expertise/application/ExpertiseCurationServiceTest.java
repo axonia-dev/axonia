@@ -1334,6 +1334,47 @@ class ExpertiseCurationServiceTest {
     }
 
     @Test
+    void usagesCountSeveralTagsKeyedByTheirNormalizedName() {
+
+        givenLeaderOf(SLUG, COMMUNITY_ID);
+        when(expertiseQueryRepository.allTags(ORG, COMMUNITY_ID)).thenReturn(List.of("kafka", "helm"));
+        artifactWriter.report(COMMUNITY_ID, "kafka", new TagUsage(TagUsageKind.ARTIFACT, 3));
+        eventsWriter.report(COMMUNITY_ID, "helm", new TagUsage(TagUsageKind.TALK, 1));
+
+        assertThat(sut.usages(SLUG, List.of("Kafka", "helm", "kafka"))).containsExactly(
+                entry("kafka", new TagUsageReport(3, 0, 0, 0, 0)), entry("helm", new TagUsageReport(0, 0, 1, 0, 0)));
+    }
+
+    @Test
+    void usagesRefuseATagOutsideTheVocabulary() {
+
+        givenLeaderOf(SLUG, COMMUNITY_ID);
+        when(expertiseQueryRepository.allTags(ORG, COMMUNITY_ID)).thenReturn(List.of("kafka"));
+
+        assertThatThrownBy(() -> sut.usages(SLUG, List.of("kafka", "flink"))).isInstanceOf(ValidationException.class)
+                .hasMessageContaining("flink");
+    }
+
+    @Test
+    void splitAnswersTheCanonicalTheVariantLeft() {
+
+        givenLeaderOf(SLUG, COMMUNITY_ID);
+        when(expertiseQueryRepository.allTags(ORG, COMMUNITY_ID)).thenReturn(List.of("k8s", "kubernetes"));
+        tagAliasRepository.addAlias(ORG, COMMUNITY_ID, "k8s", "kubernetes");
+
+        assertThat(sut.split(SLUG, "k8s")).contains("kubernetes");
+    }
+
+    @Test
+    void splitOfATagNotMergedAnswersNothing() {
+
+        givenLeaderOf(SLUG, COMMUNITY_ID);
+        when(expertiseQueryRepository.allTags(ORG, COMMUNITY_ID)).thenReturn(List.of("kubernetes"));
+
+        assertThat(sut.split(SLUG, "kubernetes")).isEmpty();
+    }
+
+    @Test
     void usageNamesTheLearningIntentsADeleteRemoves() {
 
         givenLeaderOf(SLUG, COMMUNITY_ID);
