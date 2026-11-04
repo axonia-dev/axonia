@@ -348,6 +348,19 @@ class UserDirectoryAdapterTest extends CoreJdbcTestSupport {
         assertThat(byEmail).extracting(DirectoryUser::userId).containsExactly(BOB);
     }
 
+    /** A blank reference names nobody, even somebody whose display name was left blank. */
+    @Test
+    void findPeopleNamedExactly_aBlankReferenceNamesNobody() {
+
+        // when
+        var blank = adapter.findPeopleNamedExactly("default", "   ");
+        var absent = adapter.findPeopleNamedExactly("default", null);
+
+        // then
+        assertThat(blank).isEmpty();
+        assertThat(absent).isEmpty();
+    }
+
     @Test
     void findPeopleNamedExactly_neverMatchesAFragment() {
 
