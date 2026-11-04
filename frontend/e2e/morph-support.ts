@@ -30,17 +30,43 @@ export async function recordMorphs(page: Page): Promise<void> {
       log(`pushState ${String(args[2])}`);
       pushState(...args);
     };
+    const named = () =>
+      [
+        ...document.querySelectorAll<HTMLElement>(
+          "[style*='view-transition-name']",
+        ),
+      ]
+        .map((element) => element.style.viewTransitionName)
+        .join(" ");
+    const pseudos = () =>
+      document
+        .getAnimations()
+        .map(
+          (animation) =>
+            (animation.effect as KeyframeEffect | null)?.pseudoElement ?? "",
+        )
+        .filter((pseudo) => pseudo.startsWith("::view-transition-group"))
+        .join(" ");
     const start = document.startViewTransition.bind(document);
     document.startViewTransition = ((options: StartViewTransitionOptions) => {
       log(`start types=${JSON.stringify(options.types ?? [])}`);
-      const transition = start(options);
+      log(`old names: ${named()}`);
+      const update = options.update;
+      const transition = start({
+        ...options,
+        update: () => {
+          const done = update?.() as Promise<void> | undefined;
+          log(`new names: ${named()}`);
+          return done;
+        },
+      });
       const skip = transition.skipTransition.bind(transition);
       transition.skipTransition = () => {
         log(`skipTransition called\n${new Error("skipped by").stack ?? ""}`);
         skip();
       };
       transition.ready.then(
-        () => log("ready"),
+        () => log(`ready groups: ${pseudos()}`),
         (error: unknown) => log(`ready rejected ${String(error)}`),
       );
       transition.finished.then(
