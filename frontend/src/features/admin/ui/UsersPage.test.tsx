@@ -41,6 +41,7 @@ const aliceUser: AdminUser = {
     { role: "ADMIN", via: "DIRECT", bindingId: 1, roleId: 10, permissions: [] },
   ],
   memberStatus: "PRESENT",
+  signedIn: true,
 };
 
 /** One page of the roster, holding everyone. The tally and the pager, where the page is a
@@ -61,6 +62,7 @@ const pendingPat: AdminUser = {
   lastActiveAt: null,
   effectiveRoles: [],
   memberStatus: "PRESENT",
+  signedIn: false,
 };
 
 let user: ReturnType<typeof userEvent.setup>;
@@ -219,6 +221,22 @@ describe("UsersPage", () => {
     // then - both the signed-in member and the pending member render; the pending one is badged
     expect(screen.getByText("Alice")).toBeInTheDocument();
     expect(screen.getByText("Pending Pat")).toBeInTheDocument();
+    expect(screen.getByText("Pending")).toBeInTheDocument();
+  });
+
+  it("badges somebody the directory provisioned with their subject as Pending until they sign in", () => {
+    // given - the directory already named the subject this person will sign in with
+    mockUseAdminUsers.mockReturnValue({
+      data: listing([
+        { ...pendingPat, userId: "3f2b8c1e-7d4a-4e9b-a6c2-1d5e8f0b9a73" },
+      ]),
+      isPending: false,
+    } as never);
+
+    // when
+    render(<UsersPage />);
+
+    // then
     expect(screen.getByText("Pending")).toBeInTheDocument();
   });
 

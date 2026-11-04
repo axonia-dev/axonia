@@ -24,8 +24,12 @@ public interface RecipientDirectory {
      */
     List<Recipient> recipientsOf(String organizationId, List<String> userIds);
 
+    /**
+     * {@link #AWAITING_FIRST_SIGN_IN} is somebody present in the directory whom nobody has signed in as yet: they can
+     * be credited and assigned, and are written to once they arrive.
+     */
     enum Presence {
-        PRESENT, DEACTIVATED, ERASED
+        PRESENT, AWAITING_FIRST_SIGN_IN, DEACTIVATED, ERASED
     }
 
     /**

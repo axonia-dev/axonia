@@ -11,9 +11,9 @@ const effectiveRoleSchema = z.object({
   permissions: z.array(z.string()).default([]),
 });
 export const adminUserSchema = z.object({
-  // null until the user's first SSO sign-in attaches their Keycloak subject. A
-  // SCIM-provisioned member exists in the directory before they ever log in, and
-  // must still list (as pending) rather than poison the whole list parse.
+  // null until a subject is known: a first sign-in attaches one, or a directory that
+  // knows it provisions it. A SCIM-provisioned member without one must still list
+  // (as pending) rather than poison the whole list parse.
   userId: z.string().nullable(),
   displayName: z.string(),
   // Nullable for the same reason as userId: identity_user.email is nullable and SCIM accepts
@@ -24,6 +24,9 @@ export const adminUserSchema = z.object({
   joinedAt: z.string().nullable().default(null),
   lastActiveAt: z.string().nullable().default(null),
   memberStatus: memberStatusSchema,
+  // Its own fact rather than userId !== null: a directory that knows the subject a person
+  // signs in with hands it to them at provisioning, long before they arrive.
+  signedIn: z.boolean(),
 });
 export type AdminUser = z.infer<typeof adminUserSchema>;
 

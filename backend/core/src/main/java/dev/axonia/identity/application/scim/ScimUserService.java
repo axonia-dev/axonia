@@ -8,6 +8,7 @@ import java.util.regex.Pattern;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import dev.axonia.identity.api.spi.DirectorySubjects;
 import dev.axonia.identity.application.SuccessionAdoption;
 import dev.axonia.identity.application.port.out.UserStore;
 import dev.axonia.identity.domain.UserAccount;
@@ -24,12 +25,15 @@ public class ScimUserService {
     private final UserStore userStore;
     private final ScimUserMapper mapper;
     private final SuccessionAdoption successions;
+    private final DirectorySubjectClaim subjects;
 
-    public ScimUserService(UserStore userStore, ScimUserMapper mapper, SuccessionAdoption successions) {
+    public ScimUserService(UserStore userStore, ScimUserMapper mapper, SuccessionAdoption successions,
+            DirectorySubjects directorySubjects) {
 
         this.userStore = userStore;
         this.mapper = mapper;
         this.successions = successions;
+        this.subjects = new DirectorySubjectClaim(directorySubjects, userStore);
     }
 
     @Transactional
@@ -76,7 +80,7 @@ public class ScimUserService {
                 .arrival(UserArrival.SYNCED).businessUnit(mapper.getBusinessUnit(in))
                 .department(mapper.getDepartment(in)).team(mapper.getTeam(in)).build();
 
-        UserAccount saved = userStore.save(toSave);
+        UserAccount saved = userStore.save(subjects.withSubject(p.organizationId(), toSave));
 
         return mapper.toScim(saved);
     }
@@ -118,7 +122,7 @@ public class ScimUserService {
                 .externalId(mapper.getExternalId(in)).active(nowActive).businessUnit(mapper.getBusinessUnit(in))
                 .department(mapper.getDepartment(in)).team(mapper.getTeam(in)).build();
 
-        return mapper.toScim(userStore.save(updated));
+        return mapper.toScim(directoryWrite(p, updated));
     }
 
     @Transactional
@@ -129,14 +133,21 @@ public class ScimUserService {
 
         UserAccount.UserAccountBuilder builder = existing.toBuilder();
 
+        // RFC 7644 3.5.2.1: an add on a single-valued attribute replaces it, and Entra sends one for an attribute it
+        // has never sent before.
         for (ScimPatchOperation op : patch.operations()) {
-            if (!"replace".equalsIgnoreCase(op.op())) {
-                continue;
+            if ("replace".equalsIgnoreCase(op.op()) || "add".equalsIgnoreCase(op.op())) {
+                applyReplaceOp(builder, op.path(), op.value());
             }
-            applyReplaceOp(builder, op.path(), op.value());
         }
 
-        return mapper.toScim(userStore.save(builder.build()));
+        return mapper.toScim(directoryWrite(p, builder.build()));
+    }
+
+    private UserAccount directoryWrite(ScimPrincipal p, UserAccount account) {
+
+        subjects.requireUnheld(p.organizationId(), account);
+        return userStore.save(subjects.withSubject(p.organizationId(), account));
     }
 
     public void delete(ScimPrincipal p, String scimId) {
@@ -158,6 +169,8 @@ public class ScimUserService {
             }
         } else if ("displayName".equalsIgnoreCase(path)) {
             builder.displayName(value != null ? value.toString() : null);
+        } else if ("externalId".equalsIgnoreCase(path)) {
+            builder.externalId(value != null ? value.toString() : null);
         } else {
             applyEnterpriseOp(builder, path, value);
         }

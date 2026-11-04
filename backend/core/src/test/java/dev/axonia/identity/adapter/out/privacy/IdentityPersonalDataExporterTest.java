@@ -80,7 +80,7 @@ class IdentityPersonalDataExporterTest extends FootprintTestSupport {
         assertThat(rowsOf(fragment, "identity_user")).isNotEmpty()
                 .allSatisfy(row -> assertThat(row).containsOnlyKeys("user_id", "display_name", "email",
                         "observed_time_zone", "declared_time_zone", "business_unit", "department", "team", "active",
-                        "arrival", "last_seen_at", "created_at", "updated_at"));
+                        "arrival", "last_seen_at", "signed_in", "created_at", "updated_at"));
         assertThat(rowsOf(fragment, "personal_access_token")).isNotEmpty()
                 .allSatisfy(row -> assertThat(row).containsOnlyKeys("user_id", "name", "scopes", "last_used_at",
                         "revoked_at", "expires_at", "created_at", "updated_at"));

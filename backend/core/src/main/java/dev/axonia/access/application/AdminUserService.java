@@ -1,6 +1,8 @@
 package dev.axonia.access.application;
 
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -83,16 +85,19 @@ public class AdminUserService {
         // includeDeparted: true - the admin Users console shows who exists, including people who have left.
         var roster = userDirectory.searchByOrganization(UserDirectory.DirectorySearch.builder()
                 .organizationId(organizationId).query(q).page(0).size(ROSTER_SCAN_LIMIT).includeDeparted(true).build());
-        var content = roster.stream()
+        var page = roster.stream()
                 .sorted(java.util.Comparator.comparing(UserDirectory.DirectoryUser::displayName,
                         String.CASE_INSENSITIVE_ORDER))
-                .skip(pageable.getOffset()).limit(pageable.getPageSize()).map(u -> {
-                    var keys = directoryGroups.reconciliationKeysForUser(organizationId, u.userId());
-                    var matchedGroup = groupBindings.stream().filter(a -> keys.contains(a.subjectId())).toList();
-                    var effectiveRoles = buildEffectiveRoles(directByUser.getOrDefault(u.userId(), List.of()),
-                            matchedGroup, roleNames, rolePermissions);
-                    return toAdminUser(u, effectiveRoles, List.of());
-                }).toList();
+                .skip(pageable.getOffset()).limit(pageable.getPageSize()).toList();
+        var awaiting = userDirectory.awaitingFirstSignIn(organizationId,
+                page.stream().map(UserDirectory.DirectoryUser::userId).filter(Objects::nonNull).toList());
+        var content = page.stream().map(u -> {
+            var keys = directoryGroups.reconciliationKeysForUser(organizationId, u.userId());
+            var matchedGroup = groupBindings.stream().filter(a -> keys.contains(a.subjectId())).toList();
+            var effectiveRoles = buildEffectiveRoles(directByUser.getOrDefault(u.userId(), List.of()), matchedGroup,
+                    roleNames, rolePermissions);
+            return toAdminUser(u, effectiveRoles, List.of(), awaiting);
+        }).toList();
         return new PageImpl<>(content, pageable, roster.size());
     }
 
@@ -121,7 +126,8 @@ public class AdminUserService {
                 rolePermissions);
         var groups = directoryGroups.groupDisplayNamesForUser(organizationId, userId);
 
-        return toAdminUser(user, effectiveRoles, groups);
+        return toAdminUser(user, effectiveRoles, groups,
+                userDirectory.awaitingFirstSignIn(organizationId, List.of(userId)));
     }
 
     private java.util.Map<String, List<SubjectBinding>> directUserBindings(List<SubjectBinding> allBindings) {
@@ -163,10 +169,15 @@ public class AdminUserService {
         return Stream.concat(direct.stream(), group.stream()).toList();
     }
 
+    /**
+     * {@code signedIn} is its own fact rather than {@code userId != null}: a directory that knows the subject a person
+     * signs in with hands it to them at provisioning.
+     */
     private AdminUser toAdminUser(UserDirectory.DirectoryUser u, List<EffectiveRole> effectiveRoles,
-            List<String> groups) {
+            List<String> groups, Set<String> awaitingFirstSignIn) {
         return AdminUser.builder().userId(u.userId()).displayName(u.displayName()).email(u.email())
                 .effectiveRoles(effectiveRoles).joinedAt(u.joinedAt()).lastActiveAt(u.lastActiveAt()).groups(groups)
-                .memberStatus(u.status()).build();
+                .memberStatus(u.status()).signedIn(u.userId() != null && !awaitingFirstSignIn.contains(u.userId()))
+                .build();
     }
 }

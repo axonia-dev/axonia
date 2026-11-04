@@ -22,6 +22,7 @@ import dev.axonia.communication.api.spi.MailServer;
 import dev.axonia.health.adapter.in.web.HealthController;
 import dev.axonia.health.application.ActivityTraceService;
 import dev.axonia.health.application.HealthService;
+import dev.axonia.identity.api.spi.DirectorySubjects;
 import dev.axonia.identity.api.spi.IdentityAccounts;
 import dev.axonia.identity.api.spi.OrganizationCardLookSource;
 import dev.axonia.identity.api.spi.OrganizationIdpResolver;
@@ -43,9 +44,10 @@ class CoreTestConfigurationTest {
     private static final List<Path> OUTPUT_DIRECTORIES = List.of(Path.of("target", "classes"),
             Path.of("target", "test-classes"));
 
-    private static final Set<Class<?>> STOOD_IN_PORTS = Set.of(SuccessionAddresses.class, SignInProviderResolver.class,
-            SignInObserver.class, PaidCapability.class, OrganizationMembershipSource.class,
-            OrganizationIdpResolver.class, OrganizationCardLookSource.class, IdentityAccounts.class, MailServer.class);
+    private static final Set<Class<?>> STOOD_IN_PORTS = Set.of(SuccessionAddresses.class, DirectorySubjects.class,
+            SignInProviderResolver.class, SignInObserver.class, PaidCapability.class,
+            OrganizationMembershipSource.class, OrganizationIdpResolver.class, OrganizationCardLookSource.class,
+            IdentityAccounts.class, MailServer.class);
 
     @Nested
     @CoreWebMvcTest(controllers = HealthController.class)

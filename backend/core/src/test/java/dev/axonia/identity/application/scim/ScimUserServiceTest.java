@@ -10,6 +10,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.springframework.http.HttpStatus;
 
+import dev.axonia.identity.api.spi.DirectorySubjects;
 import dev.axonia.identity.application.SuccessionAdoption;
 import dev.axonia.identity.application.port.out.UserStore;
 import dev.axonia.identity.domain.UserAccount;
@@ -29,6 +30,8 @@ class ScimUserServiceTest {
 
     private static final ScimPrincipal PRINCIPAL = new ScimPrincipal("tenant-1");
 
+    private static final String OBJECT_ID = "3f2b8c1e-7d4a-4e9b-a6c2-1d5e8f0b9a73";
+
     @Mock
     UserStore userStore;
 
@@ -37,6 +40,9 @@ class ScimUserServiceTest {
 
     @Mock
     SuccessionAdoption successions;
+
+    @Mock
+    DirectorySubjects directorySubjects;
 
     @InjectMocks
     ScimUserService sut;
@@ -517,25 +523,196 @@ class ScimUserServiceTest {
                 .satisfies(ex -> assertThat(((ScimException) ex).getStatus()).isEqualTo(HttpStatus.NOT_FOUND));
     }
 
+    /** RFC 7644 3.5.2.1: an add on a single-valued attribute replaces it. */
     @Test
-    void patch_nonReplaceOp_isSkipped() {
+    void patch_addOnASingleValuedAttribute_replacesIt() {
 
         // given
         UserAccount existing = UserAccount.builder().id(13L).organizationId("tenant-1").scimId("scim-13").active(true)
                 .build();
         when(userStore.findByOrganizationIdAndScimId("tenant-1", "scim-13")).thenReturn(Optional.of(existing));
-        UserAccount saved = existing.toBuilder().build();
-        when(userStore.save(any())).thenReturn(saved);
-        when(mapper.toScim(saved)).thenReturn(scimUserOutput("scim-13"));
-
-        // "add" is not "replace" → continue → no field updates
-        ScimPatchRequest patchRequest = ScimPatchRequest.of(List.of(new ScimPatchOperation("add", "active", true)));
+        ArgumentCaptor<UserAccount> captor = ArgumentCaptor.forClass(UserAccount.class);
+        when(userStore.save(captor.capture())).thenAnswer(invocation -> invocation.getArgument(0));
 
         // when
-        sut.patch(PRINCIPAL, "scim-13", patchRequest);
+        sut.patch(PRINCIPAL, "scim-13",
+                ScimPatchRequest.of(List.of(new ScimPatchOperation("Add", "displayName", "Added Name"))));
 
-        // then - save is still called (no-op patch), entity state unchanged
+        // then
+        assertThat(captor.getValue().displayName()).isEqualTo("Added Name");
+    }
+
+    @Test
+    void patch_removeOp_isSkipped() {
+
+        // given
+        UserAccount existing = UserAccount.builder().id(13L).organizationId("tenant-1").scimId("scim-13")
+                .displayName("Kept").active(true).build();
+        when(userStore.findByOrganizationIdAndScimId("tenant-1", "scim-13")).thenReturn(Optional.of(existing));
+        ArgumentCaptor<UserAccount> captor = ArgumentCaptor.forClass(UserAccount.class);
+        when(userStore.save(captor.capture())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // when
+        sut.patch(PRINCIPAL, "scim-13",
+                ScimPatchRequest.of(List.of(new ScimPatchOperation("remove", "displayName", null))));
+
+        // then
+        assertThat(captor.getValue().displayName()).isEqualTo("Kept");
+    }
+
+    // --- the directory's key, and the subject it may name ---
+
+    @Test
+    void create_withADirectoryKeyThatIsASubject_holdsTheSubjectFromTheStart() {
+
+        // given
+        ScimUser in = scimUserInput("dana@acme.test", OBJECT_ID, "Dana");
+        when(mapper.getUserName(in)).thenReturn("dana@acme.test");
+        when(mapper.getExternalId(in)).thenReturn(OBJECT_ID);
+        when(directorySubjects.subjectOf(OBJECT_ID)).thenReturn(Optional.of(OBJECT_ID));
+        ArgumentCaptor<UserAccount> captor = ArgumentCaptor.forClass(UserAccount.class);
+        when(userStore.save(captor.capture())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // when
+        sut.create(PRINCIPAL, in);
+
+        // then
+        assertThat(captor.getValue().userId()).isEqualTo(OBJECT_ID);
+        assertThat(captor.getValue().signedIn()).isFalse();
+    }
+
+    @Test
+    void create_withASubjectSomebodyAlreadySignedInAs_leavesThePushedRowWithoutOne() {
+
+        // given
+        ScimUser in = scimUserInput("dana@acme.test", OBJECT_ID, "Dana");
+        when(mapper.getUserName(in)).thenReturn("dana@acme.test");
+        when(mapper.getExternalId(in)).thenReturn(OBJECT_ID);
+        when(directorySubjects.subjectOf(OBJECT_ID)).thenReturn(Optional.of(OBJECT_ID));
+        when(userStore.findByOrganizationIdAndUserId("tenant-1", OBJECT_ID))
+                .thenReturn(Optional.of(UserAccount.builder().id(7L).userId(OBJECT_ID).signedIn(true).build()));
+        ArgumentCaptor<UserAccount> captor = ArgumentCaptor.forClass(UserAccount.class);
+        when(userStore.save(captor.capture())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // when
+        sut.create(PRINCIPAL, in);
+
+        // then
+        assertThat(captor.getValue().userId()).isNull();
+    }
+
+    @Test
+    void patch_externalId_isApplied() {
+
+        // given
+        when(userStore.findByOrganizationIdAndScimId("tenant-1", "scim-20")).thenReturn(Optional.of(pending()));
+        ArgumentCaptor<UserAccount> captor = ArgumentCaptor.forClass(UserAccount.class);
+        when(userStore.save(captor.capture())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // when
+        sut.patch(PRINCIPAL, "scim-20", externalIdPatch("M0793599"));
+
+        // then
+        assertThat(captor.getValue().externalId()).isEqualTo("M0793599");
+        assertThat(captor.getValue().userId()).isNull();
+    }
+
+    @Test
+    void patch_externalIdThatIsASubject_givesAPendingPersonTheirSubject() {
+
+        // given
+        when(userStore.findByOrganizationIdAndScimId("tenant-1", "scim-20")).thenReturn(Optional.of(pending()));
+        when(directorySubjects.subjectOf(OBJECT_ID)).thenReturn(Optional.of(OBJECT_ID));
+        ArgumentCaptor<UserAccount> captor = ArgumentCaptor.forClass(UserAccount.class);
+        when(userStore.save(captor.capture())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // when
+        sut.patch(PRINCIPAL, "scim-20", externalIdPatch(OBJECT_ID));
+
+        // then
+        assertThat(captor.getValue().userId()).isEqualTo(OBJECT_ID);
+    }
+
+    @Test
+    void patch_externalIdOfSomebodyWhoAlreadyHoldsASubject_neverReplacesIt() {
+
+        // given
+        var signedIn = pending().toBuilder().userId("subject-they-signed-in-with").signedIn(true).build();
+        when(userStore.findByOrganizationIdAndScimId("tenant-1", "scim-20")).thenReturn(Optional.of(signedIn));
+        ArgumentCaptor<UserAccount> captor = ArgumentCaptor.forClass(UserAccount.class);
+        when(userStore.save(captor.capture())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // when
+        sut.patch(PRINCIPAL, "scim-20", externalIdPatch(OBJECT_ID));
+
+        // then
+        assertThat(captor.getValue().userId()).isEqualTo("subject-they-signed-in-with");
+        verify(directorySubjects, never()).subjectOf(anyString());
+    }
+
+    @Test
+    void patch_externalIdAnotherPersonHolds_isAUniquenessConflict() {
+
+        // given
+        when(userStore.findByOrganizationIdAndScimId("tenant-1", "scim-20")).thenReturn(Optional.of(pending()));
+        when(userStore.findByOrganizationIdAndExternalId("tenant-1", OBJECT_ID))
+                .thenReturn(Optional.of(UserAccount.builder().id(21L).externalId(OBJECT_ID).build()));
+
+        // when / then
+        assertThatThrownBy(() -> sut.patch(PRINCIPAL, "scim-20", externalIdPatch(OBJECT_ID)))
+                .isInstanceOf(ScimException.class)
+                .satisfies(e -> assertThat(((ScimException) e).getStatus()).isEqualTo(HttpStatus.CONFLICT));
+        verify(userStore, never()).save(any());
+    }
+
+    @Test
+    void patch_externalIdTheRowAlreadyHolds_isNoConflict() {
+
+        // given
+        var holding = pending().toBuilder().externalId(OBJECT_ID).build();
+        when(userStore.findByOrganizationIdAndScimId("tenant-1", "scim-20")).thenReturn(Optional.of(holding));
+        when(userStore.findByOrganizationIdAndExternalId("tenant-1", OBJECT_ID)).thenReturn(Optional.of(holding));
+        when(userStore.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // when
+        sut.patch(PRINCIPAL, "scim-20", externalIdPatch(OBJECT_ID));
+
+        // then
         verify(userStore).save(any());
+    }
+
+    @Test
+    void replace_externalIdAnotherPersonHolds_isAUniquenessConflict() {
+
+        // given
+        when(userStore.findByOrganizationIdAndScimId("tenant-1", "scim-20")).thenReturn(Optional.of(pending()));
+        ScimUser in = scimUserInput("pat@acme.test", OBJECT_ID, "Pat");
+        when(mapper.getExternalId(in)).thenReturn(OBJECT_ID);
+        when(userStore.findByOrganizationIdAndExternalId("tenant-1", OBJECT_ID))
+                .thenReturn(Optional.of(UserAccount.builder().id(21L).externalId(OBJECT_ID).build()));
+
+        // when / then
+        assertThatThrownBy(() -> sut.replace(PRINCIPAL, "scim-20", in)).isInstanceOf(ScimException.class)
+                .satisfies(e -> assertThat(((ScimException) e).getStatus()).isEqualTo(HttpStatus.CONFLICT));
+        verify(userStore, never()).save(any());
+    }
+
+    @Test
+    void replace_withAnExternalIdThatIsASubject_givesAPendingPersonTheirSubject() {
+
+        // given
+        when(userStore.findByOrganizationIdAndScimId("tenant-1", "scim-20")).thenReturn(Optional.of(pending()));
+        ScimUser in = scimUserInput("pat@acme.test", OBJECT_ID, "Pat");
+        when(mapper.getExternalId(in)).thenReturn(OBJECT_ID);
+        when(directorySubjects.subjectOf(OBJECT_ID)).thenReturn(Optional.of(OBJECT_ID));
+        ArgumentCaptor<UserAccount> captor = ArgumentCaptor.forClass(UserAccount.class);
+        when(userStore.save(captor.capture())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // when
+        sut.replace(PRINCIPAL, "scim-20", in);
+
+        // then
+        assertThat(captor.getValue().userId()).isEqualTo(OBJECT_ID);
     }
 
     @Test
@@ -906,6 +1083,17 @@ class ScimUserServiceTest {
 
         return ScimUser.builder().id(id).externalId("ext").userName("user@acme.test").displayName("User")
                 .emails(List.of(new ScimEmail("user@acme.test", "work", true))).active(true).build();
+    }
+
+    private static UserAccount pending() {
+
+        return UserAccount.builder().id(20L).organizationId("tenant-1").scimId("scim-20").externalId("M0793520")
+                .displayName("Pat").email("pat@acme.test").active(true).build();
+    }
+
+    private static ScimPatchRequest externalIdPatch(String externalId) {
+
+        return ScimPatchRequest.of(List.of(new ScimPatchOperation("Replace", "externalId", externalId)));
     }
 
     private UserAccount existingEntity(String externalId, String email) {

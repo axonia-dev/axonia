@@ -25,7 +25,7 @@ public class UserEntity implements Entity {
      * over every column fails on the release still serving once a migration drops one.
      */
     static final String COLUMNS = "id, organization_id, user_id, display_name, email, active, external_id, scim_id,"
-            + " arrival, avatar_media_key, avatar_etag, avatar_synced_at, avatar_override_key, last_seen_at,"
+            + " arrival, avatar_media_key, avatar_etag, avatar_synced_at, avatar_override_key, last_seen_at, signed_in,"
             + " observed_time_zone, declared_time_zone, business_unit, department, team, created_at, updated_at,"
             + " version";
 
@@ -63,6 +63,12 @@ public class UserEntity implements Entity {
      * not recorded rather than never active: rows predating the column keep it until their owner next signs in.
      */
     private Instant lastSeenAt;
+
+    /**
+     * Whether anybody has ever signed in as this person. Not {@code userId != null}: a directory that knows the subject
+     * a person signs in with sets {@code userId} at provisioning, long before they arrive.
+     */
+    private boolean signedIn;
 
     /**
      * Where this member sits in time. {@code declaredTimeZone} is their own answer and wins wherever both are set;

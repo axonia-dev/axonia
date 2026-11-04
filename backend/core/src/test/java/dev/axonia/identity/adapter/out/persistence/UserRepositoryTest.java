@@ -356,6 +356,37 @@ class UserRepositoryTest extends CoreJdbcTestSupport {
         assertThat(actual).containsExactly(new UserTimeZoneRow(entity.getUserId(), "Asia/Kolkata"));
     }
 
+    @Test
+    void findAwaitingFirstSignIn_namesOnlyThoseNobodyHasSignedInAs() {
+
+        // given - one person pushed with their subject already known, one who signed in
+        var pushed = userRepository.save(UserEntityMother.any().userId("pushed-subject").scimId("scim-pushed")
+                .arrival(UserArrival.SYNCED).active(true).signedIn(false).build());
+        var signedIn = UserEntityMother.any().userId("signed-in-subject").scimId("scim-signed-in").build();
+        userRepository.upsert(upsertOf(signedIn), SEEN_AT);
+
+        // when
+        var actual = userRepository.findAwaitingFirstSignIn(pushed.getOrganizationId(),
+                List.of("pushed-subject", "signed-in-subject"));
+
+        // then
+        assertThat(actual).containsExactly("pushed-subject");
+    }
+
+    @Test
+    void attachSub_recordsTheSignIn() {
+
+        // given
+        var pushed = userRepository.save(UserEntityMother.any().userId(null).scimId("scim-attach")
+                .arrival(UserArrival.SYNCED).active(true).signedIn(false).build());
+
+        // when
+        userRepository.attachSub(pushed.getId(), "attached-subject", SEEN_AT);
+
+        // then
+        assertThat(userRepository.findById(pushed.getId()).orElseThrow().isSignedIn()).isTrue();
+    }
+
     private static UserUpsert upsertOf(UserEntity entity) {
 
         return UserUpsert.builder().organizationId(entity.getOrganizationId()).userId(entity.getUserId())

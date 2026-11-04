@@ -141,6 +141,14 @@ class JdbcUserStoreTest {
     }
 
     @Test
+    void findAwaitingFirstSignInAnswersTheRepositoryIds() {
+
+        when(userRepository.findAwaitingFirstSignIn("organizationId-0", List.of("a", "b"))).thenReturn(List.of("a"));
+
+        assertThat(store.findAwaitingFirstSignIn("organizationId-0", List.of("a", "b"))).containsExactly("a");
+    }
+
+    @Test
     void findTimeZonesAnswersTheRepositoryRows() {
 
         var row = new UserTimeZoneRow("u-1", "Europe/Brussels");

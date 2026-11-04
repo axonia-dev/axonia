@@ -435,6 +435,28 @@ class UserDirectoryAdapterTest extends CoreJdbcTestSupport {
     }
 
     @Test
+    void awaitingFirstSignInNamesSomebodyPushedWithTheirSubjectButNotSomebodyWhoSignedIn() {
+
+        // given a person the directory pushed with the subject they will sign in with
+        jdbc.update("""
+                INSERT INTO identity_user (organization_id, user_id, display_name, email, active, scim_id, arrival,
+                                           created_at, updated_at, version)
+                VALUES (:org, 'pushed-subject', 'Pushed', 'pushed@example.test', true, 'scim-pushed', 'SYNCED',
+                        '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', 0)
+                """, Map.of("org", ORG));
+
+        // when / then - Alice arrived through the JIT upsert in setUp, which records her sign-in
+        assertThat(adapter.awaitingFirstSignIn(ORG, List.of(ALICE, "pushed-subject")))
+                .containsExactly("pushed-subject");
+    }
+
+    @Test
+    void awaitingFirstSignInNeverAsksTheDatabaseForNobody() {
+
+        assertThat(adapter.awaitingFirstSignIn(ORG, List.of())).isEmpty();
+    }
+
+    @Test
     void presentUserIdsSkipsAMemberWhoHasNeverSignedIn() {
 
         // given a SCIM-provisioned row with no subject yet: there is nobody to address

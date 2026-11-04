@@ -20,6 +20,7 @@ describe("adminUserSchema", () => {
       email: "pat@example.com",
       effectiveRoles: [],
       memberStatus: "PRESENT",
+      signedIn: false,
     });
 
     expect(parsed.userId).toBeNull();
@@ -34,6 +35,7 @@ describe("adminUserSchema", () => {
           email: "alice@example.com",
           effectiveRoles: [],
           memberStatus: "PRESENT",
+          signedIn: true,
         },
         {
           userId: null,
@@ -41,6 +43,7 @@ describe("adminUserSchema", () => {
           email: "pat@example.com",
           effectiveRoles: [],
           memberStatus: "PRESENT",
+          signedIn: false,
         },
       ]),
     );
@@ -58,6 +61,7 @@ describe("adminUserSchema", () => {
           email: "alice@example.com",
           effectiveRoles: [],
           memberStatus: "PRESENT",
+          signedIn: true,
         },
       ],
       page: { size: 20, number: 0, totalElements: 42, totalPages: 3 },
@@ -87,6 +91,7 @@ describe("adminUserSchema", () => {
       email: "alice@example.com",
       effectiveRoles: [],
       memberStatus: "DEACTIVATED",
+      signedIn: true,
     });
 
     expect(parsed.memberStatus).toBe("DEACTIVATED");

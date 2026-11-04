@@ -189,6 +189,21 @@ class OutboxRowProcessorTest {
         verify(batch, never()).send(any());
     }
 
+    @Test
+    void aPersonWhoHasNeverSignedInIsSentNoMailUntilTheyDo() {
+
+        var row = aPendingRow(1L, "user-1");
+        when(recipientDirectory.recipientsOf(ORG, List.of("user-1"))).thenReturn(
+                List.of(new Recipient("user-1", "Ada", "ada@example.com", Presence.AWAITING_FIRST_SIGN_IN, null)));
+        when(gate.admit(row)).thenReturn(Optional.empty());
+
+        processor.process(row, batch);
+
+        verify(outbox).markSuppressed(1L, ORG, "NOT_SIGNED_IN", NOW);
+        verify(renderer, never()).render(any(), any());
+        verify(batch, never()).send(any());
+    }
+
     /**
      * The exact scenario a single shared transaction could not survive: a transport failure - or, for real, any
      * {@code DataAccessException} - must roll back cleanly rather than being swallowed here. Nothing in this class

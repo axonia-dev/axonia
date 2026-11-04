@@ -85,7 +85,7 @@ function UserRow({
         onPress={() => onSelect(user)}
         trailing={
           <span className="flex items-center gap-1.5">
-            {user.userId === null && <PendingBadge />}
+            {!user.signedIn && <PendingBadge />}
             {user.effectiveRoles.map((er) => (
               <RoleChip
                 key={`${er.role}-${er.via}`}

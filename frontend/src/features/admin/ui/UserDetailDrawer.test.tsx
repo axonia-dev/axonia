@@ -37,6 +37,7 @@ const aliceUser = {
   joinedAt: "2026-01-02T00:00:00.000Z",
   lastActiveAt: "2026-06-01T00:00:00.000Z",
   memberStatus: "PRESENT" as const,
+  signedIn: true,
   effectiveRoles: [
     {
       role: "ADMIN",
@@ -199,12 +200,10 @@ describe("UserDetailDrawer", () => {
   it("shows each role with its provenance and permissions", () => {
     // given
     const userWithPerms = {
-      userId: "u1",
-      displayName: "Alice",
+      ...aliceUser,
       email: "a@x.io",
       joinedAt: null,
       lastActiveAt: null,
-      memberStatus: "PRESENT" as const,
       effectiveRoles: [
         {
           role: "Member Manager",

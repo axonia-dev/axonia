@@ -1,6 +1,7 @@
 package dev.axonia.access.application;
 
 import java.util.List;
+import java.util.Set;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -170,6 +171,42 @@ class AdminUserServiceTest {
         assertThat(result.getContent().get(0).userId()).isNull();
         assertThat(result.getContent().get(0).displayName()).isEqualTo("Pending Pat");
         assertThat(result.getContent().get(0).effectiveRoles()).isEmpty();
+    }
+
+    @Test
+    void list_saysWhoHasSignedIn_whichAUserIdNoLongerDoes() {
+
+        // given - one who signed in, one the directory pushed with their subject, one pushed without
+        when(userDirectory.searchByOrganization(rosterSearch())).thenReturn(List.of(
+                new UserDirectory.DirectoryUser("u1", "Ann", "ann@acme.com", JOINED, SEEN,
+                        UserDirectory.MemberStatus.PRESENT),
+                new UserDirectory.DirectoryUser("u2", "Ben", "ben@acme.com", JOINED, null,
+                        UserDirectory.MemberStatus.PRESENT),
+                new UserDirectory.DirectoryUser(null, "Cat", "cat@acme.com", JOINED, null,
+                        UserDirectory.MemberStatus.PRESENT)));
+        when(userDirectory.awaitingFirstSignIn(ORGANIZATION, List.of("u1", "u2"))).thenReturn(Set.of("u2"));
+
+        // when
+        var result = sut.list("", PAGE);
+
+        // then
+        assertThat(result).extracting(AdminUser::signedIn).containsExactly(true, false, false);
+    }
+
+    @Test
+    void byId_saysSomebodyPushedWithTheirSubjectHasNotSignedIn() {
+
+        // given
+        var user = new UserDirectory.DirectoryUser("u6", "Dan", "dan@acme.com", JOINED, null,
+                UserDirectory.MemberStatus.PRESENT);
+        lenient().when(userDirectory.byIds(ORGANIZATION, List.of("u6"))).thenReturn(List.of(user));
+        when(userDirectory.awaitingFirstSignIn(ORGANIZATION, List.of("u6"))).thenReturn(Set.of("u6"));
+
+        // when
+        var result = sut.byId("u6");
+
+        // then
+        assertThat(result.signedIn()).isFalse();
     }
 
     @Test

@@ -8,5 +8,6 @@ import lombok.Builder;
 
 @Builder
 public record AdminUser(String userId, String displayName, String email, List<EffectiveRole> effectiveRoles,
-        Instant joinedAt, Instant lastActiveAt, List<String> groups, UserDirectory.MemberStatus memberStatus) {
+        Instant joinedAt, Instant lastActiveAt, List<String> groups, UserDirectory.MemberStatus memberStatus,
+        boolean signedIn) {
 }

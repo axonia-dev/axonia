@@ -45,6 +45,7 @@ const roleless: AdminUser = {
   lastActiveAt: "2026-06-18T11:30:00Z",
   effectiveRoles: [],
   memberStatus: "PRESENT",
+  signedIn: true,
 };
 
 const withAdminRole: AdminUser = {

@@ -90,6 +90,12 @@ public interface UserDirectory {
      */
     List<String> presentUserIds(String organizationId);
 
+    /**
+     * Those of {@code userIds} nobody has signed in as yet. A directory that knows the subject a person signs in with
+     * hands it to them at provisioning, so holding a user id no longer says somebody has arrived.
+     */
+    Set<String> awaitingFirstSignIn(String organizationId, Collection<String> userIds);
+
     record DirectoryUser(String userId, String displayName, String email, Instant joinedAt, Instant lastActiveAt,
             MemberStatus status) {
 

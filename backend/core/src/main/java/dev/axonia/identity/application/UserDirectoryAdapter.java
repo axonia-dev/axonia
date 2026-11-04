@@ -95,6 +95,17 @@ class UserDirectoryAdapter implements UserDirectory {
         return userStore.findPresentUserIds(organizationId);
     }
 
+    /** {@code IN ()} is not valid SQL, so the guard is correctness rather than a saved round trip. */
+    @Override
+    @Transactional(readOnly = true)
+    public Set<String> awaitingFirstSignIn(String organizationId, Collection<String> userIds) {
+
+        if (userIds.isEmpty()) {
+            return Set.of();
+        }
+        return Set.copyOf(userStore.findAwaitingFirstSignIn(organizationId, userIds));
+    }
+
     private static DirectoryUser erased(String userId) {
 
         return new DirectoryUser(userId, DirectoryUser.DELETED_MEMBER_LABEL, null, null, null, MemberStatus.ERASED);

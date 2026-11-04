@@ -35,6 +35,7 @@ const aliceUser: AdminUser = {
   lastActiveAt: "2026-06-18T11:30:00Z",
   effectiveRoles: [],
   memberStatus: "PRESENT",
+  signedIn: true,
 };
 
 /** One page of the roster. `totalElements` is stated separately from the rows given, because

@@ -185,10 +185,11 @@ export function UserDetailDrawer({
         {user.email !== null && (
           <p className="text-muted-foreground text-sm">{user.email}</p>
         )}
-        {user.userId === null && (
+        {!user.signedIn && (
           <p className="border-warning/40 bg-warning/10 text-warning rounded-md border px-3 py-2 text-xs">
-            Provisioned from the directory, but has not signed in yet. Roles can
-            be granted once they complete their first sign-in.
+            Provisioned from the directory, but has not signed in yet.
+            {user.userId === null &&
+              " Roles can be granted once they complete their first sign-in."}
           </p>
         )}
         <dl className="text-muted-foreground flex flex-col gap-1 text-xs">

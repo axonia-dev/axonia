@@ -11,7 +11,7 @@ import lombok.Builder;
 @Builder(toBuilder = true)
 public record UserAccount(Long id, String organizationId, String userId, String displayName, String email,
         Boolean active, String externalId, String scimId, UserArrival arrival, String avatarMediaKey, String avatarEtag,
-        Instant avatarSyncedAt, String avatarOverrideKey, Instant lastSeenAt, String observedTimeZone,
+        Instant avatarSyncedAt, String avatarOverrideKey, Instant lastSeenAt, boolean signedIn, String observedTimeZone,
         String declaredTimeZone, String businessUnit, String department, String team, Instant createdAt,
         Instant updatedAt, Long version) {
 }

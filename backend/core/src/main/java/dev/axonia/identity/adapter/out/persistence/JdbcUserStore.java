@@ -94,6 +94,12 @@ public class JdbcUserStore implements UserStore {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<String> findAwaitingFirstSignIn(String organizationId, Collection<String> userIds) {
+        return userRepository.findAwaitingFirstSignIn(organizationId, userIds);
+    }
+
+    @Override
     @Transactional
     public UserAccount save(UserAccount user) {
         return toUserAccount(userRepository.save(toEntity(user)));
@@ -166,9 +172,10 @@ public class JdbcUserStore implements UserStore {
                 .arrival(entity.getArrival()).avatarMediaKey(entity.getAvatarMediaKey())
                 .avatarEtag(entity.getAvatarEtag()).avatarSyncedAt(entity.getAvatarSyncedAt())
                 .avatarOverrideKey(entity.getAvatarOverrideKey()).lastSeenAt(entity.getLastSeenAt())
-                .observedTimeZone(entity.getObservedTimeZone()).declaredTimeZone(entity.getDeclaredTimeZone())
-                .businessUnit(entity.getBusinessUnit()).department(entity.getDepartment()).team(entity.getTeam())
-                .createdAt(entity.getCreatedAt()).updatedAt(entity.getUpdatedAt()).version(entity.getVersion()).build();
+                .signedIn(entity.isSignedIn()).observedTimeZone(entity.getObservedTimeZone())
+                .declaredTimeZone(entity.getDeclaredTimeZone()).businessUnit(entity.getBusinessUnit())
+                .department(entity.getDepartment()).team(entity.getTeam()).createdAt(entity.getCreatedAt())
+                .updatedAt(entity.getUpdatedAt()).version(entity.getVersion()).build();
     }
 
     static UserEntity toEntity(UserAccount userAccount) {
@@ -178,9 +185,9 @@ public class JdbcUserStore implements UserStore {
                 .arrival(userAccount.arrival()).avatarMediaKey(userAccount.avatarMediaKey())
                 .avatarEtag(userAccount.avatarEtag()).avatarSyncedAt(userAccount.avatarSyncedAt())
                 .avatarOverrideKey(userAccount.avatarOverrideKey()).lastSeenAt(userAccount.lastSeenAt())
-                .observedTimeZone(userAccount.observedTimeZone()).declaredTimeZone(userAccount.declaredTimeZone())
-                .businessUnit(userAccount.businessUnit()).department(userAccount.department()).team(userAccount.team())
-                .createdAt(userAccount.createdAt()).updatedAt(userAccount.updatedAt()).version(userAccount.version())
-                .build();
+                .signedIn(userAccount.signedIn()).observedTimeZone(userAccount.observedTimeZone())
+                .declaredTimeZone(userAccount.declaredTimeZone()).businessUnit(userAccount.businessUnit())
+                .department(userAccount.department()).team(userAccount.team()).createdAt(userAccount.createdAt())
+                .updatedAt(userAccount.updatedAt()).version(userAccount.version()).build();
     }
 }

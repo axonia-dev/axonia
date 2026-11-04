@@ -51,7 +51,7 @@ public class IdentityPersonalDataFootprint implements PersonalDataFootprint {
     private TableFootprint identityUser() {
 
         var recordKeepingColumns = Set.of("id", "organization_id", "created_at", "updated_at", "version", "active",
-                "arrival", "avatar_etag", "avatar_synced_at", "last_seen_at");
+                "arrival", "avatar_etag", "avatar_synced_at", "last_seen_at", "signed_in");
 
         return TableFootprint.builder().table("identity_user").category(DataCategory.WHO_YOU_ARE).personal(List.of(
                 new ColumnFootprint("user_id", Classification.SUBJECT, Disposition.DELETE_ROW),
@@ -71,7 +71,8 @@ public class IdentityPersonalDataFootprint implements PersonalDataFootprint {
                 new ColumnFootprint("department", Classification.PERSONAL_CONTENT, Disposition.DELETE_ROW),
                 new ColumnFootprint("team", Classification.PERSONAL_CONTENT, Disposition.DELETE_ROW)))
                 .notPersonal(recordKeepingColumns)
-                .exportedContext(Set.of("created_at", "updated_at", "active", "arrival", "last_seen_at")).build();
+                .exportedContext(Set.of("created_at", "updated_at", "active", "arrival", "last_seen_at", "signed_in"))
+                .build();
     }
 
     /**

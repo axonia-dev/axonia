@@ -37,6 +37,7 @@ const aliceUser = {
   joinedAt: "2026-01-02T00:00:00.000Z",
   lastActiveAt: "2026-06-01T00:00:00.000Z",
   memberStatus: "PRESENT" as const,
+  signedIn: true,
   effectiveRoles: [
     {
       role: "ADMIN",

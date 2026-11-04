@@ -23,6 +23,7 @@ const adminUser = {
   displayName: "Alice",
   email: "alice@example.com",
   memberStatus: "PRESENT",
+  signedIn: true,
   effectiveRoles: [
     {
       role: "ADMIN",

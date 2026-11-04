@@ -114,7 +114,8 @@ public interface UserRepository extends CrudRepository<UserEntity, Long>, UserSe
      */
     @Modifying
     @Query("""
-            UPDATE identity_user SET user_id = :userId, last_seen_at = :seenAt, updated_at = :seenAt WHERE id = :id
+            UPDATE identity_user SET user_id = :userId, signed_in = true, last_seen_at = :seenAt, updated_at = :seenAt
+             WHERE id = :id
             """)
     void attachSub(@Param("id") Long id, @Param("userId") String userId, @Param("seenAt") Instant seenAt);
 
@@ -135,12 +136,12 @@ public interface UserRepository extends CrudRepository<UserEntity, Long>, UserSe
     @Modifying
     @Query("""
             INSERT INTO identity_user (organization_id, user_id, display_name, email, scim_id, arrival,
-                                       last_seen_at, created_at, updated_at, version)
+                                       signed_in, last_seen_at, created_at, updated_at, version)
             VALUES (:#{#user.organizationId}, :#{#user.userId}, :#{#user.displayName}, :#{#user.email},
-                    :#{#user.scimId}, 'FIRST_SIGN_IN', :seenAt, :seenAt, :seenAt, 0)
+                    :#{#user.scimId}, 'FIRST_SIGN_IN', true, :seenAt, :seenAt, :seenAt, 0)
             ON CONFLICT (organization_id, user_id)
             DO UPDATE SET display_name = :#{#user.displayName}, email = :#{#user.email},
-                          last_seen_at = :seenAt, updated_at = :seenAt,
+                          signed_in = true, last_seen_at = :seenAt, updated_at = :seenAt,
                           version = identity_user.version + 1
             """)
     void upsert(@Param("user") UserUpsert user, @Param("seenAt") Instant seenAt);
@@ -215,6 +216,13 @@ public interface UserRepository extends CrudRepository<UserEntity, Long>, UserSe
               AND COALESCE(declared_time_zone, observed_time_zone) IS NOT NULL
             """)
     List<UserTimeZoneRow> findTimeZones(@Param("organizationId") String organizationId,
+            @Param("userIds") Collection<String> userIds);
+
+    @Query("""
+            SELECT user_id FROM identity_user
+            WHERE organization_id = :organizationId AND user_id IN (:userIds) AND NOT signed_in
+            """)
+    List<String> findAwaitingFirstSignIn(@Param("organizationId") String organizationId,
             @Param("userIds") Collection<String> userIds);
 
     /**

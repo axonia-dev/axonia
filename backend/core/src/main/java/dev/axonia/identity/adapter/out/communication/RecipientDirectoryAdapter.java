@@ -34,14 +34,17 @@ class RecipientDirectoryAdapter implements RecipientDirectory {
     public List<Recipient> recipientsOf(String organizationId, List<String> userIds) {
 
         var zones = userService.timeZones(organizationId, userIds);
-        return userDirectory.byIds(organizationId, userIds).stream().map(user -> new Recipient(user.userId(),
-                user.displayName(), user.email(), presenceOf(user.status()), zones.get(user.userId()))).toList();
+        var awaiting = userDirectory.awaitingFirstSignIn(organizationId, userIds);
+        return userDirectory.byIds(organizationId, userIds).stream()
+                .map(user -> new Recipient(user.userId(), user.displayName(), user.email(),
+                        presenceOf(user.status(), awaiting.contains(user.userId())), zones.get(user.userId())))
+                .toList();
     }
 
-    private static Presence presenceOf(UserDirectory.MemberStatus status) {
+    private static Presence presenceOf(UserDirectory.MemberStatus status, boolean awaitingFirstSignIn) {
 
         return switch (status) {
-            case PRESENT -> Presence.PRESENT;
+            case PRESENT -> awaitingFirstSignIn ? Presence.AWAITING_FIRST_SIGN_IN : Presence.PRESENT;
             case DEACTIVATED -> Presence.DEACTIVATED;
             case ERASED -> Presence.ERASED;
         };

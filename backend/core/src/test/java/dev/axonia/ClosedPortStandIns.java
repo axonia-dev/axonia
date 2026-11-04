@@ -16,6 +16,7 @@ import dev.axonia.communication.api.MailServerSettings;
 import dev.axonia.communication.api.MailServerState;
 import dev.axonia.communication.api.spi.MailServer;
 import dev.axonia.identity.api.IdentityClaims;
+import dev.axonia.identity.api.spi.DirectorySubjects;
 import dev.axonia.identity.api.spi.IdentityAccounts;
 import dev.axonia.identity.api.spi.OrganizationCardLookSource;
 import dev.axonia.identity.api.spi.OrganizationIdpResolver;
@@ -40,6 +41,12 @@ import dev.axonia.shared.api.tenancy.OrganizationScope;
 public class ClosedPortStandIns {
 
     private static final Map<String, String> SOCIAL_PROVIDERS = Map.of("google", "Google", "github", "GitHub");
+
+    @Bean
+    DirectorySubjects directorySubjectsStandIn() {
+
+        return externalId -> Optional.empty();
+    }
 
     @Bean
     SuccessionAddresses successionAddressesStandIn() {

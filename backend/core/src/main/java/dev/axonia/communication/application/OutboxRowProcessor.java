@@ -162,15 +162,25 @@ public class OutboxRowProcessor {
             return Optional.empty();
         }
         var recipient = resolveRecipient(row);
-        if (recipient.email() == null || recipient.email().isBlank()) {
-            outbox.markSuppressed(row.getId(), row.getOrganizationId(), SuppressionReason.NO_ADDRESS.name(),
-                    clock.instant());
+        var unsendable = unsendable(recipient);
+        if (unsendable.isPresent()) {
+            outbox.markSuppressed(row.getId(), row.getOrganizationId(), unsendable.get().name(), clock.instant());
             return Optional.empty();
         }
         var mail = compose(row, recipient);
         outbox.markSent(row.getId(), row.getOrganizationId(), clock.instant());
         batch.send(mail);
         return Optional.empty();
+    }
+
+    private static Optional<SuppressionReason> unsendable(RecipientDirectory.Recipient recipient) {
+
+        if (recipient.presence() == RecipientDirectory.Presence.AWAITING_FIRST_SIGN_IN) {
+            return Optional.of(SuppressionReason.NOT_SIGNED_IN);
+        }
+        return recipient.email() == null || recipient.email().isBlank()
+                ? Optional.of(SuppressionReason.NO_ADDRESS)
+                : Optional.empty();
     }
 
     /**

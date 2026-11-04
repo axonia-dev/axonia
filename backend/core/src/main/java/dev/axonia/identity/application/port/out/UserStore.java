@@ -42,6 +42,9 @@ public interface UserStore {
     /** The effective clock of each named member, omitting anyone who has none. Never called with no ids. */
     List<UserTimeZoneRow> findTimeZones(String organizationId, Collection<String> userIds);
 
+    /** Those of the named members nobody has signed in as yet. Never called with no ids. */
+    List<String> findAwaitingFirstSignIn(String organizationId, Collection<String> userIds);
+
     UserAccount save(UserAccount user);
 
     void attachSub(Long id, String userId, Instant seenAt);

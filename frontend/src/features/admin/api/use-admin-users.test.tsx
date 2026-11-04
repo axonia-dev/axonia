@@ -44,6 +44,7 @@ const adminUser = {
   joinedAt: null,
   lastActiveAt: null,
   memberStatus: "PRESENT" as const,
+  signedIn: true,
   effectiveRoles: [
     {
       role: "ADMIN",

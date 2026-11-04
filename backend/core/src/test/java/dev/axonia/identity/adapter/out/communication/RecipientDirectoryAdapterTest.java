@@ -2,6 +2,7 @@ package dev.axonia.identity.adapter.out.communication;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -61,6 +62,21 @@ class RecipientDirectoryAdapterTest {
         var recipients = sut.recipientsOf("acme", List.of("alice"));
 
         assertThat(recipients).extracting(Recipient::presence).containsExactly(expected);
+    }
+
+    @Test
+    void recipientsOf_holdsBackSomebodyPresentWhoHasNeverSignedIn() {
+
+        when(userDirectory.byIds("acme", List.of("alice", "bob"))).thenReturn(
+                List.of(new DirectoryUser("alice", "Alice", "alice@acme.example", null, null, MemberStatus.PRESENT),
+                        new DirectoryUser("bob", "Bob", "bob@acme.example", null, null, MemberStatus.DEACTIVATED)));
+        when(userDirectory.awaitingFirstSignIn("acme", List.of("alice", "bob"))).thenReturn(Set.of("alice", "bob"));
+
+        var recipients = sut.recipientsOf("acme", List.of("alice", "bob"));
+
+        // Somebody who left is a departure whether or not they ever arrived: the drain treats that as final.
+        assertThat(recipients).extracting(Recipient::presence).containsExactly(Presence.AWAITING_FIRST_SIGN_IN,
+                Presence.DEACTIVATED);
     }
 
     @Test
