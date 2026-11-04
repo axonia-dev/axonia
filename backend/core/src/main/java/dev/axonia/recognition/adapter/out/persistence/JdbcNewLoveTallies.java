@@ -29,8 +29,8 @@ public class JdbcNewLoveTallies implements NewLoveTallies {
               AND rc.contribution_type = :contributionType
               AND rc.contribution_id IN (:contributionIds)
               AND cl.lover_user_id <> :userId
-              AND cl.created_at > GREATEST(COALESCE(iv.seen_at, :floor), :floor)
-              AND cl.created_at <= :asOf
+              AND date_trunc('milliseconds', cl.created_at) > GREATEST(COALESCE(iv.seen_at, :floor), :floor)
+              AND date_trunc('milliseconds', cl.created_at) <= :asOf
             GROUP BY rc.contribution_id, rc.community_id
             """;
 

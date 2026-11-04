@@ -116,6 +116,36 @@ class JdbcNewLoveTalliesTest extends CoreJdbcTestSupport {
     }
 
     @Test
+    void aLoveStampedWithinTheMillisecondOfAsOfCounts() {
+
+        // given
+        var slot = recognize(7L, 1L);
+        markSeen(1L, daysAgo(5));
+        love(slot, "u1", AS_OF.plusNanos(456_000));
+
+        // when
+        var actual = since(List.of(7L));
+
+        // then
+        assertThat(actual).containsExactly(tally(7L, 1, false));
+    }
+
+    @Test
+    void aLoveStampedWithinTheMillisecondOfTheMarkerWasAlreadySeen() {
+
+        // given
+        var slot = recognize(7L, 1L);
+        markSeen(1L, daysAgo(5));
+        love(slot, "u1", daysAgo(5).plusNanos(456_000));
+
+        // when
+        var actual = since(List.of(7L));
+
+        // then
+        assertThat(actual).isEmpty();
+    }
+
+    @Test
     void withoutAMarkerCountsFromTheFloorAndReportsCapped() {
 
         // given
