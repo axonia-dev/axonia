@@ -29,6 +29,14 @@ describe("contentMaxWidthClass", () => {
     );
   });
 
+  // The run sheet sits beside its 13rem rail, so at the reading width its slot cards came out
+  // around 500px wide and left most of a large screen empty.
+  it("gives a session page the session width, between reading and drawing", () => {
+    expect(contentMaxWidthClass("/communities/backend/sessions/42")).toBe(
+      "max-w-6xl",
+    );
+  });
+
   it("keeps the reading width for other community pages", () => {
     expect(contentMaxWidthClass("/communities/backend")).toBe("max-w-3xl");
     expect(contentMaxWidthClass("/communities/backend/backlog")).toBe(

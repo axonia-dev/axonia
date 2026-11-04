@@ -6,7 +6,10 @@
  * territory of a few thousand marks, and at the reading width its drawing
  * column came out under 400px on every screen size. Every other page keeps the
  * narrower reading width, the member's own expertise page included, and the
- * expertise page narrows itself back for its own search view. Pure so it is
+ * expertise page narrows itself back for its own search view. A session page
+ * sits between the two: its run sheet shares the row with a 13rem rail, which
+ * at the reading width left its slot cards around 500px wide, yet a slot card
+ * is text and stops reading well long before the drawing width. Pure so it is
  * unit-testable without rendering the shell.
  */
 const WIDE_PAGES = new Set(["schedule", "expertise"]);
@@ -16,6 +19,13 @@ function pageOf(pathname: string): string {
   return page.join("/");
 }
 
+function isSessionPage(page: string): boolean {
+  return /^sessions\/[^/]+$/.test(page);
+}
+
 export function contentMaxWidthClass(pathname: string): string {
-  return WIDE_PAGES.has(pageOf(pathname)) ? "max-w-[2048px]" : "max-w-3xl";
+  const page = pageOf(pathname);
+  if (WIDE_PAGES.has(page)) return "max-w-[2048px]";
+  if (isSessionPage(page)) return "max-w-6xl";
+  return "max-w-3xl";
 }
