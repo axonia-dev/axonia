@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
-  useMemberSearch,
+  usePeopleSearch,
   useRosterByName,
 } from "@/features/community/api/use-membership";
 import { useChangeContributor } from "@/features/knowledge/api/use-artifacts";
@@ -19,12 +19,12 @@ vi.mock("@/features/identity/api/use-users", () => ({
 }));
 vi.mock("@/features/community/api/use-membership", () => ({
   useRosterByName: vi.fn(),
-  useMemberSearch: vi.fn(),
+  usePeopleSearch: vi.fn(),
 }));
 
 const mockChange = vi.mocked(useChangeContributor);
 const mockRosterByName = vi.mocked(useRosterByName);
-const mockMemberSearch = vi.mocked(useMemberSearch);
+const mockPeopleSearch = vi.mocked(usePeopleSearch);
 
 const artifact: Artifact = {
   id: 1,
@@ -55,7 +55,7 @@ beforeEach(() => {
     isError: false,
     error: null,
   } as never);
-  mockMemberSearch.mockReturnValue({ data: [], isFetching: false } as never);
+  mockPeopleSearch.mockReturnValue({ data: [], isFetching: false } as never);
   mockRosterByName.mockReturnValue({
     data: { pages: [] },
     hasNextPage: false,
@@ -85,8 +85,8 @@ async function pick(
   query: string,
   member: { userId: string; displayName: string },
 ) {
-  mockMemberSearch.mockReturnValue({
-    data: [member],
+  mockPeopleSearch.mockReturnValue({
+    data: [{ ...member, member: true }],
     isFetching: false,
   } as never);
   const combobox = screen.getByRole("combobox", { name: "Contributor" });
@@ -129,7 +129,7 @@ describe("ChangeContributorDialog", () => {
     // then
     expect(
       screen.getByRole("combobox", { name: "Contributor" }),
-    ).toHaveAttribute("placeholder", "Search members");
+    ).toHaveAttribute("placeholder", "Search people");
   });
 
   it("keeps Change disabled with nobody picked", () => {
@@ -236,7 +236,7 @@ describe("ChangeContributorDialog", () => {
 
     // then
     expect(screen.getByRole("alert")).toHaveTextContent(
-      "That person is not a member of this community.",
+      "No one in this organization matches that name.",
     );
   });
 

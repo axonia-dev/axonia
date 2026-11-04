@@ -25,7 +25,7 @@ import { contributionPolicySchema } from "@/features/community/domain/contributi
 import type { ManagementPolicy } from "@/features/community/domain/management-policy";
 import { managementPolicySchema } from "@/features/community/domain/management-policy";
 import {
-  communityMemberSchema,
+  creditablePersonSchema,
   membershipSchema,
 } from "@/features/community/domain/membership";
 import { pageSchema } from "@/features/community/domain/page";
@@ -34,7 +34,7 @@ import { buildQuery as query } from "@/lib/query";
 
 const communityPageSchema = pageSchema(communityListingSchema);
 const membershipPageSchema = pageSchema(membershipSchema);
-const communityMemberListSchema = z.array(communityMemberSchema);
+const creditablePersonListSchema = z.array(creditablePersonSchema);
 const communityKindListSchema = z.array(communityKindSchema);
 
 export const httpCommunityGateway: CommunityGateway = {
@@ -112,11 +112,11 @@ export const httpCommunityGateway: CommunityGateway = {
     return membershipPageSchema.parse(data);
   },
 
-  async searchMembers(slug: string, text: string) {
+  async searchPeople(slug: string, text: string) {
     const data = await apiFetch<unknown>(
-      `/axonia/communities/${slug}/members/search${query({ q: text })}`,
+      `/axonia/communities/${slug}/people${query({ q: text })}`,
     );
-    return communityMemberListSchema.parse(data);
+    return creditablePersonListSchema.parse(data);
   },
 
   async myMembership(slug: string) {

@@ -11,7 +11,7 @@ import {
   useJoin,
   useLeave,
   useMembers,
-  useMemberSearch,
+  usePeopleSearch,
 } from "@/features/community/api/use-membership";
 import type { Membership } from "@/features/community/domain/membership";
 import { expertiseKeys } from "@/features/expertise/api/query-keys";
@@ -20,7 +20,7 @@ import { learningKeys } from "@/features/learning/api/query-keys";
 vi.mock("@/features/community/adapters/http-community-gateway", () => ({
   httpCommunityGateway: {
     listMembers: vi.fn(),
-    searchMembers: vi.fn(),
+    searchPeople: vi.fn(),
     join: vi.fn(),
     leave: vi.fn(),
     changeRole: vi.fn(),
@@ -85,38 +85,38 @@ describe("useMembers", () => {
   });
 });
 
-describe("useMemberSearch", () => {
-  const bob = { userId: "bob", displayName: "Bob Martin" };
+describe("usePeopleSearch", () => {
+  const bob = { userId: "bob", displayName: "Bob Martin", member: true };
 
   it("asks the gateway once there is something to search for", async () => {
     // given
-    gateway.searchMembers.mockResolvedValue([bob]);
+    gateway.searchPeople.mockResolvedValue([bob]);
 
     // when
     const { result } = renderHook(
-      () => useMemberSearch("backend-guild", "bo"),
+      () => usePeopleSearch("backend-guild", "bo"),
       { wrapper },
     );
 
     // then
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(gateway.searchMembers).toHaveBeenCalledWith("backend-guild", "bo");
+    expect(gateway.searchPeople).toHaveBeenCalledWith("backend-guild", "bo");
   });
 
   it("stays idle for blank text", () => {
     // when
-    renderHook(() => useMemberSearch("backend-guild", "   "), { wrapper });
+    renderHook(() => usePeopleSearch("backend-guild", "   "), { wrapper });
 
     // then
-    expect(gateway.searchMembers).not.toHaveBeenCalled();
+    expect(gateway.searchPeople).not.toHaveBeenCalled();
   });
 
   it("drops the previous results when the text is cleared", async () => {
     // given
-    gateway.searchMembers.mockResolvedValue([bob]);
+    gateway.searchPeople.mockResolvedValue([bob]);
     const client = testClient();
     const { result, rerender } = renderHook(
-      ({ text }) => useMemberSearch("backend-guild", text),
+      ({ text }) => usePeopleSearch("backend-guild", text),
       { wrapper: clientWrapper(client), initialProps: { text: "bo" } },
     );
     await waitFor(() => expect(result.current.data).toEqual([bob]));

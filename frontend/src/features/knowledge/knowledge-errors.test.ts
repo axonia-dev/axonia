@@ -19,10 +19,10 @@ describe("creditErrorMessage", () => {
   });
 
   it.each([
-    ["CONTRIBUTOR_NOT_FOUND", "That person is not a member of this community."],
+    ["CONTRIBUTOR_NOT_FOUND", "No one in this organization matches that name."],
     [
       "CONTRIBUTOR_AMBIGUOUS",
-      "Several members match that name. Pick one from the list.",
+      "Several people match that name. Pick one from the list.",
     ],
   ])("maps %s to its own copy", (code, expected) => {
     // given
@@ -71,6 +71,6 @@ describe("captureErrorMessage", () => {
     );
 
     // then
-    expect(actual).toBe("That person is not a member of this community.");
+    expect(actual).toBe("No one in this organization matches that name.");
   });
 });

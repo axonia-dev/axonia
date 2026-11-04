@@ -49,12 +49,13 @@ export function useMembers(slug: string, params: MemberListParams) {
   });
 }
 
-/** Members matching typed text, for a picker. Blank text asks nothing. */
-export function useMemberSearch(slug: string, text: string) {
+/** People in the organization matching typed text, members first, for a picker. Blank text
+ *  asks nothing. */
+export function usePeopleSearch(slug: string, text: string) {
   const trimmed = text.trim();
   return useQuery({
-    queryKey: communityKeys.memberSearch(slug, trimmed),
-    queryFn: () => gateway.searchMembers(slug, trimmed),
+    queryKey: communityKeys.peopleSearch(slug, trimmed),
+    queryFn: () => gateway.searchPeople(slug, trimmed),
     enabled: trimmed !== "",
   });
 }

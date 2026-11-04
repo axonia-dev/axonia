@@ -56,7 +56,7 @@ function ChangeContributorForm({
       <MemberSelectField
         slug={slug}
         label="Contributor"
-        placeholder="Search members"
+        placeholder="Search people"
         picked={picked}
         onPick={setPicked}
       />

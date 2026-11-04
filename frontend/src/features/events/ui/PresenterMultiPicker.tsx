@@ -60,7 +60,7 @@ export function PresenterMultiPicker({
       <MemberSelectField
         slug={slug}
         label="Presenters"
-        placeholder="Add a member (optional)"
+        placeholder="Add a person (optional)"
         picked={null}
         onPick={(member) => pick(member.userId)}
       />

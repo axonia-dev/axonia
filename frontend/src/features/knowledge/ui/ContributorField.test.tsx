@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
-  useMemberSearch,
+  usePeopleSearch,
   useRosterByName,
 } from "@/features/community/api/use-membership";
 import {
@@ -17,11 +17,11 @@ vi.mock("@/features/identity/api/use-users", () => ({
 }));
 vi.mock("@/features/community/api/use-membership", () => ({
   useRosterByName: vi.fn(),
-  useMemberSearch: vi.fn(),
+  usePeopleSearch: vi.fn(),
 }));
 
 const mockUseRosterByName = vi.mocked(useRosterByName);
-const mockUseMemberSearch = vi.mocked(useMemberSearch);
+const mockUsePeopleSearch = vi.mocked(usePeopleSearch);
 
 let user: ReturnType<typeof userEvent.setup>;
 
@@ -33,7 +33,7 @@ beforeEach(() => {
     hasNextPage: false,
     fetchNextPage: vi.fn(),
   } as never);
-  mockUseMemberSearch.mockReturnValue({
+  mockUsePeopleSearch.mockReturnValue({
     data: undefined,
     isFetching: false,
   } as never);

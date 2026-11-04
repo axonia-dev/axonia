@@ -2,7 +2,10 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useMembers } from "@/features/community/api/use-membership";
+import {
+  useMembers,
+  usePeopleSearch,
+} from "@/features/community/api/use-membership";
 import type { Membership } from "@/features/community/domain/membership";
 import { useAddPresenter } from "@/features/events/api/use-slot-presenters";
 import { usePresentSlot } from "@/features/events/api/use-slot-sign-up";
@@ -14,6 +17,7 @@ import type { Page } from "@/lib/page";
 
 vi.mock("@/features/community/api/use-membership", () => ({
   useMembers: vi.fn(),
+  usePeopleSearch: vi.fn(),
 }));
 vi.mock("@/features/identity/api/use-users", () => ({ useUsers: vi.fn() }));
 vi.mock("@/features/events/api/use-slot-presenters", () => ({
@@ -24,6 +28,7 @@ vi.mock("@/features/events/api/use-slot-sign-up", () => ({
 }));
 
 const mockUseMembers = vi.mocked(useMembers);
+const mockUsePeopleSearch = vi.mocked(usePeopleSearch);
 const mockUseUsers = vi.mocked(useUsers);
 const mockUseAddPresenter = vi.mocked(useAddPresenter);
 const mockUsePresentSlot = vi.mocked(usePresentSlot);
@@ -99,6 +104,15 @@ beforeEach(() => {
   mockUseMembers.mockReturnValue({
     data: membersPage([mia, bob]),
   } as never);
+  mockUsePeopleSearch.mockImplementation(
+    (_slug: string, text: string) =>
+      ({
+        data:
+          text === "om"
+            ? [{ userId: "omar", displayName: "Omar Outside", member: false }]
+            : [],
+      }) as never,
+  );
   mockUseUsers.mockReturnValue({
     data: {
       mia: { id: "mia", displayName: "Mia Eriksson", email: null },
@@ -164,20 +178,31 @@ describe("AddPresenterPopover", () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it("filters the roster as the organizer types", async () => {
+  it("searches the whole organization as the organizer types", async () => {
     renderPopover({ canPickOthers: true });
-    await user.type(screen.getByLabelText(/search members/i), "mia");
+    await user.type(screen.getByLabelText("Search people"), "om");
+    await user.click(
+      await screen.findByRole("button", { name: /Omar Outside/ }),
+    );
     expect(
-      screen.getByRole("button", { name: "Mia Eriksson" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Bob Brown" }),
+      screen.queryByRole("button", { name: "Mia Eriksson" }),
     ).not.toBeInTheDocument();
+    expect(addPresenterMutateAsync).toHaveBeenCalledWith({
+      sectionId: 1,
+      slotId: 9,
+      presenter: "omar",
+    });
+  });
+
+  it("marks somebody found outside the community", async () => {
+    renderPopover({ canPickOthers: true });
+    await user.type(screen.getByLabelText("Search people"), "om");
+    expect(await screen.findByText("Not a member")).toBeInTheDocument();
   });
 
   it("offers no roster to a plain member", () => {
     renderPopover({ canPickOthers: false });
-    expect(screen.queryByLabelText(/search members/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Search people")).not.toBeInTheDocument();
   });
 
   it("excludes members who already present the slot from the roster", () => {
@@ -215,9 +240,7 @@ describe("AddPresenterPopover", () => {
     renderPopover({ canPickOthers: true });
     await user.click(screen.getByRole("button", { name: "Mia Eriksson" }));
     expect(
-      await screen.findByText(
-        "That person could not be matched to a member of this community.",
-      ),
+      await screen.findByText("That person could not be matched."),
     ).toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled();
   });

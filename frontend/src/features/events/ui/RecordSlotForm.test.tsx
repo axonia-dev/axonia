@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
-  useMemberSearch,
+  usePeopleSearch,
   useRosterByName,
 } from "@/features/community/api/use-membership";
 import { useRecordSlot } from "@/features/events/api/use-slot-presenters";
@@ -18,13 +18,13 @@ vi.mock("@/features/events/api/use-slot-presenters", () => ({
 }));
 vi.mock("@/features/community/api/use-membership", () => ({
   useRosterByName: vi.fn(),
-  useMemberSearch: vi.fn(),
+  usePeopleSearch: vi.fn(),
 }));
 vi.mock("@/features/identity/api/use-users", () => ({ useUsers: vi.fn() }));
 
 const mockUseRecordSlot = vi.mocked(useRecordSlot);
 const mockUseRosterByName = vi.mocked(useRosterByName);
-const mockUseMemberSearch = vi.mocked(useMemberSearch);
+const mockUsePeopleSearch = vi.mocked(usePeopleSearch);
 const mockUseUsers = vi.mocked(useUsers);
 
 const session = { id: 9 } as Session;
@@ -52,7 +52,7 @@ beforeEach(() => {
   stubMemberSelectField(
     {
       useRosterByName: mockUseRosterByName,
-      useMemberSearch: mockUseMemberSearch,
+      usePeopleSearch: mockUsePeopleSearch,
       useUsers: mockUseUsers,
     },
     [mia, bob],

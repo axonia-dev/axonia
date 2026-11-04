@@ -14,13 +14,15 @@ export const membershipSchema = z.object({
 
 export type Membership = z.infer<typeof membershipSchema>;
 
-/** A member as a picker shows them: who, and what they are called. */
-export const communityMemberSchema = z.object({
+/** Somebody in the organization a picker can credit: who, what they are called, and whether
+ *  they are a member of the community. Crediting somebody makes them no member. */
+export const creditablePersonSchema = z.object({
   userId: z.string(),
   displayName: z.string(),
+  member: z.boolean(),
 });
 
-export type CommunityMember = z.infer<typeof communityMemberSchema>;
+export type CreditablePerson = z.infer<typeof creditablePersonSchema>;
 
 /** Members whose joinedAt is at or after the given ISO instant. */
 export function joinedSince(members: Membership[], sinceIso: string): number {

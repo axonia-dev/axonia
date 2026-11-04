@@ -12,8 +12,8 @@ import type { CommunityKind } from "@/features/community/domain/community-kind";
 import type { ContributionPolicy } from "@/features/community/domain/contribution-policy";
 import type { ManagementPolicy } from "@/features/community/domain/management-policy";
 import type {
-  CommunityMember,
   CommunityRole,
+  CreditablePerson,
   Membership,
 } from "@/features/community/domain/membership";
 import type { Page } from "@/features/community/domain/page";
@@ -65,7 +65,7 @@ export interface CommunityGateway {
   /** The caller's own membership, or null when they do not belong. */
   myMembership(slug: string): Promise<Membership | null>;
   /** Members of this community whose name matches the typed text, at most 25. */
-  searchMembers(slug: string, text: string): Promise<CommunityMember[]>;
+  searchPeople(slug: string, text: string): Promise<CreditablePerson[]>;
   join(slug: string): Promise<Membership>;
   leave(slug: string): Promise<void>;
   changeRole(

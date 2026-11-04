@@ -31,6 +31,7 @@ vi.mock("@/features/events/api/use-slot-presenters", () => ({
 }));
 vi.mock("@/features/community/api/use-membership", () => ({
   useMembers: vi.fn(),
+  usePeopleSearch: vi.fn(() => ({ data: undefined })),
 }));
 vi.mock("@/features/identity/api/use-users", () => ({ useUsers: vi.fn() }));
 vi.mock("@/auth/current-user", () => ({ currentUserId: () => "dev-user" }));
@@ -224,7 +225,7 @@ describe("PresenterStack", () => {
 
     await user.click(screen.getByLabelText("Add presenter"));
 
-    expect(screen.getByLabelText(/search members/i)).toBeInTheDocument();
+    expect(screen.getByLabelText("Search people")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Mia Eriksson" }),
     ).toBeInTheDocument();

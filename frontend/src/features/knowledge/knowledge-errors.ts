@@ -1,14 +1,14 @@
 import { ApiError } from "@/lib/api-client";
 
 const MESSAGES: Record<string, string> = {
-  CONTRIBUTOR_NOT_FOUND: "That person is not a member of this community.",
+  CONTRIBUTOR_NOT_FOUND: "No one in this organization matches that name.",
   CONTRIBUTOR_AMBIGUOUS:
-    "Several members match that name. Pick one from the list.",
+    "Several people match that name. Pick one from the list.",
 };
 
 const GENERIC_MESSAGE = "Something went wrong. Please try again.";
 
-/** A codeless 403 when crediting another member: the Credit contributions right closed mid-session. */
+/** A codeless 403 when crediting somebody else: the Credit contributions right closed mid-session. */
 const CREDIT_CLOSED_MESSAGE = "Crediting contributions is no longer open here.";
 
 function codedMessage(error: unknown): string | undefined {

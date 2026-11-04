@@ -168,36 +168,42 @@ describe("httpCommunityGateway", () => {
     expect(actual.content[0]?.userId).toBe("dev-user");
   });
 
-  it("searchMembers GETs members/search with the typed text", async () => {
+  it("searchPeople GETs people with the typed text and says who is a member", async () => {
     // given
     fetchSpy.mockResolvedValue(
-      jsonResponse([{ userId: "bob", displayName: "Bob Martin" }]),
+      jsonResponse([
+        { userId: "bob", displayName: "Bob Martin", member: true },
+        { userId: "bo", displayName: "Bo Ek", member: false },
+      ]),
     );
 
     // when
-    const actual = await httpCommunityGateway.searchMembers(
+    const actual = await httpCommunityGateway.searchPeople(
       "backend-guild",
       "bo",
     );
 
     // then
-    expect(actual).toEqual([{ userId: "bob", displayName: "Bob Martin" }]);
+    expect(actual).toEqual([
+      { userId: "bob", displayName: "Bob Martin", member: true },
+      { userId: "bo", displayName: "Bo Ek", member: false },
+    ]);
     const [url] = fetchSpy.mock.calls[0] ?? [];
     expect(urlOf(url)).toContain(
-      "/axonia/communities/backend-guild/members/search?q=bo",
+      "/axonia/communities/backend-guild/people?q=bo",
     );
   });
 
-  it("searchMembers encodes the typed text into the query", async () => {
+  it("searchPeople encodes the typed text into the query", async () => {
     // given
     fetchSpy.mockResolvedValue(jsonResponse([]));
 
     // when
-    await httpCommunityGateway.searchMembers("backend-guild", "José & co");
+    await httpCommunityGateway.searchPeople("backend-guild", "José & co");
 
     // then
     const [url] = fetchSpy.mock.calls[0] ?? [];
-    expect(urlOf(url)).toContain("/members/search?q=Jos%C3%A9+%26+co");
+    expect(urlOf(url)).toContain("/people?q=Jos%C3%A9+%26+co");
   });
 
   it("join POSTs to members", async () => {

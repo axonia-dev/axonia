@@ -42,7 +42,7 @@ function directoryOf(members: StubMember[]) {
 
 interface MemberSelectHooks {
   useRosterByName: ReturnType<typeof vi.fn>;
-  useMemberSearch: ReturnType<typeof vi.fn>;
+  usePeopleSearch: ReturnType<typeof vi.fn>;
   useUsers: ReturnType<typeof vi.fn>;
 }
 
@@ -60,7 +60,7 @@ export function stubMemberSelectField(
     hasNextPage: false,
     fetchNextPage: vi.fn(),
   });
-  hooks.useMemberSearch.mockReturnValue({
+  hooks.usePeopleSearch.mockReturnValue({
     data: undefined,
     isFetching: false,
   });

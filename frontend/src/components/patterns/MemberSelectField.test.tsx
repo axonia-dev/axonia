@@ -7,7 +7,7 @@ import {
   type PickedMember,
 } from "@/components/patterns/MemberSelectField";
 import {
-  useMemberSearch,
+  usePeopleSearch,
   useRosterByName,
 } from "@/features/community/api/use-membership";
 import type { Membership } from "@/features/community/domain/membership";
@@ -16,12 +16,12 @@ import type { Page } from "@/lib/page";
 
 vi.mock("@/features/community/api/use-membership", () => ({
   useRosterByName: vi.fn(),
-  useMemberSearch: vi.fn(),
+  usePeopleSearch: vi.fn(),
 }));
 vi.mock("@/features/identity/api/use-users", () => ({ useUsers: vi.fn() }));
 
 const mockUseRosterByName = vi.mocked(useRosterByName);
-const mockUseMemberSearch = vi.mocked(useMemberSearch);
+const mockUsePeopleSearch = vi.mocked(usePeopleSearch);
 const mockUseUsers = vi.mocked(useUsers);
 
 const roster = [
@@ -91,7 +91,7 @@ beforeEach(() => {
     hasNextPage: false,
     fetchNextPage: vi.fn(),
   } as never);
-  mockUseMemberSearch.mockReturnValue({
+  mockUsePeopleSearch.mockReturnValue({
     data: undefined,
     isFetching: false,
   } as never);
@@ -114,15 +114,15 @@ describe("MemberSelectField", () => {
   });
 
   /** The roster listing is ordered but capped per page; a typed query is answered by the server's
-   *  own name search, which is scoped to the roster. */
+   *  own name search, which reaches the whole organization. */
   it("switches to the server search once text is typed", async () => {
     const user = userEvent.setup({ delay: null });
-    mockUseMemberSearch.mockImplementation(
+    mockUsePeopleSearch.mockImplementation(
       (_slug: string, text: string) =>
         ({
           data:
             text === "car"
-              ? [{ userId: "u-carl", displayName: "Carl Diaz" }]
+              ? [{ userId: "u-carl", displayName: "Carl Diaz", member: true }]
               : [],
           isFetching: false,
         }) as never,
@@ -150,5 +150,59 @@ describe("MemberSelectField", () => {
       userId: "u-bea",
       displayName: "Bea Ng",
     });
+  });
+
+  it("marks somebody found outside the community", async () => {
+    const user = userEvent.setup({ delay: null });
+    mockUsePeopleSearch.mockReturnValue({
+      data: [
+        { userId: "u-ana", displayName: "Ana Bello", member: true },
+        { userId: "u-omar", displayName: "Omar Outside", member: false },
+      ],
+      isFetching: false,
+    } as never);
+    renderField();
+
+    await user.type(screen.getByRole("combobox"), "o");
+
+    expect(
+      await screen.findByRole("option", { name: /Omar Outside/ }),
+    ).toHaveTextContent("Not a member");
+    expect(
+      screen.getByRole("option", { name: /Ana Bello/ }),
+    ).not.toHaveTextContent("Not a member");
+  });
+
+  it("hands back the id of somebody picked from outside the community", async () => {
+    const user = userEvent.setup({ delay: null });
+    const onPick = vi.fn();
+    mockUsePeopleSearch.mockReturnValue({
+      data: [{ userId: "u-omar", displayName: "Omar Outside", member: false }],
+      isFetching: false,
+    } as never);
+    renderField({ onPick });
+
+    await user.type(screen.getByRole("combobox"), "om");
+    await user.click(
+      await screen.findByRole("option", { name: /Omar Outside/ }),
+    );
+
+    expect(onPick).toHaveBeenCalledWith({
+      userId: "u-omar",
+      displayName: "Omar Outside",
+    });
+  });
+
+  it("says when nobody is found", async () => {
+    const user = userEvent.setup({ delay: null });
+    mockUsePeopleSearch.mockReturnValue({
+      data: [],
+      isFetching: false,
+    } as never);
+    renderField();
+
+    await user.type(screen.getByRole("combobox"), "zz");
+
+    expect(await screen.findByText("No one found")).toBeInTheDocument();
   });
 });

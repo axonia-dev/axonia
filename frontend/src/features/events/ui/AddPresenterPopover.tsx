@@ -2,12 +2,16 @@ import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/Button";
 import { TextInput } from "@/components/ui/TextInput";
-import { useMembers } from "@/features/community/api/use-membership";
+import {
+  useMembers,
+  usePeopleSearch,
+} from "@/features/community/api/use-membership";
 import { useAddPresenter } from "@/features/events/api/use-slot-presenters";
 import { usePresentSlot } from "@/features/events/api/use-slot-sign-up";
 import { eventsErrorMessage } from "@/features/events/events-errors";
 import { displayNameOf } from "@/features/events/ui/SlotPresenter";
 import { useUsers } from "@/features/identity/api/use-users";
+import { useDebouncedValue } from "@/lib/use-debounced-value";
 
 export interface AddPresenterPopoverProps {
   slug: string;
@@ -25,18 +29,15 @@ export interface AddPresenterPopoverProps {
 
 const ROSTER_PARAMS = { page: 0, size: 100 } as const;
 
-const NOT_MATCHED_MESSAGE =
-  "That person could not be matched to a member of this community.";
+const NOT_MATCHED_MESSAGE = "That person could not be matched.";
+
+const DEBOUNCE_MS = 300;
 
 function rosterCandidates(
   rosterIds: string[],
   presenterUserIds: string[],
 ): string[] {
   return rosterIds.filter((id) => !presenterUserIds.includes(id));
-}
-
-function matchesQuery(name: string, query: string): boolean {
-  return name.toLowerCase().includes(query.trim().toLowerCase());
 }
 
 function SelfSignUpRow({
@@ -58,37 +59,74 @@ function SelfSignUpRow({
   );
 }
 
+interface Candidate {
+  userId: string;
+  displayName: string;
+  member: boolean;
+}
+
 interface RosterProps {
-  candidateIds: string[];
+  slug: string;
+  rosterIds: string[];
+  presenterUserIds: string[];
   isPending: boolean;
   onPick: (userId: string) => void;
 }
 
-function Roster({ candidateIds, isPending, onPick }: Readonly<RosterProps>) {
+/** With nothing typed, the community's roster; once a name is typed, the server's search of the
+ *  whole organization, members first, with everybody else marked. */
+function useCandidates(
+  slug: string,
+  query: string,
+  rosterIds: string[],
+  presenterUserIds: string[],
+): Candidate[] {
+  const debounced = useDebouncedValue(query.trim(), DEBOUNCE_MS);
+  const found = usePeopleSearch(slug, debounced).data ?? [];
+  const directory = useUsers(rosterIds).data ?? {};
+  if (query.trim() === "") {
+    return rosterCandidates(rosterIds, presenterUserIds).map((id) => ({
+      userId: id,
+      displayName: displayNameOf(id, directory),
+      member: true,
+    }));
+  }
+  return found.filter((person) => !presenterUserIds.includes(person.userId));
+}
+
+function Roster({
+  slug,
+  rosterIds,
+  presenterUserIds,
+  isPending,
+  onPick,
+}: Readonly<RosterProps>) {
   const [query, setQuery] = useState("");
-  const directory = useUsers(candidateIds).data ?? {};
-  const visible = candidateIds.filter((id) =>
-    matchesQuery(displayNameOf(id, directory), query),
-  );
+  const visible = useCandidates(slug, query, rosterIds, presenterUserIds);
 
   return (
     <div className="flex flex-col gap-2">
       <TextInput
-        label="Search members"
+        label="Search people"
         value={query}
         onChange={setQuery}
-        placeholder="Search members"
+        placeholder="Search people"
       />
       <ul className="relative flex max-h-48 flex-col gap-0.5 overflow-y-auto">
-        {visible.map((id) => (
-          <li key={id}>
+        {visible.map((person) => (
+          <li key={person.userId}>
             <button
               type="button"
               disabled={isPending}
-              onClick={() => onPick(id)}
-              className="hover:bg-surface-sunken text-foreground w-full cursor-pointer rounded px-2 py-1.5 text-left text-sm disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={() => onPick(person.userId)}
+              className="hover:bg-surface-sunken text-foreground flex w-full cursor-pointer items-center justify-between gap-2 rounded px-2 py-1.5 text-left text-sm disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {displayNameOf(id, directory)}
+              <span className="min-w-0 truncate">{person.displayName}</span>
+              {!person.member && (
+                <span className="text-muted-foreground shrink-0 text-xs">
+                  Not a member
+                </span>
+              )}
             </button>
           </li>
         ))}
@@ -100,7 +138,7 @@ function Roster({ candidateIds, isPending, onPick }: Readonly<RosterProps>) {
 /**
  * The panel opened by the avatar stack's "+": a pinned self sign-up row, and, for
  * whoever may invite a collaborator (an organizer, or any current presenter of this
- * slot), a filterable roster of the rest of the community.
+ * slot), the community's roster, and a search of the whole organization once a name is typed.
  */
 export function AddPresenterPopover({
   slug,
@@ -116,9 +154,8 @@ export function AddPresenterPopover({
   const present = usePresentSlot(slug, sessionId, sectionId, slotId);
   const addPresenter = useAddPresenter(slug, sessionId);
   const members = useMembers(slug, ROSTER_PARAMS);
-  const roster = rosterCandidates(
-    (members.data?.content ?? []).map((member) => member.userId),
-    presenterUserIds,
+  const rosterIds = (members.data?.content ?? []).map(
+    (member) => member.userId,
   );
 
   useEffect(() => {
@@ -173,7 +210,9 @@ export function AddPresenterPopover({
         )}
         {canPickOthers && (
           <Roster
-            candidateIds={roster}
+            slug={slug}
+            rosterIds={rosterIds}
+            presenterUserIds={presenterUserIds}
             isPending={addPresenter.isPending}
             onPick={(id) => void handlePick(id)}
           />

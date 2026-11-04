@@ -4,11 +4,11 @@ import { MemberAvatar } from "@/components/patterns/MemberAvatar";
 import { Button } from "@/components/ui/Button";
 import { ComboBox, type ComboBoxOption } from "@/components/ui/ComboBox";
 import {
-  useMemberSearch,
+  usePeopleSearch,
   useRosterByName,
 } from "@/features/community/api/use-membership";
 import type {
-  CommunityMember,
+  CreditablePerson,
   Membership,
 } from "@/features/community/domain/membership";
 import { useUsers } from "@/features/identity/api/use-users";
@@ -31,6 +31,7 @@ interface Props {
 }
 
 const DEBOUNCE_MS = 300;
+const NOT_A_MEMBER = "Not a member";
 
 function faceFor(userId: string, name: string, user: User | undefined) {
   return (
@@ -67,7 +68,7 @@ function statusFor(
 ): string | undefined {
   if (query === "") return undefined;
   if (debouncing || isFetching) return "Searching";
-  return resultCount === 0 ? "No members found" : undefined;
+  return resultCount === 0 ? "No one found" : undefined;
 }
 
 function rosterContent(
@@ -78,23 +79,25 @@ function rosterContent(
 
 /** A roster row names only a user id; the display name is the identity directory's to give, so
  *  the id stands in as the label until `useUsers` answers. */
-function rosterAsMembers(rosterMembers: Membership[]): CommunityMember[] {
+function rosterAsMembers(rosterMembers: Membership[]): CreditablePerson[] {
   return rosterMembers.map((m) => ({
     userId: m.userId,
     displayName: m.userId,
+    member: true,
   }));
 }
 
 function optionsFor(
-  members: CommunityMember[],
+  people: CreditablePerson[],
   directory: Record<string, User>,
 ): ComboBoxOption[] {
-  return members.map((member) => {
-    const name = directory[member.userId]?.displayName ?? member.displayName;
+  return people.map((person) => {
+    const name = directory[person.userId]?.displayName ?? person.displayName;
     return {
-      id: member.userId,
+      id: person.userId,
       label: name,
-      icon: faceFor(member.userId, name, directory[member.userId]),
+      icon: faceFor(person.userId, name, directory[person.userId]),
+      ...(person.member ? {} : { hint: NOT_A_MEMBER }),
     };
   });
 }
@@ -110,13 +113,13 @@ function comboBoxExtras(
 }
 
 /**
- * A member of this community, named precisely. One field for every form that names a person, so the
- * assignee, the presenters and the contributor all read the same way.
+ * A person in the organization, named precisely. One field for every form that credits a person, so
+ * the assignee, the presenters and the contributor all read the same way.
  *
- * Opens on the roster in display-name order and pages as the list is scrolled; typing hands over to
- * the server's own name search, which is scoped to the roster and capped, so a large community is
- * searched whole rather than through a first page of it. The value exchanged is always a member's
- * userId, never free text.
+ * Opens on the community's roster in display-name order and pages as the list is scrolled; typing
+ * hands over to the server's own name search, which reaches the whole organization, lists members
+ * first and marks everybody else. Picking somebody credits them without making them a member. The
+ * value exchanged is always a userId, never free text.
  */
 export function MemberSelectField({
   slug,
@@ -135,7 +138,7 @@ export function MemberSelectField({
   const loadNextPage = useCallback(() => {
     void fetchNextPage();
   }, [fetchNextPage]);
-  const search = useMemberSearch(slug, debouncedQuery);
+  const search = usePeopleSearch(slug, debouncedQuery);
 
   const searching = query !== "";
   const rosterMembers = rosterContent(roster.data);

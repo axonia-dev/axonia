@@ -17,7 +17,7 @@ vi.mock("@/features/community/api/use-management-access", () => ({
 }));
 vi.mock("@/features/community/api/use-membership", () => ({
   useRosterByName: vi.fn(),
-  useMemberSearch: vi.fn(),
+  usePeopleSearch: vi.fn(),
 }));
 vi.mock("@/features/identity/api/use-users", () => ({
   useUsers: () => ({ data: {} }),
@@ -25,7 +25,7 @@ vi.mock("@/features/identity/api/use-users", () => ({
 
 import { useManagementAccess } from "@/features/community/api/use-management-access";
 import {
-  useMemberSearch,
+  usePeopleSearch,
   useRosterByName,
 } from "@/features/community/api/use-membership";
 import { useArtifactTypes } from "@/features/knowledge/api/use-artifact-types";
@@ -35,7 +35,7 @@ const mockTypes = vi.mocked(useArtifactTypes);
 const mockCapture = vi.mocked(useCaptureArtifact);
 const mockAccess = vi.mocked(useManagementAccess);
 const mockRosterByName = vi.mocked(useRosterByName);
-const mockMemberSearch = vi.mocked(useMemberSearch);
+const mockPeopleSearch = vi.mocked(usePeopleSearch);
 
 // delay: null drops userEvent's per-event real-timer yields, so these
 // interaction-heavy tests don't depend on regaining a timer slice between
@@ -54,7 +54,7 @@ beforeEach(() => {
   } as never);
   mockCapture.mockReturnValue({ mutate: vi.fn(), isError: false } as never);
   mockAccess.mockReturnValue({ credit: false, isLoading: false } as never);
-  mockMemberSearch.mockReturnValue({ data: [], isFetching: false } as never);
+  mockPeopleSearch.mockReturnValue({ data: [], isFetching: false } as never);
   mockRosterByName.mockReturnValue({
     data: { pages: [] },
     hasNextPage: false,
@@ -77,8 +77,8 @@ async function pickContributor(
   query: string,
   member: { userId: string; displayName: string },
 ) {
-  mockMemberSearch.mockReturnValue({
-    data: [member],
+  mockPeopleSearch.mockReturnValue({
+    data: [{ ...member, member: true }],
     isFetching: false,
   } as never);
   await user.type(screen.getByRole("combobox", { name: "Contributor" }), query);
@@ -188,7 +188,7 @@ describe("CaptureArtifactForm", () => {
     [
       "the member gone",
       new ApiError(409, "detail", "CONTRIBUTOR_NOT_FOUND"),
-      "That person is not a member of this community.",
+      "No one in this organization matches that name.",
     ],
   ])("reports a credit refused with %s", (_, error, expected) => {
     // given

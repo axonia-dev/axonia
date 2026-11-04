@@ -14,8 +14,8 @@ export const communityKeys = {
     [...communityKeys.detail(slug), "members"] as const,
   members: (slug: string, params: MemberListParams) =>
     [...communityKeys.membersAll(slug), params] as const,
-  memberSearch: (slug: string, text: string) =>
-    [...communityKeys.membersAll(slug), "search", text] as const,
+  peopleSearch: (slug: string, text: string) =>
+    [...communityKeys.detail(slug), "people", text] as const,
   rosterByName: (slug: string) =>
     [...communityKeys.detail(slug), "roster-by-name"] as const,
   myMembership: (slug: string) =>
