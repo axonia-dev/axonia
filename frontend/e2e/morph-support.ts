@@ -12,8 +12,10 @@ export const group = (part: string, id: string) =>
   `::view-transition-group(morph-${part}-${id})`;
 
 /**
- * Every morph group any frame has painted since the document loaded or since `forgetMorphs`, and
- * a log of each view transition's fate, so a morph that never played says why when it fails.
+ * Every morph group a view transition built since the document loaded or since `forgetMorphs`,
+ * read at the transition's `ready`, the one moment its groups are sure to exist. Sampling frames
+ * instead misses them on a slow runner, where a morph's groups can live between two frames.
+ * A log of each transition's fate goes with them, so a morph that never played says why.
  */
 export async function recordMorphs(page: Page): Promise<void> {
   await page.addInitScript(() => {
@@ -38,15 +40,14 @@ export async function recordMorphs(page: Page): Promise<void> {
       ]
         .map((element) => element.style.viewTransitionName)
         .join(" ");
-    const pseudos = () =>
+    const groups = () =>
       document
         .getAnimations()
         .map(
           (animation) =>
             (animation.effect as KeyframeEffect | null)?.pseudoElement ?? "",
         )
-        .filter((pseudo) => pseudo.startsWith("::view-transition-group"))
-        .join(" ");
+        .filter((pseudo) => pseudo.startsWith("::view-transition-group"));
     const start = document.startViewTransition.bind(document);
     document.startViewTransition = ((options: StartViewTransitionOptions) => {
       log(`start types=${JSON.stringify(options.types ?? [])}`);
@@ -66,7 +67,15 @@ export async function recordMorphs(page: Page): Promise<void> {
         skip();
       };
       transition.ready.then(
-        () => log(`ready groups: ${pseudos()}`),
+        () => {
+          const built = groups();
+          log(`ready groups: ${built.join(" ")}`);
+          for (const pseudo of built) {
+            if (pseudo.startsWith("::view-transition-group(morph-")) {
+              record.morphsSeen?.add(pseudo);
+            }
+          }
+        },
         (error: unknown) => log(`ready rejected ${String(error)}`),
       );
       transition.finished.then(
@@ -75,17 +84,6 @@ export async function recordMorphs(page: Page): Promise<void> {
       );
       return transition;
     }) as typeof document.startViewTransition;
-    const sample = () => {
-      for (const animation of document.getAnimations()) {
-        const pseudo =
-          (animation.effect as KeyframeEffect | null)?.pseudoElement ?? "";
-        if (pseudo.startsWith("::view-transition-group(morph-")) {
-          record.morphsSeen?.add(pseudo);
-        }
-      }
-      requestAnimationFrame(sample);
-    };
-    requestAnimationFrame(sample);
   });
 }
 
