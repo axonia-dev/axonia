@@ -24,6 +24,20 @@ function formatDate(iso: string): string {
   });
 }
 
+function heldAt(session: Session): string {
+  return session.occurrenceDate ?? session.scheduledAt;
+}
+
+function newestFirst(
+  sessionById: Map<number, Session>,
+): (a: number, b: number) => number {
+  const timeOf = (sessionId: number) => {
+    const session = sessionById.get(sessionId);
+    return session ? Date.parse(heldAt(session)) : Number.NEGATIVE_INFINITY;
+  };
+  return (a, b) => timeOf(b) - timeOf(a) || b - a;
+}
+
 function labelFor(
   sessionId: number,
   sessionById: Map<number, Session>,
@@ -32,7 +46,7 @@ function labelFor(
   if (!session) {
     return `Session #${sessionId}`;
   }
-  return `${session.displayTitle} · ${formatDate(session.occurrenceDate ?? session.scheduledAt)}`;
+  return `${session.displayTitle} · ${formatDate(heldAt(session))}`;
 }
 
 /**
@@ -51,10 +65,13 @@ export function SessionFilter({ slug, value, onChange }: Readonly<Props>) {
   const options = [
     { id: ANY_SESSION, label: "Any session" },
     { id: NO_SESSION, label: "No session" },
-    ...(artifactSessions.data ?? []).map((entry) => ({
-      id: entry.sessionId,
-      label: labelFor(entry.sessionId, sessionById),
-    })),
+    ...(artifactSessions.data ?? [])
+      .map((entry) => entry.sessionId)
+      .sort(newestFirst(sessionById))
+      .map((sessionId) => ({
+        id: sessionId,
+        label: labelFor(sessionId, sessionById),
+      })),
   ];
 
   return (

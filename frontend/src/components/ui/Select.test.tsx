@@ -111,6 +111,20 @@ describe("Select", () => {
     expect(screen.getByRole("option", { name: "Guild" })).toBeInTheDocument();
   });
 
+  /** A library filter over 44 sessions drew its options past the bottom of the viewport through a
+   *  box that could not clip them, so the last sessions could not be reached. The height cap is
+   *  measured by the overlay at runtime, so only the clipping is assertable without layout. */
+  it("keeps a long option list inside a scroll container", async () => {
+    render(
+      <Select label="Kind" value={null} options={kinds} onChange={vi.fn()} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /kind/i }));
+
+    const popover = (await screen.findByRole("listbox")).parentElement;
+    expect(popover).toHaveClass("overflow-y-auto");
+  });
+
   it("keeps the label accessible when visually hidden", () => {
     // when
     render(

@@ -52,7 +52,11 @@ const triggerClass =
   "flex w-full items-center justify-between gap-2 rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground outline-none transition-colors hover:border-border-strong focus-visible:ring-2 focus-visible:ring-focus-ring data-[disabled]:cursor-default data-[disabled]:opacity-50 data-[disabled]:hover:border-border";
 
 const popoverClass =
-  "min-w-[var(--trigger-width)] rounded-md border border-border-strong bg-surface p-1 shadow-lg outline-none transition data-[entering]:opacity-0 data-[entering]:-translate-y-1 data-[exiting]:opacity-0 data-[exiting]:-translate-y-1 motion-reduce:transition-none";
+  "relative min-w-[var(--trigger-width)] overflow-y-auto overscroll-contain rounded-md border border-border-strong bg-surface p-1 shadow-lg outline-none transition data-[entering]:opacity-0 data-[entering]:-translate-y-1 data-[exiting]:opacity-0 data-[exiting]:-translate-y-1 motion-reduce:transition-none";
+
+// react-aria writes the space left on screen as an inline max-height but never clips, so a long
+// list painted past the viewport. This cap is the minimum that measurement is taken against.
+const POPOVER_MAX_HEIGHT = 320;
 
 const itemClass =
   "flex cursor-pointer items-center justify-between gap-2 rounded-sm px-3 py-2 text-sm text-foreground outline-none transition-colors data-[hovered]:bg-surface-sunken data-[focused]:bg-surface-sunken data-[selected]:font-semibold data-[selected]:text-primary";
@@ -139,7 +143,7 @@ export function Select<T extends string | number>({
           className="text-muted-foreground shrink-0"
         />
       </AriaButton>
-      <Popover className={popoverClass}>
+      <Popover maxHeight={POPOVER_MAX_HEIGHT} className={popoverClass}>
         <ListBox className="outline-none">
           {options.map((option) => (
             <ListBoxItem

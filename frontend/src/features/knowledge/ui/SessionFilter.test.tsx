@@ -112,6 +112,25 @@ describe("SessionFilter", () => {
     ).toBeInTheDocument();
   });
 
+  it("lists the newest session first and a session it cannot date last", async () => {
+    // given
+    render(<SessionFilter slug="eng" value={-1} onChange={vi.fn()} />);
+
+    // when
+    await openOptions();
+
+    // then
+    expect(
+      screen.getAllByRole("option").map((option) => option.textContent),
+    ).toEqual([
+      "Any session",
+      "No session",
+      expect.stringMatching(/^Lightning talks ·/),
+      expect.stringMatching(/^Backend Dojo ·/),
+      "Session #99",
+    ]);
+  });
+
   it("reports the chosen session id", async () => {
     // given
     const onChange = vi.fn();
