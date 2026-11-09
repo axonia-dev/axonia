@@ -15,28 +15,27 @@ public class NextSlot {
 
     public Optional<Instant> suggest(NextSlotQuery query) {
 
-        var step = query.cadence().toPeriod();
-        var date = query.startsOn();
-        for (var i = 0; i < MAX_STEPS; i++) {
+        for (var index = 0; index < MAX_STEPS; index++) {
+            var date = query.cadence().occurrence(query.startsOn(), index);
             var candidate = OccurrenceInstant.at(date, query.preferredTime(), query.zone());
             if (!candidate.isBefore(query.now())) {
                 return Optional.of(candidate);
             }
-            date = date.plus(step);
         }
         return Optional.empty();
     }
 
     public List<LocalDate> occurrencesBetween(Cadence cadence, LocalDate startsOn, LocalDate from, LocalDate to) {
 
-        var step = cadence.toPeriod();
         var result = new ArrayList<LocalDate>();
-        var date = startsOn;
-        for (var i = 0; i < MAX_STEPS && date.isBefore(to); i++) {
+        for (var index = 0; index < MAX_STEPS; index++) {
+            var date = cadence.occurrence(startsOn, index);
+            if (!date.isBefore(to)) {
+                break;
+            }
             if (!date.isBefore(from)) {
                 result.add(date);
             }
-            date = date.plus(step);
         }
         return result;
     }

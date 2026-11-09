@@ -9,7 +9,9 @@ import org.junit.jupiter.api.Test;
 
 import dev.axonia.events.api.MeetingPlace;
 import dev.axonia.events.api.ScheduleEntry;
+import dev.axonia.events.api.Section;
 import dev.axonia.events.api.SessionStatus;
+import dev.axonia.events.api.Slot;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -17,20 +19,21 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class ScheduleIcsDocumentTest {
 
     private static final Instant STAMP = Instant.parse("2026-08-15T10:15:00Z");
-    private static final String SESSION_BASE_URL = "https://axonia.example/communities/dojo/sessions/";
+    private static final String COMMUNITY_URL = "https://axonia.example/communities/dojo";
 
     private static ScheduleEntry ghost() {
 
-        return ScheduleEntry.builder().seriesId(12L).title("Frontend Dojo").occurrenceDate(LocalDate.of(2026, 8, 18))
-                .scheduledAt(Instant.parse("2026-08-18T16:00:00Z")).hasTime(true).durationMinutes(60)
-                .status(SessionStatus.SCHEDULED).virtual(true)
+        return ScheduleEntry.builder().seriesId(12L).displayTitle("Frontend Dojo")
+                .occurrenceDate(LocalDate.of(2026, 8, 18)).scheduledAt(Instant.parse("2026-08-18T16:00:00Z"))
+                .hasTime(true).durationMinutes(60).status(SessionStatus.SCHEDULED).virtual(true)
                 .place(new MeetingPlace(null, "https://meet.example/dojo", null)).build();
     }
 
     private static ScheduleEntry.ScheduleEntryBuilder entryBuilder() {
 
-        return ScheduleEntry.builder().sessionId(1L).title("t").scheduledAt(Instant.parse("2026-08-18T16:00:00Z"))
-                .hasTime(true).durationMinutes(60).status(SessionStatus.SCHEDULED).virtual(false);
+        return ScheduleEntry.builder().sessionId(1L).displayTitle("t")
+                .scheduledAt(Instant.parse("2026-08-18T16:00:00Z")).hasTime(true).durationMinutes(60)
+                .status(SessionStatus.SCHEDULED).virtual(false);
     }
 
     private static String render(ScheduleEntry entry) {
@@ -41,7 +44,7 @@ class ScheduleIcsDocumentTest {
     private static String render(String calendarName, List<ScheduleEntry> entries) {
 
         return ScheduleIcsDocument.render(IcsDocumentRequest.builder().calendarName(calendarName).host("axonia.example")
-                .sessionBaseUrl(SESSION_BASE_URL).stamp(STAMP).entries(entries).build());
+                .communityUrl(COMMUNITY_URL).stamp(STAMP).entries(entries).build());
     }
 
     /** RFC 5545 unfolding, which is what every consumer does before reading a property back. */
@@ -70,7 +73,7 @@ class ScheduleIcsDocumentTest {
     @Test
     void keepsTheSameUidOnceTheGhostBecomesARealSession() {
 
-        var real = ScheduleEntry.builder().sessionId(4471L).seriesId(12L).title("Frontend Dojo")
+        var real = ScheduleEntry.builder().sessionId(4471L).seriesId(12L).displayTitle("Frontend Dojo")
                 .occurrenceDate(LocalDate.of(2026, 8, 18)).scheduledAt(Instant.parse("2026-08-18T16:00:00Z"))
                 .hasTime(true).durationMinutes(60).status(SessionStatus.SCHEDULED).virtual(false)
                 .place(new MeetingPlace(null, "https://meet.example/dojo", null)).build();
@@ -81,7 +84,7 @@ class ScheduleIcsDocumentTest {
     @Test
     void identifiesAOneOffByItsSessionId() {
 
-        var oneOff = ScheduleEntry.builder().sessionId(9001L).title("Architecture review")
+        var oneOff = ScheduleEntry.builder().sessionId(9001L).displayTitle("Architecture review")
                 .scheduledAt(Instant.parse("2026-09-07T13:00:00Z")).hasTime(true).durationMinutes(45)
                 .status(SessionStatus.SCHEDULED).virtual(false).build();
 
@@ -91,7 +94,7 @@ class ScheduleIcsDocumentTest {
     @Test
     void endsAtTheSessionsOwnLengthAndFallsBackToSixtyMinutes() {
 
-        var noLength = ScheduleEntry.builder().sessionId(1L).title("t")
+        var noLength = ScheduleEntry.builder().sessionId(1L).displayTitle("t")
                 .scheduledAt(Instant.parse("2026-08-18T16:00:00Z")).hasTime(true).status(SessionStatus.SCHEDULED)
                 .virtual(false).build();
 
@@ -233,30 +236,78 @@ class ScheduleIcsDocumentTest {
                 .place(new MeetingPlace(null, "https://teams.microsoft.com/l/abc", "ID 391 2244, passcode 4471"))
                 .build();
 
-        var ics = render(entry);
+        var ics = unfolded(render(entry));
 
         assertThat(ics).doesNotContain("391 2244");
         assertThat(ics).doesNotContain("passcode");
-        assertThat(unfolded(ics)).contains(
-                "DESCRIPTION:Joining details on the session page\\nhttps://axonia.example/communities/dojo/sessions/1182\r\n");
+        assertThat(ics).contains("DESCRIPTION:Join: https://teams.microsoft.com/l/abc\\n\\n"
+                + "Joining details on the session page\\n\\nhttps://axonia.example/communities/dojo/sessions/1182\r\n");
     }
 
     /**
-     * The other half of the {@code sessionId != null} guard: a ghost is a projected occurrence with no row of its own
-     * yet, so it has no session page a pointer could lead to. Emitting one anyway would read {@code .../sessions/null}
-     * to whoever opened it.
+     * Outlook shows neither {@code CONFERENCE} nor {@code URL}, so a session whose LOCATION names a room or reads
+     * "Remote" reached an Outlook subscriber with no way to join it. The description is the one field every client
+     * renders, and every client links a URL in it.
      */
     @Test
-    @DisplayName("a ghost has no session page yet, so joining details never grow a description for it")
-    void ghostEmitsNoDescriptionEvenWithJoiningDetails() {
+    @DisplayName("the join link is in the description, because Outlook ignores CONFERENCE")
+    void joinLinkReachesTheDescription() {
 
-        var entry = ScheduleEntry.builder().seriesId(12L).title("Frontend Dojo")
+        var entry = entryBuilder().sessionId(5L)
+                .place(new MeetingPlace("Remote", "https://teams.microsoft.com/l/abc", null)).build();
+
+        var ics = unfolded(render(entry));
+
+        assertThat(ics).contains("LOCATION:Remote\r\n");
+        assertThat(ics).contains("DESCRIPTION:Join: https://teams.microsoft.com/l/abc\\n\\n"
+                + "https://axonia.example/communities/dojo/sessions/5\r\n");
+    }
+
+    @Test
+    @DisplayName("the agenda lists every titled slot, in order")
+    void agendaReachesTheDescription() {
+
+        var slots = List.of(Slot.builder().position(0).title("Virtual threads in practice").build(),
+                Slot.builder().position(1).build(), Slot.builder().position(2).title("Lightning: jOOQ").build());
+        var entry = entryBuilder().sessionId(5L).place(MeetingPlace.NONE)
+                .sections(List.of(Section.builder().position(0).slots(slots).build())).build();
+
+        var ics = unfolded(render(entry));
+
+        assertThat(ics).contains("DESCRIPTION:Agenda\\n- Virtual threads in practice\\n- Lightning: jOOQ\\n\\n"
+                + "https://axonia.example/communities/dojo/sessions/5\r\n");
+    }
+
+    @Test
+    @DisplayName("every event links back to Axonia, through the URL property and the description")
+    void linksBackToTheSessionPage() {
+
+        var ics = unfolded(render(entryBuilder().sessionId(77L).place(MeetingPlace.NONE).build()));
+
+        assertThat(ics).contains("URL:https://axonia.example/communities/dojo/sessions/77\r\n");
+        assertThat(ics).contains("DESCRIPTION:https://axonia.example/communities/dojo/sessions/77\r\n");
+    }
+
+    /**
+     * A ghost is a projected occurrence with no row of its own yet, so it has no session page. Linking one anyway would
+     * read {@code .../sessions/null}; the community page shows the projection instead.
+     */
+    @Test
+    @DisplayName("a ghost has no session page yet, so it links to its community")
+    void ghostLinksToTheCommunity() {
+
+        var entry = ScheduleEntry.builder().seriesId(12L).displayTitle("Frontend Dojo")
                 .occurrenceDate(LocalDate.of(2026, 8, 18)).scheduledAt(Instant.parse("2026-08-18T16:00:00Z"))
                 .hasTime(true).durationMinutes(60).status(SessionStatus.SCHEDULED).virtual(true)
                 .place(new MeetingPlace(null, "https://teams.microsoft.com/l/abc", "ID 391 2244, passcode 4471"))
                 .build();
 
-        assertThat(render(entry)).doesNotContain("DESCRIPTION");
+        var ics = unfolded(render(entry));
+
+        assertThat(ics).doesNotContain("sessions/null").doesNotContain("passcode");
+        assertThat(ics).contains("URL:https://axonia.example/communities/dojo\r\n");
+        assertThat(ics).contains("DESCRIPTION:Join: https://teams.microsoft.com/l/abc\\n\\n"
+                + "Joining details on the community page\\n\\nhttps://axonia.example/communities/dojo\r\n");
     }
 
     @Test
@@ -270,25 +321,25 @@ class ScheduleIcsDocumentTest {
 
         assertThat(ics).doesNotContain("LOCATION");
         assertThat(ics).doesNotContain("CONFERENCE");
-        assertThat(unfolded(ics)).contains(
-                "DESCRIPTION:Joining details on the session page\\nhttps://axonia.example/communities/dojo/sessions/77\r\n");
+        assertThat(unfolded(ics)).contains("DESCRIPTION:Joining details on the session page\\n\\n"
+                + "https://axonia.example/communities/dojo/sessions/77\r\n");
     }
 
     @Test
-    @DisplayName("a session with no place at all emits no place lines and no description")
+    @DisplayName("a session with no place at all emits no place lines")
     void noPlaceEmitsNothing() {
 
         var ics = render(entryBuilder().place(MeetingPlace.NONE).build());
 
         assertThat(ics).doesNotContain("LOCATION");
         assertThat(ics).doesNotContain("CONFERENCE");
-        assertThat(ics).doesNotContain("DESCRIPTION");
+        assertThat(ics).doesNotContain("Join:");
     }
 
     @Test
     void omitsBothPropertiesEntirelyWhenNoRoomIsSet() {
 
-        var roomless = ScheduleEntry.builder().sessionId(1L).title("t")
+        var roomless = ScheduleEntry.builder().sessionId(1L).displayTitle("t")
                 .scheduledAt(Instant.parse("2026-08-18T16:00:00Z")).hasTime(true).durationMinutes(60)
                 .status(SessionStatus.SCHEDULED).virtual(false).build();
 
@@ -300,10 +351,10 @@ class ScheduleIcsDocumentTest {
     @Test
     void saysACancelledSessionIsOffAndOmitsASkippedOneAltogether() {
 
-        var cancelled = ScheduleEntry.builder().sessionId(1L).title("t")
+        var cancelled = ScheduleEntry.builder().sessionId(1L).displayTitle("t")
                 .scheduledAt(Instant.parse("2026-08-18T16:00:00Z")).hasTime(true).durationMinutes(60)
                 .status(SessionStatus.CANCELLED).virtual(false).build();
-        var skipped = ScheduleEntry.builder().sessionId(2L).title("t")
+        var skipped = ScheduleEntry.builder().sessionId(2L).displayTitle("t")
                 .scheduledAt(Instant.parse("2026-08-25T16:00:00Z")).hasTime(true).durationMinutes(60)
                 .status(SessionStatus.SKIPPED).virtual(false).build();
 
@@ -316,11 +367,26 @@ class ScheduleIcsDocumentTest {
     @Test
     void namesAnUntitledOccurrenceRatherThanEmittingABlankSummary() {
 
-        var untitled = ScheduleEntry.builder().sessionId(1L).title("  ")
+        var untitled = ScheduleEntry.builder().sessionId(1L).displayTitle("  ")
                 .scheduledAt(Instant.parse("2026-08-18T16:00:00Z")).hasTime(true).durationMinutes(60)
                 .status(SessionStatus.SCHEDULED).virtual(false).build();
 
         assertThat(render(untitled)).contains("SUMMARY:Session\r\n");
+    }
+
+    /**
+     * A projected occurrence and a session with no title of its own carry no {@code title}; what the schedule calls
+     * them is {@code displayTitle}, the series name or the titled slot. Reading {@code title} named every one of them
+     * "Session" in the subscriber's calendar.
+     */
+    @Test
+    @DisplayName("the summary is what the schedule calls the occurrence, not its own optional title")
+    void summaryIsTheDisplayTitle() {
+
+        var ghost = ghost();
+
+        assertThat(ghost.title()).isNull();
+        assertThat(render(ghost)).contains("SUMMARY:Frontend Dojo\r\n");
     }
 
     /**
@@ -330,12 +396,12 @@ class ScheduleIcsDocumentTest {
     @Test
     void stampsADocumentWithTheNewestRevisionItPublishes() {
 
-        var older = ScheduleEntry.builder().sessionId(1L).title("t").scheduledAt(Instant.parse("2026-08-18T16:00:00Z"))
-                .hasTime(true).status(SessionStatus.SCHEDULED).virtual(false)
-                .updatedAt(Instant.parse("2026-08-10T08:00:00Z")).build();
-        var newer = ScheduleEntry.builder().sessionId(2L).title("t").scheduledAt(Instant.parse("2026-08-25T16:00:00Z"))
-                .hasTime(true).status(SessionStatus.SCHEDULED).virtual(false)
-                .updatedAt(Instant.parse("2026-08-14T09:00:12Z")).build();
+        var older = ScheduleEntry.builder().sessionId(1L).displayTitle("t")
+                .scheduledAt(Instant.parse("2026-08-18T16:00:00Z")).hasTime(true).status(SessionStatus.SCHEDULED)
+                .virtual(false).updatedAt(Instant.parse("2026-08-10T08:00:00Z")).build();
+        var newer = ScheduleEntry.builder().sessionId(2L).displayTitle("t")
+                .scheduledAt(Instant.parse("2026-08-25T16:00:00Z")).hasTime(true).status(SessionStatus.SCHEDULED)
+                .virtual(false).updatedAt(Instant.parse("2026-08-14T09:00:12Z")).build();
 
         assertThat(ScheduleIcsDocument.stampFor(List.of(older, newer), STAMP))
                 .isEqualTo(Instant.parse("2026-08-14T09:00:12Z"));
@@ -345,10 +411,10 @@ class ScheduleIcsDocumentTest {
     @Test
     void ignoresTheRevisionOfAnOccurrenceItLeavesOut() {
 
-        var published = ScheduleEntry.builder().sessionId(1L).title("t")
+        var published = ScheduleEntry.builder().sessionId(1L).displayTitle("t")
                 .scheduledAt(Instant.parse("2026-08-18T16:00:00Z")).hasTime(true).status(SessionStatus.SCHEDULED)
                 .virtual(false).updatedAt(Instant.parse("2026-08-10T08:00:00Z")).build();
-        var skipped = ScheduleEntry.builder().sessionId(2L).title("t")
+        var skipped = ScheduleEntry.builder().sessionId(2L).displayTitle("t")
                 .scheduledAt(Instant.parse("2026-08-25T16:00:00Z")).hasTime(true).status(SessionStatus.SKIPPED)
                 .virtual(false).updatedAt(Instant.parse("2026-08-14T09:00:12Z")).build();
 
@@ -375,7 +441,7 @@ class ScheduleIcsDocumentTest {
     @Test
     void rendersOneWholeDocumentByteForByte() {
 
-        var entry = ScheduleEntry.builder().seriesId(12L).title("Frontend Dojo")
+        var entry = ScheduleEntry.builder().seriesId(12L).displayTitle("Frontend Dojo")
                 .occurrenceDate(LocalDate.of(2026, 8, 18)).scheduledAt(Instant.parse("2026-08-18T16:00:00Z"))
                 .hasTime(true).durationMinutes(60).status(SessionStatus.SCHEDULED).virtual(true)
                 .place(new MeetingPlace(null, "https://meet.example/dojo", null)).version(3L)
@@ -402,9 +468,12 @@ class ScheduleIcsDocumentTest {
                 STATUS:CONFIRMED\r
                 SEQUENCE:3\r
                 LAST-MODIFIED:20260814T090012Z\r
+                URL:https://axonia.example/communities/dojo\r
                 LOCATION:https://meet.example/dojo\r
                 CONFERENCE;VALUE=URI;FEATURE=VIDEO,AUDIO;LABEL=Join:https://meet.example/do\r
                  jo\r
+                DESCRIPTION:Join: https://meet.example/dojo\\n\\nhttps://axonia.example/commu\r
+                 nities/dojo\r
                 END:VEVENT\r
                 END:VCALENDAR\r
                 """);

@@ -63,8 +63,8 @@ public class JdbcSeriesStore implements SeriesStore {
 
         return SeriesRecord.builder().id(entity.getId()).organizationId(entity.getOrganizationId())
                 .communityId(entity.getCommunityId()).title(entity.getTitle()).cadenceCount(entity.getCadenceCount())
-                .cadenceUnit(entity.getCadenceUnit()).startsOn(entity.getStartsOn())
-                .preferredTime(entity.getPreferredTime()).timeZone(entity.getTimeZone())
+                .cadenceUnit(entity.getCadenceUnit()).cadenceMonthlyBy(entity.getCadenceMonthlyBy())
+                .startsOn(entity.getStartsOn()).preferredTime(entity.getPreferredTime()).timeZone(entity.getTimeZone())
                 .durationMinutes(entity.getDurationMinutes()).status(entity.getStatus()).location(entity.getLocation())
                 .joinUrl(entity.getJoinUrl()).joiningDetails(entity.getJoiningDetails())
                 .defaultStructure(RecordMapping.list(entity.getDefaultStructure(),
@@ -77,8 +77,8 @@ public class JdbcSeriesStore implements SeriesStore {
 
         return SeriesEntity.builder().id(series.getId()).organizationId(series.getOrganizationId())
                 .communityId(series.getCommunityId()).title(series.getTitle()).cadenceCount(series.getCadenceCount())
-                .cadenceUnit(series.getCadenceUnit()).startsOn(series.getStartsOn())
-                .preferredTime(series.getPreferredTime()).timeZone(series.getTimeZone())
+                .cadenceUnit(series.getCadenceUnit()).cadenceMonthlyBy(series.cadence().monthlyBy())
+                .startsOn(series.getStartsOn()).preferredTime(series.getPreferredTime()).timeZone(series.getTimeZone())
                 .durationMinutes(series.getDurationMinutes()).status(series.getStatus()).location(series.getLocation())
                 .joinUrl(series.getJoinUrl()).joiningDetails(series.getJoiningDetails())
                 .defaultStructure(RecordMapping.list(series.getDefaultStructure(),

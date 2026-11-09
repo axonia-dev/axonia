@@ -15,7 +15,6 @@ import dev.axonia.events.application.port.out.CommunityAccess;
 import dev.axonia.events.application.port.out.CurrentUser;
 import dev.axonia.events.application.port.out.OrganizationContext;
 import dev.axonia.events.application.port.out.SeriesStore;
-import dev.axonia.events.domain.Cadence;
 import dev.axonia.events.domain.MeetingPlaces;
 import dev.axonia.events.domain.NextSlot;
 import dev.axonia.events.domain.NextSlotQuery;
@@ -51,7 +50,8 @@ public class SeriesService {
         var structure = toRefs(organizationId, request.defaultStructure());
         var draft = SeriesRecord.builder().organizationId(organizationId).communityId(communityId)
                 .title(request.title()).cadenceCount(request.cadence().count()).cadenceUnit(request.cadence().unit())
-                .startsOn(request.startsOn()).preferredTime(request.preferredTime()).timeZone(request.timeZone())
+                .cadenceMonthlyBy(request.cadence().monthlyBy()).startsOn(request.startsOn())
+                .preferredTime(request.preferredTime()).timeZone(request.timeZone())
                 .durationMinutes(request.durationMinutes()).status(SeriesStatus.ACTIVE).defaultStructure(structure);
 
         return toSeries(seriesStore.save(placed(draft, request.place()).build()));
@@ -79,8 +79,8 @@ public class SeriesService {
         var entity = requireEditableBy(id);
         var structure = toRefs(organizationId, request.defaultStructure());
         var draft = entity.toBuilder().title(request.title()).cadenceCount(request.cadence().count())
-                .cadenceUnit(request.cadence().unit()).startsOn(request.startsOn())
-                .preferredTime(request.preferredTime()).timeZone(request.timeZone())
+                .cadenceUnit(request.cadence().unit()).cadenceMonthlyBy(request.cadence().monthlyBy())
+                .startsOn(request.startsOn()).preferredTime(request.preferredTime()).timeZone(request.timeZone())
                 .durationMinutes(request.durationMinutes()).defaultStructure(structure);
 
         return toSeries(seriesStore.save(placed(draft, request.place()).build()));
@@ -164,7 +164,7 @@ public class SeriesService {
 
     Series toSeries(SeriesRecord e) {
 
-        var cadence = new Cadence(e.getCadenceCount(), e.getCadenceUnit());
+        var cadence = e.cadence();
         var zone = ZoneId.of(e.getTimeZone());
         var next = e.getStatus() == SeriesStatus.ACTIVE
                 ? NextSlot.suggest(NextSlotQuery.builder().cadence(cadence).startsOn(e.getStartsOn())

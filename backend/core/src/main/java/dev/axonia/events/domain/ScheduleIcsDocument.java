@@ -3,6 +3,7 @@ package dev.axonia.events.domain;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -11,6 +12,7 @@ import java.util.stream.Stream;
 import dev.axonia.events.api.MeetingPlace;
 import dev.axonia.events.api.ScheduleEntry;
 import dev.axonia.events.api.SessionStatus;
+import dev.axonia.events.api.Slot;
 import lombok.experimental.UtilityClass;
 
 /**
@@ -103,7 +105,11 @@ public class ScheduleIcsDocument {
         if (entry.updatedAt() != null) {
             out.append(IcsWriter.line("LAST-MODIFIED", IcsWriter.utc(entry.updatedAt())));
         }
-        appendPlace(out, entry, request.sessionBaseUrl());
+        var page = pageOf(entry, request.communityUrl());
+        out.append(IcsWriter.line("URL", page));
+        var place = entry.place() == null ? MeetingPlace.NONE : entry.place();
+        appendPlace(out, place);
+        out.append(IcsWriter.line("DESCRIPTION", IcsWriter.escapeText(descriptionOf(entry, place, page))));
         out.append(IcsWriter.line("END", "VEVENT"));
     }
 
@@ -148,25 +154,11 @@ public class ScheduleIcsDocument {
     }
 
     /**
-     * The place, as the three lines a calendar client understands.
-     *
-     * <p>
-     * {@code LOCATION} prefers the physical location and falls back to the join link when there is none, which is what
-     * keeps every remote-only series byte-identical across the split that introduced this method: before it, the link
-     * was the only place there was and it went here.
-     *
-     * <p>
-     * {@code DESCRIPTION} deliberately never carries {@code joiningDetails}. A feed address is an unauthenticated
-     * bearer token that lives in a subscriber's calendar store indefinitely, so a passcode published here outlives
-     * every reset the product can perform. It carries a pointer to the session page instead, which is behind sign-in
-     * and can be revoked, so the entry still leads somewhere.
+     * The place, as the two lines a calendar client understands. {@code LOCATION} prefers the physical location and
+     * falls back to the join link when there is none.
      */
-    private void appendPlace(StringBuilder out, ScheduleEntry entry, String sessionBaseUrl) {
+    private void appendPlace(StringBuilder out, MeetingPlace place) {
 
-        var place = entry.place() == null ? MeetingPlace.NONE : entry.place();
-        if (place.isEmpty()) {
-            return;
-        }
         var located = place.location() != null ? place.location() : place.joinUrl();
         if (located != null) {
             out.append(IcsWriter.line("LOCATION", IcsWriter.escapeText(located)));
@@ -174,10 +166,39 @@ public class ScheduleIcsDocument {
         if (place.joinUrl() != null) {
             out.append(IcsWriter.line("CONFERENCE;VALUE=URI;FEATURE=VIDEO,AUDIO;LABEL=Join", place.joinUrl()));
         }
-        if (place.joiningDetails() != null && entry.sessionId() != null) {
-            out.append(IcsWriter.line("DESCRIPTION", IcsWriter
-                    .escapeText("Joining details on the session page\n" + sessionBaseUrl + entry.sessionId())));
+    }
+
+    /**
+     * What the occurrence is about, in the one field every client renders. Outlook shows neither {@code CONFERENCE} nor
+     * {@code URL}, so the join link and the way back to Axonia have to be here as well.
+     *
+     * <p>
+     * It deliberately never carries {@code joiningDetails}. A feed address is an unauthenticated bearer token that
+     * lives in a subscriber's calendar store indefinitely, so a passcode published here outlives every reset the
+     * product can perform. It points at the page behind sign-in instead.
+     */
+    private String descriptionOf(ScheduleEntry entry, MeetingPlace place, String page) {
+
+        var blocks = new ArrayList<String>();
+        if (place.joinUrl() != null) {
+            blocks.add("Join: " + place.joinUrl());
         }
+        if (place.joiningDetails() != null) {
+            blocks.add("Joining details on the " + (entry.sessionId() != null ? "session" : "community") + " page");
+        }
+        var agenda = entry.sections().stream().flatMap(section -> section.slots().stream()).map(Slot::title)
+                .filter(title -> title != null && !title.isBlank()).map(title -> "- " + title).toList();
+        if (!agenda.isEmpty()) {
+            blocks.add("Agenda\n" + String.join("\n", agenda));
+        }
+        blocks.add(page);
+        return String.join("\n\n", blocks);
+    }
+
+    /** A ghost has no row and so no session page yet; its community's page is where the projection is shown. */
+    private String pageOf(ScheduleEntry entry, String communityUrl) {
+
+        return entry.sessionId() != null ? SessionUrls.sessionUrl(communityUrl, entry.sessionId()) : communityUrl;
     }
 
     /**
@@ -193,6 +214,7 @@ public class ScheduleIcsDocument {
 
     private String titleOf(ScheduleEntry entry) {
 
-        return entry.title() != null && !entry.title().isBlank() ? entry.title() : "Session";
+        var name = entry.displayTitle();
+        return name != null && !name.isBlank() ? name : "Session";
     }
 }

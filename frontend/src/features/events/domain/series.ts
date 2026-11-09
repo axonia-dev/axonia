@@ -5,9 +5,14 @@ import { meetingPlaceSchema } from "@/features/events/domain/meeting-place";
 const cadenceUnitSchema = z.enum(["DAY", "WEEK", "MONTH", "YEAR"]);
 export type CadenceUnit = z.infer<typeof cadenceUnitSchema>;
 
+const monthlyRuleSchema = z.enum(["DAY_OF_MONTH", "WEEKDAY_OF_MONTH"]);
+export type MonthlyRule = z.infer<typeof monthlyRuleSchema>;
+
+/** `monthlyBy` is null for every unit but MONTH; a monthly cadence stating none keeps its day number. */
 const cadenceSchema = z.object({
   count: z.number().int().min(1).max(999),
   unit: cadenceUnitSchema,
+  monthlyBy: monthlyRuleSchema.nullish(),
 });
 export type Cadence = z.infer<typeof cadenceSchema>;
 

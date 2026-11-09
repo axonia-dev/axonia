@@ -15,6 +15,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
 import dev.axonia.events.domain.CadenceUnit;
+import dev.axonia.events.domain.MonthlyRule;
 import dev.axonia.events.domain.SeriesRecord;
 import dev.axonia.events.domain.SeriesStatus;
 
@@ -50,6 +51,35 @@ class JdbcSeriesStoreTest {
         // then
         assertThat(record).usingRecursiveComparison().isEqualTo(STORED);
         assertThat(JdbcSeriesStore.toEntity(record)).usingRecursiveComparison().isEqualTo(STORED);
+    }
+
+    @Test
+    void the_mapping_round_trips_the_monthly_rule() {
+
+        // given
+        var monthly = STORED.toBuilder().cadenceUnit(CadenceUnit.MONTH).cadenceMonthlyBy(MonthlyRule.WEEKDAY_OF_MONTH)
+                .build();
+
+        // when
+        var record = JdbcSeriesStore.toRecord(monthly);
+
+        // then
+        assertThat(record.cadence().monthlyBy()).isEqualTo(MonthlyRule.WEEKDAY_OF_MONTH);
+        assertThat(JdbcSeriesStore.toEntity(record)).usingRecursiveComparison().isEqualTo(monthly);
+    }
+
+    /** The column is checked against the unit, so what is written is the cadence's own normalised rule. */
+    @Test
+    void a_monthly_record_without_a_rule_is_written_by_its_day_number_and_any_other_unit_without_one() {
+
+        // given
+        var monthly = JdbcSeriesStore.toRecord(STORED).toBuilder().cadenceUnit(CadenceUnit.MONTH).build();
+        var weekly = JdbcSeriesStore.toRecord(STORED).toBuilder().cadenceMonthlyBy(MonthlyRule.WEEKDAY_OF_MONTH)
+                .build();
+
+        // then
+        assertThat(JdbcSeriesStore.toEntity(monthly).getCadenceMonthlyBy()).isEqualTo(MonthlyRule.DAY_OF_MONTH);
+        assertThat(JdbcSeriesStore.toEntity(weekly).getCadenceMonthlyBy()).isNull();
     }
 
     @Test

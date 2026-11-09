@@ -142,8 +142,8 @@ public class EventsPersonalDataFootprint implements PersonalDataFootprint {
         return TableFootprint.builder().table("event_series").category(DataCategory.WHAT_YOU_CONTRIBUTE)
                 .personal(List.of())
                 .notPersonal(Set.of("id", "organization_id", "community_id", "title", "cadence_count", "cadence_unit",
-                        "preferred_time", "time_zone", "location", "join_url", "joining_details", "status",
-                        "created_at", "updated_at", "version", "starts_on", "duration_minutes"))
+                        "cadence_monthly_by", "preferred_time", "time_zone", "location", "join_url", "joining_details",
+                        "status", "created_at", "updated_at", "version", "starts_on", "duration_minutes"))
                 .build();
     }
 

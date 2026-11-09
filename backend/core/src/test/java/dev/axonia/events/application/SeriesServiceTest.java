@@ -20,6 +20,7 @@ import dev.axonia.events.application.port.out.OrganizationContext;
 import dev.axonia.events.application.port.out.SeriesStore;
 import dev.axonia.events.domain.Cadence;
 import dev.axonia.events.domain.CadenceUnit;
+import dev.axonia.events.domain.MonthlyRule;
 import dev.axonia.events.domain.SeriesRecordMother;
 import dev.axonia.events.domain.SeriesStatus;
 import dev.axonia.shared.api.error.ForbiddenException;
@@ -100,6 +101,48 @@ class SeriesServiceTest {
 
         // then
         assertThat(actual.place().joinUrl()).isEqualTo("https://meet.example/dojo");
+    }
+
+    @Test
+    void start_storesTheMonthlyRuleAndReadsItBack() {
+
+        // given
+        var cadence = new Cadence(1, CadenceUnit.MONTH, MonthlyRule.WEEKDAY_OF_MONTH);
+        var request = new CreateSeriesRequest("Backend Guild", cadence, LocalDate.parse("2027-01-13"), null, "UTC",
+                null, 60, List.of());
+        when(organizationContext.organizationId()).thenReturn("default");
+        when(communityAccess.communityIdForSlug("backend")).thenReturn(1L);
+        when(currentUser.userId()).thenReturn("dev-user");
+        when(communityAccess.isOrganizer(1L, "dev-user")).thenReturn(true);
+        when(seriesStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // when
+        var actual = sut.start("backend", request);
+
+        // then
+        assertThat(actual.cadence()).isEqualTo(cadence);
+    }
+
+    @Test
+    void update_replacesTheMonthlyRule() {
+
+        // given
+        var cadence = new Cadence(1, CadenceUnit.MONTH, MonthlyRule.WEEKDAY_OF_MONTH);
+        var request = new UpdateSeriesRequest("Backend Guild", cadence, LocalDate.parse("2027-01-13"), null, "UTC",
+                null, null, List.of());
+        var entity = SeriesRecordMother.any().id(7L).cadenceUnit(CadenceUnit.MONTH)
+                .cadenceMonthlyBy(MonthlyRule.DAY_OF_MONTH).build();
+        when(organizationContext.organizationId()).thenReturn("default");
+        when(seriesStore.findByOrganizationIdAndId("default", 7L)).thenReturn(Optional.of(entity));
+        when(currentUser.userId()).thenReturn("orga");
+        when(communityAccess.isOrganizer(1L, "orga")).thenReturn(true);
+        when(seriesStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // when
+        var actual = sut.update(7L, request);
+
+        // then
+        assertThat(actual.cadence()).isEqualTo(cadence);
     }
 
     @Test

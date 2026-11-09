@@ -30,7 +30,6 @@ import dev.axonia.events.application.port.out.SeriesStore;
 import dev.axonia.events.application.port.out.SessionListing;
 import dev.axonia.events.application.port.out.SessionStore;
 import dev.axonia.events.application.port.out.TopicStore;
-import dev.axonia.events.domain.Cadence;
 import dev.axonia.events.domain.LateBindingPin;
 import dev.axonia.events.domain.NewSession;
 import dev.axonia.events.domain.NextSlot;
@@ -84,7 +83,7 @@ public class SessionService implements Sessions {
         requireMember(series.getCommunityId());
 
         var now = clock.instant();
-        var cadence = new Cadence(series.getCadenceCount(), series.getCadenceUnit());
+        var cadence = series.cadence();
         var zone = ZoneId.of(series.getTimeZone());
         var nextInstant = NextSlot
                 .suggest(NextSlotQuery.builder().cadence(cadence).startsOn(series.getStartsOn())

@@ -9,7 +9,14 @@ import lombok.experimental.UtilityClass;
 @UtilityClass
 public class SessionUrls {
 
-    private static final String SESSION_BASE_URL_TEMPLATE = "%s/communities/%s/sessions/";
+    private static final String COMMUNITY_URL_TEMPLATE = "%s/communities/%s";
+    private static final String SESSIONS_PATH = "/sessions/";
+
+    /** The community's own page, e.g. {@code https://example.com/communities/frontend-guild}. */
+    public String communityUrl(String publicBaseUrl, String slug) {
+
+        return COMMUNITY_URL_TEMPLATE.formatted(publicBaseUrl, slug);
+    }
 
     /**
      * The prefix a session id turns into a session page URL by simple concatenation, e.g.
@@ -17,6 +24,12 @@ public class SessionUrls {
      */
     public String sessionBaseUrl(String publicBaseUrl, String slug) {
 
-        return SESSION_BASE_URL_TEMPLATE.formatted(publicBaseUrl, slug);
+        return communityUrl(publicBaseUrl, slug) + SESSIONS_PATH;
+    }
+
+    /** A session page under an already composed {@link #communityUrl}. */
+    public String sessionUrl(String communityUrl, long sessionId) {
+
+        return communityUrl + SESSIONS_PATH + sessionId;
     }
 }

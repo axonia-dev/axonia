@@ -160,7 +160,7 @@ public class CalendarSubscriptionService {
                 .to(now.plus(WINDOW_FORWARD_DAYS, ChronoUnit.DAYS)).now(now).build());
         var stamp = ScheduleIcsDocument.stampFor(entries, now);
         var request = IcsDocumentRequest.builder().calendarName(identity.name()).host(feedHost())
-                .sessionBaseUrl(SessionUrls.sessionBaseUrl(publicUrlProperties.publicBaseUrl(), identity.slug()))
+                .communityUrl(SessionUrls.communityUrl(publicUrlProperties.publicBaseUrl(), identity.slug()))
                 .stamp(stamp).entries(entries).build();
         return new CalendarFeed(identity.name(), ScheduleIcsDocument.render(request));
     }

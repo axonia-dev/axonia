@@ -15,6 +15,10 @@ import {
   useStartSeries,
   useUpdateSeries,
 } from "@/features/events/api/use-series";
+import {
+  cadenceLabel,
+  monthlyRuleLabel,
+} from "@/features/events/domain/cadence-label";
 import type { SectionTemplateInput } from "@/features/events/domain/events-gateway";
 import type { MeetingPlaceDraft } from "@/features/events/domain/meeting-place";
 import {
@@ -26,6 +30,7 @@ import { describeNextOccurrence } from "@/features/events/domain/occurrence-prev
 import type {
   Cadence,
   CadenceUnit,
+  MonthlyRule,
   Series,
 } from "@/features/events/domain/series";
 import { MeetingPlaceFields } from "@/features/events/ui/MeetingPlaceFields";
@@ -52,18 +57,20 @@ const UNITS: { id: CadenceUnit; label: string }[] = [
   { id: "YEAR", label: "Year" },
 ];
 
-function cadencePreview(count: number, unit: CadenceUnit): string {
-  const label = (UNITS.find((u) => u.id === unit)?.label ?? "").toLowerCase();
-  if (!Number.isInteger(count) || count < 1 || count > 999) {
-    return "Enter a whole number of 1 or more";
-  }
-  return `Every ${count} ${label}${count === 1 ? "" : "s"}`;
+const MONTHLY_RULES: readonly MonthlyRule[] = [
+  "WEEKDAY_OF_MONTH",
+  "DAY_OF_MONTH",
+];
+
+function capitalised(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 interface FormState {
   title: string;
   cadenceCount: string;
   cadenceUnit: CadenceUnit;
+  monthlyBy: MonthlyRule;
   startsOn: string;
   preferredTime: string;
   timeZone: string;
@@ -78,6 +85,7 @@ function initialState(series?: Series, defaultStartsOn?: string): FormState {
       title: "",
       cadenceCount: "1",
       cadenceUnit: "WEEK",
+      monthlyBy: "WEEKDAY_OF_MONTH",
       startsOn: defaultStartsOn ?? "",
       preferredTime: "",
       timeZone: viewerZone(),
@@ -90,6 +98,7 @@ function initialState(series?: Series, defaultStartsOn?: string): FormState {
     title: series.title,
     cadenceCount: String(series.cadence.count),
     cadenceUnit: series.cadence.unit,
+    monthlyBy: series.cadence.monthlyBy ?? "DAY_OF_MONTH",
     startsOn: series.startsOn,
     preferredTime: series.preferredTime ?? "",
     timeZone: series.timeZone,
@@ -115,6 +124,7 @@ export function SeriesForm({
   const [title, setTitle] = useState(init.title);
   const [cadenceCount, setCadenceCount] = useState(init.cadenceCount);
   const [cadenceUnit, setCadenceUnit] = useState<CadenceUnit>(init.cadenceUnit);
+  const [monthlyBy, setMonthlyBy] = useState<MonthlyRule>(init.monthlyBy);
   const [startsOn, setStartsOn] = useState(init.startsOn);
   const [preferredTime, setPreferredTime] = useState(init.preferredTime);
   const [timeZone, setTimeZone] = useState(init.timeZone);
@@ -146,7 +156,11 @@ export function SeriesForm({
     event.preventDefault();
     const input = {
       title,
-      cadence: { count: cadenceCountNum, unit: cadenceUnit } satisfies Cadence,
+      cadence: {
+        count: cadenceCountNum,
+        unit: cadenceUnit,
+        monthlyBy: cadenceUnit === "MONTH" ? monthlyBy : null,
+      } satisfies Cadence,
       startsOn,
       ...(preferredTime.trim() !== "" ? { preferredTime } : {}),
       timeZone,
@@ -187,8 +201,25 @@ export function SeriesForm({
               className="flex-1"
             />
           </div>
+          {cadenceUnit === "MONTH" && (
+            <Select
+              label="Monthly on"
+              hideLabel
+              value={monthlyBy}
+              options={MONTHLY_RULES.map((rule) => ({
+                id: rule,
+                label: capitalised(monthlyRuleLabel(rule, startsOn)),
+              }))}
+              onChange={setMonthlyBy}
+            />
+          )}
           <p className="text-muted-foreground text-sm">
-            {cadencePreview(cadenceCountNum, cadenceUnit)}
+            {cadenceLabel({
+              count: cadenceCountNum,
+              unit: cadenceUnit,
+              monthlyBy,
+              startsOn,
+            })}
           </p>
         </div>
         <DatePicker

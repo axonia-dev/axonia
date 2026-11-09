@@ -20,6 +20,7 @@ public class SeriesRecord {
     private String title;
     private int cadenceCount;
     private CadenceUnit cadenceUnit;
+    private MonthlyRule cadenceMonthlyBy;
     private LocalDate startsOn;
     private LocalTime preferredTime;
     private String timeZone;
@@ -32,4 +33,9 @@ public class SeriesRecord {
     private Instant createdAt;
     private Instant updatedAt;
     private Long version;
+
+    public Cadence cadence() {
+
+        return new Cadence(cadenceCount, cadenceUnit, cadenceMonthlyBy);
+    }
 }

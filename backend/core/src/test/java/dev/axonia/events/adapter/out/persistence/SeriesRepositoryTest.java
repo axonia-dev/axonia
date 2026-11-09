@@ -7,14 +7,18 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import dev.axonia.AssertjAssertions;
 import dev.axonia.AssertjComparators;
 import dev.axonia.CoreJdbcTestSupport;
+import dev.axonia.events.domain.CadenceUnit;
+import dev.axonia.events.domain.MonthlyRule;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 
 class SeriesRepositoryTest extends CoreJdbcTestSupport {
@@ -56,6 +60,32 @@ class SeriesRepositoryTest extends CoreJdbcTestSupport {
                 .usingComparatorForType(AssertjComparators.temporalCloseTo(within(10, ChronoUnit.SECONDS)),
                         Instant.class)
                 .usingRecursiveComparison().ignoringFields("id", "version", "createdAt", "updatedAt").isEqualTo(series);
+    }
+
+    @Test
+    void save_persistsTheMonthlyRule() {
+
+        // given
+        var series = SeriesEntityMother.any().cadenceUnit(CadenceUnit.MONTH)
+                .cadenceMonthlyBy(MonthlyRule.WEEKDAY_OF_MONTH).build();
+
+        // when
+        var saved = seriesRepository.save(series);
+
+        // then
+        assertThat(seriesRepository.findById(saved.getId())).get().extracting(SeriesEntity::getCadenceMonthlyBy)
+                .isEqualTo(MonthlyRule.WEEKDAY_OF_MONTH);
+    }
+
+    /** The column answers for the unit: a monthly series without a rule is a contradiction the schema refuses. */
+    @Test
+    void save_refusesAMonthlySeriesWithoutARule() {
+
+        // given
+        var series = SeriesEntityMother.any().cadenceUnit(CadenceUnit.MONTH).cadenceMonthlyBy(null).build();
+
+        // then
+        assertThatThrownBy(() -> seriesRepository.save(series)).isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test

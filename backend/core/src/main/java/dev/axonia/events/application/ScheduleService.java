@@ -21,7 +21,6 @@ import dev.axonia.events.application.port.out.OrganizationContext;
 import dev.axonia.events.application.port.out.SeriesStore;
 import dev.axonia.events.application.port.out.SessionListing;
 import dev.axonia.events.application.port.out.SessionStore;
-import dev.axonia.events.domain.Cadence;
 import dev.axonia.events.domain.MeetingPlaces;
 import dev.axonia.events.domain.NextSlot;
 import dev.axonia.events.domain.OccurrenceInstant;
@@ -90,7 +89,7 @@ public class ScheduleService implements Schedules {
 
         var ghosts = new ArrayList<ScheduleEntry>();
         for (var series : activeSeries) {
-            var cadence = new Cadence(series.getCadenceCount(), series.getCadenceUnit());
+            var cadence = series.cadence();
             var anchors = NextSlot.occurrencesBetween(cadence, series.getStartsOn(), fromDate, toDate);
             for (var anchor : anchors) {
                 if (!suppressed.contains(series.getId() + ":" + anchor)) {

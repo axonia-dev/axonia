@@ -11,7 +11,7 @@ import lombok.Builder;
  * five-parameter ceiling.
  */
 @Builder
-public record IcsDocumentRequest(String calendarName, String host, String sessionBaseUrl, Instant stamp,
+public record IcsDocumentRequest(String calendarName, String host, String communityUrl, Instant stamp,
         List<ScheduleEntry> entries) {
 
     public IcsDocumentRequest {

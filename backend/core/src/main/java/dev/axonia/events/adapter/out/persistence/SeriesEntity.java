@@ -13,6 +13,7 @@ import org.springframework.data.relational.core.mapping.MappedCollection;
 import org.springframework.data.relational.core.mapping.Table;
 
 import dev.axonia.events.domain.CadenceUnit;
+import dev.axonia.events.domain.MonthlyRule;
 import dev.axonia.events.domain.SeriesStatus;
 import dev.axonia.shared.api.persistence.Entity;
 import lombok.Builder;
@@ -33,6 +34,7 @@ public class SeriesEntity implements Entity {
     private String title;
     private int cadenceCount;
     private CadenceUnit cadenceUnit;
+    private MonthlyRule cadenceMonthlyBy;
     private LocalDate startsOn;
     private LocalTime preferredTime;
     private String timeZone;

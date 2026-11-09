@@ -155,7 +155,7 @@ describe("SeriesForm (create)", () => {
 
     expect(mutate.mock.calls[0]?.[0]).toMatchObject({
       title: "Frontend Dojo",
-      cadence: { count: 3, unit: "MONTH" },
+      cadence: { count: 3, unit: "MONTH", monthlyBy: "WEEKDAY_OF_MONTH" },
       defaultStructure: [{ sectionTypeId: 1 }],
     });
   }, 15_000);
@@ -228,7 +228,10 @@ describe("SeriesForm (edit)", () => {
     await user.click(screen.getByRole("button", { name: /^save$/i }));
     expect(mutate.mock.calls[0]?.[0]).toMatchObject({
       id: 7,
-      input: { durationMinutes: 60, cadence: { count: 2, unit: "MONTH" } },
+      input: {
+        durationMinutes: 60,
+        cadence: { count: 2, unit: "MONTH", monthlyBy: "DAY_OF_MONTH" },
+      },
     });
   }, 15_000);
 });
