@@ -20,6 +20,9 @@ vi.mock("@/features/events/ui/ScheduleTimeline", () => ({
 vi.mock("@/features/events/ui/MonthCalendar", () => ({
   MonthCalendar: () => <div data-testid="month-calendar" />,
 }));
+vi.mock("@/features/events/ui/CalendarSyncChip", () => ({
+  CalendarSyncChip: () => null,
+}));
 vi.mock("@/features/bookmarks/ui/CommunitySavedSessions", () => ({
   CommunitySavedSessions: ({ slug }: { slug: string }) => (
     <div data-testid="saved-sessions" data-slug={slug} />
