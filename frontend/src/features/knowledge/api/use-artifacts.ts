@@ -25,6 +25,15 @@ export function useArtifacts(slug: string, params: ArtifactSearchParams) {
   });
 }
 
+/** A save or unsave changes what a "saved only" library search returns, and nothing else here. */
+export function invalidateSavedArtifactSearches(queryClient: QueryClient) {
+  return queryClient.invalidateQueries({
+    queryKey: artifactKeys.all,
+    predicate: ({ queryKey }) =>
+      (queryKey[3] as ArtifactSearchParams | undefined)?.saved === true,
+  });
+}
+
 /** Every read that names an artifact's contributor: the library, expertise, My impact and the
  *  memories carrying its trace. */
 function invalidateCreditReads(queryClient: QueryClient, slug: string) {

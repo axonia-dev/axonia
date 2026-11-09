@@ -4,7 +4,7 @@
  * adapters so each slice doesn't reimplement the same encoding.
  */
 export function buildQuery(
-  params: Record<string, string | number | undefined>,
+  params: Record<string, string | number | boolean | undefined>,
 ): string {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {

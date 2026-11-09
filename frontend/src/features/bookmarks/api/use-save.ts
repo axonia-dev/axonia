@@ -4,6 +4,7 @@ import { notify } from "@/components/ui/toast";
 import { httpSaveGateway } from "@/features/bookmarks/adapters/http-save-gateway";
 import { saveKeys } from "@/features/bookmarks/api/query-keys";
 import type { SaveableRef } from "@/features/bookmarks/domain/saved";
+import { invalidateSavedArtifactSearches } from "@/features/knowledge/api/use-artifacts";
 
 const gateway = httpSaveGateway;
 
@@ -12,6 +13,9 @@ function useInvalidate(ref: SaveableRef) {
   return () => {
     void queryClient.invalidateQueries({ queryKey: saveKeys.state(ref) });
     void queryClient.invalidateQueries({ queryKey: saveKeys.mine() });
+    if (ref.kind === "artifact") {
+      void invalidateSavedArtifactSearches(queryClient);
+    }
   };
 }
 

@@ -12,14 +12,12 @@ import {
   filterSaved,
   type SavedKind,
   type SavedSort,
-  scopeToCommunity,
   sortSaved,
   toReviewCount,
 } from "@/features/bookmarks/domain/saved-filter";
 import { SavedArtifactRow } from "@/features/bookmarks/ui/SavedArtifactRow";
 import { SavedSessionRow } from "@/features/bookmarks/ui/SavedSessionRow";
 import { SavedToolbar } from "@/features/bookmarks/ui/SavedToolbar";
-import { usePageCommunity } from "@/features/community/ui/use-page-community";
 import { useUsers } from "@/features/identity/api/use-users";
 import { useArtifactTypes } from "@/features/knowledge/api/use-artifact-types";
 import type { ArtifactType } from "@/features/knowledge/domain/artifact-type";
@@ -57,7 +55,6 @@ function distinctFacilitatorIds(items: ReadonlyArray<SavedItem>): string[] {
 interface SavedResultsProps {
   isLoading: boolean;
   hasItems: boolean;
-  scoped: boolean;
   visible: ReadonlyArray<SavedItem>;
   windowed: ReadonlyArray<SavedItem>;
   typeById: Map<number, ArtifactType>;
@@ -66,26 +63,9 @@ interface SavedResultsProps {
   onShowMore: () => void;
 }
 
-/** "Nothing saved" reads differently once the page already implies a community: saved items
- * may still exist elsewhere, so the message must not claim there are none at all. */
-function nothingSavedCopy(scoped: boolean) {
-  return scoped
-    ? {
-        title: "Nothing saved in this community yet",
-        description:
-          "Tap the bookmark on any talk, RFC, recording, or session in this community to keep it here for later.",
-      }
-    : {
-        title: "Nothing saved yet",
-        description:
-          "Tap the bookmark on any talk, RFC, recording, or session to keep it here for later.",
-      };
-}
-
 function SavedResults({
   isLoading,
   hasItems,
-  scoped,
   visible,
   windowed,
   typeById,
@@ -100,8 +80,12 @@ function SavedResults({
   }
 
   if (!hasItems) {
-    const copy = nothingSavedCopy(scoped);
-    return <EmptyState title={copy.title} description={copy.description} />;
+    return (
+      <EmptyState
+        title="Nothing saved yet"
+        description="Tap the bookmark on any talk, RFC, recording, or session to keep it here for later."
+      />
+    );
   }
 
   if (visible.length === 0) {
@@ -130,7 +114,7 @@ function SavedResults({
               key={`a-${item.artifact.id}`}
               item={item}
               type={typeById.get(item.artifact.typeId)}
-              showCommunity={!scoped}
+              showCommunity
             />
           ) : (
             <SavedSessionRow
@@ -139,7 +123,7 @@ function SavedResults({
               facilitatorName={facilitatorNameOf(
                 item.session.facilitatorUserId,
               )}
-              showCommunity={!scoped}
+              showCommunity
             />
           ),
         )}
@@ -161,20 +145,9 @@ function SavedResults({
   );
 }
 
-function useScopedSaved() {
-  const saved = useMySaved();
-  const page = usePageCommunity();
-  const all: SavedItem[] = saved.data ?? [];
-  return {
-    items: page.scoped ? scopeToCommunity(all, page.community?.id) : all,
-    isLoading: saved.isLoading || page.isLoading,
-    scoped: page.scoped,
-    saved,
-  };
-}
-
 export function MySavedView() {
-  const { items, isLoading, scoped, saved } = useScopedSaved();
+  const saved = useMySaved();
+  const items: SavedItem[] = saved.data ?? [];
   const typeById = typesById(useArtifactTypes().data);
   const users = useUsers(distinctFacilitatorIds(items)).data;
   const facilitatorNameOf = (userId: string | null) =>
@@ -262,9 +235,8 @@ export function MySavedView() {
         />
       ) : (
         <SavedResults
-          isLoading={isLoading}
+          isLoading={saved.isLoading}
           hasItems={items.length > 0}
-          scoped={scoped}
           visible={visible}
           windowed={windowed}
           typeById={typeById}

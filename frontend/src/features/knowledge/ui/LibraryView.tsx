@@ -1,10 +1,13 @@
+import { Bookmark } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
+import { FilterToggleChip } from "@/components/patterns/FilterToggleChip";
 import { Pagination } from "@/components/patterns/Pagination";
 import { SearchField } from "@/components/ui/SearchField";
 import { Select } from "@/components/ui/Select";
+import { SavedHelpfulPrompt } from "@/features/bookmarks/ui/SavedHelpfulPrompt";
 import { useArtifacts } from "@/features/knowledge/api/use-artifacts";
 import type { Artifact } from "@/features/knowledge/domain/artifact";
 import type { ArtifactSearchParams } from "@/features/knowledge/domain/knowledge-gateway";
@@ -33,11 +36,24 @@ interface FilterState {
   tag: string | null;
   session: number;
   sort: Sort;
+  saved: boolean;
   page: number;
 }
 
+const SAVED_PARAM = "saved";
+
+const SAVED_LIST = {
+  empty: {
+    title: "Nothing saved here yet",
+    description: "Bookmarked artifacts from this library appear here.",
+  },
+  renderArtifactFootnote: (artifact: Artifact) => (
+    <SavedHelpfulPrompt artifactId={artifact.id} />
+  ),
+};
+
 function buildSearchParams(filters: FilterState): ArtifactSearchParams {
-  const { q, typeFilter, tag, session, sort, page } = filters;
+  const { q, typeFilter, tag, session, sort, saved, page } = filters;
   return {
     page,
     size: PAGE_SIZE,
@@ -46,6 +62,7 @@ function buildSearchParams(filters: FilterState): ArtifactSearchParams {
     ...(tag !== null ? { tag } : {}),
     ...(session !== ANY_SESSION ? { session } : {}),
     ...(sort !== DEFAULT_SORT ? { sort } : {}),
+    ...(saved ? { saved: true as const } : {}),
   };
 }
 
@@ -107,6 +124,7 @@ export function LibraryView({
   const [session, setSession] = useState<number>(ANY_SESSION);
   const [sort, setSort] = useState<Sort>(() => sortFromParams(searchParams));
   const focusedId = focusedIdFromParams(searchParams);
+  const saved = searchParams.get(SAVED_PARAM) === "1";
   const [page, setPage] = useState(0);
 
   useEffect(() => {
@@ -134,7 +152,31 @@ export function LibraryView({
     };
   }
 
-  const params = buildSearchParams({ q, typeFilter, tag, session, sort, page });
+  function toggleSaved() {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (saved) {
+          next.delete(SAVED_PARAM);
+        } else {
+          next.set(SAVED_PARAM, "1");
+        }
+        return next;
+      },
+      { replace: true },
+    );
+    setPage(0);
+  }
+
+  const params = buildSearchParams({
+    q,
+    typeFilter,
+    tag,
+    session,
+    sort,
+    saved,
+    page,
+  });
   const artifacts = useArtifacts(slug, params);
   const data = artifacts.data;
   const totalPages = data?.totalPages ?? 0;
@@ -164,6 +206,13 @@ export function LibraryView({
             options={SORT_OPTIONS}
             onChange={resetTo(setSort)}
           />
+          <FilterToggleChip
+            active={saved}
+            onToggle={toggleSaved}
+            icon={<Bookmark size={14} aria-hidden />}
+          >
+            Saved
+          </FilterToggleChip>
         </div>
 
         <TypeChips selected={typeFilter} onSelect={resetTo(setTypeFilter)} />
@@ -184,6 +233,7 @@ export function LibraryView({
         onTagClick={resetTo(setTag)}
         focusedId={focusedId}
         {...definedRenderers(renderers)}
+        {...(saved ? SAVED_LIST : {})}
       />
 
       {totalPages > 1 && (

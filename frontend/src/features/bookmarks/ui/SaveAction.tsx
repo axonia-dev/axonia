@@ -1,5 +1,5 @@
 import { Bookmark } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
 import { Button } from "@/components/ui/Button";
 import {
@@ -12,11 +12,21 @@ import { cn } from "@/lib/cn";
 
 /** Private bookmark gesture: no count, no label. Filled = saved. Aggregate
  * demand only ever resurfaces in community health, never here. */
+/** Inside a community a save is filtered where its kind already lives; outside, the cross-community list. */
+function savedListHref(target: SaveableRef, slug: string | undefined) {
+  if (slug === undefined) {
+    return "/me/saved";
+  }
+  const page = target.kind === "artifact" ? "library" : "schedule";
+  return `/communities/${slug}/${page}?saved=1`;
+}
+
 export function SaveAction({ target }: Readonly<{ target: SaveableRef }>) {
   const navigate = useNavigate();
+  const { slug } = useParams();
   const state = useSaveState(target);
   const save = useSave(target, () => {
-    void navigate("/me/saved");
+    void navigate(savedListHref(target, slug));
   });
   const unsave = useUnsave(target);
 

@@ -236,7 +236,10 @@ function openRoutes(edition: EditionSlots): ReactNode {
         />
         <Route path="me/impact" element={<MyImpactRoute />} />
         <Route path="me/expertise" element={<MyExpertiseView />} />
-        <Route path="me/saved" element={<MySavedView />} />
+        <Route
+          path="me/saved"
+          element={<Navigate to="../library?saved=1" replace />}
+        />
         <Route path="*" element={<CommunityNotFound />} />
       </Route>
       <Route path="*" element={<NotFoundPage />} />

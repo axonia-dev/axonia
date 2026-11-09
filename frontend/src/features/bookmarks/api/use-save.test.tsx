@@ -26,6 +26,13 @@ vi.mock("@/components/ui/toast", () => ({
   notifyError: vi.fn(),
 }));
 
+const invalidateSavedArtifactSearches = vi.fn();
+vi.mock("@/features/knowledge/api/use-artifacts", () => ({
+  invalidateSavedArtifactSearches: () => {
+    invalidateSavedArtifactSearches();
+  },
+}));
+
 import { httpSaveGateway } from "@/features/bookmarks/adapters/http-save-gateway";
 
 const gateway = vi.mocked(httpSaveGateway);
@@ -81,6 +88,25 @@ describe("useUnsave", () => {
     const action = notify.mock.calls[0]![1] as { onPress: () => void };
     action.onPress();
     await waitFor(() => expect(gateway.save).toHaveBeenCalledWith(ref));
+  });
+
+  it("refreshes saved-only library searches for an artifact, not a session", async () => {
+    gateway.unsave.mockResolvedValue(undefined);
+    const artifact = renderHook(
+      () => useUnsave({ kind: "artifact", id: 100 }),
+      { wrapper },
+    ).result;
+    const session = renderHook(() => useUnsave({ kind: "session", id: 7 }), {
+      wrapper,
+    }).result;
+
+    session.current.mutate();
+    await waitFor(() => expect(session.current.isSuccess).toBe(true));
+    expect(invalidateSavedArtifactSearches).not.toHaveBeenCalled();
+
+    artifact.current.mutate();
+    await waitFor(() => expect(artifact.current.isSuccess).toBe(true));
+    expect(invalidateSavedArtifactSearches).toHaveBeenCalledOnce();
   });
 });
 

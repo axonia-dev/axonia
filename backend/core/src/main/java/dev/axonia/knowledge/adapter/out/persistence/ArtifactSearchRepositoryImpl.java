@@ -64,6 +64,7 @@ class ArtifactSearchRepositoryImpl implements ArtifactSearchRepository {
             params.addValue("tag", filter.tag());
         }
         appendSessionFilter(filter, where, params);
+        appendIdsFilter(filter, where, params);
 
         var total = jdbc.queryForObject("SELECT count(*)" + where, params, Long.class);
         if (total == null || total == 0) {
@@ -176,6 +177,20 @@ class ArtifactSearchRepositoryImpl implements ArtifactSearchRepository {
             return " ORDER BY ts_rank(a.search_vector, websearch_to_tsquery('english', :q)) DESC, a.created_at DESC";
         }
         return " ORDER BY a.created_at DESC";
+    }
+
+    /** An empty set matches nothing, and is never rendered as {@code IN ()}, which Postgres rejects. */
+    private static void appendIdsFilter(ArtifactFilter filter, StringBuilder where, MapSqlParameterSource params) {
+
+        if (filter.ids() == null) {
+            return;
+        }
+        if (filter.ids().isEmpty()) {
+            where.append(" AND FALSE");
+        } else {
+            where.append(" AND a.id IN (:ids)");
+            params.addValue("ids", filter.ids());
+        }
     }
 
     private void appendSessionFilter(ArtifactFilter filter, StringBuilder where, MapSqlParameterSource params) {

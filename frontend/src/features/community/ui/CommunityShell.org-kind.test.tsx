@@ -145,10 +145,7 @@ describe("CommunityShell by organization kind", () => {
       "href",
       "/communities/backend-guild/me/expertise",
     );
-    expect(rail.getByRole("link", { name: "Saved" })).toHaveAttribute(
-      "href",
-      "/communities/backend-guild/me/saved",
-    );
+    expect(rail.queryByRole("link", { name: "Saved" })).not.toBeInTheDocument();
     expect(rail.queryByText("Admin")).not.toBeInTheDocument();
     expect(rail.queryByRole("link", { name: "Users" })).not.toBeInTheDocument();
     expect(rail.queryByRole("link", { name: "Roles" })).not.toBeInTheDocument();
@@ -210,10 +207,7 @@ describe("CommunityShell by organization kind", () => {
       "href",
       "/communities/backend-guild/me/expertise",
     );
-    expect(rail.getByRole("link", { name: "Saved" })).toHaveAttribute(
-      "href",
-      "/communities/backend-guild/me/saved",
-    );
+    expect(rail.queryByRole("link", { name: "Saved" })).not.toBeInTheDocument();
     expect(rail.queryByText("Admin")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Communities" })).toHaveAttribute(
       "href",

@@ -20,6 +20,7 @@ import dev.axonia.knowledge.api.ArtifactWithdrawn;
 import dev.axonia.knowledge.api.Artifacts;
 import dev.axonia.knowledge.api.CreateArtifactRequest;
 import dev.axonia.knowledge.api.ProvenanceRequest;
+import dev.axonia.knowledge.api.spi.SavedArtifacts;
 import dev.axonia.knowledge.application.port.out.ArtifactStore;
 import dev.axonia.knowledge.application.port.out.ArtifactTypeStore;
 import dev.axonia.knowledge.application.port.out.AttachmentStore;
@@ -55,6 +56,7 @@ public class ArtifactService implements Artifacts {
     private final ApplicationEventPublisher eventPublisher;
     private final SessionProvenanceGuard sessionProvenanceGuard;
     private final ResourceAttachAuthorizer resourceAttachAuthorizer;
+    private final SavedArtifacts savedArtifacts;
 
     @Override
     @Transactional
@@ -103,8 +105,18 @@ public class ArtifactService implements Artifacts {
 
         var organizationId = organizationContext.organizationId();
         var communityId = communityAccess.communityIdForSlug(slug);
-        var page = artifactStore.search(organizationId, communityId, filter, pageable);
+        var page = artifactStore.search(organizationId, communityId, scoped(filter, organizationId, communityId),
+                pageable);
         return new PageImpl<>(artifactMapper.toArtifacts(page.getContent()), pageable, page.getTotalElements());
+    }
+
+    private ArtifactFilter scoped(ArtifactFilter filter, String organizationId, long communityId) {
+
+        if (!filter.saved()) {
+            return filter;
+        }
+        return filter.toBuilder().ids(savedArtifacts.savedIn(organizationId, currentUser.userId(), communityId))
+                .build();
     }
 
     @Transactional(readOnly = true)

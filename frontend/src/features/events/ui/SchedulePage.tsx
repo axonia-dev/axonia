@@ -1,4 +1,9 @@
-import { CalendarSync, ChevronDown, MoreHorizontal } from "lucide-react";
+import {
+  Bookmark,
+  CalendarSync,
+  ChevronDown,
+  MoreHorizontal,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   type Key,
@@ -8,11 +13,13 @@ import {
 } from "react-aria-components";
 import { useSearchParams } from "react-router-dom";
 
+import { FilterToggleChip } from "@/components/patterns/FilterToggleChip";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { IconButton } from "@/components/ui/IconButton";
 import { MenuItem, menuPopoverClass } from "@/components/ui/Menu";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { CommunitySavedSessions } from "@/features/bookmarks/ui/CommunitySavedSessions";
 import { useContributionPolicy } from "@/features/community/api/use-contribution-policy";
 import { useIsOrganizer } from "@/features/community/api/use-organizer";
 import type { MonthPosition } from "@/features/events/domain/schedule-position";
@@ -41,6 +48,8 @@ import { ScheduleTimeline } from "@/features/events/ui/ScheduleTimeline";
 import { SeriesForm } from "@/features/events/ui/SeriesForm";
 import { cn } from "@/lib/cn";
 
+const SAVED_PARAM = "saved";
+
 const VIEW_OPTIONS = [
   { id: "timeline", label: "Timeline" },
   { id: "calendar", label: "Calendar" },
@@ -56,6 +65,11 @@ function resolveMonth(raw: string | null, slug: string): MonthPosition {
   return parseMonthParam(raw) ?? storedMonth(slug) ?? currentMonth(new Date());
 }
 
+/** Saved sessions are one column of cards, read at the timeline's width. */
+function blockFor(saved: boolean, view: ScheduleView) {
+  return saved || view === "timeline" ? TIMELINE_BLOCK : CALENDAR_BLOCK;
+}
+
 /** Closed state has no date to avoid passing undefined to exactOptionalPropertyTypes props. */
 type ModalState = { open: false } | { open: true; date?: string };
 
@@ -63,6 +77,7 @@ export function SchedulePage({ slug }: Readonly<{ slug: string }>) {
   const [searchParams, setSearchParams] = useSearchParams();
   const view = resolveView(searchParams.get("view"));
   const month = resolveMonth(searchParams.get("month"), slug);
+  const saved = searchParams.get(SAVED_PARAM) === "1";
   const { year, monthIndex0 } = month;
 
   useEffect(() => {
@@ -73,11 +88,17 @@ export function SchedulePage({ slug }: Readonly<{ slug: string }>) {
     storeMonth(slug, { year, monthIndex0 });
   }, [slug, year, monthIndex0]);
 
-  function setParam(key: string, value: string) {
+  function setParams(changes: Record<string, string | null>) {
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev);
-        next.set(key, value);
+        for (const [key, value] of Object.entries(changes)) {
+          if (value === null) {
+            next.delete(key);
+          } else {
+            next.set(key, value);
+          }
+        }
         return next;
       },
       { replace: true },
@@ -123,7 +144,7 @@ export function SchedulePage({ slug }: Readonly<{ slug: string }>) {
   // content inside that. The controls sit over the view they control rather than at an edge it
   // never reaches: the calendar's own block for the calendar, a reading width for the timeline,
   // which is one column of cards and gains nothing from the room.
-  const block = view === "timeline" ? TIMELINE_BLOCK : CALENDAR_BLOCK;
+  const block = blockFor(saved, view);
 
   return (
     <section className="flex flex-col gap-4">
@@ -151,12 +172,19 @@ export function SchedulePage({ slug }: Readonly<{ slug: string }>) {
               </Popover>
             </MenuTrigger>
           )}
+          <FilterToggleChip
+            active={saved}
+            onToggle={() => setParams({ [SAVED_PARAM]: saved ? null : "1" })}
+            icon={<Bookmark size={14} aria-hidden />}
+          >
+            Saved
+          </FilterToggleChip>
           <SegmentedControl
             label="Schedule view"
             hideLabel
             value={view}
             options={VIEW_OPTIONS}
-            onChange={(next) => setParam("view", next)}
+            onChange={(next) => setParams({ view: next, [SAVED_PARAM]: null })}
           />
           {/* A neutral glyph over a labelled item, not a calendar icon: a calendar with a
               plus beside a calendar view reads as "add a session", which + New already is. */}
@@ -179,7 +207,12 @@ export function SchedulePage({ slug }: Readonly<{ slug: string }>) {
         </div>
       </div>
 
-      {view === "timeline" ? (
+      {saved && (
+        <div className={block}>
+          <CommunitySavedSessions slug={slug} />
+        </div>
+      )}
+      {!saved && view === "timeline" && (
         <div className={block}>
           <ScheduleTimeline
             slug={slug}
@@ -187,11 +220,12 @@ export function SchedulePage({ slug }: Readonly<{ slug: string }>) {
             canManage={canManage}
           />
         </div>
-      ) : (
+      )}
+      {!saved && view === "calendar" && (
         <MonthCalendar
           slug={slug}
           month={month}
-          onMonthChange={(next) => setParam("month", formatMonthParam(next))}
+          onMonthChange={(next) => setParams({ month: formatMonthParam(next) })}
           canManage={canManage}
           canStartSeries={canStartSeries}
           onCreateSeries={openSeries}

@@ -26,6 +26,8 @@ export interface ArtifactSearchParams {
   from?: string;
   /** Result ordering. `newest` (default) or `mostAppreciated` (by love count). */
   sort?: "newest" | "mostAppreciated";
+  /** Keep only the caller's own saved artifacts. */
+  saved?: true;
 }
 
 export interface ArtifactTypeInput {

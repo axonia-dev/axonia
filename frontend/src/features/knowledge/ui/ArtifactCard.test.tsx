@@ -51,6 +51,20 @@ function renderCard(
 }
 
 describe("ArtifactCard", () => {
+  it("renders a footnote under the byline when given one", () => {
+    render(
+      <MemoryRouter>
+        <ArtifactCard
+          slug="eng"
+          artifact={artifact}
+          footnote={<span>Was this helpful?</span>}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Was this helpful?")).toBeInTheDocument();
+  });
+
   it("links the title to the artifact url in a new tab", () => {
     // when
     renderCard();

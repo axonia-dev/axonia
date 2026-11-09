@@ -39,9 +39,11 @@ vi.mock("@/features/bookmarks/api/use-save", () => ({
 }));
 
 const navigate = vi.fn();
+let params: { slug?: string } = {};
 vi.mock("react-router-dom", async (orig) => ({
   ...(await orig<typeof import("react-router-dom")>()),
   useNavigate: () => navigate,
+  useParams: () => params,
 }));
 
 describe("SaveAction", () => {
@@ -49,6 +51,7 @@ describe("SaveAction", () => {
     vi.clearAllMocks();
     state = { viewerHasSaved: false, viewerHelped: null };
     onViewCallback = undefined;
+    params = {};
   });
 
   it("saves when not yet saved", async () => {
@@ -72,10 +75,26 @@ describe("SaveAction", () => {
     expect(screen.queryByText(/\d+/)).not.toBeInTheDocument();
   });
 
-  it("wires the toast's View action to navigate to /me/saved", () => {
+  it("wires the toast's View action to /me/saved outside a community", () => {
     render(<SaveAction target={{ kind: "artifact", id: 100 }} />);
     onViewCallback?.();
     expect(navigate).toHaveBeenCalledWith("/me/saved");
+  });
+
+  it("views a saved artifact in its community's library, saved only", () => {
+    params = { slug: "guild" };
+    render(<SaveAction target={{ kind: "artifact", id: 100 }} />);
+    onViewCallback?.();
+    expect(navigate).toHaveBeenCalledWith("/communities/guild/library?saved=1");
+  });
+
+  it("views a saved session in its community's schedule, saved only", () => {
+    params = { slug: "guild" };
+    render(<SaveAction target={{ kind: "session", id: 42 }} />);
+    onViewCallback?.();
+    expect(navigate).toHaveBeenCalledWith(
+      "/communities/guild/schedule?saved=1",
+    );
   });
 
   it("reflects useSaveState for a session target", async () => {

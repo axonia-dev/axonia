@@ -7,6 +7,7 @@ import { scheduleKeys } from "@/features/events/api/query-keys";
 import { expertiseKeys } from "@/features/expertise/api/query-keys";
 import { artifactKeys } from "@/features/knowledge/api/query-keys";
 import {
+  invalidateSavedArtifactSearches,
   useArtifacts,
   useCaptureArtifact,
   useChangeContributor,
@@ -255,5 +256,25 @@ describe("useRemoveArtifact", () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(client.getQueryState(memories)?.isInvalidated).toBe(true);
     expect(client.getQueryState(window)?.isInvalidated).toBe(false);
+  });
+});
+
+describe("invalidateSavedArtifactSearches", () => {
+  it("marks only saved-only searches stale", async () => {
+    // given
+    const savedSearch = artifactKeys.search("guild", { saved: true, page: 0 });
+    const plainSearch = artifactKeys.search("guild", { page: 0 });
+    const stats = artifactKeys.stats("guild");
+    for (const queryKey of [savedSearch, plainSearch, stats]) {
+      client.setQueryData(queryKey, {});
+    }
+
+    // when
+    await invalidateSavedArtifactSearches(client);
+
+    // then
+    expect(client.getQueryState(savedSearch)?.isInvalidated).toBe(true);
+    expect(client.getQueryState(plainSearch)?.isInvalidated).toBe(false);
+    expect(client.getQueryState(stats)?.isInvalidated).toBe(false);
   });
 });

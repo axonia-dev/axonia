@@ -1,35 +1,16 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter, useParams } from "react-router-dom";
+import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { SavedItem } from "@/features/bookmarks/domain/saved";
 import { view } from "@/features/bookmarks/domain/saved-filter-fixture";
 import { MySavedView } from "@/features/bookmarks/ui/MySavedView";
-import { useCommunity } from "@/features/community/api/use-communities";
-
-vi.mock("@/features/community/api/use-communities", () => ({
-  useCommunity: vi.fn(),
-}));
-vi.mock("react-router-dom", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("react-router-dom")>()),
-  useParams: vi.fn(() => ({})),
-}));
-
-function onPage(community?: { id: number; slug: string }) {
-  vi.mocked(useParams).mockReturnValue(
-    community === undefined ? {} : { slug: community.slug },
-  );
-  vi.mocked(useCommunity).mockReturnValue({
-    data: community === undefined ? undefined : { id: community.id },
-  } as never);
-}
 
 let user: ReturnType<typeof userEvent.setup>;
 
 beforeEach(() => {
   user = userEvent.setup({ delay: null });
-  onPage();
 });
 
 const markHelpful = vi.fn();

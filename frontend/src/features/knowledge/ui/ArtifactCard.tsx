@@ -29,6 +29,8 @@ interface Props {
   /** The reaction strip, which belongs in the byline rather than the rail - see the footer. */
   reactions?: ReactNode;
   manageActions?: ReactNode;
+  /** A strip under the byline, set apart by a dashed rule. */
+  footnote?: ReactNode;
   onTagClick?: (tag: string) => void;
   /** Resolved contributor identity; falls back to the raw user id. */
   contributor?: CardContributor;
@@ -94,6 +96,7 @@ export function ArtifactCard({
   actions,
   reactions,
   manageActions,
+  footnote,
   onTagClick,
   contributor,
   provenanceText,
@@ -167,6 +170,12 @@ export function ArtifactCard({
           </span>
           {reactions && <div className="ml-auto">{reactions}</div>}
         </footer>
+
+        {footnote && (
+          <div className="border-border/60 mt-1 border-t border-dashed pt-3">
+            {footnote}
+          </div>
+        )}
       </div>
 
       {actions && (

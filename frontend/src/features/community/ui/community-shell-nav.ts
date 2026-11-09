@@ -1,7 +1,6 @@
 import {
   Activity,
   Book,
-  Bookmark,
   Calendar,
   GraduationCap,
   Lightbulb,
@@ -28,8 +27,8 @@ export type GroupSpec = [string, ElementType, ItemSpec[]];
 
 /**
  * The one group every organization adds to the community shell: a personal
- * "Me" surface (impact, expertise, saved - every member has these, no
- * permission gate). Organization administration lives behind the account
+ * "Me" surface (impact, expertise - every member has these, no
+ * permission gate). Saved items are a filter on the Library and the Schedule. Organization administration lives behind the account
  * menu's Organization settings, not in this rail.
  */
 function meGroupSpec(): GroupSpec {
@@ -39,7 +38,6 @@ function meGroupSpec(): GroupSpec {
     [
       ["My impact", "me/impact", Zap],
       ["My expertise", "me/expertise", Lightbulb],
-      ["Saved", "me/saved", Bookmark],
     ],
   ];
 }

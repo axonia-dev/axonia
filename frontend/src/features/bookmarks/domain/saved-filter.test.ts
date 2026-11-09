@@ -7,7 +7,6 @@ import {
   isToReview,
   type SavedFilters,
   savedItemTitle,
-  scopeToCommunity,
   sortSaved,
   toReviewCount,
 } from "@/features/bookmarks/domain/saved-filter";
@@ -106,21 +105,6 @@ describe("filterSaved", () => {
     expect(filterSaved(items, { ...base, reviewOnly: true })).toEqual([
       items[0],
     ]);
-  });
-});
-
-describe("scopeToCommunity", () => {
-  it("keeps only items belonging to the given community, sessions included", () => {
-    const kept = [
-      view({ id: 2, communityId: 9 }),
-      sessionView({ communityId: 9 }),
-    ];
-    const items = [view({ id: 1, communityId: 2 }), ...kept];
-    expect(scopeToCommunity(items, 9)).toEqual(kept);
-  });
-
-  it("keeps nothing while the community is not yet resolved", () => {
-    expect(scopeToCommunity([view({ id: 1 })], undefined)).toEqual([]);
   });
 });
 

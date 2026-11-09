@@ -362,6 +362,36 @@ class ArtifactRepositoryTest extends CoreJdbcTestSupport {
         assertThat(all.getTotalElements()).isEqualTo(1);
     }
 
+    @Test
+    void search_ids_narrowsToThoseArtifactsAndStillAppliesTheOtherFilters() {
+
+        // given
+        var kept = standaloneArtifact("Kafka retries");
+        var otherTitle = standaloneArtifact("Social event");
+        standaloneArtifact("Kafka outside the set");
+
+        // when
+        var page = artifactRepository.search("default", 1L,
+                ArtifactFilter.builder().q("kafka").ids(Set.of(kept, otherTitle)).build(), PageRequest.of(0, 10));
+
+        // then
+        assertThat(page.getContent()).extracting(ArtifactEntity::getId).containsExactly(kept);
+    }
+
+    @Test
+    void search_emptyIds_matchesNothing() {
+
+        // given
+        standaloneArtifact("Kafka retries");
+
+        // when
+        var page = artifactRepository.search("default", 1L, ArtifactFilter.builder().ids(Set.of()).build(),
+                PageRequest.of(0, 10));
+
+        // then
+        assertThat(page.getTotalElements()).isZero();
+    }
+
     private Long artifactWithProvenanceSession(String title, Long sessionId) {
 
         return artifactRepository.save(ArtifactEntityMother.any().title(title).searchDocument(title).tags(Set.of())

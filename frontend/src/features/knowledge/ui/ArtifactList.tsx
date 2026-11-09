@@ -14,19 +14,42 @@ import { provenanceText } from "@/features/knowledge/ui/provenance-text";
 import { cn } from "@/lib/cn";
 import { userHue } from "@/lib/user-hue";
 
+interface EmptyCopy {
+  title: string;
+  description: string;
+}
+
+const NOTHING_CAPTURED: EmptyCopy = {
+  title: "Nothing in the library yet",
+  description:
+    "Capture a talk, recording, RFC, or write-up to start the collection.",
+};
+
 function EmptyLibrary({
   isFiltered,
-}: Readonly<{ isFiltered: boolean | undefined }>) {
+  empty,
+}: Readonly<{ isFiltered: boolean | undefined; empty: EmptyCopy }>) {
   return isFiltered ? (
     <EmptyState
       title="No matching artifacts"
       description="Change the search or filters."
     />
   ) : (
-    <EmptyState
-      title="Nothing in the library yet"
-      description="Capture a talk, recording, RFC, or write-up to start the collection."
-    />
+    <EmptyState title={empty.title} description={empty.description} />
+  );
+}
+
+type CardSlot = "reactions" | "manageActions" | "footnote";
+
+/** Renders only the slots a caller supplied; `exactOptionalPropertyTypes` refuses an explicit `undefined`. */
+function slotsFor(
+  artifact: Artifact,
+  renderers: Record<CardSlot, ((artifact: Artifact) => ReactNode) | undefined>,
+): Partial<Record<CardSlot, ReactNode>> {
+  return Object.fromEntries(
+    Object.entries(renderers)
+      .filter(([, render]) => render !== undefined)
+      .map(([slot, render]) => [slot, render?.(artifact)]),
   );
 }
 
@@ -41,6 +64,9 @@ interface Props {
   renderArtifactActions?: (artifact: Artifact) => ReactNode;
   renderArtifactReactions?: (artifact: Artifact) => ReactNode;
   renderArtifactManageActions?: (artifact: Artifact) => ReactNode;
+  renderArtifactFootnote?: (artifact: Artifact) => ReactNode;
+  /** What an unfiltered empty list says. */
+  empty?: EmptyCopy;
   /** When set, that artifact's row is ringed and scrolled into view (deep-link landing). */
   focusedId?: number | undefined;
 }
@@ -55,6 +81,8 @@ export function ArtifactList({
   renderArtifactActions,
   renderArtifactReactions,
   renderArtifactManageActions,
+  renderArtifactFootnote,
+  empty = NOTHING_CAPTURED,
   focusedId,
 }: Readonly<Props>) {
   // Resolve contributors and session provenance once for the whole page, rather
@@ -118,7 +146,7 @@ export function ArtifactList({
     );
   }
   if (artifacts.length === 0) {
-    return <EmptyLibrary isFiltered={isFiltered} />;
+    return <EmptyLibrary isFiltered={isFiltered} empty={empty} />;
   }
   return (
     <ul className="flex flex-col gap-3">
@@ -152,12 +180,11 @@ export function ArtifactList({
                   <SaveAction target={{ kind: "artifact", id: artifact.id }} />
                 </>
               }
-              {...(renderArtifactReactions
-                ? { reactions: renderArtifactReactions(artifact) }
-                : {})}
-              {...(renderArtifactManageActions
-                ? { manageActions: renderArtifactManageActions(artifact) }
-                : {})}
+              {...slotsFor(artifact, {
+                reactions: renderArtifactReactions,
+                manageActions: renderArtifactManageActions,
+                footnote: renderArtifactFootnote,
+              })}
             />
           </li>
         );

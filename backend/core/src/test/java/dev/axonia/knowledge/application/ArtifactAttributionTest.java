@@ -85,7 +85,8 @@ class ArtifactAttributionTest {
         sut = new ArtifactService(artifactStore, artifactTypeStore, artifactMapper, artifactAuthorizer, communityAccess,
                 new ContributorResolver(communityAccess), currentUser, organizationContext, attachmentStore,
                 eventPublisher, sessionProvenanceGuard,
-                new ResourceAttachAuthorizer(communityAccess, sessionProvenanceGuard));
+                new ResourceAttachAuthorizer(communityAccess, sessionProvenanceGuard),
+                (org, user, community) -> Set.of());
         when(organizationContext.organizationId()).thenReturn("default");
         when(currentUser.userId()).thenReturn("alice");
         when(communityAccess.communityIdForSlug("backend-guild")).thenReturn(1L);

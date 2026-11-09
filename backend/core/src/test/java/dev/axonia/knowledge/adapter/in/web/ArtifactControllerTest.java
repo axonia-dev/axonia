@@ -68,6 +68,23 @@ class ArtifactControllerTest extends ControllerTestSupport {
     }
 
     @Test
+    void search_bindsSavedAndLeavesItOffWhenAbsent() throws JacksonException {
+
+        // given
+        var captor = org.mockito.ArgumentCaptor.forClass(ArtifactFilter.class);
+        when(artifactService.search(eq("frontend-guild"), captor.capture(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
+
+        // when
+        mvc.get().uri("/axonia/communities/{slug}/artifacts", "frontend-guild").queryParam("saved", "true").exchange();
+        mvc.get().uri("/axonia/communities/{slug}/artifacts", "frontend-guild").exchange();
+
+        // then
+        org.assertj.core.api.Assertions.assertThat(captor.getAllValues()).extracting(ArtifactFilter::saved)
+                .containsExactly(true, false);
+    }
+
+    @Test
     void search_passesSortParamAndExposesLoveCount() throws JacksonException {
 
         // given

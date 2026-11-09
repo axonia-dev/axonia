@@ -14,14 +14,17 @@ vi.mock("@/features/knowledge/ui/ArtifactCard", () => ({
   ArtifactCard: ({
     artifact,
     manageActions,
+    footnote,
   }: {
     artifact: { id: number; title: string };
     manageActions?: React.ReactNode;
+    footnote?: React.ReactNode;
   }) => (
     <div data-testid="artifact-card">
       {artifact.id}
       <span>{artifact.title}</span>
       {manageActions && <div data-testid="manage-actions">{manageActions}</div>}
+      {footnote && <div data-testid="footnote">{footnote}</div>}
     </div>
   ),
 }));
@@ -89,6 +92,44 @@ describe("ArtifactList", () => {
 
     // then
     expect(screen.getByText(/nothing in the library yet/i)).toBeInTheDocument();
+  });
+
+  it("says what the caller names when an unfiltered list is empty", () => {
+    render(
+      <ArtifactList
+        slug="eng"
+        artifacts={[]}
+        isLoading={false}
+        isError={false}
+        empty={{ title: "Nothing saved here yet", description: "Saved." }}
+      />,
+    );
+
+    expect(screen.getByText("Nothing saved here yet")).toBeInTheDocument();
+  });
+
+  it("renders a footnote only when the caller supplies one", () => {
+    const { rerender } = render(
+      <ArtifactList
+        slug="eng"
+        artifacts={[focusArtifact as Artifact]}
+        isLoading={false}
+        isError={false}
+      />,
+      { wrapper },
+    );
+    expect(screen.queryByTestId("footnote")).not.toBeInTheDocument();
+
+    rerender(
+      <ArtifactList
+        slug="eng"
+        artifacts={[focusArtifact as Artifact]}
+        isLoading={false}
+        isError={false}
+        renderArtifactFootnote={(a) => <span>note-{a.id}</span>}
+      />,
+    );
+    expect(screen.getByTestId("footnote")).toHaveTextContent("note-42");
   });
 
   it("says nothing matches, rather than that the library is empty, when filtered", () => {

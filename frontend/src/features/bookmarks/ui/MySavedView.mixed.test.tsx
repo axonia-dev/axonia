@@ -32,10 +32,6 @@ vi.mock("@/features/bookmarks/api/use-save", () => ({
   useUnsave: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
-vi.mock("@/features/community/api/use-communities", () => ({
-  useCommunity: () => ({ data: undefined }),
-}));
-
 vi.mock("@/features/knowledge/api/use-artifact-types", () => ({
   useArtifactTypes: () => ({
     data: [

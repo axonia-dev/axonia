@@ -22,6 +22,7 @@ import dev.axonia.knowledge.api.ArtifactWithdrawn;
 import dev.axonia.knowledge.api.CreateArtifactRequest;
 import dev.axonia.knowledge.api.Provenance;
 import dev.axonia.knowledge.api.ProvenanceRequest;
+import dev.axonia.knowledge.api.spi.SavedArtifacts;
 import dev.axonia.knowledge.application.port.out.ArtifactStore;
 import dev.axonia.knowledge.application.port.out.ArtifactTypeStore;
 import dev.axonia.knowledge.application.port.out.AttachmentStore;
@@ -48,6 +49,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @MockitoSettings
@@ -73,6 +75,8 @@ class ArtifactServiceTest {
     private ApplicationEventPublisher eventPublisher;
     @Mock
     private SessionAccess sessionAccess;
+    @Mock
+    private SavedArtifacts savedArtifacts;
 
     private ArtifactService sut;
 
@@ -84,7 +88,8 @@ class ArtifactServiceTest {
         var resourceAttachAuthorizer = new ResourceAttachAuthorizer(communityAccess, sessionProvenanceGuard);
         sut = new ArtifactService(artifactStore, artifactTypeStore, artifactMapper, artifactAuthorizer, communityAccess,
                 new dev.axonia.knowledge.application.ContributorResolver(communityAccess), currentUser,
-                organizationContext, attachmentStore, eventPublisher, sessionProvenanceGuard, resourceAttachAuthorizer);
+                organizationContext, attachmentStore, eventPublisher, sessionProvenanceGuard, resourceAttachAuthorizer,
+                savedArtifacts);
         when(organizationContext.organizationId()).thenReturn("default");
     }
 
@@ -566,6 +571,39 @@ class ArtifactServiceTest {
         // then
         assertThat(result.getTotalElements()).isEqualTo(1L);
         assertThat(result.getContent()).containsExactly(artifact);
+    }
+
+    @Test
+    void search_saved_narrowsToTheCallersSavesInThatCommunity() {
+
+        // given
+        when(currentUser.userId()).thenReturn("alice");
+        when(communityAccess.communityIdForSlug("eng")).thenReturn(1L);
+        when(savedArtifacts.savedIn("default", "alice", 1L)).thenReturn(Set.of(3L, 4L));
+        var narrowed = ArtifactFilter.builder().q("kafka").saved(true).ids(Set.of(3L, 4L)).build();
+        when(artifactStore.search("default", 1L, narrowed, Pageable.unpaged())).thenReturn(Page.empty());
+
+        // when
+        var result = sut.search("eng", ArtifactFilter.builder().q("kafka").saved(true).build(), Pageable.unpaged());
+
+        // then
+        assertThat(result.getTotalElements()).isZero();
+        verify(artifactStore).search("default", 1L, narrowed, Pageable.unpaged());
+    }
+
+    @Test
+    void search_notSaved_neverReadsTheSaves() {
+
+        // given
+        when(communityAccess.communityIdForSlug("eng")).thenReturn(1L);
+        var filter = ArtifactFilter.builder().build();
+        when(artifactStore.search("default", 1L, filter, Pageable.unpaged())).thenReturn(Page.empty());
+
+        // when
+        sut.search("eng", filter, Pageable.unpaged());
+
+        // then
+        verifyNoInteractions(savedArtifacts);
     }
 
     @Test

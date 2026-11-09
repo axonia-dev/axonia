@@ -72,16 +72,6 @@ export function filterSaved(
   );
 }
 
-/** Items belonging to one specific community: what a community-scoped page shows. */
-export function scopeToCommunity(
-  items: ReadonlyArray<SavedItem>,
-  communityId: number | undefined,
-): SavedItem[] {
-  return communityId === undefined
-    ? []
-    : items.filter((item) => item.community?.id === communityId);
-}
-
 function loveOf(item: SavedItem): number {
   return item.kind === "artifact" ? item.artifact.loveCount : 0;
 }

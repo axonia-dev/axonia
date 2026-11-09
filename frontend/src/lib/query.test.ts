@@ -9,6 +9,10 @@ describe("buildQuery", () => {
     ).toBe("?q=guild&page=0");
   });
 
+  it("serialises a boolean as its word", () => {
+    expect(buildQuery({ saved: true })).toBe("?saved=true");
+  });
+
   it("returns an empty string when there is nothing to serialise", () => {
     expect(buildQuery({ a: undefined, b: "" })).toBe("");
   });
