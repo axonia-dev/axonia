@@ -88,6 +88,79 @@ class ArtifactRepositoryTest extends CoreJdbcTestSupport {
         assertThat(page.getContent()).extracting(ArtifactEntity::getTitle).containsExactly("Resilience patterns");
     }
 
+    @Test
+    void fullTextSearch_treatsAStandaloneDashAsASeparatorNotAnExclusion() {
+
+        // given
+        saveArtifact("Runbook v2 - 4-step rollout", "release runbook", 1L, "alice");
+
+        // when
+        var page = artifactRepository.search("default", 1L, ArtifactFilter.builder().q("Runbook v2 - 4").build(),
+                PageRequest.of(0, 10));
+
+        // then
+        assertThat(page.getContent()).extracting(ArtifactEntity::getTitle)
+                .containsExactly("Runbook v2 - 4-step rollout");
+    }
+
+    @Test
+    void fullTextSearch_treatsADashBetweenNonBreakingSpacesAsASeparator() {
+
+        // given
+        saveArtifact("Runbook v2 - 4-step rollout", "release runbook", 1L, "alice");
+
+        // when
+        var page = artifactRepository.search("default", 1L,
+                ArtifactFilter.builder().q("Runbook v2\u00A0-\u00A04").build(), PageRequest.of(0, 10));
+
+        // then
+        assertThat(page.getContent()).extracting(ArtifactEntity::getTitle)
+                .containsExactly("Runbook v2 - 4-step rollout");
+    }
+
+    @Test
+    void fullTextSearch_aQueryWithNoSearchableWordMatchesEverything() {
+
+        // given
+        saveArtifact("Resilience patterns", "handling retries and timeouts", 1L, "alice");
+
+        // when
+        var page = artifactRepository.search("default", 1L, ArtifactFilter.builder().q("the ?").build(),
+                PageRequest.of(0, 10));
+
+        // then
+        assertThat(page.getContent()).hasSize(1);
+    }
+
+    @Test
+    void fullTextSearch_aDashAttachedToAWordStillExcludesIt() {
+
+        // given
+        saveArtifact("Resilience patterns", "handling retries and timeouts", 1L, "alice");
+        saveArtifact("Resilience budgets", "error budgets", 1L, "bob");
+
+        // when
+        var page = artifactRepository.search("default", 1L, ArtifactFilter.builder().q("resilience -retries").build(),
+                PageRequest.of(0, 10));
+
+        // then
+        assertThat(page.getContent()).extracting(ArtifactEntity::getTitle).containsExactly("Resilience budgets");
+    }
+
+    @Test
+    void fullTextSearch_onlyDashesMatchesEverything() {
+
+        // given
+        saveArtifact("Resilience patterns", "handling retries and timeouts", 1L, "alice");
+
+        // when
+        var page = artifactRepository.search("default", 1L, ArtifactFilter.builder().q(" - -- ").build(),
+                PageRequest.of(0, 10));
+
+        // then
+        assertThat(page.getContent()).hasSize(1);
+    }
+
     /**
      * The hydration rejoins {@code artifact_tag} rows onto their artifact by a {@code Map} keyed on {@code
      * artifact_id}, built separately from the roots query - nothing before this test proved the join lands on the right

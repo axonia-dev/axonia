@@ -8,6 +8,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -35,10 +36,12 @@ class ArtifactSearchRepositoryImpl implements ArtifactSearchRepository {
         var params = new MapSqlParameterSource().addValue("organizationId", organizationId).addValue("communityId",
                 communityId);
 
-        var ranked = filter.q() != null && !filter.q().isBlank();
+        var query = withoutStandaloneDashes(filter.q());
+        var ranked = !query.isBlank();
         if (ranked) {
-            where.append(" AND a.search_vector @@ websearch_to_tsquery('english', :q)");
-            params.addValue("q", filter.q());
+            where.append(" AND (numnode(websearch_to_tsquery('english', :q)) = 0"
+                    + " OR a.search_vector @@ websearch_to_tsquery('english', :q))");
+            params.addValue("q", query);
         }
         if (filter.typeId() != null) {
             where.append(" AND a.type_id = :typeId");
@@ -76,6 +79,20 @@ class ArtifactSearchRepositoryImpl implements ArtifactSearchRepository {
         }
         return new PageImpl<>(hydrate(ids, organizationId, communityId), pageable, total);
     }
+
+    /**
+     * {@code websearch_to_tsquery} reads a dash that stands alone as NOT on the next word, so a pasted title such as
+     * "Runbook v2 - 4-step rollout" would exclude the very artifact it names. Only a dash glued to a word
+     * ({@code -retries}) is an exclusion a member meant. A query left with no searchable word ("the", "?") filters
+     * nothing, like a blank one.
+     */
+    private static String withoutStandaloneDashes(String q) {
+
+        return q == null ? "" : STANDALONE_DASHES.matcher(q).replaceAll(" ").strip();
+    }
+
+    private static final Pattern STANDALONE_DASHES = Pattern.compile("(?<!\\S)-+(?!\\S)",
+            Pattern.UNICODE_CHARACTER_CLASS);
 
     /**
      * One roots query plus one tags query for the whole page, never one pair per id.
