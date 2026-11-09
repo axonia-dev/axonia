@@ -5,7 +5,7 @@ import {
   elapsed,
 } from "@/features/events/domain/calendar-subscription";
 
-export type CalendarSyncState = "synced" | "waiting" | "stale";
+type CalendarSyncState = "synced" | "waiting" | "stale";
 
 export interface CalendarSyncStatus {
   state: CalendarSyncState;
