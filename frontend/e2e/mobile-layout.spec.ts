@@ -9,6 +9,7 @@ import {
   SLUG,
   stubReads,
 } from "./community-home";
+import { healthSnapshot } from "./health-snapshot";
 import { overflowing } from "./overflow";
 
 // A phone, emulated as a phone. This is the one width the rest of the suite cannot speak for:
@@ -224,4 +225,23 @@ test("the welcome stage fits a phone", async ({ page: browser }) => {
   const box = await card.boundingBox();
   expect(box?.x ?? -1).toBeGreaterThanOrEqual(0);
   expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(412);
+});
+
+test("the health dashboard fits a phone, glance row, chart and funnel included", async ({
+  page: browser,
+}) => {
+  // given - an organizer's community with every panel filled
+  await stubReads(browser, {
+    ...shellOfCommunity,
+    [`/axonia/communities/${SLUG}/health`]: healthSnapshot,
+  });
+
+  // when - the health page opens on a phone
+  await browser.goto(`/communities/${SLUG}/health`);
+
+  // then - the last panel is on screen, and nothing on the page reaches past its right edge
+  await expect(
+    browser.getByRole("heading", { name: "Is it paying off" }),
+  ).toBeVisible();
+  expect(await overflowing(browser)).toEqual([]);
 });

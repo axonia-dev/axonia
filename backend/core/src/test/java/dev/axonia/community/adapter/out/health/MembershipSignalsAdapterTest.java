@@ -3,6 +3,7 @@ package dev.axonia.community.adapter.out.health;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -88,6 +89,39 @@ class MembershipSignalsAdapterTest extends CoreJdbcTestSupport {
 
         // then
         assertThat(actual).isEqualTo(2);
+    }
+
+    @Test
+    void membersAmong_returnsOnlyCurrentMembers() {
+
+        // given alice is a member, bob is not, carol is a member of another community only
+        var communityId = communityRepository.save(CommunityEntityMother.any().kindId(kindId).build()).getId();
+        var otherCommunityId = communityRepository
+                .save(CommunityEntityMother.any().kindId(kindId).slug("other-guild").build()).getId();
+        membership(communityId, "alice", INSIDE);
+        membership(otherCommunityId, "carol", INSIDE);
+
+        // when
+        var actual = sut.membersAmong(communityId, List.of("alice", "bob", "carol"));
+
+        // then
+        assertThat(actual).containsExactly("alice");
+    }
+
+    @Test
+    void membersAmong_emptyInput() {
+
+        // given
+        var repository = mock(MembershipRepository.class);
+        var adapter = new MembershipSignalsAdapter(mock(CommunityService.class), mock(CommunityCapabilityService.class),
+                repository, () -> "default");
+
+        // when
+        var actual = adapter.membersAmong(7L, List.of());
+
+        // then
+        assertThat(actual).isEmpty();
+        verifyNoMoreInteractions(repository);
     }
 
     @Test

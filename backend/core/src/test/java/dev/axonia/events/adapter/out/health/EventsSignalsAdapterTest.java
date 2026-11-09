@@ -1,6 +1,7 @@
 package dev.axonia.events.adapter.out.health;
 
 import java.sql.Timestamp;
+import java.sql.Types;
 import java.time.Duration;
 import java.time.Instant;
 
@@ -11,16 +12,12 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 import dev.axonia.CoreJdbcTestSupport;
+import dev.axonia.health.api.BucketCredit;
+import dev.axonia.health.api.BucketTalks;
 import dev.axonia.health.api.SeriesPulse;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
-import static org.mockito.ArgumentMatchers.anyMap;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 class EventsSignalsAdapterTest extends CoreJdbcTestSupport {
 
@@ -64,43 +61,6 @@ class EventsSignalsAdapterTest extends CoreJdbcTestSupport {
                 + "(organization_id, label, expects_presenter, created_at, updated_at, version, icon, accent_color) "
                 + "VALUES ('default', 'Talks', true, now(), now(), 0, 'wrench', '#123456') ON CONFLICT DO NOTHING",
                 new MapSqlParameterSource());
-    }
-
-    @Test
-    void contributionCounts_presenterSpotsOnHeldSessionsAndProposedTopics() {
-
-        // given a held session where alice presents two slots and bob one,
-        // plus an in-window topic by alice and an out-of-window topic by carol
-        var communityId = community("backend-guild");
-        var seriesId = series(communityId, "ACTIVE", 1, "WEEK");
-        var sectionId = section(session(seriesId, communityId, "SCHEDULED", INSIDE));
-        presenter(slot(sectionId, 0), "alice");
-        presenter(slot(sectionId, 1), "alice");
-        presenter(slot(sectionId, 2), "bob");
-        topic(communityId, "alice", INSIDE);
-        topic(communityId, "carol", BEFORE);
-
-        // when
-        var actual = sut.contributionCounts(communityId, FROM, TO);
-
-        // then
-        assertThat(actual).containsOnly(entry("alice", 3L), entry("bob", 1L));
-    }
-
-    @Test
-    void contributionCounts_ignoresCancelledAndOutOfWindowSessions() {
-
-        // given presenters on a cancelled in-window session and on a held out-of-window one
-        var communityId = community("backend-guild");
-        var seriesId = series(communityId, "ACTIVE", 1, "WEEK");
-        presenter(slot(section(session(seriesId, communityId, "CANCELLED", INSIDE)), 0), "alice");
-        presenter(slot(section(session(seriesId, communityId, "SCHEDULED", BEFORE)), 0), "bob");
-
-        // when
-        var actual = sut.contributionCounts(communityId, FROM, TO);
-
-        // then
-        assertThat(actual).isEmpty();
     }
 
     @Test
@@ -157,196 +117,191 @@ class EventsSignalsAdapterTest extends CoreJdbcTestSupport {
     }
 
     @Test
-    void distinctContributorsPerBucket_countsAPersonOncePerBucketHoweverManyActs() {
+    void talkCounts_excludesSkippedAndCancelledSessions() {
 
-        // given alice presents two slots and proposes a topic on day 0, and bob proposes on day 11
+        // given alice presents on a held session, bob on a skipped one, carol on a cancelled one
         var communityId = community("backend-guild");
         var seriesId = series(communityId, "ACTIVE", 1, "WEEK");
-        var sectionId = section(session(seriesId, communityId, "SCHEDULED", day(0)));
+        presenter(slot(section(session(seriesId, communityId, "SCHEDULED", INSIDE)), 0), "alice");
+        presenter(slot(section(session(seriesId, communityId, "SKIPPED", ALSO_INSIDE)), 0), "bob");
+        presenter(slot(section(session(seriesId, communityId, "CANCELLED", Instant.parse("2026-05-08T18:00:00Z"))), 0),
+                "carol");
+        presenter(slot(section(session(seriesId, communityId, "SCHEDULED", BEFORE)), 0), "dave");
+        topic(communityId, "erin", INSIDE);
+
+        // when
+        var actual = sut.talkCounts(communityId, FROM, TO);
+
+        // then topics are not talks, and only held in-window sessions count
+        assertThat(actual).containsOnly(entry("alice", 1L));
+    }
+
+    @Test
+    void talkCounts_countsOneOffSessionsWithoutSeries() {
+
+        // given a one-off session with two slots presented by alice
+        var communityId = community("backend-guild");
+        var sectionId = section(oneOffSession(communityId, "SCHEDULED", INSIDE));
         presenter(slot(sectionId, 0), "alice");
         presenter(slot(sectionId, 1), "alice");
-        topic(communityId, "alice", day(0));
-        topic(communityId, "bob", day(11));
 
         // when
-        var actual = sut.distinctContributorsPerBucket(communityId, WINDOW_FROM, WINDOW_TO, BUCKETS);
+        var actual = sut.talkCounts(communityId, FROM, TO);
 
-        // then bucket 0 is one distinct person, not three acts
-        assertThat(actual).containsExactly(1L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 1L);
+        // then
+        assertThat(actual).containsOnly(entry("alice", 2L));
     }
 
     @Test
-    void distinctContributorsPerBucket_countsTheSamePersonInEachBucketTheyAppearIn() {
+    void topicProposals_perProposerInWindow() {
 
-        // The series is "how many different people contributed that week", so a steady contributor
-        // must show up in every bucket, not only the first.
+        // given
         var communityId = community("backend-guild");
-        topic(communityId, "alice", day(0));
+        var otherCommunityId = community("frontend-guild");
+        topic(communityId, "alice", INSIDE);
+        topic(communityId, "alice", ALSO_INSIDE);
+        topic(communityId, "bob", INSIDE);
+        topic(communityId, "carol", BEFORE);
+        topic(otherCommunityId, "dave", INSIDE);
+        presenter(slot(section(oneOffSession(communityId, "SCHEDULED", INSIDE)), 0), "erin");
+
+        // when
+        var actual = sut.topicProposals(communityId, FROM, TO);
+
+        // then
+        assertThat(actual).containsOnly(entry("alice", 2L), entry("bob", 1L));
+    }
+
+    @Test
+    void nextSessionAt_earliestFutureNotCancelled() {
+
+        // given a cancelled and a skipped session before a scheduled one, a past one, and another community's sooner
+        // one
+        var communityId = community("backend-guild");
+        var otherCommunityId = community("frontend-guild");
+        var now = INSIDE;
+        oneOffSession(communityId, "SCHEDULED", now.minus(Duration.ofDays(1)));
+        oneOffSession(communityId, "CANCELLED", now.plus(Duration.ofDays(2)));
+        oneOffSession(communityId, "SKIPPED", now.plus(Duration.ofDays(3)));
+        oneOffSession(communityId, "SCHEDULED", now.plus(Duration.ofDays(5)));
+        oneOffSession(communityId, "SCHEDULED", now.plus(Duration.ofDays(9)));
+        oneOffSession(otherCommunityId, "SCHEDULED", now.plus(Duration.ofDays(1)));
+
+        // when
+        var actual = sut.nextSessionAt(communityId, now);
+
+        // then
+        assertThat(actual).contains(now.plus(Duration.ofDays(5)));
+    }
+
+    @Test
+    void nextSessionAt_noneScheduledIsEmpty() {
+
+        // given only a past session
+        var communityId = community("backend-guild");
+        oneOffSession(communityId, "SCHEDULED", BEFORE);
+
+        // when
+        var actual = sut.nextSessionAt(communityId, INSIDE);
+
+        // then
+        assertThat(actual).isEmpty();
+    }
+
+    @Test
+    void lastHeldSessionAt_latestHeldBeforeNowHoweverOld() {
+
+        // given a held session long ago, a later skipped and cancelled one, a future one, and another community's
+        var communityId = community("backend-guild");
+        var otherCommunityId = community("frontend-guild");
+        var now = INSIDE;
+        oneOffSession(communityId, "SCHEDULED", BEFORE.minus(Duration.ofDays(400)));
+        oneOffSession(communityId, "SCHEDULED", BEFORE);
+        oneOffSession(communityId, "SKIPPED", now.minus(Duration.ofDays(3)));
+        oneOffSession(communityId, "CANCELLED", now.minus(Duration.ofDays(2)));
+        oneOffSession(communityId, "SCHEDULED", now.plus(Duration.ofDays(5)));
+        oneOffSession(otherCommunityId, "SCHEDULED", now.minus(Duration.ofDays(1)));
+
+        // when
+        var actual = sut.lastHeldSessionAt(communityId, now);
+
+        // then
+        assertThat(actual).contains(BEFORE);
+    }
+
+    @Test
+    void lastHeldSessionAt_neverHeldIsEmpty() {
+
+        // given only a future session
+        var communityId = community("backend-guild");
+        oneOffSession(communityId, "SCHEDULED", INSIDE.plus(Duration.ofDays(5)));
+
+        // when
+        var actual = sut.lastHeldSessionAt(communityId, INSIDE);
+
+        // then
+        assertThat(actual).isEmpty();
+    }
+
+    @Test
+    void talkCreditsPerBucket_bucketsBySessionSchedule() {
+
+        // given two talks by alice on day 3, one by bob on day 7, and strays a dropped predicate would let in
+        var communityId = community("backend-guild");
+        var otherCommunityId = community("frontend-guild");
+        var dayThree = section(oneOffSession(communityId, "SCHEDULED", day(3)));
+        presenter(slot(dayThree, 0), "alice");
+        presenter(slot(dayThree, 1), "alice");
+        presenter(slot(section(oneOffSession(communityId, "SCHEDULED", day(7))), 0), "bob");
+        presenter(slot(section(oneOffSession(communityId, "SKIPPED", day(5))), 0), "carol");
+        presenter(slot(section(oneOffSession(communityId, "SCHEDULED", day(13))), 0), "mallory");
+        presenter(slot(section(oneOffSession(otherCommunityId, "SCHEDULED", day(4))), 0), "trudy");
+
+        // when
+        var actual = sut.talkCreditsPerBucket(communityId, WINDOW_FROM, WINDOW_TO, BUCKETS);
+
+        // then
+        assertThat(actual).containsExactlyInAnyOrder(new BucketTalks(3, "alice", 2), new BucketTalks(7, "bob", 1));
+    }
+
+    @Test
+    void topicCreditsPerBucket_oneCreditPerProposerPerBucket() {
+
+        // given alice proposes twice on day 2 and once on day 6, bob once on day 6
+        var communityId = community("backend-guild");
+        topic(communityId, "alice", day(2));
+        topic(communityId, "alice", day(2).plus(Duration.ofHours(1)));
         topic(communityId, "alice", day(6));
-
-        assertThat(sut.distinctContributorsPerBucket(communityId, WINDOW_FROM, WINDOW_TO, BUCKETS)).containsExactly(1L,
-                0L, 0L, 0L, 0L, 0L, 1L, 0L, 0L, 0L, 0L, 0L);
-    }
-
-    @Test
-    void distinctContributorsPerBucket_bucketsEachArmByItsOwnActTimestamp() {
-
-        // given a presenter arm and a topic arm whose acts fall in non-adjacent buckets: one arm bucketed on the
-        // other's timestamp column would still return twelve plausible numbers, so pin them apart.
-        var communityId = community("backend-guild");
-        var seriesId = series(communityId, "ACTIVE", 1, "WEEK");
-        presenter(slot(section(session(seriesId, communityId, "SCHEDULED", day(2))), 0), "alice");
-        topic(communityId, "bob", day(8));
-
-        // when
-        var actual = sut.distinctContributorsPerBucket(communityId, WINDOW_FROM, WINDOW_TO, BUCKETS);
-
-        // then
-        assertThat(actual).containsExactly(0L, 0L, 1L, 0L, 0L, 0L, 0L, 0L, 1L, 0L, 0L, 0L);
-    }
-
-    @Test
-    void distinctContributorsPerBucket_bucketsAPresenterByTheirOwnSessionsSchedule() {
-
-        // given two sessions six buckets apart, each with its own presenter, and a topic in a bucket of its own.
-        // Every other timestamp a wrong bucket expression could reach through these joins sits elsewhere: the rows'
-        // created_at and updated_at are now(), which clamps to the last bucket, the other session is at day 9, and
-        // the session's own occurrence_date truncates to midnight, one bucket short of the 06:00 window boundary.
-        var communityId = community("backend-guild");
-        var seriesId = series(communityId, "ACTIVE", 1, "WEEK");
-        presenter(slot(section(session(seriesId, communityId, "SCHEDULED", day(3))), 0), "alice");
-        presenter(slot(section(session(seriesId, communityId, "SCHEDULED", day(9))), 0), "carol");
         topic(communityId, "bob", day(6));
+        topic(communityId, "mallory", day(13));
 
         // when
-        var actual = sut.distinctContributorsPerBucket(communityId, WINDOW_FROM, WINDOW_TO, BUCKETS);
+        var actual = sut.topicCreditsPerBucket(communityId, WINDOW_FROM, WINDOW_TO, BUCKETS);
 
         // then
-        assertThat(actual).containsExactly(0L, 0L, 0L, 1L, 0L, 0L, 1L, 0L, 0L, 1L, 0L, 0L);
+        assertThat(actual).containsExactlyInAnyOrder(new BucketCredit(2, "alice"), new BucketCredit(6, "alice"),
+                new BucketCredit(6, "bob"));
     }
 
     @Test
-    void distinctContributorsPerBucket_ofADormantCommunityIsTwelveZeroes() {
+    void engagementCreditsPerBucket_oneCreditPerUserPerBucketByTheActsOwnTimestamp() {
 
-        var communityId = community("backend-guild");
-
-        assertThat(sut.distinctContributorsPerBucket(communityId, WINDOW_FROM, WINDOW_TO, BUCKETS)).hasSize(12)
-                .allMatch(count -> count == 0L);
-    }
-
-    @Test
-    void distinctContributorsPerBucket_answersTheWholeSeriesInOneQueryRatherThanOnePerBucket() {
-
-        // The series must be one grouped query. A loop over twelve sub-windows would pass every
-        // behavioural test above and cost twelve round trips.
-        var template = mock(NamedParameterJdbcTemplate.class);
-
-        new EventsSignalsAdapter(template, () -> "default").distinctContributorsPerBucket(7L, WINDOW_FROM, WINDOW_TO,
-                BUCKETS);
-
-        verify(template, times(1)).queryForList(anyString(), anyMap());
-        verifyNoMoreInteractions(template);
-    }
-
-    @Test
-    void engagedMembersPerBucket_countsVotersAndAttendeesOnce() {
-
-        // given bob both votes and attends on day 0, and carol attends on day 11
-        var communityId = community("backend-guild");
-        var seriesId = series(communityId, "ACTIVE", 1, "WEEK");
-        var topicId = topic(communityId, "alice", day(0));
-        var sessionId = session(seriesId, communityId, "SCHEDULED", day(0));
-        vote(topicId, "bob", day(0));
-        attendance(sessionId, "bob", day(0));
-        attendance(sessionId, "carol", day(11));
-
-        // when
-        var actual = sut.engagedMembersPerBucket(communityId, WINDOW_FROM, WINDOW_TO, BUCKETS);
-
-        // then bob's two acts are one engaged member
-        assertThat(actual).containsExactly(1L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 1L);
-    }
-
-    @Test
-    void engagedMembersPerBucket_bucketsEachActByItsOwnTimestampNotItsParents() {
-
-        // given a vote whose topic was proposed in a different bucket, and an attendance on a session scheduled in a
-        // different bucket again. All four candidate timestamp columns land in four distinct buckets, so bucketing on
-        // the parent row instead of the act moves the answer.
-        var communityId = community("backend-guild");
-        var seriesId = series(communityId, "ACTIVE", 1, "WEEK");
-        var topicId = topic(communityId, "alice", day(1));
-        var sessionId = session(seriesId, communityId, "SCHEDULED", day(7));
-        vote(topicId, "dana", day(4));
-        attendance(sessionId, "erin", day(10));
-
-        // when
-        var actual = sut.engagedMembersPerBucket(communityId, WINDOW_FROM, WINDOW_TO, BUCKETS);
-
-        // then the buckets are the acts' own, day 4 and day 10, not their parents' day 1 and day 7
-        assertThat(actual).containsExactly(0L, 0L, 0L, 0L, 1L, 0L, 0L, 0L, 0L, 0L, 1L, 0L);
-    }
-
-    @Test
-    void distinctContributorsPerBucket_ignoresActsAfterTheWindowAndInOtherCommunities() {
-
-        // given the acts of the arms-apart fixture, plus strays a dropped predicate would let in: acts after the
-        // window, which the bucket clamp would fold into the last point, and acts of another community.
+        // given bob votes and attends on day 4, dana votes on a day 1 topic on day 9, and strays outside
         var communityId = community("backend-guild");
         var otherCommunityId = community("frontend-guild");
-        var seriesId = series(communityId, "ACTIVE", 1, "WEEK");
-        var otherSeriesId = series(otherCommunityId, "ACTIVE", 1, "WEEK");
-        presenter(slot(section(session(seriesId, communityId, "SCHEDULED", day(2))), 0), "alice");
-        topic(communityId, "bob", day(8));
-        presenter(slot(section(session(seriesId, communityId, "SCHEDULED", day(13))), 0), "mallory");
-        topic(communityId, "mallory", day(13));
-        presenter(slot(section(session(otherSeriesId, otherCommunityId, "SCHEDULED", day(5))), 0), "trudy");
-        topic(otherCommunityId, "trudy", day(5));
-
-        // when
-        var actual = sut.distinctContributorsPerBucket(communityId, WINDOW_FROM, WINDOW_TO, BUCKETS);
-
-        // then the strays are absent, and in particular the last bucket stays empty
-        assertThat(actual).containsExactly(0L, 0L, 1L, 0L, 0L, 0L, 0L, 0L, 1L, 0L, 0L, 0L);
-    }
-
-    @Test
-    void engagedMembersPerBucket_ignoresActsAfterTheWindowAndInOtherCommunities() {
-
-        // given the acts of the own-timestamp fixture, plus a vote and an attendance after the window and a vote and
-        // an attendance in another community
-        var communityId = community("backend-guild");
-        var otherCommunityId = community("frontend-guild");
-        var seriesId = series(communityId, "ACTIVE", 1, "WEEK");
-        var otherSeriesId = series(otherCommunityId, "ACTIVE", 1, "WEEK");
         var topicId = topic(communityId, "alice", day(1));
-        var sessionId = session(seriesId, communityId, "SCHEDULED", day(7));
-        vote(topicId, "dana", day(4));
-        attendance(sessionId, "erin", day(10));
-        vote(topicId, "mallory", day(13));
+        var sessionId = oneOffSession(communityId, "SCHEDULED", day(0));
+        vote(topicId, "bob", day(4));
+        attendance(sessionId, "bob", day(4));
+        vote(topicId, "dana", day(9));
         attendance(sessionId, "mallory", day(13));
-        var otherTopicId = topic(otherCommunityId, "alice", day(1));
-        var otherSessionId = session(otherSeriesId, otherCommunityId, "SCHEDULED", day(7));
-        vote(otherTopicId, "trudy", day(5));
-        attendance(otherSessionId, "trudy", day(5));
+        attendance(oneOffSession(otherCommunityId, "SCHEDULED", day(2)), "trudy", day(2));
 
         // when
-        var actual = sut.engagedMembersPerBucket(communityId, WINDOW_FROM, WINDOW_TO, BUCKETS);
+        var actual = sut.engagementCreditsPerBucket(communityId, WINDOW_FROM, WINDOW_TO, BUCKETS);
 
-        // then the strays are absent, and in particular the last bucket stays empty
-        assertThat(actual).containsExactly(0L, 0L, 0L, 0L, 1L, 0L, 0L, 0L, 0L, 0L, 1L, 0L);
-    }
-
-    @Test
-    void engagedMembersPerBucket_answersTheWholeSeriesInOneQueryRatherThanOnePerBucket() {
-
-        var template = mock(NamedParameterJdbcTemplate.class);
-
-        new EventsSignalsAdapter(template, () -> "default").engagedMembersPerBucket(7L, WINDOW_FROM, WINDOW_TO,
-                BUCKETS);
-
-        verify(template, times(1)).queryForList(anyString(), anyMap());
-        verifyNoMoreInteractions(template);
+        // then
+        assertThat(actual).containsExactlyInAnyOrder(new BucketCredit(4, "bob"), new BucketCredit(9, "dana"));
     }
 
     /** Midday on day n of the twelve-day window, so a fixture never sits on a bucket boundary. */
@@ -392,6 +347,21 @@ class EventsSignalsAdapterTest extends CoreJdbcTestSupport {
                 RETURNING id
                 """, new MapSqlParameterSource().addValue("seriesId", seriesId).addValue("communityId", communityId)
                 .addValue("status", status).addValue("scheduledAt", Timestamp.from(scheduledAt)), Long.class);
+    }
+
+    private long oneOffSession(long communityId, String status, Instant scheduledAt) {
+
+        return jdbc.queryForObject("""
+                INSERT INTO community_session (organization_id, series_id, community_id, status, scheduled_at,
+                        occurrence_date, notes, recording_url, has_time, created_at, updated_at, version)
+                VALUES ('default', :seriesId, :communityId, :status, :scheduledAt,
+                        NULL, '', '', true, now(), now(), 0)
+                RETURNING id
+                """,
+                new MapSqlParameterSource().addValue("seriesId", null, Types.BIGINT)
+                        .addValue("communityId", communityId).addValue("status", status)
+                        .addValue("scheduledAt", Timestamp.from(scheduledAt)),
+                Long.class);
     }
 
     private long section(long sessionId) {

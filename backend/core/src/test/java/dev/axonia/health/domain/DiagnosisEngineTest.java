@@ -12,17 +12,36 @@ class DiagnosisEngineTest {
     private static final Trend FLAT = Trend.of(1, 1);
     private static final Trend DOWN = Trend.of(1, 2);
 
-    /** A healthy baseline snapshot; each test tweaks one axis. */
+    private static HealthSnapshot.StageDial stage(Long... talkCounts) {
+
+        var distribution = Distribution.of(List.of(talkCounts));
+        return HealthSnapshot.StageDial.builder().talks(distribution.talks()).speakers(distribution.speakers())
+                .speakersForHalf(distribution.speakersForHalf()).distribution(distribution.shares()).trend(FLAT)
+                .status(StatusRules.stage(distribution)).build();
+    }
+
+    private static HealthSnapshot.CadenceDial cadence(CadenceStatus rhythm, StatusCode status) {
+
+        return HealthSnapshot.CadenceDial.builder().rhythm(rhythm).sessionsHeld(4).medianGapDays(14).trend(FLAT)
+                .status(Status.of(status)).build();
+    }
+
+    private static HealthSnapshot.ReuseDial reuse(long saves, long helped) {
+
+        return HealthSnapshot.ReuseDial.builder().openingsTrend(FLAT).saves(saves).helped(helped).savesTrend(FLAT)
+                .status(StatusRules.payoff(0, saves, helped)).build();
+    }
+
+    /** A healthy baseline: six speakers sharing the stage, on rhythm, reused. Each test tweaks one axis. */
     private HealthSnapshot.HealthSnapshotBuilder healthy() {
 
-        return HealthSnapshot.builder().window("90d").generatedAt(Instant.parse("2026-06-11T12:00:00Z")).busFactor(6)
-                .concentration(new HealthSnapshot.Concentration(0.4, List.of(0.2, 0.1, 0.1)))
-                .cadence(new HealthSnapshot.CadenceDial(CadenceStatus.STEADY, 6, 14, FLAT))
-                .participation(new HealthSnapshot.ParticipationDial(20, 40, 0.5, FLAT))
+        return HealthSnapshot.builder().window("90d").generatedAt(Instant.parse("2026-06-11T12:00:00Z"))
+                .stage(stage(2L, 2L, 2L, 1L, 1L, 1L)).curation(new HealthSnapshot.CurationDial(6, 0.5))
+                .cadence(cadence(CadenceStatus.STEADY, StatusCode.ON_RHYTHM))
+                .people(new HealthSnapshot.PeopleDial(20, 12, FLAT))
                 .engagement(new HealthSnapshot.EngagementDial(10, FLAT))
                 .membershipGrowth(new HealthSnapshot.MembershipGrowthDial(3, 40, FLAT))
-                .reach(new HealthSnapshot.CrossTeamReachDial(true, 4, 3, 2, 6, 6, FLAT))
-                .reuse(new HealthSnapshot.ReuseDial(0, 0, FLAT, 5, 3, 2, 0, FLAT));
+                .reach(new HealthSnapshot.CrossTeamReachDial(true, 4, 3, 2, 6, 6, FLAT)).reuse(reuse(5, 2));
     }
 
     private List<Finding.Code> codes(HealthSnapshot s) {
@@ -31,100 +50,164 @@ class DiagnosisEngineTest {
     }
 
     @Test
-    void wellDistributedOnRhythmAndReusedForAHealthyCommunity() {
+    void diagnose_healthyCommunity() {
 
-        assertThat(codes(healthy().build())).containsExactly(Finding.Code.WELL_DISTRIBUTED, Finding.Code.ON_RHYTHM,
+        // when
+        var actual = codes(healthy().build());
+
+        // then
+        assertThat(actual).containsExactly(Finding.Code.WELL_DISTRIBUTED, Finding.Code.ON_RHYTHM,
                 Finding.Code.KNOWLEDGE_REUSED);
     }
 
     @Test
-    void singlePointWhenBusFactorIsOne() {
+    void singlePoint_needsThreeTalks() {
 
-        var s = healthy().busFactor(1).build();
-        assertThat(codes(s)).contains(Finding.Code.SINGLE_POINT).doesNotContain(Finding.Code.WELL_DISTRIBUTED);
+        // when / then
+        assertThat(codes(healthy().stage(stage(2L)).build())).doesNotContain(Finding.Code.SINGLE_POINT);
+        assertThat(codes(healthy().stage(stage(3L)).build())).contains(Finding.Code.SINGLE_POINT)
+                .doesNotContain(Finding.Code.OVER_RELIANCE, Finding.Code.WELL_DISTRIBUTED);
     }
 
     @Test
-    void overRelianceWhenBusFactorIsTwo() {
+    void overReliance_strictlyMoreThanHalf() {
 
-        assertThat(codes(healthy().busFactor(2).build())).contains(Finding.Code.OVER_RELIANCE);
+        // when / then
+        assertThat(codes(healthy().stage(stage(2L, 1L, 1L)).build())).doesNotContain(Finding.Code.OVER_RELIANCE,
+                Finding.Code.SINGLE_POINT);
+        assertThat(codes(healthy().stage(stage(3L, 1L, 1L)).build())).contains(Finding.Code.OVER_RELIANCE);
+        assertThat(codes(healthy().stage(stage(1L, 1L)).build())).doesNotContain(Finding.Code.OVER_RELIANCE);
     }
 
     @Test
-    void fadingWhenSlowingAndParticipationDown() {
+    void curationLeansOnOne_needsFiveActsAndSeventyFivePercent() {
 
-        var s = healthy().cadence(new HealthSnapshot.CadenceDial(CadenceStatus.SLOWING, 2, 40, FLAT))
-                .participation(new HealthSnapshot.ParticipationDial(10, 40, 0.25, DOWN)).build();
-        assertThat(codes(s)).contains(Finding.Code.FADING);
+        // when / then
+        assertThat(codes(healthy().curation(new HealthSnapshot.CurationDial(4, 1.0)).build()))
+                .doesNotContain(Finding.Code.CURATION_LEANS_ON_ONE);
+        assertThat(codes(healthy().curation(new HealthSnapshot.CurationDial(5, 0.8)).build()))
+                .contains(Finding.Code.CURATION_LEANS_ON_ONE);
+        assertThat(codes(healthy().curation(new HealthSnapshot.CurationDial(8, 0.75)).build()))
+                .contains(Finding.Code.CURATION_LEANS_ON_ONE);
+        assertThat(codes(healthy().curation(new HealthSnapshot.CurationDial(10, 0.7)).build()))
+                .doesNotContain(Finding.Code.CURATION_LEANS_ON_ONE);
     }
 
     @Test
-    void notFadingWhenSlowingButParticipationSteady() {
+    void narrowReach_speakersFromOneTeam() {
 
-        var s = healthy().cadence(new HealthSnapshot.CadenceDial(CadenceStatus.SLOWING, 2, 40, FLAT)).build();
-        assertThat(codes(s)).doesNotContain(Finding.Code.FADING);
+        // given
+        var oneTeam = new HealthSnapshot.CrossTeamReachDial(true, 1, 1, 1, 6, 6, FLAT);
+
+        // when / then
+        assertThat(codes(healthy().reach(oneTeam).build())).contains(Finding.Code.NARROW_REACH);
+        assertThat(codes(healthy().reach(oneTeam).stage(stage(4L)).build())).doesNotContain(Finding.Code.NARROW_REACH);
+        assertThat(codes(healthy().reach(new HealthSnapshot.CrossTeamReachDial(false, 0, 0, 0, 0, 6, FLAT)).build()))
+                .doesNotContain(Finding.Code.NARROW_REACH);
     }
 
     @Test
-    void fadingWhenStalledAndParticipationDown() {
+    void narrowReach_partialTeamData_doesNotFire() {
 
-        var s = healthy().cadence(new HealthSnapshot.CadenceDial(CadenceStatus.STALLED, 0, null, FLAT))
-                .participation(new HealthSnapshot.ParticipationDial(10, 40, 0.25, DOWN)).build();
-        assertThat(codes(s)).contains(Finding.Code.FADING);
+        // given
+        var oneOfSixWithUnit = new HealthSnapshot.CrossTeamReachDial(true, 1, 1, 1, 1, 6, FLAT);
+
+        // when / then
+        assertThat(codes(healthy().reach(oneOfSixWithUnit).build())).doesNotContain(Finding.Code.NARROW_REACH);
     }
 
     @Test
-    void dormantWhenNoActiveSeries() {
+    void narrowReach_fullTeamData_fires() {
 
-        var s = healthy().cadence(new HealthSnapshot.CadenceDial(CadenceStatus.DORMANT, 0, null, FLAT)).build();
-        assertThat(codes(s)).contains(Finding.Code.DORMANT).doesNotContain(Finding.Code.ON_RHYTHM);
+        // given
+        var allSixWithUnit = new HealthSnapshot.CrossTeamReachDial(true, 1, 1, 1, 6, 6, FLAT);
+
+        // when / then
+        assertThat(codes(healthy().reach(allSixWithUnit).build())).contains(Finding.Code.NARROW_REACH);
     }
 
     @Test
-    void socialClubDriftWhenEngagedButNoProductionOrReuse() {
+    void wellDistributed_threeForHalf() {
 
-        var s = healthy().busFactor(0).engagement(new HealthSnapshot.EngagementDial(9, FLAT))
-                .reuse(new HealthSnapshot.ReuseDial(0, 0, FLAT, 0, 0, 0, 0, FLAT)).build();
-        assertThat(codes(s)).contains(Finding.Code.SOCIAL_CLUB_DRIFT);
+        // when / then
+        assertThat(codes(healthy().stage(stage(1L, 1L, 1L, 1L)).build())).doesNotContain(Finding.Code.WELL_DISTRIBUTED);
+        assertThat(codes(healthy().stage(stage(1L, 1L, 1L, 1L, 1L)).build())).contains(Finding.Code.WELL_DISTRIBUTED);
     }
 
     @Test
-    void socialClubDriftStaysSilentWhenDormant() {
+    void dormant() {
 
-        var s = healthy().busFactor(0).engagement(new HealthSnapshot.EngagementDial(9, FLAT))
-                .reuse(new HealthSnapshot.ReuseDial(0, 0, FLAT, 0, 0, 0, 0, FLAT))
-                .cadence(new HealthSnapshot.CadenceDial(CadenceStatus.DORMANT, 0, null, FLAT)).build();
-        assertThat(codes(s)).doesNotContain(Finding.Code.SOCIAL_CLUB_DRIFT).contains(Finding.Code.DORMANT);
+        // when
+        var actual = codes(healthy().cadence(cadence(CadenceStatus.DORMANT, StatusCode.DORMANT)).build());
+
+        // then
+        assertThat(actual).contains(Finding.Code.DORMANT).doesNotContain(Finding.Code.ON_RHYTHM, Finding.Code.FADING);
     }
 
     @Test
-    void interestWithoutPayoffWhenSavedButNoneHelped() {
+    void fading_peopleDown() {
 
-        var s = healthy().reuse(new HealthSnapshot.ReuseDial(0, 0, FLAT, 18, 7, 0, 0, FLAT)).build();
-        assertThat(codes(s)).contains(Finding.Code.INTEREST_WITHOUT_PAYOFF)
-                .doesNotContain(Finding.Code.KNOWLEDGE_REUSED);
+        // when / then
+        assertThat(codes(healthy().cadence(cadence(CadenceStatus.SLOWING, StatusCode.SLOWING))
+                .people(new HealthSnapshot.PeopleDial(5, 2, DOWN)).build())).contains(Finding.Code.FADING);
+        assertThat(codes(healthy().cadence(cadence(CadenceStatus.STALLED, StatusCode.STALLED))
+                .people(new HealthSnapshot.PeopleDial(5, 2, DOWN)).build())).contains(Finding.Code.FADING);
+        assertThat(codes(healthy().cadence(cadence(CadenceStatus.SLOWING, StatusCode.SLOWING)).build()))
+                .doesNotContain(Finding.Code.FADING);
+        assertThat(codes(healthy().people(new HealthSnapshot.PeopleDial(5, 2, DOWN)).build()))
+                .doesNotContain(Finding.Code.FADING);
     }
 
     @Test
-    void narrowReachWhenSingleTeamWithMultipleContributors() {
+    void startingUp_firesNoFading() {
 
-        var s = healthy().reach(new HealthSnapshot.CrossTeamReachDial(true, 1, 1, 1, 6, 6, FLAT)).build();
-        assertThat(codes(s)).contains(Finding.Code.NARROW_REACH);
+        // when
+        var actual = codes(healthy().cadence(cadence(CadenceStatus.STALLED, StatusCode.STARTING_UP))
+                .people(new HealthSnapshot.PeopleDial(1, 1, DOWN)).build());
+
+        // then
+        assertThat(actual).doesNotContain(Finding.Code.FADING, Finding.Code.DORMANT);
     }
 
     @Test
-    void reachNotFlaggedWhenUnavailable() {
+    void socialClubDrift_noTalks() {
 
-        var s = healthy().reach(new HealthSnapshot.CrossTeamReachDial(false, 0, 0, 0, 0, 6, FLAT)).build();
-        assertThat(codes(s)).doesNotContain(Finding.Code.NARROW_REACH);
+        // given
+        var drifting = healthy().stage(stage()).engagement(new HealthSnapshot.EngagementDial(9, FLAT))
+                .reuse(reuse(0, 0));
+
+        // when / then
+        assertThat(codes(drifting.build())).contains(Finding.Code.SOCIAL_CLUB_DRIFT);
+        assertThat(codes(drifting.cadence(cadence(CadenceStatus.DORMANT, StatusCode.DORMANT)).build()))
+                .doesNotContain(Finding.Code.SOCIAL_CLUB_DRIFT);
+        assertThat(codes(healthy().stage(stage()).engagement(new HealthSnapshot.EngagementDial(9, FLAT)).build()))
+                .doesNotContain(Finding.Code.SOCIAL_CLUB_DRIFT);
+        assertThat(codes(healthy().stage(stage(1L)).engagement(new HealthSnapshot.EngagementDial(9, FLAT))
+                .reuse(reuse(0, 0)).build())).doesNotContain(Finding.Code.SOCIAL_CLUB_DRIFT);
+        assertThat(codes(healthy().stage(stage()).engagement(new HealthSnapshot.EngagementDial(0, FLAT))
+                .reuse(reuse(0, 0)).build())).doesNotContain(Finding.Code.SOCIAL_CLUB_DRIFT);
     }
 
     @Test
-    void findingsAreOrderedRiskThenGapThenStrength() {
+    void interestWithoutPayoff_savedNoneHelped() {
 
-        // busFactor 1 (risk) + saves-no-payoff (gap) + steady (strength)
-        var s = healthy().busFactor(1).reuse(new HealthSnapshot.ReuseDial(0, 0, FLAT, 18, 7, 0, 0, FLAT)).build();
-        var kinds = DiagnosisEngine.diagnose(s).findings().stream().map(Finding::kind).toList();
-        assertThat(kinds).containsExactly(Finding.Kind.RISK, Finding.Kind.GAP, Finding.Kind.STRENGTH);
+        // when
+        var actual = codes(healthy().reuse(reuse(18, 0)).build());
+
+        // then
+        assertThat(actual).contains(Finding.Code.INTEREST_WITHOUT_PAYOFF).doesNotContain(Finding.Code.KNOWLEDGE_REUSED);
+    }
+
+    @Test
+    void diagnose_orderedRiskThenGapThenStrength() {
+
+        // given one voice (risk), saves with no payoff (gap), steady (strength)
+        var s = healthy().stage(stage(3L)).reuse(reuse(18, 0)).build();
+
+        // when
+        var actual = DiagnosisEngine.diagnose(s).findings().stream().map(Finding::kind).toList();
+
+        // then
+        assertThat(actual).containsExactly(Finding.Kind.RISK, Finding.Kind.GAP, Finding.Kind.STRENGTH);
     }
 }

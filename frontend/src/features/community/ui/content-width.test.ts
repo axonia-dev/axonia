@@ -37,6 +37,13 @@ describe("contentMaxWidthClass", () => {
     );
   });
 
+  // A glance row of four tiles and two panels side by side, each with a chart, do not fit 768px.
+  it("gives the health page the dashboard width", () => {
+    expect(contentMaxWidthClass("/communities/backend/health")).toBe(
+      "max-w-5xl",
+    );
+  });
+
   it("keeps the reading width for other community pages", () => {
     expect(contentMaxWidthClass("/communities/backend")).toBe("max-w-3xl");
     expect(contentMaxWidthClass("/communities/backend/backlog")).toBe(

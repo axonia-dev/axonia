@@ -15,7 +15,7 @@ import type {
 import { findingText } from "@/features/health/domain/health";
 import { HealthView } from "@/features/health/ui/HealthView";
 
-/** The kind only picks an icon, so one per chapter keeps all three icons on the page. */
+/** The kind only picks an icon, so one per panel keeps all three icons on the page. */
 const KIND_OF: Record<Chapter, FindingKind> = {
   carried: "RISK",
   alive: "GAP",
@@ -23,8 +23,8 @@ const KIND_OF: Record<Chapter, FindingKind> = {
 };
 
 /**
- * Every code the backend can emit, derived from the routing table rather than typed out, so an
- * eleventh code cannot leave this list at ten while the exactly-once guard still reports green.
+ * Every code the backend can emit, derived from the routing table rather than typed out, so a
+ * new code cannot leave this list short while the exactly-once guard still reports green.
  */
 export const EVERY_FINDING: Finding[] = Object.entries(CHAPTER_OF).map(
   ([code, chapter]) => ({ kind: KIND_OF[chapter], code: code as FindingCode }),
@@ -66,14 +66,20 @@ export function renderHealthView(): RenderResult {
   );
 }
 
-/** The verdict strip names every status word too, so a chapter is read on its own. */
-export function renderChapter(id: string) {
+/** The glance row repeats the panels' status words, so a panel is read on its own. */
+export function renderPanel(id: Chapter) {
   const { container } = renderHealthView();
   return within(container.querySelector(`#${id}`) as HTMLElement);
 }
 
+/** A fact is a number over its caption, read as one line the way a screen reader reads it. */
+export function factText(caption: string): string {
+  const text = screen.getByText(caption).parentElement?.textContent ?? "";
+  return text.replace(/\s+/g, " ").trim();
+}
+
 /**
- * The guard the whole redesign rests on. A `contains` assertion cannot see an over-render, and
+ * The guard the whole page rests on. A `contains` assertion cannot see an over-render, and
  * counting two hand-picked sentences cannot see the eighth one, so this counts every finding the
  * snapshot carries.
  */

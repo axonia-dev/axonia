@@ -1,12 +1,11 @@
 import { z } from "zod";
 
+import { healthStatusSchema } from "@/features/health/domain/status";
 import { plural } from "@/lib/plural";
 
 const cadenceStatusSchema = z.enum(["STEADY", "SLOWING", "STALLED", "DORMANT"]);
-export type CadenceStatus = z.infer<typeof cadenceStatusSchema>;
 
 const trendDirectionSchema = z.enum(["UP", "DOWN", "FLAT"]);
-export type TrendDirection = z.infer<typeof trendDirectionSchema>;
 
 const trendSchema = z.object({
   previous: z.number(),
@@ -16,21 +15,30 @@ const trendSchema = z.object({
 export const healthSnapshotSchema = z.object({
   window: z.string(),
   generatedAt: z.string(),
-  busFactor: z.number(),
-  concentration: z.object({
-    top3Share: z.number(),
+  stage: z.object({
+    talks: z.number(),
+    speakers: z.number(),
+    speakersForHalf: z.number(),
     distribution: z.array(z.number()),
+    trend: trendSchema,
+    status: healthStatusSchema,
+  }),
+  curation: z.object({
+    acts: z.number(),
+    topShare: z.number(),
   }),
   cadence: z.object({
-    status: cadenceStatusSchema,
+    rhythm: cadenceStatusSchema,
     sessionsHeld: z.number(),
     medianGapDays: z.number().nullable(),
+    nextSessionAt: z.string().nullable(),
+    lastHeldAt: z.string().nullable(),
     trend: trendSchema,
+    status: healthStatusSchema,
   }),
-  participation: z.object({
-    activeMembers: z.number(),
-    totalMembers: z.number(),
-    share: z.number(),
+  people: z.object({
+    involved: z.number(),
+    members: z.number(),
     trend: trendSchema,
   }),
   engagement: z.object({
@@ -47,8 +55,8 @@ export const healthSnapshotSchema = z.object({
     teams: z.number(),
     departments: z.number(),
     businessUnits: z.number(),
-    contributorsWithUnit: z.number(),
-    totalContributors: z.number(),
+    speakersWithUnit: z.number(),
+    totalSpeakers: z.number(),
     trend: trendSchema,
   }),
   reuse: z.object({
@@ -60,14 +68,12 @@ export const healthSnapshotSchema = z.object({
     helped: z.number(),
     notHelped: z.number(),
     savesTrend: trendSchema,
+    status: healthStatusSchema,
   }),
   series: z.object({
-    contributors: z.array(z.number()),
-    participation: z.array(z.number()),
-    engagement: z.array(z.number()),
+    talks: z.array(z.number()),
+    people: z.array(z.number()),
     joins: z.array(z.number()),
-    openings: z.array(z.number()),
-    saves: z.array(z.number()),
   }),
   heldSessionDates: z.array(z.string()),
   diagnosis: z.object({
@@ -77,6 +83,7 @@ export const healthSnapshotSchema = z.object({
         code: z.enum([
           "SINGLE_POINT",
           "OVER_RELIANCE",
+          "CURATION_LEANS_ON_ONE",
           "FADING",
           "DORMANT",
           "SOCIAL_CLUB_DRIFT",
@@ -92,46 +99,7 @@ export const healthSnapshotSchema = z.object({
 });
 export type HealthSnapshot = z.infer<typeof healthSnapshotSchema>;
 
-/** Advisory framing of a bus factor. */
-export function busFactorRead(busFactor: number): string {
-  if (busFactor === 0) return "No activity";
-  if (busFactor === 1) return "Fragile";
-  if (busFactor === 2) return "Concentrated";
-  if (busFactor <= 4) return "Shared";
-  return "Well-distributed";
-}
-
-const SINGLE_POINT_NUDGE = "Everything leans on one person; spread the load.";
-
-/**
- * A word or two per status, never a sentence. Sentences are what findings are for, and a card that
- * states one restates the finding beneath it: that is the duplication this page was rebuilt to
- * delete. Keeping these too short to be a sentence makes the collision impossible by construction.
- */
-export const CADENCE_WORD: Record<CadenceStatus, string> = {
-  STEADY: "On rhythm",
-  SLOWING: "Slowing",
-  STALLED: "Stalled",
-  DORMANT: "Dormant",
-};
-
-/**
- * What the window contained, stated tense-neutrally. "One session every 14 days" claims a rhythm
- * that is still running, which is a lie for a dormant community carrying an old median; a median gap
- * is a fact about the past. Null when there is no gap to state: the count, the pulse and the status
- * word already carry it, and inventing a sentence there is how the duplication came back.
- */
-export function cadenceEvidence(
-  cadence: HealthSnapshot["cadence"],
-): string | null {
-  const { medianGapDays } = cadence;
-  if (medianGapDays === null) return null;
-  // The median, never every session: a community with gaps of 0.5, 0.5, 30 and 40 days
-  // has a median of 0 and a fortnight of silence, and "sessions landed a day apart"
-  // would be a claim about all four.
-  if (medianGapDays === 0) return "Median gap under a day between sessions.";
-  return `Median gap of ${plural(medianGapDays, "day")} between sessions.`;
-}
+export type Trend = z.infer<typeof trendSchema>;
 
 export function formatShare(share: number): string {
   return `${Math.round(share * 100)}%`;
@@ -141,20 +109,28 @@ export type Finding = HealthSnapshot["diagnosis"]["findings"][number];
 export type FindingKind = Finding["kind"];
 export type FindingCode = Finding["code"];
 
+function stageShared(s: HealthSnapshot): string {
+  const speakers = plural(s.stage.speakers, "speaker");
+  if (!s.reach.available || s.reach.teams <= 1) {
+    return `The stage is shared across ${speakers}.`;
+  }
+  return `The stage is shared across ${speakers} from ${plural(s.reach.teams, "team")}.`;
+}
+
 const FINDING_TEXT: Record<FindingCode, (s: HealthSnapshot) => string> = {
-  SINGLE_POINT: () => SINGLE_POINT_NUDGE,
-  OVER_RELIANCE: (s) =>
-    `Leans on 2 people; ${formatShare(s.concentration.top3Share)} of contributions come from the top few.`,
-  FADING: () =>
-    "Losing momentum: cadence is slipping and fewer people are taking part.",
-  DORMANT: () => "No active series: the community is dormant.",
+  SINGLE_POINT: () => "Every talk came from one person.",
+  OVER_RELIANCE: () => "One speaker gave most of the talks.",
+  CURATION_LEANS_ON_ONE: (s) =>
+    `Curation leans on one person: ${formatShare(s.curation.topShare)} of topics and Library additions.`,
+  NARROW_REACH: () => "Every speaker comes from one team.",
+  WELL_DISTRIBUTED: stageShared,
+  DORMANT: () => "No sessions held and none scheduled.",
+  FADING: () => "Fewer sessions and fewer people than the period before.",
   SOCIAL_CLUB_DRIFT: () =>
-    "Plenty of engagement, but little is being produced or confirmed helpful.",
+    "Plenty of engagement, but no talks and nothing confirmed helpful.",
+  ON_RHYTHM: () => "Sessions keep a steady rhythm.",
   INTEREST_WITHOUT_PAYOFF: (s) =>
-    `Interest without confirmed payoff: ${s.reuse.saves} saved, but ${s.reuse.helped} said it helped.`,
-  NARROW_REACH: () => "Contribution is drawn from a single team.",
-  WELL_DISTRIBUTED: () => "Contribution is well spread across the community.",
-  ON_RHYTHM: () => "Sessions are happening on rhythm.",
+    `${s.reuse.saves} saved, none confirmed helpful yet.`,
   KNOWLEDGE_REUSED: (s) =>
     `Knowledge is being reused: ${s.reuse.helped} confirmed it helped.`,
 };

@@ -16,6 +16,8 @@ import dev.axonia.health.domain.CadenceStatus;
 import dev.axonia.health.domain.Diagnosis;
 import dev.axonia.health.domain.Finding;
 import dev.axonia.health.domain.HealthSnapshot;
+import dev.axonia.health.domain.Status;
+import dev.axonia.health.domain.StatusCode;
 import dev.axonia.health.domain.Trend;
 import dev.axonia.shared.api.error.ForbiddenException;
 import dev.axonia.shared.api.error.NotFoundException;
@@ -42,19 +44,26 @@ class HealthControllerTest extends ControllerTestSupport {
      */
     private HealthSnapshot aSnapshot() {
 
-        return HealthSnapshot.builder().window("90d").generatedAt(Instant.parse("2026-06-11T12:00:00Z")).busFactor(2)
-                .concentration(new HealthSnapshot.Concentration(0.8, List.of(0.4, 0.28, 0.12, 0.1, 0.1)))
-                .cadence(new HealthSnapshot.CadenceDial(CadenceStatus.STEADY, 6, 14, Trend.of(6, 5)))
-                .participation(new HealthSnapshot.ParticipationDial(32, 80, 0.4, Trend.of(0.4, 0.28)))
+        return HealthSnapshot.builder().window("90d").generatedAt(Instant.parse("2026-06-11T12:00:00Z"))
+                .stage(HealthSnapshot.StageDial.builder().talks(14).speakers(5).speakersForHalf(2)
+                        .distribution(List.of(0.4, 0.28, 0.12, 0.1, 0.1)).trend(Trend.of(5, 3))
+                        .status(Status.of(StatusCode.SHARED)).build())
+                .curation(new HealthSnapshot.CurationDial(9, 0.66))
+                .cadence(HealthSnapshot.CadenceDial.builder().rhythm(CadenceStatus.STEADY).sessionsHeld(6)
+                        .medianGapDays(14).nextSessionAt(Instant.parse("2026-06-18T17:00:00Z"))
+                        .lastHeldAt(Instant.parse("2026-06-04T17:00:00Z")).trend(Trend.of(6, 5))
+                        .status(Status.of(StatusCode.ON_RHYTHM)).build())
+                .people(new HealthSnapshot.PeopleDial(32, 20, Trend.of(32, 28)))
                 .engagement(new HealthSnapshot.EngagementDial(41, Trend.of(41, 30)))
                 .membershipGrowth(new HealthSnapshot.MembershipGrowthDial(5, 80, Trend.of(5, 2)))
-                .reach(new HealthSnapshot.CrossTeamReachDial(true, 6, 3, 2, 9, 12, Trend.of(6, 4)))
+                .reach(new HealthSnapshot.CrossTeamReachDial(true, 6, 3, 2, 4, 5, Trend.of(6, 4)))
                 .reuse(HealthSnapshot.ReuseDial.builder().opened(214).artifactsOpened(18)
                         .openingsTrend(Trend.of(214, 151)).saves(37).artifactsSaved(12).helped(9).notHelped(4)
-                        .savesTrend(Trend.of(37, 40)).build())
-                .series(new HealthSnapshot.Series(A_SERIES, A_SERIES, A_SERIES, A_SERIES, A_SERIES, A_SERIES))
+                        .savesTrend(Trend.of(37, 40)).status(Status.of(StatusCode.PAYING_OFF)).build())
+                .series(new HealthSnapshot.Series(A_SERIES, A_SERIES, A_SERIES))
                 .heldSessionDates(List.of(Instant.parse("2026-04-02T17:00:00Z")))
-                .diagnosis(new Diagnosis(List.of(new Finding(Finding.Kind.RISK, Finding.Code.OVER_RELIANCE)))).build();
+                .diagnosis(new Diagnosis(List.of(new Finding(Finding.Kind.RISK, Finding.Code.CURATION_LEANS_ON_ONE))))
+                .build();
     }
 
     @Test
@@ -68,6 +77,36 @@ class HealthControllerTest extends ControllerTestSupport {
 
         // then
         actual.assertThat().hasStatus2xxSuccessful().bodyJson().isEqualTo(jsonMapper.writeValueAsString(aSnapshot()));
+    }
+
+    @Test
+    void snapshot_wireFieldNames() {
+
+        // given
+        when(healthService.snapshot("backend-guild", 90)).thenReturn(aSnapshot());
+
+        // when
+        var actual = mvc.get().uri("/axonia/communities/{slug}/health", "backend-guild").exchange();
+
+        // then the field names the frontend parses
+        var json = actual.assertThat().hasStatus2xxSuccessful().bodyJson();
+        json.extractingPath("$.stage.speakersForHalf").isEqualTo(2);
+        json.extractingPath("$.stage.status.code").isEqualTo("SHARED");
+        json.extractingPath("$.stage.status.level").isEqualTo("GOOD");
+        json.extractingPath("$.curation.topShare").isEqualTo(0.66);
+        json.extractingPath("$.cadence.rhythm").isEqualTo("STEADY");
+        json.extractingPath("$.cadence.nextSessionAt").isEqualTo("2026-06-18T17:00:00Z");
+        json.extractingPath("$.cadence.lastHeldAt").isEqualTo("2026-06-04T17:00:00Z");
+        json.extractingPath("$.cadence.status.level").isEqualTo("GOOD");
+        json.extractingPath("$.reach.speakersWithUnit").isEqualTo(4);
+        json.extractingPath("$.reach.totalSpeakers").isEqualTo(5);
+        json.extractingPath("$.people.involved").isEqualTo(32);
+        json.extractingPath("$.people.members").isEqualTo(20);
+        json.extractingPath("$.reuse.status.code").isEqualTo("PAYING_OFF");
+        json.extractingPath("$.series.talks.length()").isEqualTo(12);
+        json.extractingPath("$.series.people.length()").isEqualTo(12);
+        json.extractingPath("$.series.joins.length()").isEqualTo(12);
+        json.extractingPath("$.diagnosis.findings[0].code").isEqualTo("CURATION_LEANS_ON_ONE");
     }
 
     @Test

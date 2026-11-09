@@ -1,13 +1,15 @@
 import { screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { snapshotFixture } from "@/features/health/domain/snapshot-fixture";
+import {
+  snapshotFixture,
+  troubledSnapshotFixture,
+} from "@/features/health/domain/snapshot-fixture";
 import { ApiError } from "@/lib/api-client";
 import {
   mockFailure,
   mockLoaded,
   mockLoading,
-  renderChapter,
   renderHealthView,
 } from "@/test/health-view";
 
@@ -18,162 +20,106 @@ vi.mock("@/features/health/api/use-health", () => ({
 beforeEach(() => vi.clearAllMocks());
 
 describe("HealthView", () => {
-  it("shows all three chapters", () => {
+  it("shows a panel per question", () => {
+    // given
     mockLoaded(snapshotFixture());
 
+    // when
     renderHealthView();
 
-    expect(
-      screen.getByRole("heading", { name: "Who carries it" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "Is it alive" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "Is it paying off" }),
-    ).toBeInTheDocument();
+    // then
+    for (const name of ["Who carries it", "Is it alive", "Is it paying off"]) {
+      expect(screen.getByRole("heading", { name })).toBeInTheDocument();
+    }
   });
 
-  it("labels the fragility sparkline as contributors and never as the bus factor", () => {
+  it("opens on the summary of the three statuses", () => {
+    // given
     mockLoaded(snapshotFixture());
 
+    // when
     renderHealthView();
 
+    // then
     expect(
-      screen.getByRole("img", { name: /contributors/ }),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("img", { name: /bus factor/ }),
-    ).not.toBeInTheDocument();
+      screen.getByText(
+        (_, element) =>
+          element?.tagName === "P" &&
+          element.textContent ===
+            "Meeting about monthly, with 9 different speakers from 7 teams. Library knowledge is being opened but has not paid off yet.",
+      ),
+    ).toBeVisible();
+    expect(screen.getByText("about monthly").tagName).toBe("STRONG");
   });
 
-  it("draws one sparkline per dial, none of them claiming to be the dial itself", () => {
+  it("shows the glance row and the activity chart", () => {
+    // given
     mockLoaded(snapshotFixture());
 
+    // when
     renderHealthView();
 
-    expect(
-      screen.getByRole("img", { name: "members engaged per bucket" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("img", { name: "loves per bucket" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("img", { name: "joins per bucket" }),
-    ).toBeInTheDocument();
+    // then
+    expect(screen.getByRole("article", { name: "Sessions" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Activity" })).toBeVisible();
+  });
+
+  it("never says bus factor or participation", () => {
+    // given
+    mockLoaded(snapshotFixture());
+
+    // when
+    renderHealthView();
+
+    // then
+    expect(screen.queryByText(/bus factor/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/participation/i)).not.toBeInTheDocument();
   });
 
   it("dates its own header from the snapshot it is showing", () => {
+    // given
     mockLoaded(snapshotFixture({ window: "180d" }));
 
+    // when
     renderHealthView();
 
-    expect(screen.getByText("vs. the previous 180 days")).toBeInTheDocument();
+    // then
+    expect(
+      screen.getByText("Last 180 days, compared with the 180 days before"),
+    ).toBeInTheDocument();
   });
 
-  it("reads the three dials from the snapshot", () => {
-    mockLoaded(snapshotFixture());
-
-    renderHealthView();
-
-    expect(screen.getByText("40%")).toBeInTheDocument();
-    expect(screen.getByText("41 loves")).toBeInTheDocument();
-    expect(screen.getByText("80 members")).toBeInTheDocument();
-    expect(screen.getByText("5 joined this window")).toBeInTheDocument();
-  });
-
-  it("puts the membership trend beside the joins it compares, not beside the member count", () => {
-    mockLoaded(snapshotFixture());
-
-    renderHealthView();
-
-    // "80 members, up from 2" is the mislabel this guards: the chip compares joins.
-    expect(screen.getByText(/5 joined this window/)).toHaveTextContent(
-      "5 joined this window ↑ from 2",
-    );
-    expect(screen.getByText("80 members").parentElement).not.toHaveTextContent(
-      "from 2",
-    );
-  });
-
-  it("offers the quiet community its one next move", () => {
-    const dormant = snapshotFixture({ busFactor: 0 });
+  it("offers a dormant community its one next move", () => {
+    // given
+    const dormant = troubledSnapshotFixture();
     dormant.cadence = {
-      status: "DORMANT",
+      ...dormant.cadence,
+      rhythm: "DORMANT",
       sessionsHeld: 0,
-      medianGapDays: null,
-      trend: { previous: 0, direction: "FLAT" },
+      status: { code: "DORMANT", level: "WORRY" },
     };
-    dormant.heldSessionDates = [];
     mockLoaded(dormant);
 
-    const alive = renderChapter("alive");
+    // when
+    renderHealthView();
 
+    // then
     expect(
       screen.getByRole("link", { name: "Schedule a session" }),
     ).toBeInTheDocument();
-    expect(alive.getByText("Dormant")).toBeInTheDocument();
-    expect(screen.queryByText(/median gap/i)).not.toBeInTheDocument();
   });
 
-  it("keeps the cadence card singular for a single held session", () => {
-    const once = snapshotFixture();
-    once.cadence = {
-      status: "SLOWING",
-      sessionsHeld: 1,
-      medianGapDays: null,
-      trend: { previous: 4, direction: "DOWN" },
-    };
-    mockLoaded(once);
+  it("keeps the next move away from a community that is alive", () => {
+    // given
+    mockLoaded(troubledSnapshotFixture());
 
-    const alive = renderChapter("alive");
-
-    expect(alive.getByText("session held")).toBeInTheDocument();
-    expect(alive.getByText("Slowing")).toBeInTheDocument();
-  });
-
-  it("keeps the quiet community card away from a community that is alive", () => {
-    mockLoaded(snapshotFixture());
-
+    // when
     renderHealthView();
 
+    // then
     expect(
       screen.queryByRole("link", { name: "Schedule a session" }),
     ).not.toBeInTheDocument();
-  });
-
-  it("drops the participation share for a community too small to support one", () => {
-    const small = snapshotFixture();
-    small.participation = {
-      activeMembers: 3,
-      totalMembers: 3,
-      share: 1,
-      trend: { previous: 0, direction: "UP" },
-    };
-    mockLoaded(small);
-
-    renderHealthView();
-
-    expect(screen.getByText("3 of 3 members")).toBeInTheDocument();
-    expect(screen.queryByText("100%")).not.toBeInTheDocument();
-  });
-
-  it("states reach is unavailable without an org directory", () => {
-    const unsynced = snapshotFixture();
-    unsynced.reach = {
-      available: false,
-      teams: 0,
-      departments: 0,
-      businessUnits: 0,
-      contributorsWithUnit: 0,
-      totalContributors: 5,
-      trend: { previous: 0, direction: "FLAT" },
-    };
-    mockLoaded(unsynced);
-
-    renderHealthView();
-
-    expect(screen.getByText(/no org directory is synced/i)).toBeInTheDocument();
   });
 
   it("explains the organizer gate on a 403", () => {

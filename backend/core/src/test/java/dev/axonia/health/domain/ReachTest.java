@@ -19,8 +19,8 @@ class ReachTest {
         // then the dial is unavailable, never a misleading zero
         assertThat(actual.available()).isFalse();
         assertThat(actual.teams()).isZero();
-        assertThat(actual.contributorsWithUnit()).isZero();
-        assertThat(actual.totalContributors()).isEqualTo(5);
+        assertThat(actual.speakersWithUnit()).isZero();
+        assertThat(actual.totalSpeakers()).isEqualTo(5);
     }
 
     @Test
@@ -37,7 +37,7 @@ class ReachTest {
         assertThat(actual.teams()).isEqualTo(3);
         assertThat(actual.departments()).isEqualTo(2);
         assertThat(actual.businessUnits()).isEqualTo(1);
-        assertThat(actual.contributorsWithUnit()).isEqualTo(3);
+        assertThat(actual.speakersWithUnit()).isEqualTo(3);
         assertThat(actual.available()).isTrue();
     }
 
@@ -81,8 +81,8 @@ class ReachTest {
         var actual = Reach.of(units, 4);
 
         // then coverage is honest about its blind spot
-        assertThat(actual.contributorsWithUnit()).isEqualTo(1);
-        assertThat(actual.totalContributors()).isEqualTo(4);
+        assertThat(actual.speakersWithUnit()).isEqualTo(1);
+        assertThat(actual.totalSpeakers()).isEqualTo(4);
         assertThat(actual.available()).isTrue();
     }
 

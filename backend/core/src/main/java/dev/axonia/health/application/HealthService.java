@@ -3,15 +3,11 @@ package dev.axonia.health.application;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
+import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
-import dev.axonia.health.api.Buckets;
 import dev.axonia.health.api.spi.ArtifactSignals;
 import dev.axonia.health.api.spi.DirectorySignals;
 import dev.axonia.health.api.spi.EventsSignals;
@@ -20,13 +16,16 @@ import dev.axonia.health.api.spi.OpeningSignals;
 import dev.axonia.health.api.spi.PresenceSignals;
 import dev.axonia.health.api.spi.RecognitionSignals;
 import dev.axonia.health.api.spi.ReuseSignals;
+import dev.axonia.health.application.PeopleCohort.Cohort;
 import dev.axonia.health.application.port.out.CurrentUser;
 import dev.axonia.health.application.port.out.OrganizationContext;
 import dev.axonia.health.domain.CadenceClassifier;
+import dev.axonia.health.domain.Curation;
 import dev.axonia.health.domain.DiagnosisEngine;
 import dev.axonia.health.domain.Distribution;
 import dev.axonia.health.domain.HealthSnapshot;
 import dev.axonia.health.domain.Reach;
+import dev.axonia.health.domain.StatusRules;
 import dev.axonia.health.domain.Trend;
 import dev.axonia.shared.api.error.ForbiddenException;
 import lombok.RequiredArgsConstructor;
@@ -56,41 +55,25 @@ public class HealthService {
 
         var window = Window.of(clock.instant(), windowDays);
         var organizationId = organizationContext.organizationId();
-        var cohorts = new Cohorts(cohortOf(organizationId, communityId, window.from(), window.now()),
-                cohortOf(organizationId, communityId, window.previousFrom(), window.from()));
+        var people = new PeopleCohort(eventsSignals, artifactSignals, presenceSignals);
+        var cohorts = new Cohorts(people.of(organizationId, communityId, window.from(), window.now()),
+                people.of(organizationId, communityId, window.previousFrom(), window.from()));
 
-        var snapshot = dialsOf(communityId, organizationId, window, cohorts);
+        var snapshot = dialsOf(new Scope(organizationId, communityId, window), cohorts);
         return snapshot.toBuilder().diagnosis(DiagnosisEngine.diagnose(snapshot)).build();
     }
 
     /**
-     * The five dials, computed against one already-resolved window and the two already-filtered cohorts it spans. Split
-     * out of {@link #snapshot(String, int)} because that method has a second, unrelated job - resolving who is allowed
-     * to look and over what window - and folding both into one method obscured where the dial math starts.
+     * The dials, computed against one already-resolved window and the two already-filtered cohorts it spans. Split out
+     * of {@link #snapshot(String, int)} because that method has a second, unrelated job - resolving who is allowed to
+     * look and over what window.
      */
-    private HealthSnapshot dialsOf(long communityId, String organizationId, Window window, Cohorts cohorts) {
+    private HealthSnapshot dialsOf(Scope scope, Cohorts cohorts) {
 
-        var currentCohort = cohorts.current();
-        var previousCohort = cohorts.previous();
-        var contributions = currentCohort.contributions();
-        var previousContributions = previousCohort.contributions();
-
-        var reach = reachOf(organizationId, contributions.keySet());
-        var previousReach = reachOf(organizationId, previousContributions.keySet());
-
-        var distribution = Distribution.of(contributions.values());
-
-        var heldDates = eventsSignals.heldSessionDates(communityId, window.from(), window.now());
-        var previousHeld = eventsSignals.heldSessionDates(communityId, window.previousFrom(), window.from()).size();
-        var cadence = CadenceClassifier.classify(heldDates, eventsSignals.activeSeries(communityId), window.now());
-
+        var window = scope.window();
+        var communityId = scope.communityId();
+        var peopleTrend = Trend.of(cohorts.current().involved().size(), cohorts.previous().involved().size());
         var memberCount = membershipSignals.memberCount(communityId);
-        var active = currentCohort.active();
-        var previousActive = previousCohort.active();
-        // Leaves hard-delete the membership row, so the historical member count is
-        // unknowable; both windows read against today's denominator.
-        var share = shareOf(active.size(), memberCount);
-        var previousShare = shareOf(previousActive.size(), memberCount);
 
         var loves = recognitionSignals.lovesGiven(communityId, window.from(), window.now());
         var previousLoves = recognitionSignals.lovesGiven(communityId, window.previousFrom(), window.from());
@@ -98,48 +81,79 @@ public class HealthService {
         var joins = membershipSignals.joins(communityId, window.from(), window.now());
         var previousJoins = membershipSignals.joins(communityId, window.previousFrom(), window.from());
 
-        var reuse = reuseSignals.reuseCounts(communityId, window.from(), window.now());
-        var previousReuse = reuseSignals.reuseCounts(communityId, window.previousFrom(), window.from());
+        var heldDates = eventsSignals.heldSessionDates(communityId, window.from(), window.now());
+        var curation = Curation.of(cohorts.current().curation().values());
 
-        var openings = openingSignals.openingCounts(communityId, window.from(), window.now());
-        var previousOpenings = openingSignals.openingCounts(communityId, window.previousFrom(), window.from());
-
-        return HealthSnapshot.builder().window(window.days() + "d").generatedAt(window.now())
-                .busFactor(distribution.busFactor())
-                .concentration(new HealthSnapshot.Concentration(distribution.top3Share(), distribution.shares()))
-                .cadence(new HealthSnapshot.CadenceDial(cadence.status(), cadence.sessionsHeld(),
-                        cadence.medianGapDays(), Trend.of(heldDates.size(), previousHeld)))
-                .participation(new HealthSnapshot.ParticipationDial(active.size(), memberCount, share,
-                        Trend.of(share, previousShare)))
+        return HealthSnapshot.builder().window(window.days() + "d").generatedAt(window.now()).stage(stageOf(cohorts))
+                .curation(new HealthSnapshot.CurationDial(curation.acts(), curation.topShare()))
+                .cadence(cadenceOf(communityId, window, heldDates, peopleTrend))
+                .people(peopleOf(communityId, cohorts.current().involved(), peopleTrend))
                 .engagement(new HealthSnapshot.EngagementDial(loves, Trend.of(loves, previousLoves)))
                 .membershipGrowth(
                         new HealthSnapshot.MembershipGrowthDial(joins, memberCount, Trend.of(joins, previousJoins)))
-                .reach(new HealthSnapshot.CrossTeamReachDial(reach.available(), reach.teams(), reach.departments(),
-                        reach.businessUnits(), reach.contributorsWithUnit(), reach.totalContributors(),
-                        Trend.of(reach.teams(), previousReach.teams())))
-                .reuse(HealthSnapshot.ReuseDial.builder().opened(openings.openings())
-                        .artifactsOpened(openings.distinctArtifactsOpened())
-                        .openingsTrend(Trend.of(openings.openings(), previousOpenings.openings())).saves(reuse.saves())
-                        .artifactsSaved(reuse.distinctArtifactsSaved()).helped(reuse.helped())
-                        .notHelped(reuse.notHelped()).savesTrend(Trend.of(reuse.saves(), previousReuse.saves()))
-                        .build())
-                .series(seriesOf(communityId, window)).heldSessionDates(heldDates).build();
+                .reach(reachOf(scope.organizationId(), cohorts)).reuse(reuseOf(communityId, window))
+                .series(new SnapshotSeries(eventsSignals, artifactSignals, membershipSignals).of(communityId,
+                        window.from(), window.now(), cohorts.current().involved()))
+                .heldSessionDates(heldDates).build();
     }
 
-    /**
-     * Each dial's shape over the current window only, twelve equal buckets. The previous window keeps its scalar
-     * comparison and is never bucketed - nothing draws that line. Split out of {@link #dialsOf} to keep that method
-     * under the complexity ceiling.
-     */
-    private HealthSnapshot.Series seriesOf(long communityId, Window window) {
+    private static HealthSnapshot.StageDial stageOf(Cohorts cohorts) {
 
-        return new HealthSnapshot.Series(
-                eventsSignals.distinctContributorsPerBucket(communityId, window.from(), window.now(), Buckets.COUNT),
-                eventsSignals.engagedMembersPerBucket(communityId, window.from(), window.now(), Buckets.COUNT),
-                recognitionSignals.lovesPerBucket(communityId, window.from(), window.now(), Buckets.COUNT),
-                membershipSignals.joinsPerBucket(communityId, window.from(), window.now(), Buckets.COUNT),
-                openingSignals.openingsPerBucket(communityId, window.from(), window.now(), Buckets.COUNT),
-                reuseSignals.savesPerBucket(communityId, window.from(), window.now(), Buckets.COUNT));
+        var stage = Distribution.of(cohorts.current().talks().values());
+        var previousSpeakers = Distribution.of(cohorts.previous().talks().values()).speakers();
+        return HealthSnapshot.StageDial.builder().talks(stage.talks()).speakers(stage.speakers())
+                .speakersForHalf(stage.speakersForHalf()).distribution(stage.shares())
+                .trend(Trend.of(stage.speakers(), previousSpeakers)).status(StatusRules.stage(stage)).build();
+    }
+
+    private HealthSnapshot.CadenceDial cadenceOf(long communityId, Window window, List<Instant> heldDates,
+            Trend peopleTrend) {
+
+        var previousHeld = eventsSignals.heldSessionDates(communityId, window.previousFrom(), window.from()).size();
+        var nextSessionAt = eventsSignals.nextSessionAt(communityId, window.now()).orElse(null);
+        var lastHeldAt = eventsSignals.lastHeldSessionAt(communityId, window.now()).orElse(null);
+        var cadence = CadenceClassifier.classify(heldDates, eventsSignals.activeSeries(communityId), nextSessionAt,
+                window.now());
+        return HealthSnapshot.CadenceDial.builder().rhythm(cadence.status()).sessionsHeld(cadence.sessionsHeld())
+                .medianGapDays(cadence.medianGapDays()).nextSessionAt(nextSessionAt).lastHeldAt(lastHeldAt)
+                .trend(Trend.of(heldDates.size(), previousHeld))
+                .status(StatusRules.alive(cadence.status(), lastHeldAt, nextSessionAt != null, peopleTrend.direction()))
+                .build();
+    }
+
+    private HealthSnapshot.PeopleDial peopleOf(long communityId, Set<String> involved, Trend trend) {
+
+        var members = membershipSignals.membersAmong(communityId, involved).size();
+        return new HealthSnapshot.PeopleDial(involved.size(), members, trend);
+    }
+
+    private HealthSnapshot.CrossTeamReachDial reachOf(String organizationId, Cohorts cohorts) {
+
+        var reach = reachOf(organizationId, cohorts.current().talks().keySet());
+        var previousReach = reachOf(organizationId, cohorts.previous().talks().keySet());
+        return new HealthSnapshot.CrossTeamReachDial(reach.available(), reach.teams(), reach.departments(),
+                reach.businessUnits(), reach.speakersWithUnit(), reach.totalSpeakers(),
+                Trend.of(reach.teams(), previousReach.teams()));
+    }
+
+    private Reach reachOf(String organizationId, Set<String> speakerIds) {
+
+        var units = directorySignals.unitsOf(organizationId, speakerIds);
+        return Reach.of(units.values(), speakerIds.size());
+    }
+
+    private HealthSnapshot.ReuseDial reuseOf(long communityId, Window window) {
+
+        var reuse = reuseSignals.reuseCounts(communityId, window.from(), window.now());
+        var previousReuse = reuseSignals.reuseCounts(communityId, window.previousFrom(), window.from());
+        var openings = openingSignals.openingCounts(communityId, window.from(), window.now());
+        var previousOpenings = openingSignals.openingCounts(communityId, window.previousFrom(), window.from());
+        return HealthSnapshot.ReuseDial.builder().opened(openings.openings())
+                .artifactsOpened(openings.distinctArtifactsOpened())
+                .openingsTrend(Trend.of(openings.openings(), previousOpenings.openings())).saves(reuse.saves())
+                .artifactsSaved(reuse.distinctArtifactsSaved()).helped(reuse.helped()).notHelped(reuse.notHelped())
+                .savesTrend(Trend.of(reuse.saves(), previousReuse.saves()))
+                .status(StatusRules.payoff(openings.openings(), reuse.saves(), reuse.helped())).build();
     }
 
     /**
@@ -156,58 +170,9 @@ public class HealthService {
         }
     }
 
+    private record Scope(String organizationId, long communityId, Window window) {
+    }
+
     private record Cohorts(Cohort current, Cohort previous) {
-    }
-
-    /**
-     * The present contributors and the present active members of one window, resolved with a single presence check over
-     * their combined ids. Filtering the union rather than each dial separately is what keeps bus factor, reach and
-     * active-member count telling the same story: a community's coverage is the people who could still answer a
-     * question, not everyone who ever contributed or showed up - a departed member cannot re-enter active membership
-     * through engagement after being dropped from contribution counts.
-     */
-    private Cohort cohortOf(String organizationId, long communityId, Instant from, Instant to) {
-
-        var contributions = contributionsPerMember(communityId, from, to);
-        var engaged = eventsSignals.engagedUserIds(communityId, from, to);
-        var candidates = new HashSet<>(contributions.keySet());
-        candidates.addAll(engaged);
-
-        var present = presenceSignals.presentOf(organizationId, candidates);
-
-        var presentContributions = contributions.entrySet().stream().filter(entry -> present.contains(entry.getKey()))
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-        var active = new HashSet<>(candidates);
-        active.retainAll(present);
-
-        return new Cohort(presentContributions, active);
-    }
-
-    private record Cohort(Map<String, Long> contributions, Set<String> active) {
-
-        private Cohort {
-
-            contributions = Map.copyOf(contributions);
-            active = Set.copyOf(active);
-        }
-    }
-
-    private Map<String, Long> contributionsPerMember(long communityId, Instant from, Instant to) {
-
-        var merged = new HashMap<>(eventsSignals.contributionCounts(communityId, from, to));
-        artifactSignals.artifactCounts(communityId, from, to)
-                .forEach((userId, count) -> merged.merge(userId, count, Long::sum));
-        return merged;
-    }
-
-    private Reach reachOf(String organizationId, Set<String> contributorIds) {
-
-        var units = directorySignals.unitsOf(organizationId, contributorIds);
-        return Reach.of(units.values(), contributorIds.size());
-    }
-
-    private static double shareOf(long active, long memberCount) {
-
-        return memberCount == 0 ? 0.0 : (double) active / memberCount;
     }
 }

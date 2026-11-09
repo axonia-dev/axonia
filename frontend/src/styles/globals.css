@@ -36,6 +36,27 @@
 
   --focus-ring: #de3b78;
 
+  /* The health page's two colour systems. Status judges, on pills and finding icons only: the
+     inks deepen the semantic colour toward the foreground so a 12px word holds 4.5:1 on its own
+     tint, and --great is a deeper green so white text holds on it. Data never judges: three tones
+     of the community's own hue, on chart and bar marks only, each holding 3:1 on the surface for
+     every palette hue in both themes (health-contrast.test.ts measures them). A light theme can
+     only keep 3:1 by mixing toward the foreground, so here the tones darken from --data-1, the
+     focus-ring mix. --data-area is the one soft tone, for area fills, which are not marks. */
+  --danger-ink: color-mix(in srgb, var(--danger) 60%, var(--foreground));
+  --warning-ink: color-mix(in srgb, var(--warning) 60%, var(--foreground));
+  --success-ink: color-mix(in srgb, var(--success) 60%, var(--foreground));
+  --quiet-ink: color-mix(
+    in srgb,
+    var(--muted-foreground) 85%,
+    var(--foreground)
+  );
+  --great: #17804f;
+  --data-1: var(--focus-ring);
+  --data-2: color-mix(in srgb, var(--primary) 60%, var(--foreground));
+  --data-3: color-mix(in srgb, var(--primary) 35%, var(--foreground));
+  --data-area: color-mix(in srgb, var(--primary) 14%, var(--surface));
+
   /* The head of a progress bar's fill, one step past the token the fill ramps from, so a
      4-pixel bar still reads as having a direction and a leading edge. Deliberately not a
      lightened `primary`/`warning`: it has to stay distinguishable at that height. */
@@ -138,6 +159,19 @@
 
   --focus-ring: #ff5c97;
 
+  /* Dark surfaces already carry the semantic colours at 4.5:1, so the inks are the colours
+     themselves, danger aside, which needs a touch of foreground to clear 4.5:1, and --great
+     brightens so its dark text lifts off it. The data tones lighten from --data-1 instead, with
+     the joins bars at the far end of the ramp from the talks bars and the line between them. */
+  --danger-ink: color-mix(in srgb, var(--danger) 90%, var(--foreground));
+  --warning-ink: var(--warning);
+  --success-ink: var(--success);
+  --quiet-ink: var(--muted-foreground);
+  --great: #2fd08a;
+  --data-2: color-mix(in srgb, var(--primary) 55%, var(--foreground));
+  --data-3: color-mix(in srgb, var(--primary) 25%, var(--foreground));
+  --data-area: color-mix(in srgb, var(--primary) 22%, var(--surface));
+
   /* Dark needs its own pair rather than the light one: the head has to lift off a dark
      surface, so it brightens where the light theme's head deepens in saturation. */
   --bar-tip: #ffa8ca;
@@ -210,6 +244,15 @@
   --color-danger: var(--danger);
   --color-danger-foreground: var(--danger-foreground);
   --color-focus-ring: var(--focus-ring);
+  --color-danger-ink: var(--danger-ink);
+  --color-warning-ink: var(--warning-ink);
+  --color-success-ink: var(--success-ink);
+  --color-quiet-ink: var(--quiet-ink);
+  --color-great: var(--great);
+  --color-data-1: var(--data-1);
+  --color-data-2: var(--data-2);
+  --color-data-3: var(--data-3);
+  --color-data-area: var(--data-area);
 
   --radius-sm: var(--radius-sm);
   --radius-md: var(--radius-md);

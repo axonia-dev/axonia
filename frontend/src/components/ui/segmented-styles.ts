@@ -16,7 +16,7 @@
  *  both: a single label too wide for the whole track scrolls inside it rather than out. */
 
 export const segmentedGroupClass =
-  "inline-flex w-fit max-w-full flex-wrap gap-0.5 overflow-x-auto rounded-md bg-surface-sunken p-0.5";
+  "inline-flex w-fit max-w-full flex-wrap gap-0.5 overflow-x-auto rounded-md bg-surface-sunken p-0.5 ring-1 ring-border ring-inset";
 
 export const segmentedItemClass =
   "group cursor-pointer rounded-sm px-3 py-1.5 text-xs font-semibold whitespace-nowrap text-muted-foreground outline-none transition-colors focus-visible:ring-2 focus-visible:ring-focus-ring";

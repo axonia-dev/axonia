@@ -6,8 +6,11 @@ import java.util.List;
 import dev.axonia.health.domain.Finding.Code;
 import dev.axonia.health.domain.Finding.Kind;
 
-/** Deterministic reading of a snapshot into ordered findings. Never sums anything into a score. */
+/** Deterministic reading of a snapshot into ordered findings, risks first. Never sums anything into a score. */
 public final class DiagnosisEngine {
+
+    static final int CURATION_MIN_ACTS = 5;
+    static final double CURATION_TOP_SHARE = 0.75;
 
     private DiagnosisEngine() {
     }
@@ -23,19 +26,45 @@ public final class DiagnosisEngine {
 
     private static void risks(HealthSnapshot s, List<Finding> out) {
 
-        if (s.busFactor() == 1) {
+        if (isSinglePoint(s.stage())) {
             out.add(new Finding(Kind.RISK, Code.SINGLE_POINT));
         }
-        if (s.busFactor() == 2) {
+        if (isOverReliance(s.stage())) {
             out.add(new Finding(Kind.RISK, Code.OVER_RELIANCE));
         }
-        var slowing = s.cadence().status() == CadenceStatus.SLOWING || s.cadence().status() == CadenceStatus.STALLED;
-        if (slowing && s.participation().trend().direction() == Trend.Direction.DOWN) {
-            out.add(new Finding(Kind.RISK, Code.FADING));
+        if (isCurationLeaningOnOne(s.curation())) {
+            out.add(new Finding(Kind.RISK, Code.CURATION_LEANS_ON_ONE));
         }
-        if (s.cadence().status() == CadenceStatus.DORMANT) {
+        if (s.cadence().rhythm() == CadenceStatus.DORMANT) {
             out.add(new Finding(Kind.RISK, Code.DORMANT));
         }
+        if (isFading(s)) {
+            out.add(new Finding(Kind.RISK, Code.FADING));
+        }
+    }
+
+    private static boolean isSinglePoint(HealthSnapshot.StageDial stage) {
+
+        return stage.talks() >= StatusRules.MIN_TALKS && stage.speakers() == 1;
+    }
+
+    private static boolean isOverReliance(HealthSnapshot.StageDial stage) {
+
+        var topShare = stage.distribution().isEmpty() ? 0.0 : stage.distribution().getFirst();
+        return stage.talks() >= StatusRules.MIN_TALKS && stage.speakers() > 1 && StatusRules.leansOnOne(topShare);
+    }
+
+    private static boolean isCurationLeaningOnOne(HealthSnapshot.CurationDial curation) {
+
+        return curation.acts() >= CURATION_MIN_ACTS && curation.topShare() >= CURATION_TOP_SHARE - 1e-9;
+    }
+
+    private static boolean isFading(HealthSnapshot s) {
+
+        var rhythm = s.cadence().rhythm();
+        var slowing = rhythm == CadenceStatus.SLOWING || rhythm == CadenceStatus.STALLED;
+        var startingUp = s.cadence().status().code() == StatusCode.STARTING_UP;
+        return slowing && !startingUp && s.people().trend().direction() == Trend.Direction.DOWN;
     }
 
     private static void gaps(HealthSnapshot s, List<Finding> out) {
@@ -43,7 +72,7 @@ public final class DiagnosisEngine {
         if (isSocialClubDrift(s)) {
             out.add(new Finding(Kind.GAP, Code.SOCIAL_CLUB_DRIFT));
         }
-        if (isInterestWithoutPayoff(s)) {
+        if (s.reuse().saves() > 0 && s.reuse().helped() == 0) {
             out.add(new Finding(Kind.GAP, Code.INTEREST_WITHOUT_PAYOFF));
         }
         if (isNarrowReach(s)) {
@@ -52,24 +81,24 @@ public final class DiagnosisEngine {
     }
 
     private static boolean isSocialClubDrift(HealthSnapshot s) {
-        return s.engagement().loves() > 0 && s.busFactor() == 0 && s.reuse().helped() == 0
-                && s.cadence().status() != CadenceStatus.DORMANT;
-    }
 
-    private static boolean isInterestWithoutPayoff(HealthSnapshot s) {
-        return s.reuse().saves() > 0 && s.reuse().helped() == 0;
+        return s.engagement().loves() > 0 && s.stage().talks() == 0 && s.reuse().helped() == 0
+                && s.cadence().rhythm() != CadenceStatus.DORMANT;
     }
 
     private static boolean isNarrowReach(HealthSnapshot s) {
-        return s.reach().available() && s.reach().teams() == 1 && s.reach().totalContributors() > 1;
+
+        var reach = s.reach();
+        var speakers = s.stage().speakers();
+        return reach.available() && reach.teams() == 1 && speakers > 1 && reach.speakersWithUnit() == speakers;
     }
 
     private static void strengths(HealthSnapshot s, List<Finding> out) {
 
-        if (s.busFactor() >= 5) {
+        if (s.stage().speakersForHalf() >= StatusRules.SHARED_STAGE_SPEAKERS) {
             out.add(new Finding(Kind.STRENGTH, Code.WELL_DISTRIBUTED));
         }
-        if (s.cadence().status() == CadenceStatus.STEADY) {
+        if (s.cadence().rhythm() == CadenceStatus.STEADY) {
             out.add(new Finding(Kind.STRENGTH, Code.ON_RHYTHM));
         }
         if (s.reuse().helped() > 0) {

@@ -1,7 +1,9 @@
 package dev.axonia.health.api.spi;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Read-only signals from the community context. Implemented by
@@ -12,6 +14,9 @@ public interface MembershipSignals {
     long communityIdForSlug(String slug);
 
     long memberCount(long communityId);
+
+    /** Those of {@code userIds} who are current members of the community. */
+    Set<String> membersAmong(long communityId, Collection<String> userIds);
 
     /** Memberships whose joined_at falls in [from, to). */
     long joins(long communityId, Instant from, Instant to);

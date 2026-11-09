@@ -7,8 +7,8 @@ import java.util.Set;
 import dev.axonia.health.api.OrgUnitLabels;
 
 /**
- * Cross-team reach: distinct org-units among contributors, counted at three grains. Units in, counts out — identity
- * (the userId keys) was dropped before this type, so nothing downstream can name a person or a single-person team.
+ * Cross-team reach: distinct org-units among speakers, counted at three grains. Units in, counts out — identity (the
+ * userId keys) was dropped before this type, so nothing downstream can name a person or a single-person team.
  * Same-named units under different parents stay distinct because each grain keys on its full path prefix.
  */
 public final class Reach {
@@ -18,20 +18,20 @@ public final class Reach {
     private final int teams;
     private final int departments;
     private final int businessUnits;
-    private final int contributorsWithUnit;
-    private final int totalContributors;
+    private final int speakersWithUnit;
+    private final int totalSpeakers;
 
-    private Reach(int teams, int departments, int businessUnits, int contributorsWithUnit, int totalContributors) {
+    private Reach(int teams, int departments, int businessUnits, int speakersWithUnit, int totalSpeakers) {
 
         this.teams = teams;
         this.departments = departments;
         this.businessUnits = businessUnits;
-        this.contributorsWithUnit = contributorsWithUnit;
-        this.totalContributors = totalContributors;
+        this.speakersWithUnit = speakersWithUnit;
+        this.totalSpeakers = totalSpeakers;
     }
 
-    /** Builds the reach from the org-units of the contributors that have one, against the total contributor count. */
-    public static Reach of(Collection<OrgUnitLabels> units, int totalContributors) {
+    /** Builds the reach from the org-units of the speakers that have one, against the total speaker count. */
+    public static Reach of(Collection<OrgUnitLabels> units, int totalSpeakers) {
 
         Set<String> businessUnits = new HashSet<>();
         Set<String> departments = new HashSet<>();
@@ -47,8 +47,8 @@ public final class Reach {
                 teams.add(unit.businessUnit() + SEP + unit.department() + SEP + unit.team());
             }
         }
-        // units holds only contributors that have a synced unit, so its size is contributorsWithUnit
-        return new Reach(teams.size(), departments.size(), businessUnits.size(), units.size(), totalContributors);
+        // units holds only speakers that have a synced unit, so its size is speakersWithUnit
+        return new Reach(teams.size(), departments.size(), businessUnits.size(), units.size(), totalSpeakers);
     }
 
     public int teams() {
@@ -66,19 +66,19 @@ public final class Reach {
         return businessUnits;
     }
 
-    public int contributorsWithUnit() {
+    public int speakersWithUnit() {
 
-        return contributorsWithUnit;
+        return speakersWithUnit;
     }
 
-    public int totalContributors() {
+    public int totalSpeakers() {
 
-        return totalContributors;
+        return totalSpeakers;
     }
 
-    /** False when no contributor has any synced unit — the dial reads "unavailable", never "0 teams". */
+    /** False when no speaker has any synced unit — the dial reads "unavailable", never "0 teams". */
     public boolean available() {
 
-        return contributorsWithUnit > 0;
+        return speakersWithUnit > 0;
     }
 }

@@ -4,15 +4,19 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoSettings;
 
+import dev.axonia.health.api.BucketCredit;
+import dev.axonia.health.api.BucketTalks;
 import dev.axonia.health.api.Buckets;
 import dev.axonia.health.api.OpeningCounts;
 import dev.axonia.health.api.OrgUnitLabels;
@@ -31,6 +35,8 @@ import dev.axonia.health.application.port.out.OrganizationContext;
 import dev.axonia.health.domain.CadenceStatus;
 import dev.axonia.health.domain.Finding;
 import dev.axonia.health.domain.HealthSnapshot;
+import dev.axonia.health.domain.Status;
+import dev.axonia.health.domain.StatusCode;
 import dev.axonia.health.domain.Trend;
 import dev.axonia.shared.api.error.ForbiddenException;
 import tools.jackson.databind.json.JsonMapper;
@@ -40,6 +46,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -52,6 +59,7 @@ class HealthServiceTest {
     private static final Instant NOW = Instant.parse("2026-06-11T12:00:00Z");
     private static final Instant FROM = NOW.minus(Duration.ofDays(90));
     private static final Instant PREVIOUS_FROM = NOW.minus(Duration.ofDays(180));
+    private static final List<Long> TWELVE_ZEROS = Collections.nCopies(Buckets.COUNT, 0L);
 
     @Mock
     private EventsSignals eventsSignals;
@@ -95,130 +103,337 @@ class HealthServiceTest {
         when(membershipSignals.communityIdForSlug("backend-guild")).thenReturn(1L);
         when(currentUser.userId()).thenReturn("orga");
         when(membershipSignals.canViewHealth(1L, "orga")).thenReturn(true);
-        when(organizationContext.organizationId()).thenReturn("default");
+    }
+
+    /**
+     * A viewable community with every signal stubbed empty and everyone present, so a test overrides only the reads it
+     * is about. Lenient: a test that overrides one read leaves its default unused.
+     */
+    private void givenAViewableCommunity() {
+
+        organizer();
+        givenQuietSignals();
+    }
+
+    private void givenQuietSignals() {
+
+        lenient().when(organizationContext.organizationId()).thenReturn("default");
+        lenient().when(eventsSignals.talkCounts(anyLong(), any(), any())).thenReturn(Map.of());
+        lenient().when(eventsSignals.topicProposals(anyLong(), any(), any())).thenReturn(Map.of());
+        lenient().when(artifactSignals.artifactCounts(anyLong(), any(), any())).thenReturn(Map.of());
+        lenient().when(eventsSignals.engagedUserIds(anyLong(), any(), any())).thenReturn(Set.of());
+        lenient().when(presenceSignals.presentOf(eq("default"), any()))
+                .thenAnswer(invocation -> Set.copyOf(invocation.<Collection<String>>getArgument(1)));
+        lenient().when(eventsSignals.heldSessionDates(anyLong(), any(), any())).thenReturn(List.of());
+        lenient().when(eventsSignals.activeSeries(anyLong())).thenReturn(List.of());
+        lenient().when(eventsSignals.nextSessionAt(anyLong(), any())).thenReturn(Optional.empty());
+        lenient().when(eventsSignals.lastHeldSessionAt(anyLong(), any())).thenReturn(Optional.empty());
+        lenient().when(recognitionSignals.lovesGiven(anyLong(), any(), any())).thenReturn(0L);
+        lenient().when(membershipSignals.joins(anyLong(), any(), any())).thenReturn(0L);
+        lenient().when(membershipSignals.memberCount(anyLong())).thenReturn(0L);
+        lenient().when(membershipSignals.membersAmong(anyLong(), any())).thenReturn(Set.of());
+        lenient().when(directorySignals.unitsOf(eq("default"), any())).thenReturn(Map.of());
+        lenient().when(reuseSignals.reuseCounts(anyLong(), any(), any())).thenReturn(new ReuseCounts(0, 0, 0, 0));
+        lenient().when(openingSignals.openingCounts(anyLong(), any(), any())).thenReturn(new OpeningCounts(0, 0));
+        lenient().when(eventsSignals.talkCreditsPerBucket(anyLong(), any(), any(), eq(Buckets.COUNT)))
+                .thenReturn(List.of());
+        lenient().when(eventsSignals.topicCreditsPerBucket(anyLong(), any(), any(), eq(Buckets.COUNT)))
+                .thenReturn(List.of());
+        lenient().when(artifactSignals.artifactCreditsPerBucket(anyLong(), any(), any(), eq(Buckets.COUNT)))
+                .thenReturn(List.of());
+        lenient().when(eventsSignals.engagementCreditsPerBucket(anyLong(), any(), any(), eq(Buckets.COUNT)))
+                .thenReturn(List.of());
+        lenient().when(membershipSignals.joinsPerBucket(anyLong(), any(), any(), eq(Buckets.COUNT)))
+                .thenReturn(TWELVE_ZEROS);
+    }
+
+    private static List<Long> bucketsOf(Map<Integer, Long> counts) {
+
+        return Buckets.zeroFill(counts, Buckets.COUNT);
     }
 
     @Test
-    void snapshot_assemblesAllFiveSignals() {
+    void snapshot_assemblesTheDials() {
 
         // given
-        organizer();
-        when(eventsSignals.contributionCounts(1L, FROM, NOW)).thenReturn(Map.of("alice", 5L, "bob", 2L, "carol", 2L));
-        when(artifactSignals.artifactCounts(1L, FROM, NOW)).thenReturn(Map.of("alice", 1L));
-        when(eventsSignals.contributionCounts(1L, PREVIOUS_FROM, FROM)).thenReturn(Map.of("alice", 4L));
-        when(artifactSignals.artifactCounts(1L, PREVIOUS_FROM, FROM)).thenReturn(Map.of());
+        givenAViewableCommunity();
+        when(eventsSignals.talkCounts(1L, FROM, NOW)).thenReturn(Map.of("alice", 3L, "bob", 1L, "carol", 1L));
+        when(eventsSignals.talkCounts(1L, PREVIOUS_FROM, FROM)).thenReturn(Map.of("alice", 2L));
+        when(eventsSignals.topicProposals(1L, FROM, NOW)).thenReturn(Map.of("orga", 4L));
+        when(artifactSignals.artifactCounts(1L, FROM, NOW)).thenReturn(Map.of("orga", 2L, "bob", 1L));
+        when(eventsSignals.engagedUserIds(1L, FROM, NOW)).thenReturn(Set.of("dana"));
+        when(eventsSignals.engagedUserIds(1L, PREVIOUS_FROM, FROM)).thenReturn(Set.of("bob"));
+        when(membershipSignals.membersAmong(1L, Set.of("alice", "bob", "carol", "orga", "dana")))
+                .thenReturn(Set.of("alice", "dana"));
         when(directorySignals.unitsOf("default", Set.of("alice", "bob", "carol")))
                 .thenReturn(Map.of("alice", new OrgUnitLabels("Acme", "Platform", "Payments"), "bob",
                         new OrgUnitLabels("Acme", "Platform", "Checkout"), "carol",
                         new OrgUnitLabels("Acme", "Mobile", "iOS")));
         when(directorySignals.unitsOf("default", Set.of("alice")))
                 .thenReturn(Map.of("alice", new OrgUnitLabels("Acme", "Platform", "Payments")));
-        var held = List.of(NOW.minus(Duration.ofDays(11)), NOW.minus(Duration.ofDays(4)));
-        when(eventsSignals.heldSessionDates(1L, FROM, NOW)).thenReturn(held);
+        when(eventsSignals.heldSessionDates(1L, FROM, NOW))
+                .thenReturn(List.of(NOW.minus(Duration.ofDays(11)), NOW.minus(Duration.ofDays(4))));
         when(eventsSignals.heldSessionDates(1L, PREVIOUS_FROM, FROM))
                 .thenReturn(List.of(NOW.minus(Duration.ofDays(100))));
         when(eventsSignals.activeSeries(1L)).thenReturn(List.of(new SeriesPulse(7)));
-        when(eventsSignals.engagedUserIds(1L, FROM, NOW)).thenReturn(Set.of("bob", "dana"));
-        when(eventsSignals.engagedUserIds(1L, PREVIOUS_FROM, FROM)).thenReturn(Set.of("bob"));
-        // presence is checked over contributors ∪ engaged, so dana (engaged-only) and bob (both) are included
-        when(presenceSignals.presentOf("default", Set.of("alice", "bob", "carol", "dana")))
-                .thenReturn(Set.of("alice", "bob", "carol", "dana"));
-        when(presenceSignals.presentOf("default", Set.of("alice", "bob"))).thenReturn(Set.of("alice", "bob"));
+        when(eventsSignals.nextSessionAt(1L, NOW)).thenReturn(Optional.of(NOW.plus(Duration.ofDays(3))));
+        when(eventsSignals.lastHeldSessionAt(1L, NOW)).thenReturn(Optional.of(NOW.minus(Duration.ofDays(4))));
         when(membershipSignals.memberCount(1L)).thenReturn(10L);
         when(recognitionSignals.lovesGiven(1L, FROM, NOW)).thenReturn(12L);
         when(recognitionSignals.lovesGiven(1L, PREVIOUS_FROM, FROM)).thenReturn(8L);
         when(membershipSignals.joins(1L, FROM, NOW)).thenReturn(3L);
         when(membershipSignals.joins(1L, PREVIOUS_FROM, FROM)).thenReturn(3L);
-        when(reuseSignals.reuseCounts(1L, FROM, NOW)).thenReturn(new ReuseCounts(0, 0, 0, 0));
-        when(reuseSignals.reuseCounts(1L, PREVIOUS_FROM, FROM)).thenReturn(new ReuseCounts(0, 0, 0, 0));
-        when(openingSignals.openingCounts(1L, FROM, NOW)).thenReturn(new OpeningCounts(0, 0));
-        when(openingSignals.openingCounts(1L, PREVIOUS_FROM, FROM)).thenReturn(new OpeningCounts(0, 0));
+        when(reuseSignals.reuseCounts(1L, FROM, NOW)).thenReturn(new ReuseCounts(2, 1, 0, 0));
+        when(openingSignals.openingCounts(1L, FROM, NOW)).thenReturn(new OpeningCounts(4, 2));
+        when(openingSignals.openingCounts(1L, PREVIOUS_FROM, FROM)).thenReturn(new OpeningCounts(2, 1));
 
         // when
         var actual = sut().snapshot("backend-guild", 90);
 
-        // then merged counts {alice 6, bob 2, carol 2} of 10 acts -> alice alone crosses 50%
-        // series and heldSessionDates are covered by their own dedicated tests below
-        assertThat(actual).usingRecursiveComparison().ignoringFields("reuse", "diagnosis", "series", "heldSessionDates")
-                .isEqualTo(HealthSnapshot.builder().window("90d").generatedAt(NOW).busFactor(1)
-                        .concentration(new HealthSnapshot.Concentration(1.0, List.of(0.6, 0.2, 0.2)))
-                        .cadence(new HealthSnapshot.CadenceDial(CadenceStatus.STEADY, 2, 7, Trend.of(2, 1)))
-                        // active = contributors {alice,bob,carol} ∪ engaged {bob,dana} = 4 of 10
-                        .participation(new HealthSnapshot.ParticipationDial(4, 10, 0.4, Trend.of(0.4, 0.2)))
+        // then talks {alice 3, bob 1, carol 1}: alice alone gives more than half; curation {orga 6, bob 1};
+        // involved = speakers, curators and dana's engagement = 5, up from {alice, bob}
+        assertThat(actual).usingRecursiveComparison().ignoringFields("diagnosis", "series", "heldSessionDates")
+                .isEqualTo(HealthSnapshot.builder().window("90d").generatedAt(NOW)
+                        .stage(HealthSnapshot.StageDial.builder().talks(5).speakers(3).speakersForHalf(1)
+                                .distribution(List.of(0.6, 0.2, 0.2)).trend(Trend.of(3, 1))
+                                .status(Status.of(StatusCode.LEANS_ON_ONE)).build())
+                        .curation(new HealthSnapshot.CurationDial(7, 6.0 / 7))
+                        .cadence(HealthSnapshot.CadenceDial.builder().rhythm(CadenceStatus.STEADY).sessionsHeld(2)
+                                .medianGapDays(7).nextSessionAt(NOW.plus(Duration.ofDays(3)))
+                                .lastHeldAt(NOW.minus(Duration.ofDays(4))).trend(Trend.of(2, 1))
+                                .status(Status.of(StatusCode.PICKING_UP)).build())
+                        .people(new HealthSnapshot.PeopleDial(5, 2, Trend.of(5, 2)))
                         .engagement(new HealthSnapshot.EngagementDial(12, Trend.of(12, 8)))
                         .membershipGrowth(new HealthSnapshot.MembershipGrowthDial(3, 10, Trend.of(3, 3)))
-                        .reach(new HealthSnapshot.CrossTeamReachDial(true, 3, 2, 1, 3, 3, Trend.of(3, 1))).build());
+                        .reach(new HealthSnapshot.CrossTeamReachDial(true, 3, 2, 1, 3, 3, Trend.of(3, 1)))
+                        .reuse(HealthSnapshot.ReuseDial.builder().opened(4).artifactsOpened(2)
+                                .openingsTrend(Trend.of(4, 2)).saves(2).artifactsSaved(1).helped(0).notHelped(0)
+                                .savesTrend(Trend.of(2, 0)).status(Status.of(StatusCode.SAVED_NOT_CONFIRMED)).build())
+                        .build());
+        assertThat(actual.diagnosis().findings()).extracting(Finding::code).containsExactly(Finding.Code.OVER_RELIANCE,
+                Finding.Code.CURATION_LEANS_ON_ONE, Finding.Code.INTEREST_WITHOUT_PAYOFF, Finding.Code.ON_RHYTHM);
     }
 
     @Test
-    void busFactorIgnoresContributorsWhoHaveLeft() {
+    void snapshot_talksAndSpeakersExcludeDepartedPresenters() {
 
         // given
-        organizer();
-        stubEmptySignals();
-        when(membershipSignals.memberCount(1L)).thenReturn(10L);
-        // two contributors with equal share; one has left, so the survivor alone carries the community
-        when(eventsSignals.contributionCounts(1L, FROM, NOW)).thenReturn(Map.of("still-here", 5L, "departed", 5L));
-        when(presenceSignals.presentOf("default", Set.of("still-here", "departed"))).thenReturn(Set.of("still-here"));
+        givenAViewableCommunity();
+        when(eventsSignals.talkCounts(1L, FROM, NOW)).thenReturn(Map.of("alice", 3L, "gone", 5L));
+        when(presenceSignals.presentOf("default", Set.of("alice", "gone"))).thenReturn(Set.of("alice"));
+        when(eventsSignals.talkCreditsPerBucket(1L, FROM, NOW, Buckets.COUNT))
+                .thenReturn(List.of(new BucketTalks(2, "alice", 3), new BucketTalks(5, "gone", 5)));
 
         // when
-        var snapshot = sut().snapshot("backend-guild", 90);
+        var actual = sut().snapshot("backend-guild", 90);
+
+        // then the departed presenter leaves talks, speakers, half of the talks and the talks series together
+        assertThat(actual.stage().talks()).isEqualTo(3);
+        assertThat(actual.stage().speakers()).isEqualTo(1);
+        assertThat(actual.stage().speakersForHalf()).isEqualTo(1);
+        assertThat(actual.series().talks()).containsExactlyElementsOf(bucketsOf(Map.of(2, 3L)));
+        assertThat(actual.reach().totalSpeakers()).isEqualTo(1);
+        assertThat(actual.people().involved()).isEqualTo(1);
+    }
+
+    @Test
+    void snapshot_peopleInvolvedUnionsAllActsAndCountsMembers() {
+
+        // given alice talks, bob proposes a topic, carol captures an artifact and dan votes
+        givenAViewableCommunity();
+        when(eventsSignals.talkCounts(1L, FROM, NOW)).thenReturn(Map.of("alice", 1L));
+        when(eventsSignals.topicProposals(1L, FROM, NOW)).thenReturn(Map.of("bob", 1L));
+        when(artifactSignals.artifactCounts(1L, FROM, NOW)).thenReturn(Map.of("carol", 1L));
+        when(eventsSignals.engagedUserIds(1L, FROM, NOW)).thenReturn(Set.of("dan"));
+        when(membershipSignals.membersAmong(1L, Set.of("alice", "bob", "carol", "dan")))
+                .thenReturn(Set.of("alice", "dan"));
+
+        // when
+        var actual = sut().snapshot("backend-guild", 90);
+
+        // then a count of people, never a share of members
+        assertThat(actual.people()).isEqualTo(new HealthSnapshot.PeopleDial(4, 2, Trend.of(4, 0)));
+        assertThat(actual.curation()).isEqualTo(new HealthSnapshot.CurationDial(2, 0.5));
+    }
+
+    @Test
+    void snapshot_reachCountsSpeakersOnly() {
+
+        // given alice speaks, bob only curates
+        givenAViewableCommunity();
+        when(eventsSignals.talkCounts(1L, FROM, NOW)).thenReturn(Map.of("alice", 2L));
+        when(eventsSignals.topicProposals(1L, FROM, NOW)).thenReturn(Map.of("bob", 4L));
+        when(directorySignals.unitsOf("default", Set.of("alice")))
+                .thenReturn(Map.of("alice", new OrgUnitLabels("Acme", "Platform", "Payments")));
+
+        // when
+        var actual = sut().snapshot("backend-guild", 90);
 
         // then
-        assertThat(snapshot.busFactor()).isEqualTo(1);
-        assertThat(snapshot.reach().totalContributors()).isEqualTo(1);
+        assertThat(actual.reach())
+                .isEqualTo(new HealthSnapshot.CrossTeamReachDial(true, 1, 1, 1, 1, 1, Trend.of(1, 0)));
+        verify(directorySignals, never()).unitsOf(eq("default"), argThat(ids -> ids.contains("bob")));
     }
 
     @Test
-    void participationIgnoresEngagedMembersWhoHaveLeft() {
+    void snapshot_passesNextSessionToCadence() {
 
-        // given a present contributor, and a departed member who shows up only via engagement, never as a contributor
-        organizer();
-        stubEmptySignals();
-        when(membershipSignals.memberCount(1L)).thenReturn(10L);
-        when(eventsSignals.contributionCounts(1L, FROM, NOW)).thenReturn(Map.of("still-here", 5L));
-        when(eventsSignals.engagedUserIds(1L, FROM, NOW)).thenReturn(Set.of("still-here", "departed-engager"));
-        when(presenceSignals.presentOf("default", Set.of("still-here", "departed-engager")))
-                .thenReturn(Set.of("still-here"));
+        // given a single one-off session 80 days ago and the next one booked in 10 days
+        givenAViewableCommunity();
+        var next = NOW.plus(Duration.ofDays(10));
+        when(eventsSignals.heldSessionDates(1L, FROM, NOW)).thenReturn(List.of(NOW.minus(Duration.ofDays(80))));
+        when(eventsSignals.nextSessionAt(1L, NOW)).thenReturn(Optional.of(next));
 
         // when
-        var snapshot = sut().snapshot("backend-guild", 90);
+        var actual = sut().snapshot("backend-guild", 90);
 
-        // then the departed member does not re-enter active membership through engagement
-        assertThat(snapshot.participation().activeMembers()).isEqualTo(1);
+        // then
+        assertThat(actual.cadence().rhythm()).isEqualTo(CadenceStatus.STEADY);
+        assertThat(actual.cadence().nextSessionAt()).isEqualTo(next);
+        assertThat(actual.cadence().status()).isEqualTo(Status.of(StatusCode.ON_RHYTHM));
     }
 
     @Test
-    void trendComparesFilteredCurrentAgainstFilteredPrevious() {
+    void snapshot_brandNewCommunityWithASessionBookedIsStartingUp() {
 
-        // given a present contributor, joined in the previous window by a contributor who has since departed
-        organizer();
-        stubEmptySignals();
-        when(membershipSignals.memberCount(1L)).thenReturn(10L);
-        when(eventsSignals.contributionCounts(1L, FROM, NOW)).thenReturn(Map.of("still-here", 5L));
-        when(presenceSignals.presentOf("default", Set.of("still-here"))).thenReturn(Set.of("still-here"));
-        when(eventsSignals.contributionCounts(1L, PREVIOUS_FROM, FROM))
-                .thenReturn(Map.of("still-here", 5L, "departed", 5L));
+        // given no session ever held, no series, and a first session booked
+        givenAViewableCommunity();
+        when(eventsSignals.nextSessionAt(1L, NOW)).thenReturn(Optional.of(NOW.plus(Duration.ofDays(7))));
+        when(eventsSignals.engagedUserIds(1L, PREVIOUS_FROM, FROM)).thenReturn(Set.of("early-voter"));
+
+        // when
+        var actual = sut().snapshot("backend-guild", 90);
+
+        // then
+        assertThat(actual.cadence().rhythm()).isEqualTo(CadenceStatus.STALLED);
+        assertThat(actual.cadence().status()).isEqualTo(Status.of(StatusCode.STARTING_UP));
+        assertThat(actual.diagnosis().findings()).extracting(Finding::code).doesNotContain(Finding.Code.FADING,
+                Finding.Code.DORMANT);
+    }
+
+    @Test
+    void snapshot_bookedAfterALongSilenceIsStalledNotStartingUp() {
+
+        // given nothing held in either window, but a session held long before them, and one booked
+        givenAViewableCommunity();
+        when(eventsSignals.nextSessionAt(1L, NOW)).thenReturn(Optional.of(NOW.plus(Duration.ofDays(7))));
+        when(eventsSignals.lastHeldSessionAt(1L, NOW)).thenReturn(Optional.of(NOW.minus(Duration.ofDays(300))));
+
+        // when
+        var actual = sut().snapshot("backend-guild", 30);
+
+        // then
+        assertThat(actual.cadence().rhythm()).isEqualTo(CadenceStatus.STALLED);
+        assertThat(actual.cadence().lastHeldAt()).isEqualTo(NOW.minus(Duration.ofDays(300)));
+        assertThat(actual.cadence().status()).isEqualTo(Status.of(StatusCode.STALLED));
+    }
+
+    @Test
+    void snapshot_helpedWithNoOpeningsStillPaysOff() {
+
+        // given helped answers on old saves and no openings this window
+        givenAViewableCommunity();
+        when(reuseSignals.reuseCounts(1L, FROM, NOW)).thenReturn(new ReuseCounts(0, 0, 3, 0));
+
+        // when
+        var actual = sut().snapshot("backend-guild", 90);
+
+        // then
+        assertThat(actual.reuse().status()).isEqualTo(Status.of(StatusCode.PAYING_OFF));
+    }
+
+    @Test
+    void snapshot_peopleSeriesIsDistinctPresentPeoplePerBucket() {
+
+        // given alice talks and proposes in bucket 1 where bob also proposes; carol captures and attends in bucket 3
+        // where a departed person also attends
+        givenAViewableCommunity();
+        when(eventsSignals.talkCounts(1L, FROM, NOW)).thenReturn(Map.of("alice", 2L));
+        when(eventsSignals.topicProposals(1L, FROM, NOW)).thenReturn(Map.of("alice", 1L, "bob", 1L));
+        when(artifactSignals.artifactCounts(1L, FROM, NOW)).thenReturn(Map.of("carol", 1L));
+        when(eventsSignals.engagedUserIds(1L, FROM, NOW)).thenReturn(Set.of("carol", "gone"));
+        when(presenceSignals.presentOf("default", Set.of("alice", "bob", "carol", "gone")))
+                .thenReturn(Set.of("alice", "bob", "carol"));
+        when(eventsSignals.talkCreditsPerBucket(1L, FROM, NOW, Buckets.COUNT))
+                .thenReturn(List.of(new BucketTalks(1, "alice", 2)));
+        when(eventsSignals.topicCreditsPerBucket(1L, FROM, NOW, Buckets.COUNT))
+                .thenReturn(List.of(new BucketCredit(1, "alice"), new BucketCredit(1, "bob")));
+        when(artifactSignals.artifactCreditsPerBucket(1L, FROM, NOW, Buckets.COUNT))
+                .thenReturn(List.of(new BucketCredit(3, "carol")));
+        when(eventsSignals.engagementCreditsPerBucket(1L, FROM, NOW, Buckets.COUNT))
+                .thenReturn(List.of(new BucketCredit(3, "carol"), new BucketCredit(3, "gone")));
+        var joins = List.of(0L, 0L, 1L, 0L, 0L, 0L, 0L, 2L, 0L, 0L, 0L, 1L);
+        when(membershipSignals.joinsPerBucket(1L, FROM, NOW, Buckets.COUNT)).thenReturn(joins);
+
+        // when
+        var actual = sut().snapshot("backend-guild", 90);
+
+        // then
+        assertThat(actual.series().talks()).containsExactlyElementsOf(bucketsOf(Map.of(1, 2L)));
+        assertThat(actual.series().people()).containsExactlyElementsOf(bucketsOf(Map.of(1, 2L, 3, 1L)));
+        assertThat(actual.series().joins()).containsExactlyElementsOf(joins);
+    }
+
+    @Test
+    void snapshot_bucketsTheCurrentWindowOnlyAndNeverThePreviousOne() {
+
+        // given
+        givenAViewableCommunity();
+
+        // when
+        sut().snapshot("backend-guild", 90);
+
+        // then
+        verify(eventsSignals).talkCreditsPerBucket(1L, FROM, NOW, Buckets.COUNT);
+        verify(eventsSignals, never()).talkCreditsPerBucket(anyLong(), eq(PREVIOUS_FROM), eq(FROM), anyInt());
+        verify(eventsSignals).topicCreditsPerBucket(1L, FROM, NOW, Buckets.COUNT);
+        verify(eventsSignals, never()).topicCreditsPerBucket(anyLong(), eq(PREVIOUS_FROM), eq(FROM), anyInt());
+        verify(artifactSignals).artifactCreditsPerBucket(1L, FROM, NOW, Buckets.COUNT);
+        verify(artifactSignals, never()).artifactCreditsPerBucket(anyLong(), eq(PREVIOUS_FROM), eq(FROM), anyInt());
+        verify(eventsSignals).engagementCreditsPerBucket(1L, FROM, NOW, Buckets.COUNT);
+        verify(eventsSignals, never()).engagementCreditsPerBucket(anyLong(), eq(PREVIOUS_FROM), eq(FROM), anyInt());
+        verify(membershipSignals).joinsPerBucket(1L, FROM, NOW, Buckets.COUNT);
+        verify(membershipSignals, never()).joinsPerBucket(anyLong(), eq(PREVIOUS_FROM), eq(FROM), anyInt());
+    }
+
+    @Test
+    void snapshot_peopleTrendComparesFilteredCurrentAgainstFilteredPrevious() {
+
+        // given a present speaker now, and that speaker plus a since-departed one in the previous window
+        givenAViewableCommunity();
+        when(eventsSignals.talkCounts(1L, FROM, NOW)).thenReturn(Map.of("still-here", 5L));
+        when(eventsSignals.talkCounts(1L, PREVIOUS_FROM, FROM)).thenReturn(Map.of("still-here", 5L, "departed", 5L));
         when(presenceSignals.presentOf("default", Set.of("still-here", "departed"))).thenReturn(Set.of("still-here"));
 
         // when
-        var snapshot = sut().snapshot("backend-guild", 90);
+        var actual = sut().snapshot("backend-guild", 90);
 
-        // then the previous window's departed contributor is dropped before the trend is computed, so participation
-        // reads flat rather than showing a drop that never happened
-        assertThat(snapshot.participation().trend()).isEqualTo(Trend.of(0.1, 0.1));
+        // then a drop that never happened is not shown
+        assertThat(actual.people().trend()).isEqualTo(Trend.of(1, 1));
+        assertThat(actual.stage().trend()).isEqualTo(Trend.of(1, 1));
     }
 
     @Test
-    void snapshot_allowedWhenOrganizerCanViewHealth() {
+    void snapshot_noActivityIsAnHonestZero() {
 
         // given
-        organizer();
-        stubEmptySignals();
-        when(membershipSignals.memberCount(1L)).thenReturn(0L);
+        givenAViewableCommunity();
 
-        // when / then
-        assertThat(sut().snapshot("backend-guild", 90)).isNotNull();
+        // when
+        var actual = sut().snapshot("backend-guild", 90);
+
+        // then
+        assertThat(actual.stage().talks()).isZero();
+        assertThat(actual.stage().distribution()).isEmpty();
+        assertThat(actual.stage().status()).isEqualTo(Status.of(StatusCode.TOO_FEW_TALKS));
+        assertThat(actual.cadence().rhythm()).isEqualTo(CadenceStatus.DORMANT);
+        assertThat(actual.cadence().status()).isEqualTo(Status.of(StatusCode.DORMANT));
+        assertThat(actual.cadence().nextSessionAt()).isNull();
+        assertThat(actual.people()).isEqualTo(new HealthSnapshot.PeopleDial(0, 0, Trend.of(0, 0)));
+        assertThat(actual.curation()).isEqualTo(new HealthSnapshot.CurationDial(0, 0.0));
+        assertThat(actual.reuse().status()).isEqualTo(Status.of(StatusCode.NOTHING_OPENED));
+        assertThat(actual.series().talks()).containsExactlyElementsOf(TWELVE_ZEROS);
+        assertThat(actual.series().people()).containsExactlyElementsOf(TWELVE_ZEROS);
     }
 
     @Test
@@ -228,9 +443,7 @@ class HealthServiceTest {
         when(membershipSignals.communityIdForSlug("backend-guild")).thenReturn(1L);
         when(currentUser.userId()).thenReturn("alice");
         when(membershipSignals.canViewHealth(1L, "alice")).thenReturn(true);
-        when(organizationContext.organizationId()).thenReturn("default");
-        stubEmptySignals();
-        when(membershipSignals.memberCount(1L)).thenReturn(0L);
+        givenQuietSignals();
 
         // when / then
         assertThat(sut().snapshot("backend-guild", 90)).isNotNull();
@@ -249,142 +462,35 @@ class HealthServiceTest {
     }
 
     @Test
-    void snapshot_noActivityIsAnHonestZero() {
-
-        // given a community with members but no acts at all
-        organizer();
-        stubEmptySignals();
-        when(membershipSignals.memberCount(1L)).thenReturn(8L);
-
-        // when
-        var actual = sut().snapshot("backend-guild", 90);
-
-        // then
-        assertThat(actual.busFactor()).isZero();
-        assertThat(actual.concentration().distribution()).isEmpty();
-        assertThat(actual.cadence().status()).isEqualTo(CadenceStatus.DORMANT);
-        assertThat(actual.participation().share()).isZero();
-    }
-
-    @Test
-    void snapshot_zeroMembersDoesNotDivide() {
-
-        // given
-        organizer();
-        stubEmptySignals();
-        when(membershipSignals.memberCount(1L)).thenReturn(0L);
-
-        // when
-        var actual = sut().snapshot("backend-guild", 90);
-
-        // then
-        assertThat(actual.participation().share()).isZero();
-    }
-
-    @Test
     void snapshot_serializedSnapshotNeverContainsAUserId() {
 
-        // given distinctive userIds and unit names entering through every per-member signal
-        organizer();
-        when(eventsSignals.contributionCounts(anyLong(), any(), any()))
+        // given distinctive userIds and unit names entering through every per-person signal
+        givenAViewableCommunity();
+        when(eventsSignals.talkCounts(anyLong(), any(), any()))
                 .thenReturn(Map.of("uid-alice-7f3", 5L, "uid-bob-9c1", 2L));
         when(artifactSignals.artifactCounts(anyLong(), any(), any())).thenReturn(Map.of("uid-carol-2aa", 1L));
         when(eventsSignals.engagedUserIds(anyLong(), any(), any())).thenReturn(Set.of("uid-dana-5e0"));
-        when(eventsSignals.heldSessionDates(anyLong(), any(), any())).thenReturn(List.of());
-        when(eventsSignals.activeSeries(anyLong())).thenReturn(List.of());
-        when(membershipSignals.memberCount(1L)).thenReturn(10L);
+        when(membershipSignals.membersAmong(anyLong(), any())).thenReturn(Set.of("uid-dana-5e0"));
         when(directorySignals.unitsOf(eq("default"), any()))
                 .thenReturn(Map.of("uid-alice-7f3", new OrgUnitLabels("BU-secret", "Dept-secret", "Team-secret")));
-        when(reuseSignals.reuseCounts(anyLong(), any(), any())).thenReturn(new ReuseCounts(0, 0, 0, 0));
-        when(openingSignals.openingCounts(anyLong(), any(), any())).thenReturn(new OpeningCounts(0, 0));
-        when(presenceSignals.presentOf(eq("default"), any()))
-                .thenReturn(Set.of("uid-alice-7f3", "uid-bob-9c1", "uid-carol-2aa", "uid-dana-5e0"));
+        when(eventsSignals.talkCreditsPerBucket(anyLong(), any(), any(), anyInt()))
+                .thenReturn(List.of(new BucketTalks(0, "uid-alice-7f3", 5)));
+        when(eventsSignals.engagementCreditsPerBucket(anyLong(), any(), any(), anyInt()))
+                .thenReturn(List.of(new BucketCredit(1, "uid-dana-5e0")));
 
         // when
         var json = JsonMapper.builder().build().writeValueAsString(sut().snapshot("backend-guild", 90));
 
-        // then identity AND unit names entered the math and never left the core
+        // then identity and unit names entered the math and never left the core
         assertThat(json).doesNotContain("uid-alice-7f3").doesNotContain("uid-bob-9c1").doesNotContain("uid-carol-2aa")
                 .doesNotContain("uid-dana-5e0").doesNotContain("orga").doesNotContain("BU-secret")
                 .doesNotContain("Dept-secret").doesNotContain("Team-secret");
     }
 
-    private void stubEmptySignals() {
-
-        when(eventsSignals.contributionCounts(anyLong(), any(), any())).thenReturn(Map.of());
-        when(artifactSignals.artifactCounts(anyLong(), any(), any())).thenReturn(Map.of());
-        when(eventsSignals.heldSessionDates(anyLong(), any(), any())).thenReturn(List.of());
-        when(eventsSignals.activeSeries(anyLong())).thenReturn(List.of());
-        when(eventsSignals.engagedUserIds(anyLong(), any(), any())).thenReturn(Set.of());
-        when(recognitionSignals.lovesGiven(anyLong(), any(), any())).thenReturn(0L);
-        when(membershipSignals.joins(anyLong(), any(), any())).thenReturn(0L);
-        when(organizationContext.organizationId()).thenReturn("default");
-        when(directorySignals.unitsOf(eq("default"), any())).thenReturn(Map.of());
-        when(reuseSignals.reuseCounts(anyLong(), any(), any())).thenReturn(new ReuseCounts(0, 0, 0, 0));
-        when(openingSignals.openingCounts(anyLong(), any(), any())).thenReturn(new OpeningCounts(0, 0));
-    }
-
-    /**
-     * A viewable community with every scalar signal stubbed empty, plus a zero-filled twelve-entry default for every
-     * bucketed series read, so a test that overrides only the bucketed reads it cares about does not have to restub
-     * everything else.
-     */
-    private void givenAViewableCommunity() {
-
-        organizer();
-        stubEmptySignals();
-        var twelveZeros = Collections.nCopies(Buckets.COUNT, 0L);
-        // lenient: a test asserting one bucketed dial legitimately overrides only that one, leaving these defaults
-        // unused
-        lenient().when(eventsSignals.distinctContributorsPerBucket(anyLong(), any(), any(), eq(Buckets.COUNT)))
-                .thenReturn(twelveZeros);
-        lenient().when(eventsSignals.engagedMembersPerBucket(anyLong(), any(), any(), eq(Buckets.COUNT)))
-                .thenReturn(twelveZeros);
-        lenient().when(recognitionSignals.lovesPerBucket(anyLong(), any(), any(), eq(Buckets.COUNT)))
-                .thenReturn(twelveZeros);
-        lenient().when(membershipSignals.joinsPerBucket(anyLong(), any(), any(), eq(Buckets.COUNT)))
-                .thenReturn(twelveZeros);
-        lenient().when(openingSignals.openingsPerBucket(anyLong(), any(), any(), eq(Buckets.COUNT)))
-                .thenReturn(twelveZeros);
-        lenient().when(reuseSignals.savesPerBucket(anyLong(), any(), any(), eq(Buckets.COUNT))).thenReturn(twelveZeros);
-    }
-
-    @Test
-    void snapshot_carriesTwelvePointSeriesForEveryBucketedDial() {
-
-        // given six distinct series, so a crossed wire between any two ports fails loudly and by name
-        var contributors = List.of(1L, 0L, 2L, 0L, 0L, 1L, 0L, 0L, 3L, 0L, 0L, 1L);
-        var engagedMembers = List.of(4L, 4L, 5L, 5L, 5L, 6L, 6L, 6L, 7L, 7L, 7L, 8L);
-        var loves = List.of(0L, 1L, 1L, 2L, 3L, 5L, 8L, 8L, 9L, 9L, 10L, 12L);
-        var joins = List.of(1L, 0L, 0L, 1L, 0L, 0L, 0L, 2L, 0L, 0L, 0L, 1L);
-        var openings = List.of(2L, 3L, 1L, 0L, 4L, 6L, 5L, 7L, 8L, 2L, 1L, 9L);
-        var saves = List.of(0L, 1L, 0L, 0L, 1L, 2L, 1L, 0L, 3L, 0L, 0L, 2L);
-        givenAViewableCommunity();
-        when(eventsSignals.distinctContributorsPerBucket(anyLong(), any(), any(), eq(Buckets.COUNT)))
-                .thenReturn(contributors);
-        when(eventsSignals.engagedMembersPerBucket(anyLong(), any(), any(), eq(Buckets.COUNT)))
-                .thenReturn(engagedMembers);
-        when(recognitionSignals.lovesPerBucket(anyLong(), any(), any(), eq(Buckets.COUNT))).thenReturn(loves);
-        when(membershipSignals.joinsPerBucket(anyLong(), any(), any(), eq(Buckets.COUNT))).thenReturn(joins);
-        when(openingSignals.openingsPerBucket(anyLong(), any(), any(), eq(Buckets.COUNT))).thenReturn(openings);
-        when(reuseSignals.savesPerBucket(anyLong(), any(), any(), eq(Buckets.COUNT))).thenReturn(saves);
-
-        // when
-        var actual = sut().snapshot("backend-guild", 90);
-
-        // then each series carries exactly the values read from its own port, never another's
-        assertThat(actual.series().contributors()).containsExactlyElementsOf(contributors);
-        assertThat(actual.series().participation()).containsExactlyElementsOf(engagedMembers);
-        assertThat(actual.series().engagement()).containsExactlyElementsOf(loves);
-        assertThat(actual.series().joins()).containsExactlyElementsOf(joins);
-        assertThat(actual.series().openings()).containsExactlyElementsOf(openings);
-        assertThat(actual.series().saves()).containsExactlyElementsOf(saves);
-    }
-
     @Test
     void snapshot_carriesTheRealHeldSessionDatesRatherThanOnlyTheirCount() {
 
-        // The dates were already read to count them and then discarded; the pulse needs them.
+        // given
         var first = NOW.minus(Duration.ofDays(40));
         var second = NOW.minus(Duration.ofDays(12));
         givenAViewableCommunity();
@@ -395,62 +501,10 @@ class HealthServiceTest {
     }
 
     @Test
-    void snapshot_bucketsTheCurrentWindowOnlyAndNeverThePreviousOne() {
-
-        // The series describes this window. The previous window keeps its scalar comparison and
-        // must not be bucketed, or the request cost doubles for a line nothing draws - checked for
-        // all six bucketed reads, not only one, so a future regression on any of them is caught.
-        givenAViewableCommunity();
-
-        // when
-        sut().snapshot("backend-guild", 90);
-
-        // then
-        verify(eventsSignals).distinctContributorsPerBucket(anyLong(), eq(FROM), eq(NOW), eq(Buckets.COUNT));
-        verify(eventsSignals, never()).distinctContributorsPerBucket(anyLong(), eq(PREVIOUS_FROM), eq(FROM), anyInt());
-
-        verify(eventsSignals).engagedMembersPerBucket(anyLong(), eq(FROM), eq(NOW), eq(Buckets.COUNT));
-        verify(eventsSignals, never()).engagedMembersPerBucket(anyLong(), eq(PREVIOUS_FROM), eq(FROM), anyInt());
-
-        verify(recognitionSignals).lovesPerBucket(anyLong(), eq(FROM), eq(NOW), eq(Buckets.COUNT));
-        verify(recognitionSignals, never()).lovesPerBucket(anyLong(), eq(PREVIOUS_FROM), eq(FROM), anyInt());
-
-        verify(membershipSignals).joinsPerBucket(anyLong(), eq(FROM), eq(NOW), eq(Buckets.COUNT));
-        verify(membershipSignals, never()).joinsPerBucket(anyLong(), eq(PREVIOUS_FROM), eq(FROM), anyInt());
-
-        verify(openingSignals).openingsPerBucket(anyLong(), eq(FROM), eq(NOW), eq(Buckets.COUNT));
-        verify(openingSignals, never()).openingsPerBucket(anyLong(), eq(PREVIOUS_FROM), eq(FROM), anyInt());
-
-        verify(reuseSignals).savesPerBucket(anyLong(), eq(FROM), eq(NOW), eq(Buckets.COUNT));
-        verify(reuseSignals, never()).savesPerBucket(anyLong(), eq(PREVIOUS_FROM), eq(FROM), anyInt());
-    }
-
-    @Test
-    void snapshot_reportsReuseAndFlagsInterestWithoutPayoff() {
-
-        // given interest but no confirmed payoff
-        organizer();
-        stubEmptySignals();
-        when(membershipSignals.memberCount(1L)).thenReturn(10L);
-        when(reuseSignals.reuseCounts(1L, FROM, NOW)).thenReturn(new ReuseCounts(18, 7, 0, 0));
-
-        // when
-        var actual = sut().snapshot("backend-guild", 90);
-
-        // then
-        assertThat(actual.reuse().saves()).isEqualTo(18);
-        assertThat(actual.reuse().artifactsSaved()).isEqualTo(7);
-        assertThat(actual.diagnosis().findings()).extracting(Finding::code)
-                .contains(Finding.Code.INTEREST_WITHOUT_PAYOFF);
-    }
-
-    @Test
     void snapshot_reportsOpeningsAboveDemandWithTheirOwnTrend() {
 
         // given
-        organizer();
-        stubEmptySignals();
-        when(membershipSignals.memberCount(1L)).thenReturn(10L);
+        givenAViewableCommunity();
         when(openingSignals.openingCounts(1L, FROM, NOW)).thenReturn(new OpeningCounts(40L, 12L));
         when(openingSignals.openingCounts(1L, PREVIOUS_FROM, FROM)).thenReturn(new OpeningCounts(31L, 9L));
 
@@ -462,5 +516,6 @@ class HealthServiceTest {
         assertThat(actual.reuse().artifactsOpened()).isEqualTo(12L);
         assertThat(actual.reuse().openingsTrend()).isEqualTo(Trend.of(40L, 31L));
         assertThat(actual.reuse().savesTrend()).isEqualTo(Trend.of(0L, 0L));
+        assertThat(actual.reuse().status()).isEqualTo(Status.of(StatusCode.NO_PAYOFF_YET));
     }
 }

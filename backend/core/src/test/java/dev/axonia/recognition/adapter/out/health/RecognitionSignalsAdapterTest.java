@@ -1,7 +1,6 @@
 package dev.axonia.recognition.adapter.out.health;
 
 import java.sql.Timestamp;
-import java.time.Duration;
 import java.time.Instant;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -13,12 +12,6 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import dev.axonia.CoreJdbcTestSupport;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyMap;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 class RecognitionSignalsAdapterTest extends CoreJdbcTestSupport {
 
@@ -54,60 +47,6 @@ class RecognitionSignalsAdapterTest extends CoreJdbcTestSupport {
 
         // then
         assertThat(actual).isEqualTo(2);
-    }
-
-    @Test
-    void lovesPerBucket_placesEachLoveInItsOwnBucket() {
-
-        // given a 12-day window bucketed by one day, with loves on day 0 and day 11
-        var from = Instant.parse("2026-03-01T00:00:00Z");
-        var to = from.plus(Duration.ofDays(12));
-        var rc = recognizedContribution(7L, 100L);
-        love(rc, "bob", from.plus(Duration.ofHours(1)));
-        love(rc, "carol", from.plus(Duration.ofHours(2)));
-        love(rc, "dana", from.plus(Duration.ofDays(11)).plus(Duration.ofHours(3)));
-
-        // when
-        var actual = sut.lovesPerBucket(7L, from, to, 12);
-
-        // then
-        assertThat(actual).containsExactly(2L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 1L);
-    }
-
-    @Test
-    void lovesPerBucket_putsALoveAtTheLastTickOfTheWindowInTheFinalBucket() {
-
-        // A love one millisecond before `to` - the closest a row inside the half-open window can sit
-        // to its end - belongs in the last bucket, not off the end of the series.
-        var from = Instant.parse("2026-03-01T00:00:00Z");
-        var to = from.plus(Duration.ofDays(12));
-        love(recognizedContribution(7L, 100L), "bob", to.minusMillis(1));
-
-        assertThat(sut.lovesPerBucket(7L, from, to, 12)).hasSize(12).element(11).isEqualTo(1L);
-    }
-
-    @Test
-    void lovesPerBucket_ofAQuietCommunityIsTwelveZeroes() {
-
-        var from = Instant.parse("2026-03-01T00:00:00Z");
-
-        assertThat(sut.lovesPerBucket(7L, from, from.plus(Duration.ofDays(12)), 12)).hasSize(12)
-                .allMatch(count -> count == 0L);
-    }
-
-    @Test
-    void lovesPerBucket_answersTheWholeSeriesInOneQueryRatherThanOnePerBucket() {
-
-        // The series must be one grouped query. A loop over twelve sub-windows would pass every
-        // behavioural test above and cost twelve round trips.
-        var template = mock(NamedParameterJdbcTemplate.class);
-        var from = Instant.parse("2026-03-01T00:00:00Z");
-
-        new RecognitionSignalsAdapter(template, () -> "default").lovesPerBucket(7L, from,
-                from.plus(Duration.ofDays(12)), 12);
-
-        verify(template, times(1)).queryForList(anyString(), anyMap());
-        verifyNoMoreInteractions(template);
     }
 
     private long recognizedContribution(long communityId, long contributionId) {

@@ -33,6 +33,7 @@ describe("finding routing", () => {
 
   it("puts the fragility findings in the chapter that shows the evidence for them", () => {
     expect(CHAPTER_OF.SINGLE_POINT).toBe("carried");
+    expect(CHAPTER_OF.CURATION_LEANS_ON_ONE).toBe("carried");
     expect(CHAPTER_OF.NARROW_REACH).toBe("carried");
     expect(CHAPTER_OF.DORMANT).toBe("alive");
     expect(CHAPTER_OF.KNOWLEDGE_REUSED).toBe("payoff");

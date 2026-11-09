@@ -1,7 +1,9 @@
 package dev.axonia.community.adapter.out.health;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Component;
@@ -9,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import dev.axonia.community.adapter.out.persistence.BucketCount;
 import dev.axonia.community.adapter.out.persistence.JoinsPerBucketQuery;
+import dev.axonia.community.adapter.out.persistence.MembershipEntity;
 import dev.axonia.community.adapter.out.persistence.MembershipRepository;
 import dev.axonia.community.application.CommunityCapabilityService;
 import dev.axonia.community.application.CommunityService;
@@ -40,6 +43,17 @@ class MembershipSignalsAdapter implements MembershipSignals {
 
         return membershipRepository.countByOrganizationIdAndCommunityId(organizationContext.organizationId(),
                 communityId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Set<String> membersAmong(long communityId, Collection<String> userIds) {
+
+        if (userIds.isEmpty()) {
+            return Set.of();
+        }
+        return membershipRepository.findByOrganizationIdAndCommunityIdAndUserIdIn(organizationContext.organizationId(),
+                communityId, userIds).stream().map(MembershipEntity::getUserId).collect(Collectors.toUnmodifiableSet());
     }
 
     @Override

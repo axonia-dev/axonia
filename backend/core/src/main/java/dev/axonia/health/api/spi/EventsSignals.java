@@ -3,8 +3,11 @@ package dev.axonia.health.api.spi;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
+import dev.axonia.health.api.BucketCredit;
+import dev.axonia.health.api.BucketTalks;
 import dev.axonia.health.api.SeriesPulse;
 
 /**
@@ -15,28 +18,39 @@ import dev.axonia.health.api.SeriesPulse;
 public interface EventsSignals {
 
     /**
-     * Contribution acts per member: presenter spots on held sessions and topics proposed. Session materialization and
-     * series creation persist no actor and are deliberately not counted (honest degradation).
+     * Talks per presenter: one per presenter credited on a slot of a held session (neither cancelled nor skipped),
+     * dated by the session.
      */
-    Map<String, Long> contributionCounts(long communityId, Instant from, Instant to);
+    Map<String, Long> talkCounts(long communityId, Instant from, Instant to);
+
+    /** Topics proposed per proposer, dated by creation. */
+    Map<String, Long> topicProposals(long communityId, Instant from, Instant to);
+
+    /** The earliest session scheduled after {@code now} that is neither cancelled nor skipped. */
+    Optional<Instant> nextSessionAt(long communityId, Instant now);
+
+    /**
+     * The latest session ever held before {@code now} (neither cancelled nor skipped), however long ago; empty when the
+     * community has never held one.
+     */
+    Optional<Instant> lastHeldSessionAt(long communityId, Instant now);
+
+    /** Talks per presenter per bucket over [from, to), bucketed by the session's schedule; empty buckets omitted. */
+    List<BucketTalks> talkCreditsPerBucket(long communityId, Instant from, Instant to, int buckets);
+
+    /** One credit per distinct proposer per bucket over [from, to), bucketed by the topic's creation. */
+    List<BucketCredit> topicCreditsPerBucket(long communityId, Instant from, Instant to, int buckets);
+
+    /**
+     * One credit per distinct engaged user per bucket over [from, to): topic votes and attendance, each bucketed by its
+     * own act timestamp.
+     */
+    List<BucketCredit> engagementCreditsPerBucket(long communityId, Instant from, Instant to, int buckets);
 
     List<Instant> heldSessionDates(long communityId, Instant from, Instant to);
 
     List<SeriesPulse> activeSeries(long communityId);
 
-    /**
-     * Distinct contributors per bucket over [from, to), zero-filled.
-     *
-     * <p>
-     * This is not a bus-factor series and must never be labelled as one. A bus factor over a single bucket is a
-     * different statistic from the window's, and on a sparse bucket it reads 1 or 0 for a thriving community, which
-     * would render sparsity as fragility. This counts how many different people contributed in each bucket.
-     */
-    List<Long> distinctContributorsPerBucket(long communityId, Instant from, Instant to, int buckets);
-
     /** Members with an engagement act in the window: topic votes or attendance. */
     Set<String> engagedUserIds(long communityId, Instant from, Instant to);
-
-    /** Distinct members with an engagement act (topic vote or attendance) per bucket over [from, to), zero-filled. */
-    List<Long> engagedMembersPerBucket(long communityId, Instant from, Instant to, int buckets);
 }

@@ -12,7 +12,7 @@ export function QuietCommunityCard({
   joins,
 }: Readonly<{ slug: string; joins: number }>) {
   return (
-    <article className="border-border-strong bg-surface rounded-md border border-dashed p-5">
+    <article className="border-border-strong bg-surface rounded-lg border border-dashed p-5">
       <h3 className="text-foreground text-sm font-semibold">
         This community is quiet
       </h3>

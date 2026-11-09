@@ -3,12 +3,13 @@ import type { Finding, FindingCode } from "@/features/health/domain/health";
 export type Chapter = "carried" | "alive" | "payoff";
 
 /**
- * Each finding renders inside the chapter that shows the evidence for it, which is what stops a
+ * Each finding renders inside the panel that shows the evidence for it, which is what stops a
  * finding being stated twice: there is only one place it can be stated.
  */
 export const CHAPTER_OF: Record<FindingCode, Chapter> = {
   SINGLE_POINT: "carried",
   OVER_RELIANCE: "carried",
+  CURATION_LEANS_ON_ONE: "carried",
   WELL_DISTRIBUTED: "carried",
   NARROW_REACH: "carried",
   FADING: "alive",

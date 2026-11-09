@@ -11,6 +11,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 import dev.axonia.CoreJdbcTestSupport;
+import dev.axonia.health.api.BucketCredit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
@@ -127,6 +128,28 @@ class ArtifactSignalsAdapterTest extends CoreJdbcTestSupport {
 
         verify(template, times(1)).queryForList(anyString(), anyMap());
         verifyNoMoreInteractions(template);
+    }
+
+    @Test
+    void artifactCreditsPerBucket_oneCreditPerUserPerBucket() {
+
+        // given a twelve-day window bucketing by the day: alice captures twice on day 2 (one archived) and once on
+        // day 5, bob once on day 5, plus strays outside the window and in another community
+        var from = Instant.parse("2026-03-01T06:00:00Z");
+        artifact(7L, "alice", from.plus(Duration.ofDays(2)).plus(Duration.ofHours(1)));
+        artifact(7L, "alice", from.plus(Duration.ofDays(2)).plus(Duration.ofHours(5)), "ARCHIVED");
+        artifact(7L, "alice", from.plus(Duration.ofDays(5)).plus(Duration.ofHours(1)));
+        artifact(7L, "bob", from.plus(Duration.ofDays(5)).plus(Duration.ofHours(2)));
+        artifact(7L, "carol", from.minus(Duration.ofHours(1)));
+        artifact(7L, "mallory", from.plus(Duration.ofDays(12)));
+        artifact(8L, "dana", from.plus(Duration.ofDays(3)));
+
+        // when
+        var actual = sut.artifactCreditsPerBucket(7L, from, from.plus(Duration.ofDays(12)), 12);
+
+        // then
+        assertThat(actual).containsExactlyInAnyOrder(new BucketCredit(2, "alice"), new BucketCredit(5, "alice"),
+                new BucketCredit(5, "bob"));
     }
 
     private void artifact(long communityId, String contributorUserId, Instant createdAt) {

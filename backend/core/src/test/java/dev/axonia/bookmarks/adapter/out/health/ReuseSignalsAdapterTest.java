@@ -1,7 +1,6 @@
 package dev.axonia.bookmarks.adapter.out.health;
 
 import java.sql.Timestamp;
-import java.time.Duration;
 import java.time.Instant;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -14,12 +13,6 @@ import dev.axonia.CoreJdbcTestSupport;
 import dev.axonia.health.api.ReuseCounts;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyMap;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 class ReuseSignalsAdapterTest extends CoreJdbcTestSupport {
 
@@ -55,46 +48,6 @@ class ReuseSignalsAdapterTest extends CoreJdbcTestSupport {
 
         // then bob + carol + erin counted across artifacts {100, 101}; one helped, one not helped
         assertThat(actual).isEqualTo(new ReuseCounts(3L, 2L, 1L, 1L));
-    }
-
-    @Test
-    void savesPerBucket_excludesSelfSavesLikeTheScalarReadDoes() {
-
-        // given a 12-day window: a self-save at hour 1, a foreign save at hour 2, and a foreign save on day 11
-        var from = Instant.parse("2026-03-01T00:00:00Z");
-        var to = from.plus(Duration.ofDays(12));
-        bookmark("ARTIFACT", 100L, "alice", "alice", null, from.plus(Duration.ofHours(1))); // self-save - excluded
-        bookmark("ARTIFACT", 100L, "bob", "alice", null, from.plus(Duration.ofHours(2)));
-        bookmark("ARTIFACT", 101L, "carol", "alice", null, from.plus(Duration.ofDays(11)));
-
-        // when
-        var actual = sut.savesPerBucket(7L, from, to, 12);
-
-        // then the self-save is absent, exactly as it is absent from the scalar count
-        assertThat(actual).containsExactly(1L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 1L);
-    }
-
-    @Test
-    void savesPerBucket_ofNothingIsTwelveZeroes() {
-
-        var from = Instant.parse("2026-03-01T00:00:00Z");
-
-        assertThat(sut.savesPerBucket(7L, from, from.plus(Duration.ofDays(12)), 12)).hasSize(12)
-                .allMatch(count -> count == 0L);
-    }
-
-    @Test
-    void savesPerBucket_answersTheWholeSeriesInOneQueryRatherThanOnePerBucket() {
-
-        // The series must be one grouped query. A loop over twelve sub-windows would pass every
-        // behavioural test above and cost twelve round trips.
-        var template = mock(NamedParameterJdbcTemplate.class);
-        var from = Instant.parse("2026-03-01T00:00:00Z");
-
-        new ReuseSignalsAdapter(template, () -> "default").savesPerBucket(7L, from, from.plus(Duration.ofDays(12)), 12);
-
-        verify(template, times(1)).queryForList(anyString(), anyMap());
-        verifyNoMoreInteractions(template);
     }
 
     private void bookmark(String saveableType, long saveableId, String memberUserId, String sourceAuthorUserId,

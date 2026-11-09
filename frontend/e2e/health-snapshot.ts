@@ -1,0 +1,69 @@
+const trend = (previous: number, direction: string) => ({
+  previous,
+  direction,
+});
+
+/** A busy community with every panel's evidence on screen and its longest findings beneath it. */
+export const healthSnapshot = {
+  window: "90d",
+  generatedAt: "2026-11-09T12:00:00Z",
+  stage: {
+    talks: 13,
+    speakers: 9,
+    speakersForHalf: 4,
+    distribution: [2, 2, 2, 2, 1, 1, 1, 1, 1].map((count) => count / 13),
+    trend: trend(6, "UP"),
+    status: { code: "SHARED_STAGE", level: "GREAT" },
+  },
+  curation: { acts: 10, topShare: 0.9 },
+  cadence: {
+    rhythm: "STEADY",
+    sessionsHeld: 3,
+    medianGapDays: 32,
+    nextSessionAt: "2026-12-04T17:00:00Z",
+    lastHeldAt: "2026-10-28T17:00:00Z",
+    trend: trend(3, "FLAT"),
+    status: { code: "ON_RHYTHM", level: "GOOD" },
+  },
+  people: { involved: 15, members: 2, trend: trend(11, "UP") },
+  engagement: { loves: 1, trend: trend(0, "UP") },
+  membershipGrowth: { joins: 2, memberCount: 2, trend: trend(0, "UP") },
+  reach: {
+    available: true,
+    teams: 7,
+    departments: 3,
+    businessUnits: 2,
+    speakersWithUnit: 7,
+    totalSpeakers: 9,
+    trend: trend(5, "UP"),
+  },
+  reuse: {
+    opened: 2,
+    artifactsOpened: 2,
+    openingsTrend: trend(0, "UP"),
+    saves: 1,
+    artifactsSaved: 1,
+    helped: 0,
+    notHelped: 0,
+    savesTrend: trend(0, "UP"),
+    status: { code: "SAVED_NOT_CONFIRMED", level: "WATCH" },
+  },
+  series: {
+    talks: [0, 5, 0, 0, 0, 0, 4, 0, 0, 0, 4, 0],
+    people: [2, 8, 3, 2, 1, 2, 7, 3, 2, 4, 6, 5],
+    joins: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
+  },
+  heldSessionDates: [
+    "2026-08-25T17:00:00Z",
+    "2026-09-26T17:00:00Z",
+    "2026-10-28T17:00:00Z",
+  ],
+  diagnosis: {
+    findings: [
+      { kind: "STRENGTH", code: "WELL_DISTRIBUTED" },
+      { kind: "RISK", code: "CURATION_LEANS_ON_ONE" },
+      { kind: "STRENGTH", code: "ON_RHYTHM" },
+      { kind: "GAP", code: "INTEREST_WITHOUT_PAYOFF" },
+    ],
+  },
+};

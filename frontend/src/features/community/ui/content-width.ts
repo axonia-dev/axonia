@@ -9,8 +9,10 @@
  * expertise page narrows itself back for its own search view. A session page
  * sits between the two: its run sheet shares the row with a 13rem rail, which
  * at the reading width left its slot cards around 500px wide, yet a slot card
- * is text and stops reading well long before the drawing width. Pure so it is
- * unit-testable without rendering the shell.
+ * is text and stops reading well long before the drawing width. The health
+ * page is a dashboard: a glance row of four tiles and two panels side by side
+ * do not fit the reading width, yet its panels are read, not drawn. Pure so it
+ * is unit-testable without rendering the shell.
  */
 const WIDE_PAGES = new Set(["schedule", "expertise"]);
 
@@ -27,5 +29,6 @@ export function contentMaxWidthClass(pathname: string): string {
   const page = pageOf(pathname);
   if (WIDE_PAGES.has(page)) return "max-w-[2048px]";
   if (isSessionPage(page)) return "max-w-6xl";
+  if (page === "health") return "max-w-5xl";
   return "max-w-3xl";
 }

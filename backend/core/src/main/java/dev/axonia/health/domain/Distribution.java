@@ -5,32 +5,45 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * The anonymous contribution distribution. Identity is dropped at construction — counts in, sorted shares out — which
- * makes the "aggregates only, never names" stance structural: nothing downstream of this type can name anyone.
+ * Who stood on the stage: the anonymous talks distribution. Identity is dropped at construction - counts in, sorted
+ * shares out - which makes the "aggregates only, never names" stance structural: nothing downstream of this type can
+ * name anyone.
  */
 public final class Distribution {
 
+    private final long talks;
     private final List<Double> shares;
 
-    private Distribution(List<Double> shares) {
+    private Distribution(long talks, List<Double> shares) {
 
+        this.talks = talks;
         this.shares = shares;
     }
 
-    /** Builds the distribution from per-member contribution counts (values only). */
-    public static Distribution of(Collection<Long> contributionCounts) {
+    /** Builds the distribution from per-speaker talk counts (values only). */
+    public static Distribution of(Collection<Long> talkCounts) {
 
-        var total = contributionCounts.stream().mapToLong(Long::longValue).sum();
+        var total = talkCounts.stream().mapToLong(Long::longValue).sum();
         if (total == 0) {
-            return new Distribution(List.of());
+            return new Distribution(0, List.of());
         }
-        var shares = contributionCounts.stream().filter(count -> count > 0).sorted(Comparator.reverseOrder())
+        var shares = talkCounts.stream().filter(count -> count > 0).sorted(Comparator.reverseOrder())
                 .map(count -> (double) count / total).toList();
-        return new Distribution(shares);
+        return new Distribution(total, shares);
     }
 
-    /** Smallest number of contributors whose cumulative share first reaches >= 50%. 0 = no activity. */
-    public int busFactor() {
+    public long talks() {
+
+        return talks;
+    }
+
+    public int speakers() {
+
+        return shares.size();
+    }
+
+    /** Smallest number of speakers whose talks reach at least half of all talks. 0 = no talks. */
+    public int speakersForHalf() {
 
         var cumulative = 0.0;
         for (var i = 0; i < shares.size(); i++) {
@@ -42,13 +55,13 @@ public final class Distribution {
         return shares.size();
     }
 
-    /** Share carried by the top three contributors. */
-    public double top3Share() {
+    /** Share of the talks given by the top speaker, 0.0 when there were none. */
+    public double topShare() {
 
-        return shares.stream().limit(3).mapToDouble(Double::doubleValue).sum();
+        return shares.isEmpty() ? 0.0 : shares.getFirst();
     }
 
-    /** Sorted high-to-low, sums to 1.0 (or empty when there was no activity). */
+    /** Sorted high-to-low, sums to 1.0 (or empty when there were no talks). */
     public List<Double> shares() {
 
         return List.copyOf(shares);

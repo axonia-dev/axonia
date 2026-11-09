@@ -2,7 +2,6 @@ package dev.axonia.bookmarks.adapter.out.health;
 
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.util.List;
 
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -10,10 +9,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import dev.axonia.bookmarks.application.port.out.OrganizationContext;
-import dev.axonia.health.api.BucketedSeries;
 import dev.axonia.health.api.ReuseCounts;
 import dev.axonia.health.api.spi.ReuseSignals;
-import dev.axonia.shared.api.persistence.BucketCountQuery;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -47,25 +44,5 @@ class ReuseSignalsAdapter implements ReuseSignals {
                 .addValue("to", Timestamp.from(to));
         return jdbc.queryForObject(sql, params, (rs, n) -> new ReuseCounts(rs.getLong("saves"),
                 rs.getLong("distinct_artifacts"), rs.getLong("helped"), rs.getLong("not_helped")));
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<Long> savesPerBucket(long communityId, Instant from, Instant to, int buckets) {
-
-        var sql = """
-                SELECT least(floor(extract(epoch FROM (b.created_at - :from)) / :bucketSeconds), :lastBucket)::int
-                         AS bucket,
-                       count(*) AS n
-                FROM bookmark b
-                WHERE b.organization_id = :organizationId AND b.community_id = :communityId
-                  AND b.saveable_type = 'ARTIFACT'
-                  AND b.created_at >= :from AND b.created_at < :to
-                  AND b.member_user_id <> b.source_author_user_id
-                GROUP BY 1
-                """;
-        var read = BucketedSeries.Read.builder().organizationId(organizationContext.organizationId())
-                .communityId(communityId).from(from).to(to).buckets(buckets).build();
-        return read.series(BucketCountQuery.counts(jdbc.queryForList(sql, read.query().parameters())));
     }
 }
