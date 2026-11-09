@@ -112,7 +112,7 @@ describe("ArtifactList", () => {
     const { rerender } = render(
       <ArtifactList
         slug="eng"
-        artifacts={[focusArtifact as Artifact]}
+        artifacts={[focusArtifact as never]}
         isLoading={false}
         isError={false}
       />,
@@ -123,7 +123,7 @@ describe("ArtifactList", () => {
     rerender(
       <ArtifactList
         slug="eng"
-        artifacts={[focusArtifact as Artifact]}
+        artifacts={[focusArtifact as never]}
         isLoading={false}
         isError={false}
         renderArtifactFootnote={(a) => <span>note-{a.id}</span>}

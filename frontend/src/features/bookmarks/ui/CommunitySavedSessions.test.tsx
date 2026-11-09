@@ -10,7 +10,7 @@ import {
 import { CommunitySavedSessions } from "@/features/bookmarks/ui/CommunitySavedSessions";
 
 let saved: {
-  data?: SavedItem[];
+  data?: SavedItem[] | undefined;
   isLoading: boolean;
   errorUpdateCount: number;
   isFetching: boolean;
