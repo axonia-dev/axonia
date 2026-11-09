@@ -47,7 +47,7 @@ beforeEach(() => {
   sessionStorage.clear();
 });
 
-describe("SchedulePage saved filter", () => {
+describe("SchedulePage saved view", () => {
   it("shows the community's saved sessions in place of the view from ?saved=1", () => {
     renderPage("/communities/backend-guild/schedule?view=calendar&saved=1");
 
@@ -57,25 +57,21 @@ describe("SchedulePage saved filter", () => {
     );
     expect(screen.queryByTestId("month-calendar")).not.toBeInTheDocument();
     expect(screen.queryByTestId("schedule-timeline")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Saved" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    expect(screen.getByRole("radio", { name: "Saved" })).toBeChecked();
+    expect(screen.getByRole("radio", { name: "Calendar" })).not.toBeChecked();
   });
 
-  it("turns saved on and off through the URL, back to the chosen view", async () => {
+  it("picks Saved through the URL, keeping the chosen view to return to", async () => {
     renderPage("/communities/backend-guild/schedule?view=timeline");
     expect(screen.getByTestId("schedule-timeline")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Saved" }));
+    await user.click(screen.getByRole("radio", { name: "Saved" }));
+
     expect(screen.getByTestId("saved-sessions")).toBeInTheDocument();
+    expect(screen.queryByTestId("schedule-timeline")).not.toBeInTheDocument();
     expect(screen.getByTestId("search")).toHaveTextContent(
       "?view=timeline&saved=1",
     );
-
-    await user.click(screen.getByRole("button", { name: "Saved" }));
-    expect(screen.getByTestId("schedule-timeline")).toBeInTheDocument();
-    expect(screen.getByTestId("search")).toHaveTextContent("?view=timeline");
   });
 
   it("leaves saved when a view is picked", async () => {

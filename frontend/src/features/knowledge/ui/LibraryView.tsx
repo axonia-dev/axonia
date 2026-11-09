@@ -206,13 +206,15 @@ export function LibraryView({
             options={SORT_OPTIONS}
             onChange={resetTo(setSort)}
           />
-          <FilterToggleChip
-            active={saved}
-            onToggle={toggleSaved}
-            icon={<Bookmark size={14} aria-hidden />}
-          >
-            Saved
-          </FilterToggleChip>
+          <div>
+            <FilterToggleChip
+              active={saved}
+              onToggle={toggleSaved}
+              icon={<Bookmark size={14} aria-hidden />}
+            >
+              Saved
+            </FilterToggleChip>
+          </div>
         </div>
 
         <TypeChips selected={typeFilter} onSelect={resetTo(setTypeFilter)} />

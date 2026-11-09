@@ -1,9 +1,4 @@
-import {
-  Bookmark,
-  CalendarSync,
-  ChevronDown,
-  MoreHorizontal,
-} from "lucide-react";
+import { CalendarSync, ChevronDown, MoreHorizontal } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   type Key,
@@ -13,7 +8,6 @@ import {
 } from "react-aria-components";
 import { useSearchParams } from "react-router-dom";
 
-import { FilterToggleChip } from "@/components/patterns/FilterToggleChip";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { IconButton } from "@/components/ui/IconButton";
@@ -50,10 +44,20 @@ import { cn } from "@/lib/cn";
 
 const SAVED_PARAM = "saved";
 
+const SAVED_VIEW = "saved";
+
 const VIEW_OPTIONS = [
   { id: "timeline", label: "Timeline" },
   { id: "calendar", label: "Calendar" },
+  { id: SAVED_VIEW, label: "Saved" },
 ] as const;
+
+/** Saved rides its own URL flag so the remembered calendar or timeline survives a visit to it. */
+function viewChange(next: string): Record<string, string | null> {
+  return next === SAVED_VIEW
+    ? { [SAVED_PARAM]: "1" }
+    : { view: next, [SAVED_PARAM]: null };
+}
 
 /** URL first, then the sticky preference, then the calendar. */
 function resolveView(raw: string | null): ScheduleView {
@@ -172,19 +176,12 @@ export function SchedulePage({ slug }: Readonly<{ slug: string }>) {
               </Popover>
             </MenuTrigger>
           )}
-          <FilterToggleChip
-            active={saved}
-            onToggle={() => setParams({ [SAVED_PARAM]: saved ? null : "1" })}
-            icon={<Bookmark size={14} aria-hidden />}
-          >
-            Saved
-          </FilterToggleChip>
           <SegmentedControl
             label="Schedule view"
             hideLabel
-            value={view}
+            value={saved ? SAVED_VIEW : view}
             options={VIEW_OPTIONS}
-            onChange={(next) => setParams({ view: next, [SAVED_PARAM]: null })}
+            onChange={(next) => setParams(viewChange(next))}
           />
           {/* A neutral glyph over a labelled item, not a calendar icon: a calendar with a
               plus beside a calendar view reads as "add a session", which + New already is. */}
