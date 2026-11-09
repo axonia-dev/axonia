@@ -16,4 +16,9 @@ import lombok.Builder;
 @Builder(toBuilder = true)
 public record ArtifactFilter(String q, Long typeId, String tag, String contributor, Instant from, Instant to,
         Long session, String sort, boolean saved, Set<Long> ids) {
+
+    public ArtifactFilter {
+
+        ids = ids == null ? null : Set.copyOf(ids);
+    }
 }
