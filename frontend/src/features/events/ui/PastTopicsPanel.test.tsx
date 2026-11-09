@@ -10,6 +10,11 @@ import { anActionItem } from "@/test/action-item-fixture";
 vi.mock("@/features/events/api/use-topics", () => ({
   usePastTopics: vi.fn(),
 }));
+vi.mock("@/features/identity/api/use-users", () => ({
+  useUsers: () => ({
+    data: { "user-bob": { id: "user-bob", displayName: "Bob Brown" } },
+  }),
+}));
 vi.mock("@/features/events/api/use-action-items", () => ({
   useSettledActionItems: vi.fn(),
 }));
@@ -34,6 +39,9 @@ function pastTopic(id: number, title: string) {
     kind: "REQUEST",
     status: "DONE",
     voteCount: 0,
+    proposerUserId: "user-alice",
+    proposerDisplayName: "Alice Vega",
+    speakerUserIds: [] as string[],
     updatedAt: "2001-01-01T18:00:00Z",
     scheduledFor: {
       sessionId: id,
@@ -126,6 +134,9 @@ describe("PastTopicsPanel", () => {
             kind: "OFFER",
             status: "DONE",
             voteCount: 14,
+            proposerUserId: "user-alice",
+            proposerDisplayName: "Alice Vega",
+            speakerUserIds: ["user-alice"],
             canReopen: false,
             updatedAt: "2026-07-20T12:00:00Z",
             scheduledFor: {
@@ -187,6 +198,9 @@ describe("PastTopicsPanel", () => {
             kind: "REQUEST",
             status: "DONE",
             voteCount: 0,
+            proposerUserId: "user-alice",
+            proposerDisplayName: "Alice Vega",
+            speakerUserIds: [],
             canReopen: false,
             updatedAt: "2026-06-25T12:00:00Z",
             scheduledFor: null,
@@ -207,6 +221,42 @@ describe("PastTopicsPanel", () => {
     expect(screen.getByText("25")).toBeInTheDocument();
     expect(screen.getByText("Jun")).toBeInTheDocument();
     expect(screen.queryByText(/votes when held/)).not.toBeInTheDocument();
+  });
+
+  it("credits the creator and draws who presented, read-only", () => {
+    // given
+    mockUsePastTopics.mockReturnValue({
+      data: {
+        content: [
+          {
+            ...pastTopic(5, "Kafka retro"),
+            kind: "OFFER",
+            speakerUserIds: ["user-bob"],
+          },
+        ],
+        totalPages: 1,
+      },
+      isLoading: false,
+      isError: false,
+    } as never);
+
+    // when
+    render(
+      <MemoryRouter>
+        <PastTopicsPanel slug="backend-guild" />
+      </MemoryRouter>,
+    );
+
+    // then
+    expect(screen.getByText("by").parentElement).toHaveTextContent(
+      "byAVAlice Vega",
+    );
+    expect(
+      screen.getByRole("button", { name: "Bob Brown" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Add speaker/ }),
+    ).not.toBeInTheDocument();
   });
 
   /** Spec, "Backlog view": closed and dropped items are found under Past. The tab used to hold

@@ -7,11 +7,15 @@ import { EmptyState } from "@/components/patterns/EmptyState";
 import { Pagination } from "@/components/patterns/Pagination";
 import { SearchField } from "@/components/ui/SearchField";
 import { usePastTopics } from "@/features/events/api/use-topics";
-import type { Topic } from "@/features/events/domain/topic";
+import { type Topic, topicPeopleIds } from "@/features/events/domain/topic";
 import { DateTile } from "@/features/events/ui/DateTile";
 import { SettledActionItems } from "@/features/events/ui/SettledActionItems";
+import { TopicByline } from "@/features/events/ui/TopicByline";
 import { TopicKindBadge } from "@/features/events/ui/TopicKindBadge";
 import { TopicListCard } from "@/features/events/ui/TopicListCard";
+import { TopicSpeakerStack } from "@/features/events/ui/TopicSpeakerStack";
+import { useUsers } from "@/features/identity/api/use-users";
+import type { User } from "@/features/identity/domain/user";
 
 const PAGE_SIZE = 20;
 
@@ -22,10 +26,16 @@ function heldAt(topic: Topic): string {
 function PastTopicMeta({
   slug,
   topic,
-}: Readonly<{ slug: string; topic: Topic }>) {
+  users,
+}: Readonly<{ slug: string; topic: Topic; users: Record<string, User> }>) {
   return (
     <>
       <TopicKindBadge kind={topic.kind} />
+      <TopicByline
+        userId={topic.proposerUserId}
+        name={topic.proposerDisplayName}
+        user={users[topic.proposerUserId]}
+      />
       {topic.scheduledFor && (
         <Link
           to={`/communities/${slug}/sessions/${topic.scheduledFor.sessionId}`}
@@ -54,6 +64,7 @@ function PastTopicsList({
   isLoading: boolean;
   isError: boolean;
 }>) {
+  const users = useUsers(topicPeopleIds(topics)).data ?? {};
   if (isLoading) {
     return <PastSkeleton />;
   }
@@ -87,8 +98,16 @@ function PastTopicsList({
           >
             <TopicListCard
               leading={<DateTile iso={heldAt(topic)} />}
+              people={
+                <TopicSpeakerStack
+                  slug={slug}
+                  topic={topic}
+                  users={users}
+                  interactive={false}
+                />
+              }
               title={topic.title}
-              meta={<PastTopicMeta slug={slug} topic={topic} />}
+              meta={<PastTopicMeta slug={slug} topic={topic} users={users} />}
             />
           </motion.li>
         ))}

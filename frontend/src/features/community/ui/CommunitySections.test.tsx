@@ -46,10 +46,22 @@ vi.mock("@/features/knowledge/ui/LibraryView", () => ({
 vi.mock("@/features/events/ui/BacklogView", () => ({
   BacklogView: (props: {
     renderScheduledActions?: (t: { id: number }) => React.ReactNode;
+    renderTopicActions?: (t: {
+      id: number;
+      kind: string;
+      tags: string[];
+    }) => React.ReactNode;
   }) => (
     <div data-testid="scheduled-actions">
       {props.renderScheduledActions?.({ id: 7 })}
+      {props.renderTopicActions?.({ id: 8, kind: "REQUEST", tags: ["ddd"] })}
+      {props.renderTopicActions?.({ id: 9, kind: "OFFER", tags: ["ddd"] })}
     </div>
+  ),
+}));
+vi.mock("@/features/expertise/ui/SpeakerSuggestions", () => ({
+  SpeakerSuggestions: (props: { topicId: number }) => (
+    <div data-testid="suggestions">{props.topicId}</div>
   ),
 }));
 vi.mock("@/features/events/ui/ReturnToBacklogButton", () => ({
@@ -96,6 +108,20 @@ describe("BacklogSection", () => {
 
     // then the organizer-gated scheduled action renders the return button
     expect(screen.getByTestId("return-btn")).toHaveTextContent("7");
+  });
+
+  it("suggests speakers only for a request, which has none yet", () => {
+    // when
+    render(
+      <MemoryRouter initialEntries={["/communities/backend-guild/backlog"]}>
+        <BacklogSection />
+      </MemoryRouter>,
+    );
+
+    // then
+    expect(
+      screen.getAllByTestId("suggestions").map((node) => node.textContent),
+    ).toEqual(["8"]);
   });
 });
 

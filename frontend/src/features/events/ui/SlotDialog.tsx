@@ -21,7 +21,7 @@ import {
   canAdd,
   DEFAULT_MINUTES,
   firstError,
-  MODE_OPTIONS,
+  modeOptions,
   pickSelected,
   PROPOSED_PARAMS,
   proposedTopics,
@@ -255,7 +255,7 @@ function AddSlotForm({
             <Select
               label="How"
               value={mode}
-              options={MODE_OPTIONS}
+              options={modeOptions(selected)}
               onChange={setMode}
             />
           )}

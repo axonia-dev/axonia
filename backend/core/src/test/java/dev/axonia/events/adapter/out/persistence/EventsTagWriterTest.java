@@ -143,7 +143,7 @@ class EventsTagWriterTest extends CoreJdbcTestSupport {
     @Test
     void theTagsInACommunityAreThoseItsTopicsAndTalksCarryEachOnce() {
 
-        topicOfKind(community, "REQUEST", "grpc", "kafka");
+        topicWith(community, "grpc", "kafka");
         topicWith(community, "flink", "kafka", "k8s");
         slotWith(community, "helm", "k8s");
         topicWith(otherCommunity, "rust");
@@ -164,17 +164,12 @@ class EventsTagWriterTest extends CoreJdbcTestSupport {
 
     private long topicWith(long communityId, String... tags) {
 
-        return topicOfKind(communityId, "OFFER", tags);
-    }
-
-    private long topicOfKind(long communityId, String kind, String... tags) {
-
         var topicId = jdbc.queryForObject("""
-                INSERT INTO topic (organization_id, community_id, kind, title, description, proposer_user_id, status,
+                INSERT INTO topic (organization_id, community_id, title, description, proposer_user_id, status,
                         created_at, updated_at, version)
-                VALUES ('default', :communityId, :kind, 'T', 'd', 'alice', 'PROPOSED', now(), now(), 0)
+                VALUES ('default', :communityId, 'T', 'd', 'alice', 'PROPOSED', now(), now(), 0)
                 RETURNING id
-                """, new MapSqlParameterSource("communityId", communityId).addValue("kind", kind), Long.class);
+                """, new MapSqlParameterSource("communityId", communityId), Long.class);
 
         for (var tag : tags) {
             jdbc.update("INSERT INTO topic_tag (topic_id, tag) VALUES (:topicId, :tag)",

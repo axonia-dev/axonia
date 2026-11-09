@@ -1,5 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render as rtlRender, screen } from "@testing-library/react";
+import {
+  fireEvent,
+  render as rtlRender,
+  screen,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -13,7 +18,9 @@ import {
 } from "@/features/events/api/use-topics";
 import type { Topic } from "@/features/events/domain/topic";
 import { TopicRow } from "@/features/events/ui/TopicRow";
+import type { User } from "@/features/identity/domain/user";
 
+vi.mock("@/auth/current-user", () => ({ currentUserId: () => "user-3" }));
 vi.mock("@/features/events/api/use-topics", () => ({
   useVoteTopic: vi.fn(),
   useUnvoteTopic: vi.fn(),
@@ -42,6 +49,8 @@ const topic: Topic = {
   tags: [],
   proposerUserId: "user-1",
   proposerDisplayName: "Alice",
+  speakerUserIds: [],
+  canManageSpeakers: false,
   canClose: false,
   canReopen: false,
   voteCount: 2,
@@ -52,6 +61,23 @@ const topic: Topic = {
   scheduledFor: null,
   createdAt: "x",
   updatedAt: "x",
+};
+
+function person(id: string, displayName: string, avatarUrl?: string): User {
+  return {
+    id,
+    displayName,
+    email: null,
+    memberStatus: "PRESENT",
+    avatarIsOwn: false,
+    timeZoneIsOwn: false,
+    ...(avatarUrl ? { avatarUrl } : {}),
+  };
+}
+
+const users: Record<string, User> = {
+  "user-1": person("user-1", "Alice", "https://img/alice.png"),
+  "user-2": person("user-2", "Bob Brown"),
 };
 
 const mockUseDelete = vi.mocked(useDeleteTopic);
@@ -80,7 +106,7 @@ beforeEach(() => {
 
 describe("TopicRow", () => {
   it("renders the title and vote count", () => {
-    render(<TopicRow slug="backend-guild" topic={topic} />);
+    render(<TopicRow slug="backend-guild" topic={topic} users={{}} />);
     expect(screen.getByText("Intro to event sourcing")).toBeInTheDocument();
     expect(screen.getByText("2")).toBeInTheDocument();
   });
@@ -88,7 +114,7 @@ describe("TopicRow", () => {
   it("votes when the upvote button is pressed", async () => {
     const mutate = vi.fn();
     mockUseVote.mockReturnValue({ mutate, isPending: false } as never);
-    render(<TopicRow slug="backend-guild" topic={topic} />);
+    render(<TopicRow slug="backend-guild" topic={topic} users={{}} />);
     await user.click(screen.getByRole("button", { name: /upvote/i }));
     expect(mutate).toHaveBeenCalledWith(5);
   });
@@ -100,14 +126,14 @@ describe("TopicRow", () => {
       isPending: false,
     } as never);
     const votedTopic: Topic = { ...topic, hasVoted: true };
-    render(<TopicRow slug="backend-guild" topic={votedTopic} />);
+    render(<TopicRow slug="backend-guild" topic={votedTopic} users={{}} />);
     await user.click(screen.getByRole("button", { name: /remove vote/i }));
     expect(unvoteMutate).toHaveBeenCalledWith(5);
   });
 
   it("shows expand button and toggles description for long text", async () => {
     const longTopic: Topic = { ...topic, description: "x".repeat(200) };
-    render(<TopicRow slug="backend-guild" topic={longTopic} />);
+    render(<TopicRow slug="backend-guild" topic={longTopic} users={{}} />);
     const showMore = screen.getByRole("button", { name: /show more/i });
     expect(showMore).toBeInTheDocument();
     await user.click(showMore);
@@ -118,20 +144,20 @@ describe("TopicRow", () => {
 
   it("shows no-description text when description is empty", () => {
     const emptyTopic: Topic = { ...topic, description: "" };
-    render(<TopicRow slug="backend-guild" topic={emptyTopic} />);
+    render(<TopicRow slug="backend-guild" topic={emptyTopic} users={{}} />);
     expect(screen.getByText(/no description provided/i)).toBeInTheDocument();
   });
 
   it("opens EditTopicDialog when the edit button is clicked", async () => {
     const editTopic: Topic = { ...topic, canEdit: true };
-    render(<TopicRow slug="backend-guild" topic={editTopic} />);
+    render(<TopicRow slug="backend-guild" topic={editTopic} users={{}} />);
     await user.click(screen.getByRole("button", { name: /^edit/i }));
     expect(screen.getByText("Save")).toBeInTheDocument();
   });
 
   it("opens DeleteTopicPopover when the delete button is clicked", async () => {
     const deleteTopic: Topic = { ...topic, canDelete: true };
-    render(<TopicRow slug="backend-guild" topic={deleteTopic} />);
+    render(<TopicRow slug="backend-guild" topic={deleteTopic} users={{}} />);
     await user.click(screen.getByRole("button", { name: /^delete/i }));
     expect(screen.getByText(/from the backlog\?/i)).toBeInTheDocument();
   });
@@ -141,10 +167,74 @@ describe("TopicRow", () => {
       <TopicRow
         slug="backend-guild"
         topic={topic}
+        users={{}}
         actions={<span>Custom action</span>}
       />,
     );
     expect(screen.getByText("Custom action")).toBeInTheDocument();
+  });
+
+  it("shows one kind badge and the creator's face beside the byline", () => {
+    // when
+    render(<TopicRow slug="backend-guild" topic={topic} users={users} />);
+
+    // then
+    expect(screen.getAllByText(/^(request|offer)$/i)).toHaveLength(1);
+    const byline = screen.getByText("by").parentElement;
+    expect(byline).toHaveTextContent("byAlice");
+    expect(
+      within(byline as HTMLElement).getByRole("img", { name: "Alice" }),
+    ).toHaveAttribute("src", "https://img/alice.png");
+  });
+
+  it("invites a speaker at the start of the title row", () => {
+    // when
+    render(<TopicRow slug="backend-guild" topic={topic} users={users} />);
+
+    // then
+    const add = screen.getByRole("button", {
+      name: "Add speaker to Intro to event sourcing",
+    });
+    const title = screen.getByText("Intro to event sourcing");
+    expect(
+      add.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("keeps edit and delete visible on a screen that cannot hover", () => {
+    // when
+    render(
+      <TopicRow
+        slug="backend-guild"
+        topic={{ ...topic, canEdit: true, canDelete: true }}
+        users={{}}
+      />,
+    );
+
+    // then
+    expect(
+      screen
+        .getByRole("button", { name: /^edit/i })
+        .closest(String.raw`.\[\@media\(hover\:none\)\]\:opacity-100`),
+    ).not.toBeNull();
+  });
+
+  it("shows the speakers of an offer as faces", () => {
+    // given
+    const offer: Topic = {
+      ...topic,
+      kind: "OFFER",
+      speakerUserIds: ["user-2"],
+    };
+
+    // when
+    render(<TopicRow slug="backend-guild" topic={offer} users={users} />);
+
+    // then
+    expect(
+      screen.getByRole("button", { name: "Bob Brown" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Offer")).toBeInTheDocument();
   });
 
   describe("animation timing", () => {
@@ -163,7 +253,7 @@ describe("TopicRow", () => {
     });
 
     it("fires rAF and timeout callbacks on vote", () => {
-      render(<TopicRow slug="backend-guild" topic={topic} />);
+      render(<TopicRow slug="backend-guild" topic={topic} users={{}} />);
       // Use fireEvent to avoid userEvent's internal async timers clashing with vi.useFakeTimers()
       fireEvent.click(screen.getByRole("button", { name: /upvote/i }));
       vi.runAllTimers();

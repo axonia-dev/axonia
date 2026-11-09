@@ -16,15 +16,21 @@ interface Props {
   /** Withholds the identity card entirely: while this avatar's management popover
    * is open, the still-hovered/focused avatar must not paint the card through it. */
   suppressCard?: boolean;
-  /** Which avatar edge the card hangs from; "end" keeps the card on-page when the
-   * avatar sits at a container's right edge. */
-  align?: "start" | "end";
   avatarRef?: Ref<HTMLElement>;
+  /** The background the stack sits on, which the separating border must match: a slot is sunken,
+   *  a topic card is raised. */
+  surface?: Surface;
 }
+
+type Surface = "sunken" | "raised";
 
 /** The border is what separates one face from the next in an overlapping presenter stack; every
  *  other trait of the avatar - monogram, hue, photo fallback, ring - belongs to `MemberAvatar`. */
-const avatarClass = "border-surface-sunken size-7 border-2 text-xs";
+const avatarClass = "size-7 border-2 text-xs";
+
+function surfaceBorder(surface: Surface): string {
+  return surface === "raised" ? "border-surface" : "border-surface-sunken";
+}
 
 /** Keyed on the profile so it matches every other surface drawing the same person, and on the
  *  name only while the profile is still resolving - the same placeholder stance the displayed
@@ -64,13 +70,12 @@ function OrgRows({ user }: Readonly<{ user: User }>) {
   );
 }
 
-function HoverCard({ name, user, align }: Readonly<Props>) {
+function HoverCard({ name, user }: Readonly<Pick<Props, "name" | "user">>) {
   return (
     <span
       role="tooltip"
       className={cn(
-        "border-border bg-surface pointer-events-none absolute top-9 z-20 hidden w-60 overflow-hidden rounded-xl border shadow-xl",
-        align === "end" ? "right-0" : "left-0",
+        "border-border bg-surface pointer-events-none absolute top-9 left-0 z-20 hidden w-60 overflow-hidden rounded-xl border shadow-xl",
         "group-focus-within/hc:block group-hover/hc:block",
         "motion-safe:group-focus-within/hc:animate-[hovercard-in_260ms_var(--ease-standard,ease-out)] motion-safe:group-hover/hc:animate-[hovercard-in_260ms_var(--ease-standard,ease-out)]",
       )}
@@ -81,7 +86,7 @@ function HoverCard({ name, user, align }: Readonly<Props>) {
           hue={hueOf(name, user)}
           subject={user?.id ?? null}
           src={user?.avatarUrl ?? null}
-          className={cn(avatarClass, "size-12 text-base")}
+          className={cn(avatarClass, "border-surface-sunken size-12 text-base")}
         />
         <MemberLabel
           name={name}
@@ -101,8 +106,8 @@ export function PresenterHoverCard({
   user,
   onPress,
   suppressCard = false,
-  align = "start",
   avatarRef,
+  surface = "sunken",
 }: Readonly<Props>) {
   return (
     <span className="group/hc relative inline-flex">
@@ -117,11 +122,11 @@ export function PresenterHoverCard({
           hue={hueOf(name, user)}
           subject={user?.id ?? null}
           src={user?.avatarUrl ?? null}
-          className={avatarClass}
+          className={cn(avatarClass, surfaceBorder(surface))}
           {...(avatarRef ? { ref: avatarRef } : {})}
         />
       </button>
-      {!suppressCard && <HoverCard name={name} user={user} align={align} />}
+      {!suppressCard && <HoverCard name={name} user={user} />}
     </span>
   );
 }

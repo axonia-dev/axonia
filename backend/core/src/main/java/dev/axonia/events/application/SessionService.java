@@ -57,6 +57,7 @@ public class SessionService implements Sessions {
     private final SessionStore sessionStore;
     private final SeriesStore seriesStore;
     private final TopicStore topicStore;
+    private final TopicLifecycle topicLifecycle;
     private final ActionItemStore actionItemStore;
     private final CheckpointDecisionPass checkpointDecisionPass;
     private final SessionMapper sessionMapper;
@@ -232,10 +233,10 @@ public class SessionService implements Sessions {
     }
 
     /**
-     * The shared "call it off" routine: every slotted non-{@code DONE} topic returns to the backlog, the row is saved
-     * as {@code CANCELLED}, and {@link SessionCancelled} is published. Used by both {@link #cancel} and the "no" answer
-     * of {@link #close}, so the two paths cannot drift - a fizzled session releases its topics the same way regardless
-     * of which endpoint said so.
+     * The shared "call it off" routine: every slotted non-{@code DONE} topic returns to the backlog with its slot's
+     * presenters as speakers, the row is saved as {@code CANCELLED}, and {@link SessionCancelled} is published. Used by
+     * both {@link #cancel} and the "no" answer of {@link #close}, so the two paths cannot drift - a fizzled session
+     * releases its topics the same way regardless of which endpoint said so.
      *
      * <p>
      * A cancelled session answers nothing, so every item that named it as its checkpoint goes back to late binding
@@ -245,11 +246,8 @@ public class SessionService implements Sessions {
             SessionRecord.SessionRecordBuilder builder, Instant instant) {
 
         var sections = Objects.requireNonNullElse(original.getSections(), List.<SectionRecord>of());
-        sections.stream().flatMap(sec -> Objects.requireNonNullElse(sec.getSlots(), List.<SlotRecord>of()).stream())
-                .map(SlotRecord::getTopicId).filter(Objects::nonNull)
-                .forEach(topicId -> topicStore.findByOrganizationIdAndId(organizationId, topicId)
-                        .filter(t -> t.getStatus() != TopicStatus.DONE)
-                        .ifPresent(t -> topicStore.save(t.toBuilder().status(TopicStatus.PROPOSED).build())));
+        topicLifecycle.releaseAll(organizationId, sections.stream()
+                .flatMap(sec -> Objects.requireNonNullElse(sec.getSlots(), List.<SlotRecord>of()).stream()).toList());
         var saved = sessionStore.save(builder.status("CANCELLED").build());
         actionItemStore.clearPinsFor(organizationId, original.getCommunityId(), original.getId(), instant);
         eventPublisher.publishEvent(new SessionCancelled(saved.getId(), saved.getCommunityId()));

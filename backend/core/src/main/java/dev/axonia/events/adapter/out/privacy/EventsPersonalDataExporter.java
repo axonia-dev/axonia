@@ -23,7 +23,7 @@ import lombok.RequiredArgsConstructor;
  * {@code proposer_user_id}, so it fits {@link ExportQueries}' blanket rule like every other single-column table here.
  * {@code event_slot_presenter} carries no {@code organization_id} of its own - it is reached, exactly as
  * {@link EventsMemberDataEraser} reaches it, by joining up through its slot to the session that carries the
- * organization.
+ * organization. {@code topic_speaker} is reached the same way, through its topic.
  *
  * <p>
  * {@code action_item}'s two-column reach is the one place {@link ExportQueries}' blanket rule does not apply.
@@ -37,9 +37,9 @@ import lombok.RequiredArgsConstructor;
  * Every table here now names what a key used to point at, so none of them fits
  * {@link ExportQueries#byOrganizationAndUser} any more. Eight near-identical bespoke methods is the duplication the
  * module's CPD gate exists to catch, so the six that differ only in their table, alias, match column and joins are
- * described as a {@link LabelledTable} and run through one query builder; {@code event_slot_presenter} and
- * {@code action_item} keep their own methods because their shape genuinely differs, one reaching its tenant by joining
- * upward and the other matching on two columns at once.
+ * described as a {@link LabelledTable} and run through one query builder. {@code event_slot_presenter} and
+ * {@code topic_speaker} reach their tenant by joining upward, so they share a {@link ParentScopedTable} builder of
+ * their own, and {@code action_item} keeps its own method because it matches on two columns at once.
  *
  * <p>
  * Every label join is a {@code LEFT JOIN} carrying its own {@code organization_id} predicate, and both halves matter.
@@ -74,9 +74,16 @@ public class EventsPersonalDataExporter implements PersonalDataExporter {
 
     private static final String DATED_SESSION_LABEL = SESSION_LABEL + ", cs.occurrence_date AS session_date";
 
-    private static final String PRESENTER_SQL = " FROM event_slot_presenter esp"
-            + " JOIN event_slot sl ON esp.slot_id = sl.id" + " JOIN event_section sec ON sl.section_id = sec.id"
-            + " JOIN community_session cs ON sec.session_id = cs.id" + SERIES_JOIN + " WHERE cs.organization_id = :org";
+    private static final ParentScopedTable PRESENTER = new ParentScopedTable("event_slot_presenter", "esp",
+            "sl.title AS slot, " + DATED_SESSION_LABEL,
+            " FROM event_slot_presenter esp JOIN event_slot sl ON esp.slot_id = sl.id"
+                    + " JOIN event_section sec ON sl.section_id = sec.id"
+                    + " JOIN community_session cs ON sec.session_id = cs.id" + SERIES_JOIN
+                    + " WHERE cs.organization_id = :org");
+
+    private static final ParentScopedTable TOPIC_SPEAKER = new ParentScopedTable("topic_speaker", "ts",
+            "t.title AS topic",
+            " FROM topic_speaker ts JOIN topic t ON t.id = ts.topic_id WHERE t.organization_id = :org");
 
     private static final String ACTION_ITEM_SQL = ", " + COMMUNITY_LABEL
             + ", COALESCE(origin.title, originSeries.title) AS origin_session"
@@ -131,7 +138,8 @@ public class EventsPersonalDataExporter implements PersonalDataExporter {
         Map<String, Object> payload = Map.of("topic", rowsWithLabels(TOPIC, scope), "topic_vote",
                 rowsWithLabels(TOPIC_VOTE, scope), "session_attendance", rowsWithLabels(SESSION_ATTENDANCE, scope),
                 "community_session", rowsWithLabels(COMMUNITY_SESSION, scope), "event_slot_presenter",
-                presenters(scope), "calendar_subscription", rowsWithLabels(CALENDAR_SUBSCRIPTION, scope), "action_item",
+                parentScoped(PRESENTER, scope), "topic_speaker", parentScoped(TOPIC_SPEAKER, scope),
+                "calendar_subscription", rowsWithLabels(CALENDAR_SUBSCRIPTION, scope), "action_item",
                 actionItems(scope), "action_item_checkpoint", rowsWithLabels(ACTION_ITEM_CHECKPOINT, scope));
         return new ExportFragment("events.json", payload, List.of());
     }
@@ -183,15 +191,21 @@ public class EventsPersonalDataExporter implements PersonalDataExporter {
         return "CASE WHEN ai.%1$s = :user THEN ai.%1$s END AS %1$s".formatted(column);
     }
 
-    private List<Map<String, Object>> presenters(ExportScope.InOrganization scope) {
+    /**
+     * A link row with no {@code organization_id} of its own, naming the member in {@code user_id}: the labels it emits,
+     * and the joins up to the parent that carries the organization, ending in that parent's tenant predicate.
+     */
+    private record ParentScopedTable(String table, String alias, String labels, String fromWhere) {
+    }
 
-        var columns = ExportQueries.qualifiedColumnList(footprint.table("event_slot_presenter"), scope, "user_id",
-                "esp");
-        var sql = new StringBuilder("SELECT ").append(columns).append(", sl.title AS slot, ")
-                .append(DATED_SESSION_LABEL).append(PRESENTER_SQL);
+    private List<Map<String, Object>> parentScoped(ParentScopedTable spec, ExportScope.InOrganization scope) {
+
+        var columns = ExportQueries.qualifiedColumnList(footprint.table(spec.table()), scope, "user_id", spec.alias());
+        var sql = new StringBuilder("SELECT ").append(columns).append(", ").append(spec.labels())
+                .append(spec.fromWhere());
         var params = new MapSqlParameterSource("org", scope.organizationId());
         if (scope instanceof ExportScope.OneMember member) {
-            sql.append(" AND esp.user_id = :user");
+            sql.append(" AND ").append(spec.alias()).append(".user_id = :user");
             params.addValue("user", member.userId());
         }
         return jdbc.queryForList(sql.toString(), params);

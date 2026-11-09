@@ -24,7 +24,9 @@ import dev.axonia.events.api.Session;
 import dev.axonia.events.api.Slot;
 import dev.axonia.events.api.SlotCleared;
 import dev.axonia.events.api.SlotPresented;
+import dev.axonia.events.api.TopicKind;
 import dev.axonia.events.api.TopicStatus;
+import dev.axonia.events.api.TopicTagsChanged;
 import dev.axonia.events.application.port.out.AttendanceStore;
 import dev.axonia.events.application.port.out.CommunityAccess;
 import dev.axonia.events.application.port.out.CurrentUser;
@@ -54,6 +56,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @MockitoSettings
@@ -89,7 +92,8 @@ class SlotServiceTest {
 
         var mapper = new SessionMapper(communityAccess, messageOutcomePort,
                 new SessionBatchLookups(sectionTypeStore, attendanceStore, seriesStore));
-        var topicLifecycle = new TopicLifecycle(topicStore);
+        var topicLifecycle = new TopicLifecycle(topicStore, new TopicEvidence(eventPublisher),
+                (org, ids) -> Set.copyOf(ids));
         var presenterResolver = new PresenterResolver(communityAccess);
         var slotEventPublisher = new SlotEventPublisher(eventPublisher, topicStore);
         sut = new SlotService(sessionStore, topicLifecycle, mapper, sessionAuthorizer, communityAccess, currentUser,
@@ -276,7 +280,7 @@ class SlotServiceTest {
     @Test
     void addSlot_withTopicTagsAndPresenter_publishesSlotPresented() {
 
-        // given — alice adds a slot backed by topic 50 which carries tag "kafka"
+        // given - alice adds a slot backed by topic 50 which carries tag "kafka"
         var entity = sessionWith().build();
         when(organizationContext.organizationId()).thenReturn("default");
         when(sessionStore.findByOrganizationIdAndId("default", 7L)).thenReturn(Optional.of(entity));
@@ -291,7 +295,7 @@ class SlotServiceTest {
         // when
         sut.addSlot(7L, 21L, new AddSlotRequest("My talk", 50L, 15, null, null));
 
-        // then — SlotPresented published with inherited tags and presenter
+        // then - SlotPresented published with inherited tags and presenter
         var captor = ArgumentCaptor.forClass(Object.class);
         verify(eventPublisher).publishEvent(captor.capture());
         assertThat(captor.getValue()).isInstanceOfSatisfying(SlotPresented.class, sp -> {
@@ -704,6 +708,187 @@ class SlotServiceTest {
     }
 
     @Test
+    void queueTopic_presentersAreTheTopicsSpeakers() {
+
+        // given - an offer queued is not an open slot: the people who offered it present it
+        var entity = sessionWith().build();
+        when(organizationContext.organizationId()).thenReturn("default");
+        when(sessionStore.findByOrganizationIdAndId("default", 7L)).thenReturn(Optional.of(entity));
+        when(currentUser.userId()).thenReturn("alice");
+        when(communityAccess.isOrganizer(1L, "alice")).thenReturn(true);
+        when(topicStore.findByOrganizationIdAndId("default", 99L))
+                .thenReturn(Optional.of(backlogOffer(99L, "bob", "carol")));
+        when(topicStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(sessionStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // when
+        var actual = sut.queueTopic(7L, 21L, new QueueTopicRequest(99L, 20, null, null));
+
+        // then
+        assertThat(actual.sections().get(0).slots().get(0).presenterUserIds()).containsExactlyInAnyOrder("bob",
+                "carol");
+        verify(topicStore).save(argThat(t -> t.getStatus() == TopicStatus.SCHEDULED && t.speakerUserIds().isEmpty()));
+        verify(eventPublisher).publishEvent(argThat((Object e) -> e instanceof SlotPresented sp
+                && sp.presenterUserIds().equals(List.of("bob", "carol")) && sp.tags().equals(List.of("kafka"))));
+    }
+
+    @Test
+    void addSlotFromTopic_presentersAreCallerPlusSpeakers_deduplicated() {
+
+        // given - alice is both the caller and a speaker of the offer she slots
+        var entity = sessionWith().build();
+        when(organizationContext.organizationId()).thenReturn("default");
+        when(sessionStore.findByOrganizationIdAndId("default", 7L)).thenReturn(Optional.of(entity));
+        when(currentUser.userId()).thenReturn("alice");
+        when(communityAccess.isMember(1L, "alice")).thenReturn(true);
+        when(communityAccess.contributionPolicy(1L)).thenReturn(new ContributionPolicy(false, false, true, false));
+        when(topicStore.findByOrganizationIdAndId("default", 99L))
+                .thenReturn(Optional.of(backlogOffer(99L, "alice", "bob")));
+        when(topicStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(sessionStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // when
+        var actual = sut.addSlot(7L, 21L, new AddSlotRequest("Talk", 99L, 15, null, null));
+
+        // then
+        assertThat(actual.sections().get(0).slots().get(0).presenterUserIds()).containsExactlyInAnyOrder("alice",
+                "bob");
+        verify(eventPublisher).publishEvent(argThat(
+                (Object e) -> e instanceof SlotPresented sp && sp.presenterUserIds().equals(List.of("alice", "bob"))));
+    }
+
+    @Test
+    void editSlot_attachingTopic_addsSpeakersAndKeepsExistingPresenters() {
+
+        // given
+        var entity = sessionWith(slot(11L, "alice")).build();
+        when(organizationContext.organizationId()).thenReturn("default");
+        when(sessionStore.findByOrganizationIdAndId("default", 7L)).thenReturn(Optional.of(entity));
+        when(currentUser.userId()).thenReturn("alice");
+        when(communityAccess.isOrganizer(1L, "alice")).thenReturn(true);
+        when(topicStore.findByOrganizationIdAndId("default", 99L)).thenReturn(Optional.of(backlogOffer(99L, "bob")));
+        when(topicStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(sessionStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // when
+        var actual = sut.editSlot(7L, 21L, 11L, new EditSlotRequest("Talk", 99L, null, null, null));
+
+        // then
+        assertThat(actual.sections().get(0).slots().get(0).presenterUserIds()).containsExactlyInAnyOrder("alice",
+                "bob");
+        verify(eventPublisher).publishEvent(argThat(
+                (Object e) -> e instanceof SlotPresented sp && sp.presenterUserIds().equals(List.of("alice", "bob"))));
+    }
+
+    @Test
+    void editSlot_detachingTopic_keepsPresenters_andTopicReturnsWithThem() {
+
+        // given
+        var slot = slot(11L, "alice", "bob").toBuilder().topicId(99L).build();
+        var entity = sessionWith(slot).build();
+        when(organizationContext.organizationId()).thenReturn("default");
+        when(sessionStore.findByOrganizationIdAndId("default", 7L)).thenReturn(Optional.of(entity));
+        when(currentUser.userId()).thenReturn("alice");
+        when(topicStore.findByOrganizationIdAndId("default", 99L)).thenReturn(Optional.of(scheduledTopic(99L)));
+        when(topicStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(sessionStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // when
+        var actual = sut.editSlot(7L, 21L, 11L, new EditSlotRequest("Talk", null, null, null, List.of("java")));
+
+        // then
+        assertThat(actual.sections().get(0).slots().get(0).presenterUserIds()).containsExactlyInAnyOrder("alice",
+                "bob");
+        verify(topicStore).save(argThat(
+                t -> t.getStatus() == TopicStatus.PROPOSED && t.speakerUserIds().equals(List.of("alice", "bob"))));
+        verify(eventPublisher).publishEvent(argThat((Object e) -> e instanceof TopicTagsChanged changed
+                && changed.topicId().equals(99L) && changed.speakerUserIds().equals(List.of("alice", "bob"))));
+    }
+
+    @Test
+    void editSlot_swappingTopics_returnsTheOldOneWithThePresentersAsTheyWere() {
+
+        // given - alice presents topic 99, and the edit swaps it for bob's offer 100
+        var slot = slot(11L, "alice").toBuilder().topicId(99L).build();
+        var entity = sessionWith(slot).build();
+        when(organizationContext.organizationId()).thenReturn("default");
+        when(sessionStore.findByOrganizationIdAndId("default", 7L)).thenReturn(Optional.of(entity));
+        when(currentUser.userId()).thenReturn("alice");
+        when(communityAccess.isOrganizer(1L, "alice")).thenReturn(true);
+        when(topicStore.findByOrganizationIdAndId("default", 99L)).thenReturn(Optional.of(scheduledTopic(99L)));
+        when(topicStore.findByOrganizationIdAndId("default", 100L)).thenReturn(Optional.of(backlogOffer(100L, "bob")));
+        when(topicStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(sessionStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // when
+        var actual = sut.editSlot(7L, 21L, 11L, new EditSlotRequest("Talk", 100L, null, null, null));
+
+        // then
+        assertThat(actual.sections().get(0).slots().get(0).presenterUserIds()).containsExactlyInAnyOrder("alice",
+                "bob");
+        verify(topicStore).save(argThat(t -> t.getId().equals(99L) && t.getStatus() == TopicStatus.PROPOSED
+                && t.speakerUserIds().equals(List.of("alice"))));
+        verify(topicStore).save(argThat(
+                t -> t.getId().equals(100L) && t.getStatus() == TopicStatus.SCHEDULED && t.speakerUserIds().isEmpty()));
+    }
+
+    @Test
+    void removeSlot_topicReturnsWithSlotPresenters() {
+
+        // given
+        var slot = slot(11L, "alice", "bob").toBuilder().topicId(99L).build();
+        var entity = sessionWith(slot).build();
+        when(organizationContext.organizationId()).thenReturn("default");
+        when(sessionStore.findByOrganizationIdAndId("default", 7L)).thenReturn(Optional.of(entity));
+        when(currentUser.userId()).thenReturn("alice");
+        when(topicStore.findByOrganizationIdAndId("default", 99L)).thenReturn(Optional.of(scheduledTopic(99L)));
+        when(topicStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(sessionStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // when
+        sut.removeSlot(7L, 21L, 11L);
+
+        // then
+        verify(topicStore).save(argThat(t -> t.getStatus() == TopicStatus.PROPOSED
+                && TopicKind.forSpeakers(t.speakerUserIds()) == TopicKind.OFFER
+                && t.speakerUserIds().equals(List.of("alice", "bob"))));
+    }
+
+    @Test
+    void removeSlot_withoutPresenters_topicReturnsAsARequest() {
+
+        // given
+        var slot = slot(11L).toBuilder().topicId(99L).build();
+        var entity = sessionWith(slot).build();
+        when(organizationContext.organizationId()).thenReturn("default");
+        when(sessionStore.findByOrganizationIdAndId("default", 7L)).thenReturn(Optional.of(entity));
+        when(currentUser.userId()).thenReturn("alice");
+        when(topicStore.findByOrganizationIdAndId("default", 99L)).thenReturn(Optional.of(scheduledTopic(99L)));
+        when(topicStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(sessionStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // when
+        sut.removeSlot(7L, 21L, 11L);
+
+        // then
+        verify(topicStore).save(argThat(t -> t.getStatus() == TopicStatus.PROPOSED
+                && TopicKind.forSpeakers(t.speakerUserIds()) == TopicKind.REQUEST));
+    }
+
+    private static TopicRecord backlogOffer(Long id, String... speakers) {
+
+        return TopicRecord.builder().id(id).organizationId("default").communityId(1L).title("Kafka")
+                .status(TopicStatus.PROPOSED).tags(Set.of(TopicTag.builder().tag("kafka").build())).build()
+                .withSpeakers(List.of(speakers));
+    }
+
+    private static TopicRecord scheduledTopic(Long id) {
+
+        return TopicRecord.builder().id(id).organizationId("default").communityId(1L).title("Kafka")
+                .status(TopicStatus.SCHEDULED).tags(Set.of(TopicTag.builder().tag("kafka").build())).build();
+    }
+
+    @Test
     void removeSlot_revertsAttachedTopicToProposed() {
 
         // given
@@ -714,6 +899,7 @@ class SlotServiceTest {
         when(currentUser.userId()).thenReturn("alice");
         when(topicStore.findByOrganizationIdAndId("default", 99L)).thenReturn(Optional.of(TopicRecord.builder().id(99L)
                 .organizationId("default").communityId(1L).status(TopicStatus.SCHEDULED).build()));
+        when(topicStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(sessionStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         // when
@@ -754,6 +940,7 @@ class SlotServiceTest {
         when(currentUser.userId()).thenReturn("alice");
         when(topicStore.findByOrganizationIdAndId("default", 99L)).thenReturn(Optional.of(TopicRecord.builder().id(99L)
                 .organizationId("default").communityId(1L).status(TopicStatus.SCHEDULED).build()));
+        when(topicStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(sessionStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         // when
@@ -773,18 +960,53 @@ class SlotServiceTest {
         when(organizationContext.organizationId()).thenReturn("default");
         when(sessionStore.findByOrganizationIdAndId("default", 7L)).thenReturn(Optional.of(entity));
         when(currentUser.userId()).thenReturn("alice");
-        when(topicStore.findByOrganizationIdAndId("default", 9001L)).thenReturn(Optional.of(TopicRecord.builder()
-                .id(9001L).organizationId("default").communityId(1L).status(TopicStatus.SCHEDULED).build()));
-        when(topicStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(sessionStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         // when - alice is neither an organizer nor stubbed as a member: re-attaching the SAME topic must not reach the
         // queue-topics policy at all, since nothing about the topic's attachment is changing
-        sut.editSlot(7L, 21L, 11L, new EditSlotRequest("Renamed", 9001L, null, null, null));
+        var actual = sut.editSlot(7L, 21L, 11L, new EditSlotRequest("Renamed", 9001L, null, null, null));
+
+        // then - neither released nor scheduled again: the topic is left exactly as it is
+        assertThat(actual.sections().get(0).slots().get(0).topicId()).isEqualTo(9001L);
+        verifyNoInteractions(topicStore);
+    }
+
+    @Test
+    void editSlot_onAHeldSession_keepsItsDoneTopicDone() {
+
+        // given - last month's held session, its slot carrying topic 99, which is DONE
+        var slot = slot(11L, "alice").toBuilder().topicId(99L).build();
+        var entity = sessionWith(slot).status("HELD").build();
+        when(organizationContext.organizationId()).thenReturn("default");
+        when(sessionStore.findByOrganizationIdAndId("default", 7L)).thenReturn(Optional.of(entity));
+        when(currentUser.userId()).thenReturn("alice");
+        when(sessionStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // when - an organizer fixes a typo in the slot title, re-sending the same topic
+        var actual = sut.editSlot(7L, 21L, 11L, new EditSlotRequest("Fixed title", 99L, null, null, null));
 
         // then
-        // re-attaching the same topic must not revert it to PROPOSED
-        verify(topicStore, never()).save(argThat(t -> t.getStatus() == TopicStatus.PROPOSED));
+        assertThat(actual.sections().get(0).slots().get(0).title()).isEqualTo("Fixed title");
+        assertThat(actual.sections().get(0).slots().get(0).presenterUserIds()).containsExactly("alice");
+        verify(topicStore, never()).save(any());
+    }
+
+    @Test
+    void queueTopic_aTopicAlreadyScheduledIsRefused() {
+
+        // given - topic 99 already sits on another session's slot
+        var entity = sessionWith().build();
+        when(organizationContext.organizationId()).thenReturn("default");
+        when(sessionStore.findByOrganizationIdAndId("default", 7L)).thenReturn(Optional.of(entity));
+        when(currentUser.userId()).thenReturn("alice");
+        when(communityAccess.isOrganizer(1L, "alice")).thenReturn(true);
+        when(topicStore.findByOrganizationIdAndId("default", 99L)).thenReturn(Optional.of(scheduledTopic(99L)));
+
+        // when / then
+        assertThatThrownBy(() -> sut.queueTopic(7L, 21L, new QueueTopicRequest(99L, 20, null, null)))
+                .isInstanceOf(ConflictException.class).extracting("code").isEqualTo("NOT_PROPOSED");
+        verify(topicStore, never()).save(any());
+        verify(sessionStore, never()).save(any());
     }
 
     /**
@@ -814,7 +1036,7 @@ class SlotServiceTest {
     @Test
     void editSlot_memberWithManageScheduleAllowed() {
 
-        // given — "alice" is NOT a presenter; she holds canManageSchedule
+        // given - "alice" is NOT a presenter; she holds canManageSchedule
         var entity = sessionWith(slot(11L, "other")).build();
         when(organizationContext.organizationId()).thenReturn("default");
         when(sessionStore.findByOrganizationIdAndId("default", 7L)).thenReturn(Optional.of(entity));
@@ -826,7 +1048,8 @@ class SlotServiceTest {
         when(sessionStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
         // Wire the real SessionAuthorizer so the policy check actually runs
         var realAuthorizer = new SessionAuthorizer(communityAccess, topicStore);
-        sut = new SlotService(sessionStore, new dev.axonia.events.application.TopicLifecycle(topicStore),
+        sut = new SlotService(sessionStore,
+                new TopicLifecycle(topicStore, new TopicEvidence(eventPublisher), (org, ids) -> Set.copyOf(ids)),
                 new dev.axonia.events.application.SessionMapper(communityAccess, messageOutcomePort,
                         new dev.axonia.events.application.SessionBatchLookups(sectionTypeStore, attendanceStore,
                                 seriesStore)),
@@ -844,7 +1067,7 @@ class SlotServiceTest {
     @Test
     void editSlot_plainMemberRejected() {
 
-        // given — "stranger" is NOT a presenter and has no canManageSchedule
+        // given - "stranger" is NOT a presenter and has no canManageSchedule
         var entity = sessionWith(slot(11L, "other")).build();
         when(organizationContext.organizationId()).thenReturn("default");
         when(sessionStore.findByOrganizationIdAndId("default", 7L)).thenReturn(Optional.of(entity));
@@ -854,7 +1077,8 @@ class SlotServiceTest {
         when(communityAccess.contributionPolicy(1L)).thenReturn(ContributionPolicy.curated());
         // Wire the real SessionAuthorizer so the policy check actually runs
         var realAuthorizer = new SessionAuthorizer(communityAccess, topicStore);
-        sut = new SlotService(sessionStore, new dev.axonia.events.application.TopicLifecycle(topicStore),
+        sut = new SlotService(sessionStore,
+                new TopicLifecycle(topicStore, new TopicEvidence(eventPublisher), (org, ids) -> Set.copyOf(ids)),
                 new dev.axonia.events.application.SessionMapper(communityAccess, messageOutcomePort,
                         new dev.axonia.events.application.SessionBatchLookups(sectionTypeStore, attendanceStore,
                                 seriesStore)),
@@ -1000,7 +1224,7 @@ class SlotServiceTest {
     @Test
     void queueTopic_usesExplicitTitleWhenProvided() {
 
-        // given — explicit title overrides the topic's title (line 85 non-null branch)
+        // given - explicit title overrides the topic's title (line 85 non-null branch)
         var entity = sessionWith().build();
         when(organizationContext.organizationId()).thenReturn("default");
         when(sessionStore.findByOrganizationIdAndId("default", 7L)).thenReturn(Optional.of(entity));
@@ -1014,7 +1238,7 @@ class SlotServiceTest {
         // when
         var actual = sut.queueTopic(7L, 21L, new QueueTopicRequest(99L, 20, "Custom Title", null));
 
-        // then — slot title comes from the request, not the topic
+        // then - slot title comes from the request, not the topic
         assertThat(actual.sections().get(0).slots().get(0).title()).isEqualTo("Custom Title");
     }
 
@@ -1036,7 +1260,7 @@ class SlotServiceTest {
     @Test
     void fillSlot_publishesSlotPresented_withTopicTags() {
 
-        // given — a slot backed by topic 99 with tag "kafka"; alice signs up
+        // given - a slot backed by topic 99 with tag "kafka"; alice signs up
         var entity = sessionWith(slotWithTopic(11L, 99L)).build();
         when(organizationContext.organizationId()).thenReturn("default");
         when(sessionStore.findByOrganizationIdAndId("default", 7L)).thenReturn(Optional.of(entity));
@@ -1049,7 +1273,7 @@ class SlotServiceTest {
         // when
         sut.signUp(7L, 21L, 11L);
 
-        // then — SlotPresented published with inherited tags and presenter
+        // then - SlotPresented published with inherited tags and presenter
         var captor = ArgumentCaptor.forClass(Object.class);
         verify(eventPublisher).publishEvent(captor.capture());
         assertThat(captor.getValue()).isInstanceOfSatisfying(SlotPresented.class, sp -> {
@@ -1063,7 +1287,7 @@ class SlotServiceTest {
     @Test
     void fillSlot_publishesSlotCleared_whenTopicHasNoTags() {
 
-        // given — slot backed by topic 99, but topic has null tags → resolveTopicTags returns [] → SlotCleared
+        // given - slot backed by topic 99, but topic has null tags → resolveTopicTags returns [] → SlotCleared
         // this covers the tags.isEmpty() == true branch at line 236 in publishSlotEvent
         var entity = sessionWith(slotWithTopic(11L, 99L)).build();
         when(organizationContext.organizationId()).thenReturn("default");
@@ -1074,7 +1298,7 @@ class SlotServiceTest {
                 .of(TopicRecord.builder().id(99L).organizationId("default").communityId(1L).tags(null).build()));
         when(sessionStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        // when — alice signs up; topic has no tags → event should be SlotCleared, not SlotPresented
+        // when - alice signs up; topic has no tags → event should be SlotCleared, not SlotPresented
         sut.signUp(7L, 21L, 11L);
 
         // then
@@ -1086,7 +1310,7 @@ class SlotServiceTest {
     @Test
     void clearPresenters_publishesSlotCleared() {
 
-        // given — alice is the sole presenter; she withdraws
+        // given - alice is the sole presenter; she withdraws
         var entity = sessionWith(slot(11L, "alice")).build();
         when(organizationContext.organizationId()).thenReturn("default");
         when(sessionStore.findByOrganizationIdAndId("default", 7L)).thenReturn(Optional.of(entity));
@@ -1096,7 +1320,7 @@ class SlotServiceTest {
         // when
         sut.withdraw(7L, 21L, 11L);
 
-        // then — SlotCleared published
+        // then - SlotCleared published
         var captor = ArgumentCaptor.forClass(Object.class);
         verify(eventPublisher).publishEvent(captor.capture());
         assertThat(captor.getValue()).isInstanceOfSatisfying(SlotCleared.class, sc -> {
@@ -1108,7 +1332,7 @@ class SlotServiceTest {
     @Test
     void slotWithoutPresenters_publishesSlotCleared() {
 
-        // given — slot has topic but no presenters; add a topic via editSlot with no topic change
+        // given - slot has topic but no presenters; add a topic via editSlot with no topic change
         // We test removeSlot which should always publish SlotCleared
         var slot = SlotRecord.builder().id(11L).topicId(99L).presenters(new HashSet<>()).build();
         var entity = sessionWith(slot).build();
@@ -1118,18 +1342,14 @@ class SlotServiceTest {
         when(topicStore.findByOrganizationIdAndId("default", 99L))
                 .thenReturn(Optional.of(TopicRecord.builder().id(99L).organizationId("default").communityId(1L)
                         .status(TopicStatus.SCHEDULED).tags(Set.of(TopicTag.builder().tag("kafka").build())).build()));
+        when(topicStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(sessionStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        // when — remove slot → always clears
+        // when - remove slot → always clears
         sut.removeSlot(7L, 21L, 11L);
 
         // then
-        var captor = ArgumentCaptor.forClass(Object.class);
-        verify(eventPublisher).publishEvent(captor.capture());
-        assertThat(captor.getValue()).isInstanceOfSatisfying(SlotCleared.class, sc -> {
-            assertThat(sc.slotId()).isEqualTo(11L);
-            assertThat(sc.communityId()).isEqualTo(1L);
-        });
+        verify(eventPublisher).publishEvent(new SlotCleared(11L, 1L));
     }
 
     // ── recordSlot: backfilling a slot presented by named people ───────────────

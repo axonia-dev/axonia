@@ -11,7 +11,6 @@ import dev.axonia.events.api.ActionItemClosed;
 import dev.axonia.events.api.ActionItemReopened;
 import dev.axonia.events.api.SlotCleared;
 import dev.axonia.events.api.SlotPresented;
-import dev.axonia.events.api.TopicKind;
 import dev.axonia.events.api.TopicRemoved;
 import dev.axonia.events.api.TopicTagsChanged;
 import dev.axonia.expertise.application.ActivitySignals;
@@ -44,11 +43,11 @@ class ActivityProjectionListener {
     @ApplicationModuleListener
     void on(TopicTagsChanged event) {
 
-        if (event.kind() != TopicKind.OFFER || event.tags().isEmpty()) {
+        if (event.speakerUserIds().isEmpty() || event.tags().isEmpty()) {
             activitySignals.deleteSource(SourceType.TOPIC, event.topicId());
             return;
         }
-        var rows = offerRows(event.proposerUserId(), event.tags());
+        var rows = offerRows(event.speakerUserIds(), event.tags());
         activitySignals.replaceSource(event.communityId(), SourceType.TOPIC, event.topicId(), rows);
     }
 
@@ -110,19 +109,20 @@ class ActivityProjectionListener {
         activitySignals.deleteSource(SourceType.ACTION_ITEM, event.actionItemId());
     }
 
-    private List<SignalRow> offerRows(String userId, List<String> tags) {
+    private List<SignalRow> offerRows(List<String> speakerUserIds, List<String> tags) {
 
-        var now = Instant.now();
-        return tags.stream().map(tag -> new SignalRow(userId, tag, SignalType.OFFERED, now))
-                .collect(Collectors.toUnmodifiableList());
+        return everyoneOnEveryTag(speakerUserIds, tags, SignalType.OFFERED);
     }
 
     private List<SignalRow> presentedRows(List<String> presenterUserIds, List<String> tags) {
 
+        return everyoneOnEveryTag(presenterUserIds, tags, SignalType.PRESENTED);
+    }
+
+    private static List<SignalRow> everyoneOnEveryTag(List<String> userIds, List<String> tags, SignalType type) {
+
         var now = Instant.now();
-        return presenterUserIds.stream()
-                .flatMap(
-                        presenter -> tags.stream().map(tag -> new SignalRow(presenter, tag, SignalType.PRESENTED, now)))
+        return userIds.stream().flatMap(user -> tags.stream().map(tag -> new SignalRow(user, tag, type, now)))
                 .collect(Collectors.toUnmodifiableList());
     }
 

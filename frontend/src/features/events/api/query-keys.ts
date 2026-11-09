@@ -3,8 +3,8 @@ import type {
   PageParams,
   PastSessionParams,
   ReleaseMessageType,
-  TopicListParams,
 } from "@/features/events/domain/events-gateway";
+import type { TopicListParams } from "@/features/events/domain/topic-gateway";
 
 export const sectionTypeKeys = {
   all: ["events", "section-types"] as const,

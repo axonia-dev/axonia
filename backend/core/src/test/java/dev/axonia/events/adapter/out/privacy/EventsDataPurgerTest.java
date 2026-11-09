@@ -35,6 +35,7 @@ class EventsDataPurgerTest extends PurgerTestSupport {
         assertThat(count("session_attendance")).isZero();
         assertThat(count("topic")).isZero();
         assertThat(count("topic_vote")).isZero();
+        assertThat(countAll("topic_speaker")).isZero();
         assertThat(count("event_section_type")).isZero();
         assertThat(countAll("event_section")).isZero();
         assertThat(countAll("event_slot")).isZero();
@@ -108,8 +109,8 @@ class EventsDataPurgerTest extends PurgerTestSupport {
                 Map.of("org", ORG, "sessionId", sessionId));
 
         var topicId = jdbc.queryForObject(
-                "INSERT INTO topic (organization_id, community_id, kind, title, description, proposer_user_id, "
-                        + "status, created_at, updated_at, version) VALUES (:org, :communityId, 'REQUEST', "
+                "INSERT INTO topic (organization_id, community_id, title, description, proposer_user_id, "
+                        + "status, created_at, updated_at, version) VALUES (:org, :communityId, "
                         + "'Purger Test Topic', '', 'proposer-user', 'PROPOSED', now(), now(), 0) RETURNING id",
                 Map.of("org", ORG, "communityId", communityId), Long.class);
 
@@ -117,6 +118,9 @@ class EventsDataPurgerTest extends PurgerTestSupport {
                 "INSERT INTO topic_vote (organization_id, topic_id, user_id, created_at, updated_at, version) "
                         + "VALUES (:org, :topicId, 'voter-user', now(), now(), 0)",
                 Map.of("org", ORG, "topicId", topicId));
+
+        jdbc.update("INSERT INTO topic_speaker (topic_id, user_id) VALUES (:topicId, 'speaker-user')",
+                Map.of("topicId", topicId));
 
         jdbc.update("INSERT INTO calendar_subscription (organization_id, community_id, user_id, token_hash, "
                 + "created_at, version) VALUES (:org, :communityId, 'subscriber-user', "
@@ -182,6 +186,8 @@ class EventsDataPurgerTest extends PurgerTestSupport {
                 jdbc.queryForObject("SELECT count(*) FROM event_series_section_type", Map.of(), Long.class);
             // no explicit DELETE in the purger: action_item_tag cascades from action_item, like topic_tag from topic
             case "action_item_tag" -> jdbc.queryForObject("SELECT count(*) FROM action_item_tag", Map.of(), Long.class);
+            // no explicit DELETE in the purger: topic_speaker cascades from topic, like topic_tag
+            case "topic_speaker" -> jdbc.queryForObject("SELECT count(*) FROM topic_speaker", Map.of(), Long.class);
             default -> throw new IllegalArgumentException("Unexpected table: " + table);
         };
     }

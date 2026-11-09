@@ -8,6 +8,7 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Set;
 import java.util.function.UnaryOperator;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -52,6 +53,8 @@ import dev.axonia.events.application.SessionInstant;
 import dev.axonia.events.application.SessionMapper;
 import dev.axonia.events.application.SessionService;
 import dev.axonia.events.application.TopicAuthorizer;
+import dev.axonia.events.application.TopicEvidence;
+import dev.axonia.events.application.TopicLifecycle;
 import dev.axonia.events.application.TopicMemberResolver;
 import dev.axonia.events.application.UpcomingReleasePolicy;
 import dev.axonia.events.application.WrapUpReleasePolicy;
@@ -184,9 +187,10 @@ class SessionCheckpointPinningTest extends CoreJdbcTestSupport {
         var sectionTypeCatalog = new SectionTypeCatalog(sectionTypeStore);
         var facilitatorResolver = new FacilitatorResolver(communityAccess);
         var sessionCreation = new SessionCreation(upcomingReleasePolicy);
-        sessionService = new SessionService(sessionStore, seriesStore, topicStore, actionItemStore,
-                checkpointDecisionPass, mapper, sessionListing, sessionCreation, sessionAuthorizer, communityAccess,
-                currentUser, organizationContext, eventPublisher, clock, upcomingReleasePolicy,
+        sessionService = new SessionService(sessionStore, seriesStore, topicStore,
+                new TopicLifecycle(topicStore, new TopicEvidence(eventPublisher), (org, ids) -> Set.copyOf(ids)),
+                actionItemStore, checkpointDecisionPass, mapper, sessionListing, sessionCreation, sessionAuthorizer,
+                communityAccess, currentUser, organizationContext, eventPublisher, clock, upcomingReleasePolicy,
                 new SessionInstant(seriesStore), new UsageCounters(new SimpleMeterRegistry()), sectionTypeCatalog,
                 facilitatorResolver, new WrapUpReleasePolicy(communityAccess, () -> Duration.ofDays(30)));
         occurrenceSkipService = new OccurrenceSkipService(sessionStore, seriesStore, mapper, sessionCreation,

@@ -8,7 +8,10 @@ import { useUnvoteTopic, useVoteTopic } from "@/features/events/api/use-topics";
 import type { Topic } from "@/features/events/domain/topic";
 import { DeleteTopicPopover } from "@/features/events/ui/DeleteTopicPopover";
 import { EditTopicDialog } from "@/features/events/ui/EditTopicDialog";
+import { TopicByline } from "@/features/events/ui/TopicByline";
 import { TopicKindBadge } from "@/features/events/ui/TopicKindBadge";
+import { TopicSpeakerStack } from "@/features/events/ui/TopicSpeakerStack";
+import type { User } from "@/features/identity/domain/user";
 import { cn } from "@/lib/cn";
 
 // ── File-private sub-components ───────────────────────────────────────────────
@@ -75,7 +78,8 @@ function HoverActions({
   onDelete,
 }: Readonly<HoverActionsProps>) {
   return (
-    <div className="flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+    // A touch screen never hovers, so there the actions stay visible.
+    <div className="ml-auto flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100">
       {topic.canEdit && (
         <IconButton label={`Edit ${topic.title}`} onPress={onEdit}>
           <Pencil />
@@ -99,10 +103,12 @@ function HoverActions({
 interface Props {
   slug: string;
   topic: Topic;
+  /** The profiles of the topic's creator and speakers, resolved by the list. */
+  users: Record<string, User>;
   actions?: ReactNode;
 }
 
-export function TopicRow({ slug, topic, actions }: Readonly<Props>) {
+export function TopicRow({ slug, topic, users, actions }: Readonly<Props>) {
   const vote = useVoteTopic(slug);
   const unvote = useUnvoteTopic(slug);
   const [voteAnim, setVoteAnim] = useState(false);
@@ -167,9 +173,17 @@ export function TopicRow({ slug, topic, actions }: Readonly<Props>) {
         />
 
         {/* ── Body ── */}
-        <div className="flex min-w-0 flex-1 flex-col px-4 py-3">
-          <div className="flex items-start justify-between gap-2">
-            <span className="text-foreground leading-snug font-semibold">
+        <div className="@container flex min-w-0 flex-1 flex-col px-4 py-3">
+          {/* On a narrow card the title takes its own line under the stack and the actions, and
+           *  the speaker panels hang from this whole row rather than the stack. */}
+          <div className="flex items-start gap-2 @max-md:relative @max-md:flex-wrap">
+            <TopicSpeakerStack
+              slug={slug}
+              topic={topic}
+              users={users}
+              interactive
+            />
+            <span className="text-foreground min-w-0 flex-1 py-[3px] leading-snug font-semibold @max-md:order-last @max-md:basis-full @max-md:py-0">
               {topic.title}
             </span>
             <HoverActions
@@ -180,11 +194,13 @@ export function TopicRow({ slug, topic, actions }: Readonly<Props>) {
           </div>
 
           {/* Meta */}
-          <div className="mt-0.5 flex items-center gap-1.5">
+          <div className="mt-1 flex min-w-0 items-center gap-1.5">
             <TopicKindBadge kind={topic.kind} />
-            <span className="text-muted-foreground text-xs">
-              {topic.proposerDisplayName}
-            </span>
+            <TopicByline
+              userId={topic.proposerUserId}
+              name={topic.proposerDisplayName}
+              user={users[topic.proposerUserId]}
+            />
           </div>
 
           {/* Description */}

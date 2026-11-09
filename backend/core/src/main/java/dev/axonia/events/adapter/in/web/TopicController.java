@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import dev.axonia.events.api.ProposeTopicRequest;
+import dev.axonia.events.api.SpeakerAssignment;
 import dev.axonia.events.api.Topic;
 import dev.axonia.events.api.TopicPhase;
 import dev.axonia.events.api.TopicQuery;
@@ -84,6 +85,32 @@ public class TopicController {
     void returnToBacklog(@PathVariable Long id) {
 
         topicService.returnToBacklog(id);
+    }
+
+    @PostMapping("/topics/{id}/speakers/me")
+    @ResponseStatus(HttpStatus.CREATED)
+    Topic addSelfAsSpeaker(@PathVariable Long id) {
+
+        return topicService.addSelfAsSpeaker(id);
+    }
+
+    @PostMapping("/topics/{id}/speakers")
+    @ResponseStatus(HttpStatus.CREATED)
+    SpeakerAssignment addSpeaker(@PathVariable Long id, @Valid @RequestBody AddSpeakerRequest request) {
+
+        return topicService.addSpeaker(id, request.speaker());
+    }
+
+    @DeleteMapping("/topics/{id}/speakers/me")
+    Topic removeSelfAsSpeaker(@PathVariable Long id) {
+
+        return topicService.removeSelfAsSpeaker(id);
+    }
+
+    @DeleteMapping("/topics/{id}/speakers/{userId}")
+    Topic removeSpeaker(@PathVariable Long id, @PathVariable String userId) {
+
+        return topicService.removeSpeaker(id, userId);
     }
 
     @PostMapping("/topics/{id}/votes")

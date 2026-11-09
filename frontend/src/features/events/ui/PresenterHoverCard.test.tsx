@@ -85,12 +85,9 @@ describe("PresenterHoverCard", () => {
     expect(img).toHaveAttribute("src", "https://img/a.png");
   });
 
-  it("hangs the card from the left edge by default and the right edge for align end", () => {
-    const { rerender } = render(<PresenterHoverCard name="Alex Bauer" />);
+  it("hangs the card from the avatar's left edge", () => {
+    render(<PresenterHoverCard name="Alex Bauer" />);
     expect(screen.getByRole("tooltip")).toHaveClass("left-0");
-
-    rerender(<PresenterHoverCard name="Alex Bauer" align="end" />);
-    expect(screen.getByRole("tooltip")).toHaveClass("right-0");
   });
 
   it("takes the card out of layout until the avatar is hovered or focused", () => {
@@ -118,6 +115,24 @@ describe("PresenterHoverCard", () => {
     render(<PresenterHoverCard name="Alex Bauer" user={base} />);
     await user.click(screen.getByRole("button", { name: "Alex Bauer" }));
     expect(screen.getByText("Alex Bauer")).toBeInTheDocument();
+  });
+
+  it("separates faces with the sunken surface a slot sits on by default", () => {
+    // when
+    render(<PresenterHoverCard name="Gabriel" user={{ ...base }} />);
+
+    // then
+    expect(screen.getAllByText("G")[0]).toHaveClass("border-surface-sunken");
+  });
+
+  it("separates faces with the raised surface of a card that sits on one", () => {
+    // when
+    render(
+      <PresenterHoverCard name="Gabriel" user={{ ...base }} surface="raised" />,
+    );
+
+    // then
+    expect(screen.getAllByText("G")[0]).toHaveClass("border-surface");
   });
 
   it("withholds the identity card entirely while suppressed", () => {

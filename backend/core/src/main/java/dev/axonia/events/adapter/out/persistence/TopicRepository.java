@@ -4,6 +4,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.relational.core.sql.LockMode;
+import org.springframework.data.relational.repository.Lock;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.PagingAndSortingRepository;
 
@@ -14,6 +16,9 @@ public interface TopicRepository
             TopicRepositoryCustom {
 
     Optional<TopicEntity> findByOrganizationIdAndId(String organizationId, Long id);
+
+    @Lock(LockMode.PESSIMISTIC_WRITE)
+    Optional<TopicEntity> findLockedByOrganizationIdAndId(String organizationId, Long id);
 
     List<TopicEntity> findByOrganizationIdAndIdIn(String organizationId, Collection<Long> ids);
 }

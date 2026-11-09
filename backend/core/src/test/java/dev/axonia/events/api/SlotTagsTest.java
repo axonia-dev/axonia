@@ -26,6 +26,7 @@ import dev.axonia.events.application.SessionBatchLookups;
 import dev.axonia.events.application.SessionMapper;
 import dev.axonia.events.application.SlotEventPublisher;
 import dev.axonia.events.application.SlotService;
+import dev.axonia.events.application.TopicEvidence;
 import dev.axonia.events.application.TopicLifecycle;
 import dev.axonia.events.application.port.out.AttendanceStore;
 import dev.axonia.events.application.port.out.CommunityAccess;
@@ -90,7 +91,8 @@ class SlotTagsTest {
 
         var mapper = new SessionMapper(communityAccess, messageOutcomePort,
                 new SessionBatchLookups(sectionTypeStore, attendanceStore, seriesStore));
-        var topicLifecycle = new TopicLifecycle(topicStore);
+        var topicLifecycle = new TopicLifecycle(topicStore, new TopicEvidence(eventPublisher),
+                (org, ids) -> Set.copyOf(ids));
         var presenterResolver = new PresenterResolver(communityAccess);
         var slotEventPublisher = new SlotEventPublisher(eventPublisher, topicStore);
         sut = new SlotService(sessionStore, topicLifecycle, mapper, sessionAuthorizer, communityAccess, currentUser,
@@ -218,7 +220,6 @@ class SlotTagsTest {
                 .tags(new LinkedHashSet<>(
                         List.of(TopicTag.builder().tag("kafka").build(), TopicTag.builder().tag("streams").build())))
                 .build()));
-        when(topicStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(sessionStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         // when - the slot is written to (here: an unrelated edit), which is what republishes it

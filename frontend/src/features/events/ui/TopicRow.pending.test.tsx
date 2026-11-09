@@ -36,6 +36,8 @@ function topic(id: number, hasVoted: boolean, voteCount: number): Topic {
     tags: [],
     proposerUserId: "user-1",
     proposerDisplayName: "Alice",
+    speakerUserIds: [],
+    canManageSpeakers: false,
     canClose: false,
     canReopen: false,
     voteCount,

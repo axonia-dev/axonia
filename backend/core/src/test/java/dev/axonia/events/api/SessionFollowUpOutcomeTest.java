@@ -52,6 +52,8 @@ import dev.axonia.events.application.SessionCreation;
 import dev.axonia.events.application.SessionInstant;
 import dev.axonia.events.application.SessionMapper;
 import dev.axonia.events.application.SessionService;
+import dev.axonia.events.application.TopicEvidence;
+import dev.axonia.events.application.TopicLifecycle;
 import dev.axonia.events.application.UpcomingReleasePolicy;
 import dev.axonia.events.application.WrapUpReleasePolicy;
 import dev.axonia.events.application.port.out.ActionItemCheckpointStore;
@@ -178,11 +180,12 @@ class SessionFollowUpOutcomeTest extends CoreJdbcTestSupport {
         var actionItemCloser = new ActionItemCloser(actionItemStore, actionItemMapper, events);
         var actionItemLifecycle = new ActionItemLifecycle(actionItemStore, actionItemCheckpointStore, actionItemCloser);
         var checkpointDecisionPass = new CheckpointDecisionPass(actionItemStore, actionItemLifecycle);
-        sessionService = new SessionService(sessionStore, seriesStore, topicStore, actionItemStore,
-                checkpointDecisionPass, mapper, sessionListing, sessionCreation, sessionAuthorizer, communityAccess,
-                currentUser, organizationContext, events, clock, upcomingReleasePolicy, new SessionInstant(seriesStore),
-                new UsageCounters(new SimpleMeterRegistry()), sectionTypeCatalog, facilitatorResolver,
-                new WrapUpReleasePolicy(communityAccess, () -> Duration.ofDays(30)));
+        sessionService = new SessionService(sessionStore, seriesStore, topicStore,
+                new TopicLifecycle(topicStore, new TopicEvidence(events), (org, ids) -> Set.copyOf(ids)),
+                actionItemStore, checkpointDecisionPass, mapper, sessionListing, sessionCreation, sessionAuthorizer,
+                communityAccess, currentUser, organizationContext, events, clock, upcomingReleasePolicy,
+                new SessionInstant(seriesStore), new UsageCounters(new SimpleMeterRegistry()), sectionTypeCatalog,
+                facilitatorResolver, new WrapUpReleasePolicy(communityAccess, () -> Duration.ofDays(30)));
     }
 
     @BeforeEach
@@ -326,7 +329,7 @@ class SessionFollowUpOutcomeTest extends CoreJdbcTestSupport {
     @Test
     void aRequestTopicStillGoesDoneWhenTheSessionIsHeld() {
 
-        var topic = slottedTopic(sessionId, TopicKind.REQUEST);
+        var topic = slottedTopic(sessionId);
 
         sessionService.recordFollowUp(sessionId, followUp());
 
@@ -349,11 +352,10 @@ class SessionFollowUpOutcomeTest extends CoreJdbcTestSupport {
                 .getId();
     }
 
-    private Long slottedTopic(Long ofSessionId, TopicKind kind) {
+    private Long slottedTopic(Long ofSessionId) {
 
         var topicId = topicStore
-                .save(TopicRecordMother.any().kind(kind).communityId(COMMUNITY).status(TopicStatus.SCHEDULED).build())
-                .getId();
+                .save(TopicRecordMother.any().communityId(COMMUNITY).status(TopicStatus.SCHEDULED).build()).getId();
         var sectionTypeId = sectionTypeStore.save(SectionTypeRecordMother.any().organizationId("default").build())
                 .getId();
         var session = sessionStore.findByOrganizationIdAndId("default", ofSessionId).orElseThrow();

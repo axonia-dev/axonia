@@ -26,10 +26,14 @@ export const SOURCE_OPTIONS = [
   { id: "newTopic", label: "New topic" },
 ] as const;
 
-export const MODE_OPTIONS = [
-  { id: "present", label: "I'll present" },
-  { id: "open", label: "Leave open" },
-] as const;
+/** Queuing a topic that already has speakers does not leave the slot open: they present it. */
+export function modeOptions(topic: Topic | null) {
+  const hasSpeakers = (topic?.speakerUserIds.length ?? 0) > 0;
+  return [
+    { id: "present", label: "I'll present" },
+    { id: "open", label: hasSpeakers ? "Speakers present" : "Leave open" },
+  ] as const;
+}
 
 function rankByVotes(topics: readonly Topic[]): Topic[] {
   return [...topics].sort((a, b) => b.voteCount - a.voteCount);

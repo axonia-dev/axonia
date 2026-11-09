@@ -11,6 +11,7 @@ import {
   actionItemKeys,
   scheduleKeys,
   sessionKeys,
+  topicKeys,
 } from "@/features/events/api/query-keys";
 import type {
   CloseSessionInput,
@@ -79,11 +80,13 @@ function invalidateSessionAndSchedule(
 }
 
 /**
- * The same, plus the community's action items.
+ * The same, plus the community's action items and topics.
  *
  * Settling a session's fate rewrites which session an item is checked at: closing one pins every
  * late-bound open item of the community to it, cancelling or skipping one clears the pins it held.
- * None of that is visible in the session's own payload, and nothing else refetches the items -
+ * It rewrites topics too: cancelling, or closing as not held, returns the slotted topics to the
+ * backlog with the slots' presenters as their speakers, and a follow-up marks them done.
+ * None of that is visible in the session's own payload, and nothing else refetches either -
  * `staleTime` is 30s and `refetchOnWindowFocus` is off - so a surface left mounted across the
  * change keeps rendering the page it read before it.
  */
@@ -95,6 +98,7 @@ function invalidateSessionScheduleAndActionItems(
   return Promise.all([
     invalidateSessionAndSchedule(queryClient, slug, sessionId),
     queryClient.invalidateQueries({ queryKey: actionItemKeys.community(slug) }),
+    queryClient.invalidateQueries({ queryKey: topicKeys.community(slug) }),
   ]);
 }
 

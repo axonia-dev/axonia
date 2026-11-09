@@ -20,6 +20,8 @@ export const topicSchema = z.object({
   tags: z.array(z.string()).default([]),
   proposerUserId: z.string(),
   proposerDisplayName: z.string(),
+  speakerUserIds: z.array(z.string()).default([]),
+  canManageSpeakers: z.boolean().default(false),
   canClose: z.boolean().default(false),
   canReopen: z.boolean().default(false),
   voteCount: z.number(),
@@ -33,3 +35,22 @@ export const topicSchema = z.object({
 });
 
 export type Topic = z.infer<typeof topicSchema>;
+
+export const speakerAssignmentSchema = z.object({
+  topic: topicSchema,
+  assigned: z.boolean(),
+  reason: z
+    .enum(["NOT_FOUND", "AMBIGUOUS"])
+    .nullish()
+    .transform((v) => v ?? null),
+});
+export type SpeakerAssignment = z.infer<typeof speakerAssignmentSchema>;
+
+/** Everyone a list of topics draws: each creator and each speaker, once. */
+export function topicPeopleIds(topics: Topic[]): string[] {
+  const ids = topics.flatMap((topic) => [
+    topic.proposerUserId,
+    ...topic.speakerUserIds,
+  ]);
+  return [...new Set(ids)].sort((a, b) => a.localeCompare(b));
+}

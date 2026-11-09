@@ -1,6 +1,8 @@
 package dev.axonia.events.application;
 
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -12,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import dev.axonia.events.api.ScheduledFor;
 import dev.axonia.events.api.Topic;
+import dev.axonia.events.api.TopicKind;
 import dev.axonia.events.api.TopicStatus;
 import dev.axonia.events.application.port.out.CurrentUser;
 import dev.axonia.events.application.port.out.TopicStore;
@@ -42,9 +45,11 @@ public class TopicReadModel {
         var voteCount = topicVoteStore.countByOrganizationIdAndTopicId(orgId, e.getId());
         var hasVoted = topicVoteStore.existsByOrganizationIdAndTopicIdAndUserId(orgId, e.getId(), userId);
         var displayName = userProfileAccess.displayName(orgId, e.getProposerUserId());
+        var speakers = speakersOf(orgId, List.of(e)).get(e.getId());
         return toTopic(e,
                 TopicDecoration.builder().scheduledFor(scheduledFor).voteCount(voteCount).hasVoted(hasVoted)
-                        .proposerDisplayName(displayName)
+                        .proposerDisplayName(displayName).speakerUserIds(speakers)
+                        .canManageSpeakers(topicAuthorizer.canManageSpeakers(e, speakers, userId))
                         .canManage(topicAuthorizer.canManageInCommunity(e.getCommunityId(), userId)).build());
     }
 
@@ -88,6 +93,8 @@ public class TopicReadModel {
         Set<Long> votedIds = votes.stream().filter(v -> userId.equals(v.getUserId())).map(TopicVoteRecord::getTopicId)
                 .collect(Collectors.toSet());
 
+        var speakers = speakersOf(organizationId, content);
+
         var personIds = content.stream().map(TopicRecord::getProposerUserId).filter(Objects::nonNull).distinct()
                 .toList();
         var displayNames = userProfileAccess.displayNames(organizationId, personIds);
@@ -98,26 +105,55 @@ public class TopicReadModel {
                 .collect(Collectors.toMap(communityId -> communityId,
                         communityId -> topicAuthorizer.canManageInCommunity(communityId, userId)));
 
-        return page.map(e -> toTopic(e,
-                TopicDecoration.builder().scheduledFor(schedules.get(e.getId()))
-                        .voteCount(voteCounts.getOrDefault(e.getId(), 0L)).hasVoted(votedIds.contains(e.getId()))
-                        .proposerDisplayName(displayNames.getOrDefault(e.getProposerUserId(), e.getProposerUserId()))
-                        .canManage(canManageByCommunity.get(e.getCommunityId())).build()));
+        var speakerRightsByCommunity = content.stream().map(TopicRecord::getCommunityId).distinct()
+                .collect(Collectors.toMap(communityId -> communityId,
+                        communityId -> topicAuthorizer.speakerRightsIn(communityId, userId)));
+
+        return page.map(e -> toTopic(e, TopicDecoration.builder().scheduledFor(schedules.get(e.getId()))
+                .voteCount(voteCounts.getOrDefault(e.getId(), 0L)).hasVoted(votedIds.contains(e.getId()))
+                .proposerDisplayName(displayNames.getOrDefault(e.getProposerUserId(), e.getProposerUserId()))
+                .speakerUserIds(speakers.get(e.getId()))
+                .canManageSpeakers(
+                        speakerRightsByCommunity.get(e.getCommunityId()).canManage(e, speakers.get(e.getId()), userId))
+                .canManage(canManageByCommunity.get(e.getCommunityId())).build()));
     }
 
-    /** Per-topic read-model context computed around the entity: schedule, votes, proposer label, manage rights. */
+    /**
+     * Who presents each topic, read once: a backlog topic's speakers are its own loaded collection, and only the topics
+     * that left the backlog ask the store, for their slots' presenters.
+     */
+    Map<Long, List<String>> speakersOf(String organizationId, List<TopicRecord> topics) {
+
+        var scheduledIds = topics.stream().filter(t -> t.getStatus() != TopicStatus.PROPOSED).map(TopicRecord::getId)
+                .toList();
+        var fromSlots = scheduledIds.isEmpty()
+                ? Map.<Long, List<String>>of()
+                : topicStore.findSpeakers(organizationId, scheduledIds);
+        return topics.stream()
+                .collect(Collectors.toMap(TopicRecord::getId,
+                        t -> t.getStatus() == TopicStatus.PROPOSED
+                                ? t.speakerUserIds()
+                                : fromSlots.getOrDefault(t.getId(), List.of())));
+    }
+
+    /**
+     * Per-topic read-model context computed around the entity: schedule, votes, proposer label, speakers, manage
+     * rights.
+     */
     @Builder
     private record TopicDecoration(ScheduledFor scheduledFor, long voteCount, boolean hasVoted,
-            String proposerDisplayName, boolean canManage) {
+            String proposerDisplayName, List<String> speakerUserIds, boolean canManageSpeakers, boolean canManage) {
     }
 
     // A topic can never be closed or reopened: only an action item's own lifecycle (ActionItemReadModel) has those
     // actions. Both flags are always false here, kept on the DTO so a caller need not special-case their absence.
     private Topic toTopic(TopicRecord e, TopicDecoration decoration) {
 
-        return Topic.builder().id(e.getId()).communityId(e.getCommunityId()).kind(e.getKind()).title(e.getTitle())
+        return Topic.builder().id(e.getId()).communityId(e.getCommunityId())
+                .kind(TopicKind.forSpeakers(decoration.speakerUserIds())).title(e.getTitle())
                 .description(e.getDescription()).tags(topicMapper.tags(e)).proposerUserId(e.getProposerUserId())
-                .proposerDisplayName(decoration.proposerDisplayName()).canClose(false).canReopen(false)
+                .proposerDisplayName(decoration.proposerDisplayName()).speakerUserIds(decoration.speakerUserIds())
+                .canManageSpeakers(decoration.canManageSpeakers()).canClose(false).canReopen(false)
                 .voteCount(decoration.voteCount()).hasVoted(decoration.hasVoted()).canEdit(decoration.canManage())
                 .canDelete(decoration.canManage() && e.getStatus() == TopicStatus.PROPOSED).status(e.getStatus())
                 .scheduledFor(decoration.scheduledFor()).createdAt(e.getCreatedAt()).updatedAt(e.getUpdatedAt())

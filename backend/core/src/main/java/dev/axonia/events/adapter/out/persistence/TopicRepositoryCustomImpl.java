@@ -1,7 +1,11 @@
 package dev.axonia.events.adapter.out.persistence;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 import org.springframework.data.domain.Page;
@@ -9,8 +13,6 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jdbc.core.JdbcAggregateTemplate;
-import org.springframework.data.relational.core.query.Criteria;
-import org.springframework.data.relational.core.query.Query;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
@@ -28,39 +30,70 @@ class TopicRepositoryCustomImpl implements TopicRepositoryCustom {
     private final NamedParameterJdbcTemplate jdbc;
 
     /**
-     * {@code pageable}'s sort reaches SQL as a raw, unquoted identifier: {@code created_at} is not a
-     * {@link TopicEntity} property name (the field is {@code createdAt}), so {@code QueryMapper} cannot resolve it to a
-     * column via the entity's property path and instead splices the string straight into {@code ORDER BY}.
-     * {@link dev.axonia.shared.api.web.Pageables#requireSortIn} is what keeps that safe today, and it runs in the
-     * controller before the request ever reaches here - a future caller of this method must allowlist its own sort
-     * input the same way before wiring it in, or a request parameter lands directly in the query.
-     * <p>
-     * The {@code id DESC} tiebreaker below is deliberately not part of that caller-supplied sort: without it, two
-     * topics sharing a {@code created_at} value have no defined relative order, and {@code LIMIT}/{@code OFFSET} over
-     * an undefined order can repeat or skip a row across a page boundary - the same failure mode a missing
-     * {@code ORDER BY} entirely would cause, just narrower. Keeping it hardcoded means no request parameter can reach
-     * it.
+     * Plain SQL because the kind is a predicate on the speakers ({@link TopicSpeakerSql#HAS_SPEAKER}), which no
+     * {@code Criteria} can express. The page is chosen by id here and the aggregates, tags and speakers included, are
+     * loaded for exactly those ids. {@code created_at} is the only sortable property, and the {@code id DESC}
+     * tiebreaker is hardcoded so two topics sharing a {@code created_at} keep a defined order across page boundaries.
      */
     @Override
     public Page<TopicEntity> findFiltered(String organizationId, Long communityId, TopicFilter filter,
             Pageable pageable) {
 
-        var criteria = Criteria.where("organizationId").is(organizationId).and("communityId").is(communityId);
+        var where = new StringBuilder(" WHERE t.organization_id = :organizationId AND t.community_id = :communityId");
+        var params = new MapSqlParameterSource().addValue("organizationId", organizationId).addValue("communityId",
+                communityId);
         if (filter.kind() != null) {
-            criteria = criteria.and("kind").is(filter.kind());
+            where.append(filter.kind() == TopicKind.OFFER ? " AND " : " AND NOT ").append(TopicSpeakerSql.HAS_SPEAKER);
         }
         if (filter.status() != null) {
-            criteria = criteria.and("status").is(filter.status());
+            where.append(" AND t.status = :status");
+            params.addValue("status", filter.status().name());
         }
 
-        var sort = pageable.getSort().and(Sort.by(Sort.Direction.DESC, "id"));
-        var baseQuery = Query.query(criteria);
-        var pageQuery = baseQuery.sort(sort).offset(pageable.getOffset()).limit(pageable.getPageSize());
+        var ids = jdbc.queryForList(
+                "SELECT t.id FROM topic t" + where + orderBy(pageable.getSort()) + " LIMIT :limit OFFSET :offset",
+                new MapSqlParameterSource(params.getValues()).addValue("limit", pageable.getPageSize())
+                        .addValue("offset", pageable.getOffset()),
+                Long.class);
+        Long total = jdbc.queryForObject("SELECT count(*) FROM topic t" + where, params, Long.class);
 
-        List<TopicEntity> content = jdbcAggregateTemplate.findAll(pageQuery, TopicEntity.class);
-        long total = jdbcAggregateTemplate.count(baseQuery, TopicEntity.class);
+        return new PageImpl<>(inOrder(ids), pageable, Objects.requireNonNullElse(total, 0L));
+    }
 
-        return new PageImpl<>(content, pageable, total);
+    private static String orderBy(Sort sort) {
+
+        var createdAt = new StringBuilder();
+        for (var order : sort) {
+            if (!"created_at".equals(order.getProperty())) {
+                throw new IllegalArgumentException("Topics sort by created_at only, not " + order.getProperty());
+            }
+            createdAt.append("t.created_at ").append(order.isAscending() ? "ASC" : "DESC").append(", ");
+        }
+        return " ORDER BY " + createdAt + "t.id DESC";
+    }
+
+    private List<TopicEntity> inOrder(List<Long> ids) {
+
+        var byId = new HashMap<Long, TopicEntity>();
+        jdbcAggregateTemplate.findAllById(ids, TopicEntity.class).forEach(e -> byId.put(e.getId(), e));
+        return ids.stream().map(byId::get).filter(Objects::nonNull).toList();
+    }
+
+    @Override
+    public Map<Long, List<String>> findSpeakers(String organizationId, Collection<Long> topicIds) {
+
+        if (topicIds.isEmpty()) {
+            return Map.of();
+        }
+        var sql = "SELECT t.id AS topic_id, s.user_id FROM topic t CROSS JOIN LATERAL (" + TopicSpeakerSql.SPEAKERS_OF_T
+                + ") s WHERE t.organization_id = :organizationId AND t.id IN (:topicIds) ORDER BY t.id, s.user_id";
+        var params = new MapSqlParameterSource().addValue("organizationId", organizationId).addValue("topicIds",
+                topicIds);
+        var speakers = new LinkedHashMap<Long, List<String>>();
+        jdbc.query(sql, params, rs -> {
+            speakers.computeIfAbsent(rs.getLong("topic_id"), id -> new ArrayList<>()).add(rs.getString("user_id"));
+        });
+        return speakers;
     }
 
     // Rows are ordered preferred-first per topic: soonest upcoming session, else latest past one -
@@ -109,7 +142,7 @@ class TopicRepositoryCustomImpl implements TopicRepositoryCustom {
                               AND cs.scheduled_at < now() ) ) )
                 """ + (search ? " AND (t.title ILIKE :like OR t.description ILIKE :like)" : "");
 
-        var sql = "SELECT t.id, t.organization_id, t.community_id, t.kind, t.title, t.description, "
+        var sql = "SELECT t.id, t.organization_id, t.community_id, t.title, t.description, "
                 + "t.proposer_user_id, t.status, t.created_at, t.updated_at, t.version FROM topic t " + where + """
                          ORDER BY (SELECT MAX(cs.scheduled_at) FROM event_slot sl
                                    JOIN event_section sec ON sl.section_id = sec.id
@@ -132,9 +165,8 @@ class TopicRepositoryCustomImpl implements TopicRepositoryCustom {
                 new MapSqlParameterSource(params.getValues()).addValue("limit", pageable.getPageSize())
                         .addValue("offset", pageable.getOffset()),
                 (rs, n) -> TopicEntity.builder().id(rs.getLong("id")).organizationId(rs.getString("organization_id"))
-                        .communityId(rs.getLong("community_id")).kind(TopicKind.valueOf(rs.getString("kind")))
-                        .title(rs.getString("title")).description(rs.getString("description"))
-                        .proposerUserId(rs.getString("proposer_user_id"))
+                        .communityId(rs.getLong("community_id")).title(rs.getString("title"))
+                        .description(rs.getString("description")).proposerUserId(rs.getString("proposer_user_id"))
                         .status(TopicStatus.valueOf(rs.getString("status")))
                         .createdAt(rs.getTimestamp("created_at").toInstant())
                         .updatedAt(rs.getTimestamp("updated_at").toInstant()).version(rs.getLong("version")).build());

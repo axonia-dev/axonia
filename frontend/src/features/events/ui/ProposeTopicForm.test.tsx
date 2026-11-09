@@ -88,17 +88,28 @@ describe("ProposeTopicForm", () => {
         slug="backend-guild"
         topicId={42}
         initialTitle="Old title"
-        initialKind="REQUEST"
         initialDescription="Old desc"
       />,
     );
     expect(screen.getByRole("button", { name: /^save$/i })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /^save$/i }));
-    expect(mutate.mock.calls[0]?.[0]).toMatchObject({
+    expect(mutate.mock.calls[0]?.[0]).toEqual({
       topicId: 42,
-      input: { kind: "REQUEST", title: "Old title" },
+      input: { title: "Old title", description: "Old desc", tags: [] },
     });
   }, 15_000);
+
+  it("offers no kind in edit mode, since it follows from the speakers", () => {
+    // when
+    render(
+      <ProposeTopicForm slug="backend-guild" topicId={42} initialTitle="T" />,
+    );
+
+    // then
+    expect(
+      screen.queryByRole("button", { name: /kind/i }),
+    ).not.toBeInTheDocument();
+  });
 
   it("calls onProposed after successful edit", async () => {
     const onProposed = vi.fn();

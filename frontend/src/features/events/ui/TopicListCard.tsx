@@ -4,15 +4,19 @@ import { cn } from "@/lib/cn";
 
 interface TopicListCardProps {
   leading?: ReactNode;
+  /** Who presents it, drawn at the start of the title row. */
+  people?: ReactNode;
   title: string;
   meta?: ReactNode;
   trailing?: ReactNode;
   className?: string;
 }
 
-/** Shared row anatomy for the Scheduled and Past topic lists: leading block, title + meta, trailing controls. */
+/** Shared row anatomy for the Scheduled and Past topic lists: leading block, people + title + meta,
+ *  trailing controls. */
 export function TopicListCard({
   leading,
+  people,
   title,
   meta,
   trailing,
@@ -27,9 +31,12 @@ export function TopicListCard({
     >
       {leading}
       <div className="min-w-0 flex-1">
-        <p className="text-foreground truncate text-sm leading-snug font-semibold">
-          {title}
-        </p>
+        <div className="flex min-w-0 items-center gap-2">
+          {people}
+          <p className="text-foreground min-w-0 flex-1 truncate text-sm leading-snug font-semibold">
+            {title}
+          </p>
+        </div>
         {meta && (
           <div className="mt-1 flex flex-wrap items-center gap-1.5">{meta}</div>
         )}

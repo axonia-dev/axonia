@@ -14,6 +14,7 @@ const MESSAGES: Record<string, string> = {
   ALREADY_VOTED: "Already voted for this topic.",
   TOPIC_COMMUNITY_MISMATCH: "That topic belongs to a different community.",
   NOT_SCHEDULED: "This topic is not scheduled in any session.",
+  NOT_PROPOSED: "This topic is no longer on the backlog.",
   OCCURRENCE_IN_PAST:
     "This occurrence is in the past and can no longer be skipped; cancel it instead.",
   // The reminder's window. `now` advances while the schedule dialog sits

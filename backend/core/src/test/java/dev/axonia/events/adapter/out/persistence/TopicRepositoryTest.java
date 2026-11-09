@@ -1,8 +1,13 @@
 package dev.axonia.events.adapter.out.persistence;
 
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -15,6 +20,7 @@ import dev.axonia.events.domain.TopicCounts;
 import dev.axonia.events.domain.TopicSchedule;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class TopicRepositoryTest extends CoreJdbcTestSupport {
 
@@ -52,7 +58,7 @@ class TopicRepositoryTest extends CoreJdbcTestSupport {
     void savePersistsTags() {
 
         // given
-        var topic = TopicEntityMother.any().tags(java.util.Set.of(TopicTagRef.builder().tag("Kafka").build())).build();
+        var topic = TopicEntityMother.any().tags(Set.of(TopicTagRef.builder().tag("Kafka").build())).build();
 
         // when
         var saved = topicRepository.save(topic);
@@ -63,35 +69,217 @@ class TopicRepositoryTest extends CoreJdbcTestSupport {
     }
 
     @Test
-    void findFiltered_filtersByKindAlone() {
+    void savesAndReloadsSpeakers() {
 
         // given
-        topicRepository.save(TopicEntityMother.any().kind(TopicKind.REQUEST).build());
-        topicRepository.save(TopicEntityMother.any().kind(TopicKind.OFFER).build());
+        var topic = TopicEntityMother.any().speakers(speakers("alice", "bob")).build();
 
         // when
-        var actual = topicRepository.findFiltered("default", 1L, new TopicFilter(TopicKind.OFFER, null),
+        var saved = topicRepository.save(topic);
+        var reloaded = topicRepository.findByOrganizationIdAndId("default", saved.getId()).orElseThrow();
+
+        // then
+        assertThat(reloaded.getSpeakers()).extracting(TopicSpeakerRef::getUserId).containsExactlyInAnyOrder("alice",
+                "bob");
+    }
+
+    @Test
+    void aStaleSave_raisesTheOptimisticLockFailureTheEventsAdviceMapsTo409() {
+
+        // given - two writers read the same version, and the first one commits
+        var saved = topicRepository.save(TopicEntityMother.any().build());
+        topicRepository.save(saved.toBuilder().title("First").build());
+
+        // when / then
+        assertThatThrownBy(() -> topicRepository.save(saved.toBuilder().title("Second").build()))
+                .isInstanceOf(OptimisticLockingFailureException.class);
+    }
+
+    @Test
+    void findLockedByOrganizationIdAndId_loadsTheWholeAggregateInItsTenantOnly() {
+
+        // given
+        var saved = topicRepository.save(TopicEntityMother.any().speakers(speakers("bob")).build());
+
+        // when
+        var actual = topicRepository.findLockedByOrganizationIdAndId("default", saved.getId()).orElseThrow();
+
+        // then
+        assertThat(actual.getSpeakers()).extracting(TopicSpeakerRef::getUserId).containsExactly("bob");
+        assertThat(actual.getTags()).extracting(TopicTagRef::getTag).containsExactly("kafka");
+        assertThat(topicRepository.findLockedByOrganizationIdAndId("other-tenant", saved.getId())).isEmpty();
+    }
+
+    @Test
+    void findFiltered_offerMeansHasSpeaker() {
+
+        // given
+        var offer = topicRepository.save(TopicEntityMother.any().speakers(speakers("bob")).build()).getId();
+        var request = topicRepository.save(TopicEntityMother.any().build()).getId();
+        var scheduledOffer = topicRepository.save(TopicEntityMother.any().status(TopicStatus.SCHEDULED).build())
+                .getId();
+        presentersOn(slotTopicOnSessionAt(scheduledOffer, "2099-06-14T18:00:00Z", "SCHEDULED"), "carol");
+        var scheduledRequest = topicRepository.save(TopicEntityMother.any().status(TopicStatus.SCHEDULED).build())
+                .getId();
+        slotTopicOnSessionAt(scheduledRequest, "2099-06-14T18:00:00Z", "SCHEDULED");
+
+        // when
+        var offers = topicRepository.findFiltered("default", 1L, new TopicFilter(TopicKind.OFFER, null),
+                PageRequest.of(0, 20));
+        var requests = topicRepository.findFiltered("default", 1L, new TopicFilter(TopicKind.REQUEST, null),
                 PageRequest.of(0, 20));
 
         // then
-        assertThat(actual.getContent()).singleElement()
-                .satisfies(e -> assertThat(e.getKind()).isEqualTo(TopicKind.OFFER));
+        assertThat(offers.getContent()).extracting(TopicEntity::getId).containsExactlyInAnyOrder(offer, scheduledOffer);
+        assertThat(offers.getTotalElements()).isEqualTo(2);
+        assertThat(requests.getContent()).extracting(TopicEntity::getId).containsExactlyInAnyOrder(request,
+                scheduledRequest);
     }
 
     @Test
     void findFiltered_filtersByKindAndStatus() {
 
         // given
-        topicRepository.save(TopicEntityMother.any().kind(TopicKind.OFFER).status(TopicStatus.PROPOSED).build());
-        topicRepository.save(TopicEntityMother.any().kind(TopicKind.OFFER).status(TopicStatus.DONE).build());
+        var proposed = topicRepository.save(TopicEntityMother.any().speakers(speakers("bob")).build()).getId();
+        topicRepository.save(TopicEntityMother.any().status(TopicStatus.PROPOSED).build());
 
         // when
         var results = topicRepository.findFiltered("default", 1L,
                 new TopicFilter(TopicKind.OFFER, TopicStatus.PROPOSED), PageRequest.of(0, 20));
 
         // then
-        assertThat(results.getContent()).singleElement()
-                .satisfies(e -> assertThat(e.getStatus()).isEqualTo(TopicStatus.PROPOSED));
+        assertThat(results.getContent()).extracting(TopicEntity::getId).containsExactly(proposed);
+    }
+
+    @Test
+    void findFiltered_loadsTagsAndSpeakers() {
+
+        // given
+        topicRepository.save(TopicEntityMother.any().speakers(speakers("bob")).build());
+
+        // when
+        var results = topicRepository.findFiltered("default", 1L, new TopicFilter(null, null), PageRequest.of(0, 20));
+
+        // then
+        assertThat(results.getContent()).singleElement().satisfies(e -> {
+            assertThat(e.getTags()).extracting(TopicTagRef::getTag).containsExactly("kafka");
+            assertThat(e.getSpeakers()).extracting(TopicSpeakerRef::getUserId).containsExactly("bob");
+        });
+    }
+
+    @Test
+    void findFiltered_paginates() {
+
+        // given
+        for (var i = 0; i < 3; i++) {
+            topicRepository.save(TopicEntityMother.any().title("T" + i).build());
+        }
+
+        // when
+        var page = topicRepository.findFiltered("default", 1L, new TopicFilter(null, null), PageRequest.of(1, 2));
+
+        // then
+        assertThat(page.getContent()).hasSize(1);
+        assertThat(page.getTotalElements()).isEqualTo(3);
+    }
+
+    @Test
+    void findFiltered_ordersByCreatedAtAscendingWhenAsked() {
+
+        // given
+        var older = topicRepository.save(TopicEntityMother.any().build()).getId();
+        var newer = topicRepository.save(TopicEntityMother.any().build()).getId();
+        jdbc.update("UPDATE topic SET created_at = TIMESTAMPTZ '2020-01-01T00:00:00Z' WHERE id = ?", older);
+        jdbc.update("UPDATE topic SET created_at = TIMESTAMPTZ '2021-01-01T00:00:00Z' WHERE id = ?", newer);
+
+        // when
+        var results = topicRepository.findFiltered("default", 1L, new TopicFilter(null, null),
+                PageRequest.of(0, 20, Sort.by(Sort.Direction.ASC, "created_at")));
+
+        // then
+        assertThat(results.getContent()).extracting(TopicEntity::getId).containsExactly(older, newer);
+    }
+
+    @Test
+    void findFiltered_refusesAnyOtherSortProperty() {
+
+        // given
+        var pageable = PageRequest.of(0, 20, Sort.by("title"));
+
+        // when / then
+        assertThatThrownBy(() -> topicRepository.findFiltered("default", 1L, new TopicFilter(null, null), pageable))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("title");
+    }
+
+    @Test
+    void findSpeakers_readsBacklogRowsForProposedTopics() {
+
+        // given
+        var offer = topicRepository.save(TopicEntityMother.any().speakers(speakers("carol", "bob")).build()).getId();
+        var request = topicRepository.save(TopicEntityMother.any().build()).getId();
+
+        // when
+        var actual = topicRepository.findSpeakers("default", List.of(offer, request));
+
+        // then
+        assertThat(actual).containsExactly(Map.entry(offer, List.of("bob", "carol")));
+    }
+
+    @Test
+    void findSpeakers_readsSlotPresentersForScheduledTopics() {
+
+        // given a scheduled topic with stale backlog rows, which its slot's presenters override
+        var topic = topicRepository
+                .save(TopicEntityMother.any().status(TopicStatus.SCHEDULED).speakers(speakers("stale")).build())
+                .getId();
+        presentersOn(slotTopicOnSessionAt(topic, "2099-06-14T18:00:00Z", "SCHEDULED"), "dave", "bob");
+
+        // when
+        var actual = topicRepository.findSpeakers("default", List.of(topic));
+
+        // then
+        assertThat(actual).containsExactly(Map.entry(topic, List.of("bob", "dave")));
+    }
+
+    @Test
+    void findSpeakers_ignoresCancelledSessions() {
+
+        // given
+        var topic = topicRepository.save(TopicEntityMother.any().status(TopicStatus.SCHEDULED).build()).getId();
+        presentersOn(slotTopicOnSessionAt(topic, "2099-06-14T18:00:00Z", "CANCELLED"), "bob");
+        presentersOn(slotTopicOnSessionAt(topic, "2000-06-14T18:00:00Z", "HELD"), "bob", "erin");
+
+        // when
+        var actual = topicRepository.findSpeakers("default", List.of(topic));
+
+        // then
+        assertThat(actual).containsExactly(Map.entry(topic, List.of("bob", "erin")));
+    }
+
+    @Test
+    void findSpeakers_isTenantScoped() {
+
+        // given
+        var offer = topicRepository.save(TopicEntityMother.any().speakers(speakers("bob")).build()).getId();
+
+        // when / then
+        assertThat(topicRepository.findSpeakers("other-tenant", List.of(offer))).isEmpty();
+        assertThat(topicRepository.findSpeakers("default", List.of())).isEmpty();
+    }
+
+    private static Set<TopicSpeakerRef> speakers(String... userIds) {
+
+        return java.util.Arrays.stream(userIds).map(u -> TopicSpeakerRef.builder().userId(u).build())
+                .collect(java.util.stream.Collectors.toSet());
+    }
+
+    private void presentersOn(Long sessionId, String... userIds) {
+
+        var slotId = jdbc.queryForObject("SELECT sl.id FROM event_slot sl JOIN event_section sec ON sl.section_id = "
+                + "sec.id WHERE sec.session_id = ?", Long.class, sessionId);
+        for (var userId : userIds) {
+            jdbc.update("INSERT INTO event_slot_presenter (slot_id, user_id) VALUES (?, ?)", slotId, userId);
+        }
     }
 
     @Test
@@ -157,7 +345,7 @@ class TopicRepositoryTest extends CoreJdbcTestSupport {
                 Long.class, sectionId, topicId);
 
         // when
-        var rows = topicRepository.findSchedules("default", java.util.List.of(topicId));
+        var rows = topicRepository.findSchedules("default", List.of(topicId));
 
         // then
         assertThat(rows).hasSize(1);
@@ -183,7 +371,7 @@ class TopicRepositoryTest extends CoreJdbcTestSupport {
         var untitledTopic = scheduledOn(seriesId, sectionTypeId, "NULL", "2099-06-21", "Kafka 101");
 
         // when
-        var rows = topicRepository.findSchedules("default", java.util.List.of(titledTopic, untitledTopic));
+        var rows = topicRepository.findSchedules("default", List.of(titledTopic, untitledTopic));
 
         // then
         assertThat(rows).extracting(TopicSchedule::scheduleLabel).containsExactly("S26E10 - DevTool", "Kafka 101");
@@ -226,7 +414,7 @@ class TopicRepositoryTest extends CoreJdbcTestSupport {
                 Long.class, sectionId, topicId);
 
         // when
-        var rows = topicRepository.findSchedules("default", java.util.List.of(topicId));
+        var rows = topicRepository.findSchedules("default", List.of(topicId));
 
         // then - a one-off-scheduled topic still resolves, labelled by the session's own title
         assertThat(rows).hasSize(1);
@@ -238,7 +426,7 @@ class TopicRepositoryTest extends CoreJdbcTestSupport {
     @Test
     void findSchedules_returnsEmptyForNoTopicIds() {
 
-        assertThat(topicRepository.findSchedules("default", java.util.List.of())).isEmpty();
+        assertThat(topicRepository.findSchedules("default", List.of())).isEmpty();
     }
 
     @Test
@@ -249,7 +437,7 @@ class TopicRepositoryTest extends CoreJdbcTestSupport {
         var futureSessionId = slotTopicOnSessionAt(topicId, "2099-06-14T18:00:00Z", "SCHEDULED");
 
         // when
-        var rows = topicRepository.findSchedules("default", java.util.List.of(topicId));
+        var rows = topicRepository.findSchedules("default", List.of(topicId));
 
         // then - the future session's row comes first, so findFirst consumers pick the upcoming slot
         assertThat(rows).hasSize(2);
@@ -264,7 +452,7 @@ class TopicRepositoryTest extends CoreJdbcTestSupport {
         var soonestSessionId = slotTopicOnSessionAt(topicId, "2098-01-01T18:00:00Z", "SCHEDULED");
 
         // when
-        var rows = topicRepository.findSchedules("default", java.util.List.of(topicId));
+        var rows = topicRepository.findSchedules("default", List.of(topicId));
 
         // then
         assertThat(rows).hasSize(2);

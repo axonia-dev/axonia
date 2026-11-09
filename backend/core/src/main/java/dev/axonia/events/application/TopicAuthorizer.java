@@ -1,8 +1,12 @@
 package dev.axonia.events.application;
 
+import java.util.List;
+
 import org.springframework.stereotype.Component;
 
+import dev.axonia.events.api.TopicStatus;
 import dev.axonia.events.application.port.out.CommunityAccess;
+import dev.axonia.events.domain.TopicRecord;
 import dev.axonia.shared.api.error.ForbiddenException;
 import lombok.RequiredArgsConstructor;
 
@@ -56,5 +60,43 @@ public class TopicAuthorizer {
     public static boolean assigneeOrManager(boolean canManage, String assigneeUserId, String userId) {
 
         return canManage || userId.equals(assigneeUserId);
+    }
+
+    /**
+     * Who may change a topic's speakers, with the same floor as a slot's presenters
+     * ({@link SessionAuthorizer#requireSlotOwnerOrManager}): its creator or a speaker while a member, an organizer, or
+     * a member when the community has opened {@code canManageSchedule}.
+     */
+    public boolean canManageSpeakers(TopicRecord topic, List<String> speakerUserIds, String userId) {
+
+        return speakerRightsIn(topic.getCommunityId(), userId).canManage(topic, speakerUserIds, userId);
+    }
+
+    public void requireSpeakerManager(TopicRecord topic, String userId) {
+
+        if (!canManageSpeakers(topic, topic.speakerUserIds(), userId)) {
+            throw new ForbiddenException(
+                    "Changing another person's place as a speaker requires being the topic's creator or a speaker, "
+                            + "or schedule-management rights");
+        }
+    }
+
+    /** The per-community half of {@link #canManageSpeakers}, resolved once for a whole page of one community. */
+    public SpeakerRights speakerRightsIn(long communityId, String userId) {
+
+        var member = communityAccess.isMember(communityId, userId);
+        var managesSchedule = communityAccess.isOrganizer(communityId, userId)
+                || member && communityAccess.contributionPolicy(communityId).canManageSchedule();
+        return new SpeakerRights(member, managesSchedule);
+    }
+
+    public record SpeakerRights(boolean member, boolean managesSchedule) {
+
+        /** Only a backlog topic takes speaker writes: once scheduled, who presents it is managed on its slot. */
+        public boolean canManage(TopicRecord topic, List<String> speakerUserIds, String userId) {
+
+            return topic.getStatus() == TopicStatus.PROPOSED && (managesSchedule
+                    || member && (userId.equals(topic.getProposerUserId()) || speakerUserIds.contains(userId)));
+        }
     }
 }

@@ -66,6 +66,8 @@ public final class OpenSeed {
                 Map.of("org", ORG, "sessionId", sessionId));
         jdbc.update("INSERT INTO event_slot_presenter (slot_id, user_id) VALUES (:slotId, 'layer3-user')",
                 Map.of("slotId", slotId));
+        jdbc.update("INSERT INTO topic_speaker (topic_id, user_id) VALUES (:topicId, 'layer3-user')",
+                Map.of("topicId", topicId));
         var actionItemId = jdbc.queryForObject(
                 "INSERT INTO action_item (organization_id, community_id, title, description, raised_by_user_id, "
                         + "assignee_user_id, origin_session_id, outcome, created_at, updated_at, version) VALUES "
@@ -202,10 +204,9 @@ public final class OpenSeed {
     private Long seedTopic(Long communityId) {
 
         return jdbc.queryForObject(
-                "INSERT INTO topic (organization_id, community_id, kind, title, description, proposer_user_id, "
+                "INSERT INTO topic (organization_id, community_id, title, description, proposer_user_id, "
                         + "status, created_at, updated_at, version) VALUES (:org, :communityId, "
-                        + "'REQUEST', 'Layer 3 Topic', '', 'layer3-user', 'PROPOSED', now(), now(), 0) "
-                        + "RETURNING id",
+                        + "'Layer 3 Topic', '', 'layer3-user', 'PROPOSED', now(), now(), 0) " + "RETURNING id",
                 Map.of("org", ORG, "communityId", communityId), Long.class);
     }
 

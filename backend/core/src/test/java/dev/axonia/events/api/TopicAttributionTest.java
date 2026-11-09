@@ -13,6 +13,7 @@ import dev.axonia.community.api.MemberMatch;
 import dev.axonia.community.api.TopicManagementPolicy;
 import dev.axonia.events.application.SlotService;
 import dev.axonia.events.application.TopicAuthorizer;
+import dev.axonia.events.application.TopicEvidence;
 import dev.axonia.events.application.TopicMapper;
 import dev.axonia.events.application.TopicMemberResolver;
 import dev.axonia.events.application.TopicReadModel;
@@ -75,7 +76,8 @@ class TopicAttributionTest {
                 currentUser, topicStore);
         var topicMemberResolver = new TopicMemberResolver(communityAccess);
         sut = new TopicService(topicStore, topicVoteStore, topicAuthorizer, slotService, communityAccess, currentUser,
-                organizationContext, eventPublisher, topicReadModel, topicMemberResolver);
+                organizationContext, eventPublisher, new TopicEvidence(eventPublisher), topicReadModel,
+                topicMemberResolver);
     }
 
     @BeforeEach
@@ -110,7 +112,7 @@ class TopicAttributionTest {
         sut.propose("backend-guild", request(null));
 
         // then
-        assertThat(publishedEvent().proposerUserId()).isEqualTo("alice");
+        assertThat(publishedEvent().speakerUserIds()).containsExactly("alice");
         verify(communityAccess, never()).resolvePerson(anyLong(), anyString());
     }
 
@@ -142,9 +144,8 @@ class TopicAttributionTest {
 
         // then the expertise graph learns Bob OFFERED this: this is the whole point of the feature
         var event = publishedEvent();
-        assertThat(event.proposerUserId()).isEqualTo("bob-id");
+        assertThat(event.speakerUserIds()).containsExactly("bob-id");
         assertThat(event.communityId()).isEqualTo(1L);
-        assertThat(event.kind()).isEqualTo(TopicKind.OFFER);
         assertThat(event.tags()).containsExactly("event-sourcing");
     }
 
@@ -199,7 +200,7 @@ class TopicAttributionTest {
         sut.propose("backend-guild", request("   "));
 
         // then
-        assertThat(publishedEvent().proposerUserId()).isEqualTo("alice");
+        assertThat(publishedEvent().speakerUserIds()).containsExactly("alice");
         verify(communityAccess, never()).resolvePerson(anyLong(), anyString());
     }
 }

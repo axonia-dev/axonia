@@ -12,12 +12,14 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import dev.axonia.community.api.MemberMatch;
 import dev.axonia.events.api.ProposeTopicRequest;
+import dev.axonia.events.api.SpeakerAssignment;
 import dev.axonia.events.api.Topic;
+import dev.axonia.events.api.TopicKind;
 import dev.axonia.events.api.TopicQuery;
 import dev.axonia.events.api.TopicRemoved;
 import dev.axonia.events.api.TopicStatus;
-import dev.axonia.events.api.TopicTagsChanged;
 import dev.axonia.events.api.Topics;
 import dev.axonia.events.application.port.out.CommunityAccess;
 import dev.axonia.events.application.port.out.CurrentUser;
@@ -47,6 +49,7 @@ public class TopicService implements Topics {
     private final CurrentUser currentUser;
     private final OrganizationContext organizationContext;
     private final ApplicationEventPublisher eventPublisher;
+    private final TopicEvidence topicEvidence;
     private final TopicReadModel topicReadModel;
     private final TopicMemberResolver topicMemberResolver;
 
@@ -60,11 +63,12 @@ public class TopicService implements Topics {
         var proposerUserId = topicMemberResolver.resolveProposer(communityId, currentUser.userId(), request.proposer());
 
         var cleanedTags = Tags.clean(request.tags());
-        var saved = topicStore.save(TopicRecord.builder().organizationId(organizationId).communityId(communityId)
-                .kind(request.kind()).title(request.title()).description(Descriptions.orEmpty(request.description()))
-                .proposerUserId(proposerUserId).status(TopicStatus.PROPOSED).tags(tagRefs(cleanedTags)).build());
-        eventPublisher.publishEvent(new TopicTagsChanged(saved.getId(), saved.getCommunityId(),
-                saved.getProposerUserId(), saved.getKind(), List.copyOf(cleanedTags)));
+        var speakers = request.kind() == TopicKind.OFFER ? List.of(proposerUserId) : List.<String>of();
+        var saved = topicStore.save(
+                TopicRecord.builder().organizationId(organizationId).communityId(communityId).title(request.title())
+                        .description(Descriptions.orEmpty(request.description())).proposerUserId(proposerUserId)
+                        .status(TopicStatus.PROPOSED).tags(tagRefs(cleanedTags)).build().withSpeakers(speakers));
+        topicEvidence.publish(saved, speakers);
 
         return topicReadModel.single(saved, null);
     }
@@ -108,10 +112,9 @@ public class TopicService implements Topics {
         var entity = findOrThrow(organizationId, id);
         topicAuthorizer.requireTopicManagementPermission(entity.getCommunityId(), currentUser.userId());
         var cleanedTags = Tags.clean(request.tags());
-        var saved = topicStore.save(entity.toBuilder().kind(request.kind()).title(request.title())
+        var saved = topicStore.save(entity.toBuilder().title(request.title())
                 .description(Descriptions.orEmpty(request.description())).tags(tagRefs(cleanedTags)).build());
-        eventPublisher.publishEvent(new TopicTagsChanged(saved.getId(), saved.getCommunityId(),
-                saved.getProposerUserId(), saved.getKind(), List.copyOf(cleanedTags)));
+        topicEvidence.publish(saved, topicReadModel.speakersOf(organizationId, List.of(saved)).get(id));
         return topicReadModel.single(saved, null);
     }
 
@@ -159,6 +162,73 @@ public class TopicService implements Topics {
         var vote = topicVoteStore.findByOrganizationIdAndTopicIdAndUserId(organizationId, id, currentUser.userId())
                 .orElseThrow(() -> new NotFoundException("Vote not found"));
         topicVoteStore.delete(vote);
+    }
+
+    /** Any member may volunteer to present a backlog topic. Volunteering twice changes nothing. */
+    @Transactional
+    public Topic addSelfAsSpeaker(Long id) {
+
+        var topic = findBacklogTopicForUpdate(id);
+        var userId = currentUser.userId();
+        requireMember(topic.getCommunityId());
+        return topicReadModel.single(topic.hasSpeaker(userId) ? topic : saveSpeakers(topic.withSpeaker(userId)), null);
+    }
+
+    /** Any speaker may step back. The last one leaving turns the offer back into a request in its creator's name. */
+    @Transactional
+    public Topic removeSelfAsSpeaker(Long id) {
+
+        var topic = findBacklogTopicForUpdate(id);
+        var userId = currentUser.userId();
+        return topicReadModel.single(topic.hasSpeaker(userId) ? saveSpeakers(topic.withoutSpeaker(userId)) : topic,
+                null);
+    }
+
+    /**
+     * Names somebody else as a speaker, resolved like a slot's presenter: a reference matching nobody or several leaves
+     * the topic as it was and says why, rather than guessing. Naming a current speaker again changes nothing.
+     */
+    @Transactional
+    public SpeakerAssignment addSpeaker(Long id, String reference) {
+
+        var topic = findBacklogTopicForUpdate(id);
+        topicAuthorizer.requireSpeakerManager(topic, currentUser.userId());
+        return switch (communityAccess.resolvePerson(topic.getCommunityId(), reference.strip())) {
+            case MemberMatch.Matched matched -> new SpeakerAssignment(topicReadModel.single(
+                    topic.hasSpeaker(matched.userId()) ? topic : saveSpeakers(topic.withSpeaker(matched.userId())),
+                    null), true, null, 0);
+            case MemberMatch.Ambiguous ambiguous -> new SpeakerAssignment(topicReadModel.single(topic, null), false,
+                    SpeakerAssignment.AMBIGUOUS, ambiguous.candidates());
+            case MemberMatch.NotFound ignored ->
+                new SpeakerAssignment(topicReadModel.single(topic, null), false, SpeakerAssignment.NOT_FOUND, 0);
+        };
+    }
+
+    @Transactional
+    public Topic removeSpeaker(Long id, String userId) {
+
+        var topic = findBacklogTopicForUpdate(id);
+        topicAuthorizer.requireSpeakerManager(topic, currentUser.userId());
+        return topicReadModel.single(topic.hasSpeaker(userId) ? saveSpeakers(topic.withoutSpeaker(userId)) : topic,
+                null);
+    }
+
+    /** Speakers are the backlog's to change: once scheduled, a topic's speakers are its slot's presenters. */
+    private TopicRecord findBacklogTopicForUpdate(Long id) {
+
+        var topic = topicStore.findForUpdate(organizationContext.organizationId(), id)
+                .orElseThrow(() -> new NotFoundException("Topic not found: " + id));
+        if (topic.getStatus() != TopicStatus.PROPOSED) {
+            throw new ConflictException("NOT_PROPOSED", "This topic is no longer on the backlog");
+        }
+        return topic;
+    }
+
+    private TopicRecord saveSpeakers(TopicRecord topic) {
+
+        var saved = topicStore.save(topic);
+        topicEvidence.publish(saved, saved.speakerUserIds());
+        return saved;
     }
 
     private void requireMember(long communityId) {

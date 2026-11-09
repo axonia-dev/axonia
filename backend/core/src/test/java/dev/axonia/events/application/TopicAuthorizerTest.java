@@ -1,13 +1,21 @@
 package dev.axonia.events.application;
 
+import java.util.List;
+import java.util.Set;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import dev.axonia.community.api.ContributionPolicy;
 import dev.axonia.community.api.TopicManagementPolicy;
+import dev.axonia.events.api.TopicStatus;
 import dev.axonia.events.application.port.out.CommunityAccess;
+import dev.axonia.events.domain.TopicRecord;
+import dev.axonia.events.domain.TopicRecordMother;
+import dev.axonia.events.domain.TopicSpeaker;
 import dev.axonia.shared.api.error.ForbiddenException;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -106,5 +114,63 @@ class TopicAuthorizerTest {
     @Test
     void assigneeOrManager_isFalseForNeither() {
         assertThat(TopicAuthorizer.assigneeOrManager(false, "u1", "u2")).isFalse();
+    }
+
+    @Test
+    void canManageSpeakers_allowsAnOrganizer() {
+        given(communityAccess.isOrganizer(1L, "org")).willReturn(true);
+        assertThat(authorizer.canManageSpeakers(topicBy("alice"), List.of(), "org")).isTrue();
+    }
+
+    @Test
+    void canManageSpeakers_allowsAScheduleManager() {
+        given(communityAccess.isMember(1L, "u1")).willReturn(true);
+        given(communityAccess.contributionPolicy(1L)).willReturn(new ContributionPolicy(false, false, false, true));
+        assertThat(authorizer.canManageSpeakers(topicBy("alice"), List.of(), "u1")).isTrue();
+    }
+
+    @Test
+    void canManageSpeakers_allowsTheCreatorOrASpeakerWhoIsAMember() {
+        given(communityAccess.isMember(1L, "alice")).willReturn(true);
+        given(communityAccess.isMember(1L, "bob")).willReturn(true);
+        given(communityAccess.contributionPolicy(1L)).willReturn(ContributionPolicy.curated());
+        assertThat(authorizer.canManageSpeakers(topicBy("alice"), List.of("bob"), "alice")).isTrue();
+        assertThat(authorizer.canManageSpeakers(topicBy("alice"), List.of("bob"), "bob")).isTrue();
+    }
+
+    @Test
+    void canManageSpeakers_refusesAnotherPlainMember() {
+        given(communityAccess.isMember(1L, "carol")).willReturn(true);
+        given(communityAccess.contributionPolicy(1L)).willReturn(ContributionPolicy.curated());
+        assertThat(authorizer.canManageSpeakers(topicBy("alice"), List.of("bob"), "carol")).isFalse();
+    }
+
+    @Test
+    void canManageSpeakers_isFalseOnceTheTopicLeftTheBacklog() {
+        given(communityAccess.isOrganizer(1L, "org")).willReturn(true);
+        assertThat(authorizer.canManageSpeakers(topicBy("alice").toBuilder().status(TopicStatus.SCHEDULED).build(),
+                List.of(), "org")).isFalse();
+    }
+
+    @Test
+    void canManageSpeakers_refusesACreatorWhoIsNoLongerAMember() {
+        given(communityAccess.isMember(1L, "alice")).willReturn(false);
+        assertThat(authorizer.canManageSpeakers(topicBy("alice"), List.of(), "alice")).isFalse();
+    }
+
+    @Test
+    void requireSpeakerManager_allowsASpeakerAndRefusesAnyoneElse() {
+        var topic = TopicRecordMother.any().id(5L).communityId(1L).proposerUserId("alice")
+                .speakers(Set.of(TopicSpeaker.builder().userId("bob").build())).build();
+        given(communityAccess.isMember(1L, "bob")).willReturn(true);
+        given(communityAccess.isMember(1L, "carol")).willReturn(true);
+        given(communityAccess.contributionPolicy(1L)).willReturn(ContributionPolicy.curated());
+        assertThatCode(() -> authorizer.requireSpeakerManager(topic, "bob")).doesNotThrowAnyException();
+        assertThatThrownBy(() -> authorizer.requireSpeakerManager(topic, "carol"))
+                .isInstanceOf(ForbiddenException.class);
+    }
+
+    private static TopicRecord topicBy(String creator) {
+        return TopicRecordMother.any().id(5L).communityId(1L).proposerUserId(creator).build();
     }
 }

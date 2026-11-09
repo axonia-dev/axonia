@@ -33,7 +33,6 @@ import dev.axonia.events.adapter.out.persistence.SlotTagRef;
 import dev.axonia.events.adapter.out.persistence.TopicEntity;
 import dev.axonia.events.adapter.out.persistence.TopicRepository;
 import dev.axonia.events.api.ActionItemOutcome;
-import dev.axonia.events.api.TopicKind;
 import dev.axonia.events.api.TopicStatus;
 import dev.axonia.events.domain.CadenceUnit;
 import dev.axonia.events.domain.SeriesStatus;
@@ -141,8 +140,8 @@ public class PerformanceSeed {
                     .joinUrl("https://example.com/standing").joiningDetails("standing code").defaultStructure(List.of())
                     .build());
             var topic = topicRepository.save(TopicEntity.builder().organizationId(ORGANIZATION).communityId(communityId)
-                    .kind(TopicKind.REQUEST).title("Write the runbook").description("")
-                    .proposerUserId(PRESENTER_USER_ID).status(TopicStatus.SCHEDULED).tags(new HashSet<>()).build());
+                    .title("Write the runbook").description("").proposerUserId(PRESENTER_USER_ID)
+                    .status(TopicStatus.SCHEDULED).tags(new HashSet<>()).build());
             var saved = sessionRepository.save(SessionEntity.builder().organizationId(ORGANIZATION)
                     .seriesId(series.getId()).communityId(communityId).status("HELD")
                     .scheduledAt(Instant.now().minusSeconds(1800)).hasTime(true)

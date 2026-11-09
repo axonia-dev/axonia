@@ -80,7 +80,6 @@ describe("httpEventsGateway topics", () => {
       jsonResponse({ ...topic, title: "Renamed" }),
     );
     const updated = await httpEventsGateway.editTopic(5, {
-      kind: "OFFER",
       title: "Renamed",
       description: "now an offer",
     });
@@ -88,8 +87,7 @@ describe("httpEventsGateway topics", () => {
     const call = vi.mocked(fetch).mock.calls[0];
     expect(urlOf(call?.[0])).toContain("/axonia/topics/5");
     expect(call?.[1]?.method).toBe("PUT");
-    expect(JSON.parse(call?.[1]?.body as string)).toMatchObject({
-      kind: "OFFER",
+    expect(JSON.parse(call?.[1]?.body as string)).toEqual({
       title: "Renamed",
       description: "now an offer",
     });
@@ -121,7 +119,6 @@ describe("httpEventsGateway topics", () => {
       jsonResponse({ ...topic, title: "Renamed" }),
     );
     await httpEventsGateway.editTopic(5, {
-      kind: "OFFER",
       title: "Renamed",
       tags: ["refactoring"],
     });
@@ -129,5 +126,128 @@ describe("httpEventsGateway topics", () => {
     expect(JSON.parse(call?.[1]?.body as string)).toMatchObject({
       tags: ["refactoring"],
     });
+  });
+  it("parses a topic's speakers and whether the viewer may manage them", async () => {
+    // given
+    vi.mocked(fetch).mockResolvedValue(
+      jsonResponse({
+        ...topic,
+        kind: "OFFER",
+        speakerUserIds: ["user-2", "user-3"],
+        canManageSpeakers: true,
+      }),
+    );
+
+    // when
+    const actual = await httpEventsGateway.voteTopic(5);
+
+    // then
+    expect(actual.speakerUserIds).toEqual(["user-2", "user-3"]);
+    expect(actual.canManageSpeakers).toBe(true);
+  });
+
+  it("reads a topic without speaker fields as having none the viewer may manage", async () => {
+    // given
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(topic));
+
+    // when
+    const actual = await httpEventsGateway.voteTopic(5);
+
+    // then
+    expect(actual.speakerUserIds).toEqual([]);
+    expect(actual.canManageSpeakers).toBe(false);
+  });
+
+  it("addSelfAsSpeaker POSTs to the viewer's own speaker route and parses the topic", async () => {
+    // given
+    vi.mocked(fetch).mockResolvedValue(
+      jsonResponse(
+        { ...topic, kind: "OFFER", speakerUserIds: ["user-1"] },
+        201,
+      ),
+    );
+
+    // when
+    const actual = await httpEventsGateway.addSelfAsSpeaker(5);
+
+    // then
+    const call = vi.mocked(fetch).mock.calls[0];
+    expect(urlOf(call?.[0])).toMatch(/\/axonia\/topics\/5\/speakers\/me$/);
+    expect(call?.[1]?.method).toBe("POST");
+    expect(call?.[1]?.body).toBeUndefined();
+    expect(actual.speakerUserIds).toEqual(["user-1"]);
+  });
+
+  it("addSpeaker POSTs the named speaker and parses the assignment", async () => {
+    // given
+    vi.mocked(fetch).mockResolvedValue(
+      jsonResponse(
+        {
+          topic: { ...topic, kind: "OFFER", speakerUserIds: ["user-2"] },
+          assigned: true,
+          reason: null,
+          candidates: 1,
+        },
+        201,
+      ),
+    );
+
+    // when
+    const actual = await httpEventsGateway.addSpeaker(5, "user-2");
+
+    // then
+    const call = vi.mocked(fetch).mock.calls[0];
+    expect(urlOf(call?.[0])).toMatch(/\/axonia\/topics\/5\/speakers$/);
+    expect(call?.[1]?.method).toBe("POST");
+    expect(JSON.parse(call?.[1]?.body as string)).toEqual({
+      speaker: "user-2",
+    });
+    expect(actual.assigned).toBe(true);
+    expect(actual.topic.speakerUserIds).toEqual(["user-2"]);
+  });
+
+  it("addSpeaker reports an unmatched speaker without failing", async () => {
+    // given
+    vi.mocked(fetch).mockResolvedValue(
+      jsonResponse(
+        { topic, assigned: false, reason: "NOT_FOUND", candidates: 0 },
+        201,
+      ),
+    );
+
+    // when
+    const actual = await httpEventsGateway.addSpeaker(5, "nobody");
+
+    // then
+    expect(actual.assigned).toBe(false);
+    expect(actual.reason).toBe("NOT_FOUND");
+  });
+
+  it("withdrawAsSpeaker DELETEs the viewer's own speaker route and parses the topic", async () => {
+    // given
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(topic));
+
+    // when
+    const actual = await httpEventsGateway.withdrawAsSpeaker(5);
+
+    // then
+    const call = vi.mocked(fetch).mock.calls[0];
+    expect(urlOf(call?.[0])).toMatch(/\/axonia\/topics\/5\/speakers\/me$/);
+    expect(call?.[1]?.method).toBe("DELETE");
+    expect(actual.kind).toBe("REQUEST");
+  });
+
+  it("removeSpeaker DELETEs that speaker's route and parses the topic", async () => {
+    // given
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(topic));
+
+    // when
+    const actual = await httpEventsGateway.removeSpeaker(5, "user-2");
+
+    // then
+    const call = vi.mocked(fetch).mock.calls[0];
+    expect(urlOf(call?.[0])).toMatch(/\/axonia\/topics\/5\/speakers\/user-2$/);
+    expect(call?.[1]?.method).toBe("DELETE");
+    expect(actual.id).toBe(5);
   });
 });

@@ -421,9 +421,9 @@ class EventsSignalsAdapterTest extends CoreJdbcTestSupport {
     private long topic(long communityId, String proposerUserId, Instant createdAt) {
 
         return jdbc.queryForObject("""
-                INSERT INTO topic (organization_id, community_id, kind, title, description, proposer_user_id, status,
+                INSERT INTO topic (organization_id, community_id, title, description, proposer_user_id, status,
                         created_at, updated_at, version)
-                VALUES ('default', :communityId, 'OFFER', 'T', 'd', :proposerUserId, 'PROPOSED',
+                VALUES ('default', :communityId, 'T', 'd', :proposerUserId, 'PROPOSED',
                         :createdAt, now(), 0)
                 RETURNING id
                 """,

@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -25,6 +26,8 @@ const topic: Topic = {
   tags: [],
   proposerUserId: "user-1",
   proposerDisplayName: "Bob",
+  speakerUserIds: [],
+  canManageSpeakers: false,
   canClose: false,
   canReopen: false,
   voteCount: 3,
@@ -88,5 +91,51 @@ describe("EditTopicDialog", () => {
     );
     expect(screen.getByDisplayValue("DDD Workshop")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Deep dive into DDD")).toBeInTheDocument();
+  });
+
+  it("offers no kind field", () => {
+    // when
+    render(
+      <EditTopicDialog
+        slug="backend-guild"
+        topic={topic}
+        isOpen={true}
+        onOpenChange={vi.fn()}
+      />,
+    );
+
+    // then
+    expect(screen.queryByText("Kind")).not.toBeInTheDocument();
+  });
+
+  it("saves without a kind in the request", async () => {
+    // given
+    const mutate = vi.fn();
+    mockUseEdit.mockReturnValue({
+      mutate,
+      isPending: false,
+      isError: false,
+    } as never);
+    render(
+      <EditTopicDialog
+        slug="backend-guild"
+        topic={topic}
+        isOpen={true}
+        onOpenChange={vi.fn()}
+      />,
+    );
+
+    // when
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    // then
+    expect(mutate.mock.calls[0]?.[0]).toEqual({
+      topicId: 7,
+      input: {
+        title: "DDD Workshop",
+        description: "Deep dive into DDD",
+        tags: [],
+      },
+    });
   });
 });

@@ -21,6 +21,8 @@ const topic: Topic = {
   tags: [],
   proposerUserId: "user-1",
   proposerDisplayName: "Carol",
+  speakerUserIds: [],
+  canManageSpeakers: false,
   canClose: false,
   canReopen: false,
   voteCount: 1,

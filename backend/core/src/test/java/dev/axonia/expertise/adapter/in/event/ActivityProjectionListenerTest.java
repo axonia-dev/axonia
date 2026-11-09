@@ -13,7 +13,6 @@ import dev.axonia.events.api.ActionItemClosed;
 import dev.axonia.events.api.ActionItemReopened;
 import dev.axonia.events.api.SlotCleared;
 import dev.axonia.events.api.SlotPresented;
-import dev.axonia.events.api.TopicKind;
 import dev.axonia.events.api.TopicRemoved;
 import dev.axonia.events.api.TopicTagsChanged;
 import dev.axonia.expertise.application.ActivitySignals;
@@ -24,6 +23,7 @@ import dev.axonia.knowledge.api.ArtifactContributed;
 import dev.axonia.knowledge.api.ArtifactWithdrawn;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 
@@ -44,9 +44,9 @@ class ActivityProjectionListenerTest {
     // ── TopicTagsChanged ────────────────────────────────────────────────────
 
     @Test
-    void topicTagsChanged_offerKind_replacesSourceWithOfferedSignals() {
+    void topicWithSpeakers_creditsEverySpeaker() {
 
-        var event = new TopicTagsChanged(10L, 1L, "alice", TopicKind.OFFER, List.of("java", "spring"));
+        var event = new TopicTagsChanged(10L, 1L, List.of("alice", "bob"), List.of("java", "spring"));
 
         listener.on(event);
 
@@ -55,19 +55,18 @@ class ActivityProjectionListenerTest {
         verify(activitySignals).replaceSource(eq(1L), eq(SourceType.TOPIC), eq(10L), captor.capture());
 
         var rows = captor.getValue();
-        assertThat(rows).hasSize(2);
         assertThat(rows).allSatisfy(row -> {
-            assertThat(row.userId()).isEqualTo("alice");
             assertThat(row.signalType()).isEqualTo(SignalType.OFFERED);
             assertThat(row.occurredAt()).isNotNull();
         });
-        assertThat(rows.stream().map(SignalRow::rawTag).toList()).containsExactlyInAnyOrder("java", "spring");
+        assertThat(rows).extracting(SignalRow::userId, SignalRow::rawTag).containsExactlyInAnyOrder(
+                tuple("alice", "java"), tuple("alice", "spring"), tuple("bob", "java"), tuple("bob", "spring"));
     }
 
     @Test
-    void topicTagsChanged_requestKind_deletesSource() {
+    void topicWithoutSpeakers_deletesSource() {
 
-        var event = new TopicTagsChanged(10L, 1L, "alice", TopicKind.REQUEST, List.of("java"));
+        var event = new TopicTagsChanged(10L, 1L, List.of(), List.of("java"));
 
         listener.on(event);
 
@@ -75,9 +74,9 @@ class ActivityProjectionListenerTest {
     }
 
     @Test
-    void topicTagsChanged_offerKindEmptyTags_deletesSource() {
+    void topicWithSpeakersButNoTags_deletesSource() {
 
-        var event = new TopicTagsChanged(10L, 1L, "alice", TopicKind.OFFER, List.of());
+        var event = new TopicTagsChanged(10L, 1L, List.of("alice"), List.of());
 
         listener.on(event);
 

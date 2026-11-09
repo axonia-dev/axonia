@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { httpEventsGateway } from "@/features/events/adapters/http-events-gateway";
+import { topicKeys } from "@/features/events/api/query-keys";
 import {
   usePresentFromBacklog,
   useQueueTopic,
@@ -65,6 +66,26 @@ describe("useQueueTopic", () => {
         { topicId: 99, durationMinutes: 20 },
       ]),
     );
+  });
+});
+
+describe("a refused pull", () => {
+  it("still refreshes the topics, so a topic scheduled meanwhile leaves the picker", async () => {
+    gateway.queueTopic.mockRejectedValue(new Error("NOT_PROPOSED"));
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const invalidate = vi.spyOn(client, "invalidateQueries");
+    const { result } = renderHook(() => useQueueTopic("backend-guild", 9, 3), {
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <QueryClientProvider client={client}>{children}</QueryClientProvider>
+      ),
+    });
+    result.current.mutate({ topicId: 99, durationMinutes: 20 });
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: topicKeys.community("backend-guild"),
+    });
   });
 });
 

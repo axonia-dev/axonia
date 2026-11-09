@@ -74,6 +74,8 @@ class EventsPersonalDataExporterTest extends FootprintTestSupport {
         seedPresenter(NEIGHBOUR, neighbourSlot);
         seedSubscription(TARGET, "target-subscription-hash");
         seedSubscription(NEIGHBOUR, "neighbour-subscription-hash");
+        seedSpeaker(TARGET, proposedByTarget);
+        seedSpeaker(NEIGHBOUR, proposedByTarget);
 
         var fragment = exporter.export(new ExportScope.OneMember(ORG, TARGET));
 
@@ -87,6 +89,7 @@ class EventsPersonalDataExporterTest extends FootprintTestSupport {
         assertThat(onlyRow(fragment, "session_attendance")).containsEntry("user_id", TARGET);
         assertThat(onlyRow(fragment, "event_slot_presenter")).containsEntry("user_id", TARGET);
         assertThat(onlyRow(fragment, "calendar_subscription")).containsEntry("user_id", TARGET);
+        assertThat(onlyRow(fragment, "topic_speaker")).containsEntry("user_id", TARGET);
         assertThat(json(fragment)).doesNotContain(NEIGHBOUR);
     }
 
@@ -102,8 +105,8 @@ class EventsPersonalDataExporterTest extends FootprintTestSupport {
 
         var fragment = exporter.export(new ExportScope.OneMember(ORG, TARGET));
 
-        assertThat(onlyRow(fragment, "topic")).containsOnlyKeys("proposer_user_id", "kind", "title", "description",
-                "status", "created_at", "updated_at", "community");
+        assertThat(onlyRow(fragment, "topic")).containsOnlyKeys("proposer_user_id", "title", "description", "status",
+                "created_at", "updated_at", "community");
         assertThat(onlyRow(fragment, "topic_vote")).containsOnlyKeys("user_id", "created_at", "updated_at", "topic");
         assertThat(onlyRow(fragment, "session_attendance")).containsOnlyKeys("user_id", "created_at", "updated_at",
                 "session", "session_date");
@@ -120,6 +123,7 @@ class EventsPersonalDataExporterTest extends FootprintTestSupport {
                 "checkpoint_session");
         assertThat(onlyRow(fragment, "action_item_checkpoint")).containsOnlyKeys("decided_by_user_id", "outcome",
                 "decided_at", "action_item", "session");
+        assertThat(onlyRow(fragment, "topic_speaker")).containsOnlyKeys("user_id", "topic");
     }
 
     /** Each label carries what the person reading the export actually knows the thing by, not the row it came from. */
@@ -143,6 +147,7 @@ class EventsPersonalDataExporterTest extends FootprintTestSupport {
                 .containsEntry("origin_session", SESSION_TITLE).containsEntry("checkpoint_session", SESSION_TITLE);
         assertThat(onlyRow(fragment, "action_item_checkpoint")).containsEntry("action_item", ACTION_ITEM_TITLE)
                 .containsEntry("session", SESSION_TITLE);
+        assertThat(onlyRow(fragment, "topic_speaker")).containsEntry("topic", TOPIC_TITLE);
     }
 
     /**
@@ -195,6 +200,7 @@ class EventsPersonalDataExporterTest extends FootprintTestSupport {
         assertThat(rowsOf(fragment, "event_slot_presenter")).hasSize(2);
         assertThat(rowsOf(fragment, "calendar_subscription")).hasSize(2);
         assertThat(rowsOf(fragment, "action_item_checkpoint")).hasSize(2);
+        assertThat(rowsOf(fragment, "topic_speaker")).hasSize(2);
         assertThat(json(fragment)).contains(TARGET, NEIGHBOUR);
     }
 
@@ -209,6 +215,13 @@ class EventsPersonalDataExporterTest extends FootprintTestSupport {
         seedPresenter(user, seedSlot(sessionId));
         seedSubscription(user, user + "-subscription-hash");
         seedCheckpoint(actionItemId, sessionId, user);
+        seedSpeaker(user, topicId);
+    }
+
+    private void seedSpeaker(String user, Long topicId) {
+
+        jdbc.update("INSERT INTO topic_speaker (topic_id, user_id) VALUES (:topicId, :user)",
+                Map.of("topicId", topicId, "user", user));
     }
 
     private static Map<String, Object> onlyRow(ExportFragment fragment, String table) {
@@ -288,8 +301,8 @@ class EventsPersonalDataExporterTest extends FootprintTestSupport {
     private Long seedTopic(String title, String proposer) {
 
         return jdbc.queryForObject(
-                "INSERT INTO topic (organization_id, community_id, kind, title, description, proposer_user_id, "
-                        + "status, created_at, updated_at, version) VALUES (:org, :communityId, 'REQUEST', "
+                "INSERT INTO topic (organization_id, community_id, title, description, proposer_user_id, "
+                        + "status, created_at, updated_at, version) VALUES (:org, :communityId, "
                         + ":title, '', :proposer, 'PROPOSED', now(), now(), 0) RETURNING id",
                 Map.of("org", ORG, "communityId", communityId, "title", title, "proposer", proposer), Long.class);
     }

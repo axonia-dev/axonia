@@ -115,8 +115,7 @@ class SessionDeletionServiceTest {
         sut.delete(7L);
 
         // then
-        verify(topicLifecycle).release("default", 99L);
-        verify(topicLifecycle).release("default", null);
+        verify(topicLifecycle).releaseAll("default", List.of(talk, recorded));
         verify(eventPublisher).publishEvent(new SlotCleared(11L, 1L));
         verify(eventPublisher).publishEvent(new SlotCleared(12L, 1L));
     }

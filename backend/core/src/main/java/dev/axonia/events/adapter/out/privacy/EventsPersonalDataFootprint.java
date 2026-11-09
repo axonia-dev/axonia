@@ -53,7 +53,8 @@ public class EventsPersonalDataFootprint implements PersonalDataFootprint {
 
         return List.of(topic(), topicVote(), sessionAttendance(), communitySession(), eventSlotPresenter(),
                 eventSection(), eventSectionType(), eventSeries(), eventSeriesSectionType(), eventSlot(), topicTag(),
-                eventSlotTag(), calendarSubscription(), actionItem(), actionItemTag(), actionItemCheckpoint());
+                eventSlotTag(), topicSpeaker(), calendarSubscription(), actionItem(), actionItemTag(),
+                actionItemCheckpoint());
     }
 
     private TableFootprint topic() {
@@ -61,9 +62,9 @@ public class EventsPersonalDataFootprint implements PersonalDataFootprint {
         return TableFootprint.builder().table("topic").category(DataCategory.WHAT_YOU_CONTRIBUTE)
                 .personal(
                         List.of(new ColumnFootprint("proposer_user_id", Classification.SUBJECT, Disposition.ANONYMISE)))
-                .notPersonal(Set.of("id", "organization_id", "community_id", "kind", "title", "description", "status",
+                .notPersonal(Set.of("id", "organization_id", "community_id", "title", "description", "status",
                         "created_at", "updated_at", "version"))
-                .exportedContext(Set.of("kind", "title", "description", "status", "created_at", "updated_at"))
+                .exportedContext(Set.of("title", "description", "status", "created_at", "updated_at"))
                 .exportedLabels(Set.of("community")).build();
     }
 
@@ -171,6 +172,18 @@ public class EventsPersonalDataFootprint implements PersonalDataFootprint {
 
         return TableFootprint.builder().table("event_slot_tag").category(DataCategory.WHAT_YOU_CONTRIBUTE)
                 .personal(List.of()).notPersonal(Set.of("slot_id", "tag")).build();
+    }
+
+    /**
+     * Only a backlog topic holds speaker rows, and a backlog speaker is a commitment nobody will now honour, so the row
+     * is deleted rather than anonymised. A scheduled or done topic's speakers are its slot's presenters, which keep
+     * {@code event_slot_presenter}'s time split.
+     */
+    private TableFootprint topicSpeaker() {
+
+        return TableFootprint.builder().table("topic_speaker").category(DataCategory.WHAT_YOU_CONTRIBUTE)
+                .personal(List.of(new ColumnFootprint("user_id", Classification.SUBJECT, Disposition.DELETE_ROW)))
+                .notPersonal(Set.of("topic_id")).exportedContext(Set.of()).exportedLabels(Set.of("topic")).build();
     }
 
     /**

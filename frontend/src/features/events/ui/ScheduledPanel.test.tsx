@@ -27,6 +27,8 @@ function scheduled(
     voteCount: 0,
     proposerUserId: "user-alice",
     proposerDisplayName: "Alice Vega",
+    speakerUserIds: ["user-alice"],
+    canManageSpeakers: false,
     scheduledFor: {
       sessionId,
       scheduledAt,
@@ -35,13 +37,17 @@ function scheduled(
   };
 }
 
+const alice = { id: "user-alice", displayName: "Alice Vega" };
+
 function renderPanel(topics: unknown[], props = {}, users = {}) {
   mockUseTopics.mockReturnValue({
     data: { content: topics },
     isLoading: false,
     isError: false,
   } as never);
-  mockUseUsers.mockReturnValue({ data: users } as never);
+  mockUseUsers.mockReturnValue({
+    data: { "user-alice": alice, ...users },
+  } as never);
   return render(
     <MemoryRouter>
       <ScheduledPanel slug="backend-guild" {...props} />
@@ -95,6 +101,7 @@ describe("ScheduledPanel", () => {
           ...scheduled(1, "Fix CI", "2099-06-01T18:00:00Z"),
           proposerUserId: "user-gabe",
           proposerDisplayName: "Gabriel Dinant",
+          speakerUserIds: ["user-gabe"],
         },
         scheduled(2, "Pact intro", "2099-06-01T18:00:00Z", 1),
       ],
@@ -117,12 +124,45 @@ describe("ScheduledPanel", () => {
     ).toHaveTextContent("AV");
   });
 
-  it("reveals an identity hover card for each proposer avatar", () => {
+  it("reveals an identity hover card for each speaker avatar", () => {
     renderPanel([scheduled(1, "Pact intro", "2099-06-01T18:00:00Z")]);
 
     expect(
       within(screen.getByRole("tooltip")).getByText("Alice Vega"),
     ).toBeInTheDocument();
+  });
+
+  it("draws the speakers read-only at the start of the title row", () => {
+    // when
+    renderPanel([scheduled(1, "Pact intro", "2099-06-01T18:00:00Z")]);
+
+    // then
+    const face = screen.getByRole("button", { name: "Alice Vega" });
+    expect(
+      face.compareDocumentPosition(screen.getByText("Pact intro")) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: /^Add speaker/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("credits the creator of an open request in a byline with their face", () => {
+    // when
+    renderPanel([
+      {
+        ...scheduled(1, "Pact intro", "2099-06-01T18:00:00Z"),
+        kind: "REQUEST",
+        speakerUserIds: [],
+      },
+    ]);
+
+    // then
+    const byline = screen.getByText("by").parentElement;
+    expect(byline).toHaveTextContent("byAVAlice Vega");
+    expect(
+      screen.queryByRole("button", { name: "Alice Vega" }),
+    ).not.toBeInTheDocument();
   });
 
   it("renders scheduled actions for each upcoming topic", () => {

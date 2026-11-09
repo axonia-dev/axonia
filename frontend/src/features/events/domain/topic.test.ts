@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { topicSchema } from "@/features/events/domain/topic";
+import { topicPeopleIds, topicSchema } from "@/features/events/domain/topic";
 
 const base = {
   id: 1,
@@ -41,5 +41,26 @@ describe("topicSchema", () => {
       },
     });
     expect(parsed.scheduledFor?.scheduleLabel).toBe("Frontend Dojo");
+  });
+});
+
+describe("topicPeopleIds", () => {
+  it("lists every creator and speaker once, sorted", () => {
+    // given
+    const topics = [
+      topicSchema.parse({ ...base, proposerUserId: "zoe" }),
+      topicSchema.parse({
+        ...base,
+        kind: "OFFER",
+        proposerUserId: "ana",
+        speakerUserIds: ["zoe", "bob"],
+      }),
+    ];
+
+    // when
+    const actual = topicPeopleIds(topics);
+
+    // then
+    expect(actual).toEqual(["ana", "bob", "zoe"]);
   });
 });

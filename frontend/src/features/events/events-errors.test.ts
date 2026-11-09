@@ -32,6 +32,9 @@ describe("eventsErrorMessage", () => {
     expect(
       eventsErrorMessage(new ApiError(409, "x", "OCCURRENCE_IN_PAST")),
     ).toMatch(/in the past/i);
+    expect(eventsErrorMessage(new ApiError(409, "x", "NOT_PROPOSED"))).toBe(
+      "This topic is no longer on the backlog.",
+    );
   });
 
   // The reminder's window. These are the one set of refusals the product

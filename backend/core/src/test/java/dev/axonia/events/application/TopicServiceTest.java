@@ -1,7 +1,9 @@
 package dev.axonia.events.application;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -14,6 +16,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
+import dev.axonia.community.api.MemberMatch;
 import dev.axonia.community.api.TopicManagementPolicy;
 import dev.axonia.events.api.ProposeTopicRequest;
 import dev.axonia.events.api.Topic;
@@ -32,6 +35,7 @@ import dev.axonia.events.domain.TopicCounts;
 import dev.axonia.events.domain.TopicRecord;
 import dev.axonia.events.domain.TopicRecordMother;
 import dev.axonia.events.domain.TopicSchedule;
+import dev.axonia.events.domain.TopicSpeaker;
 import dev.axonia.events.domain.TopicTag;
 import dev.axonia.events.domain.TopicVoteRecord;
 import dev.axonia.shared.api.error.ConflictException;
@@ -93,7 +97,8 @@ class TopicServiceTest {
                 currentUser, topicStore);
         var topicMemberResolver = new TopicMemberResolver(communityAccess);
         sut = new TopicService(topicStore, topicVoteStore, topicAuthorizer, slotService, communityAccess, currentUser,
-                organizationContext, eventPublisher, topicReadModel, topicMemberResolver);
+                organizationContext, eventPublisher, new TopicEvidence(eventPublisher), topicReadModel,
+                topicMemberResolver);
     }
 
     @BeforeEach
@@ -116,6 +121,8 @@ class TopicServiceTest {
                 .thenReturn(TopicManagementPolicy.ORGANIZER_ONLY);
         lenient().when(communityAccess.isOrganizer(anyLong(), any())).thenReturn(false);
         lenient().when(communityAccess.isMember(anyLong(), any())).thenReturn(true);
+        lenient().when(topicAuthorizer.speakerRightsIn(anyLong(), any()))
+                .thenReturn(new TopicAuthorizer.SpeakerRights(true, false));
     }
 
     @Test
@@ -203,7 +210,7 @@ class TopicServiceTest {
         lenient().when(topicVoteStore.countByOrganizationIdAndTopicId("default", 1L)).thenReturn(0L);
 
         // when - no exception expected since authorizer mock is a no-op by default
-        sut.update(1L, new UpdateTopicRequest(TopicKind.REQUEST, "New title", "desc", null));
+        sut.update(1L, new UpdateTopicRequest("New title", "desc", null));
 
         // then - verify authorizer was called with the entity's communityId, not the entity itself
         verify(topicAuthorizer).requireTopicManagementPermission(entity.getCommunityId(), "alice");
@@ -389,11 +396,11 @@ class TopicServiceTest {
         when(topicStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         // when
-        var actual = sut.update(1L, new UpdateTopicRequest(TopicKind.OFFER, "Renamed", "desc", null));
+        var actual = sut.update(1L, new UpdateTopicRequest("Renamed", "desc", null));
 
         // then
         assertThat(actual.title()).isEqualTo("Renamed");
-        assertThat(actual.kind()).isEqualTo(TopicKind.OFFER);
+        assertThat(actual.kind()).isEqualTo(TopicKind.REQUEST);
     }
 
     @Test
@@ -406,7 +413,7 @@ class TopicServiceTest {
                 .requireTopicManagementPermission(entity.getCommunityId(), "alice");
 
         // when / then
-        assertThatThrownBy(() -> sut.update(1L, new UpdateTopicRequest(TopicKind.OFFER, "X", "y", null)))
+        assertThatThrownBy(() -> sut.update(1L, new UpdateTopicRequest("X", "y", null)))
                 .isInstanceOf(ForbiddenException.class);
         verify(topicStore, never()).save(any());
     }
@@ -576,7 +583,7 @@ class TopicServiceTest {
         when(topicStore.findByOrganizationIdAndId("default", 1L)).thenReturn(Optional.of(entity));
         ArgumentCaptor<TopicRecord> captor = ArgumentCaptor.forClass(TopicRecord.class);
         when(topicStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
-        var request = new UpdateTopicRequest(TopicKind.OFFER, "New title", "desc", List.of(" Spring Boot ", "spring"));
+        var request = new UpdateTopicRequest("New title", "desc", List.of(" Spring Boot ", "spring"));
 
         // when
         sut.update(1L, request);
@@ -616,14 +623,13 @@ class TopicServiceTest {
         // when
         sut.propose("backend-guild", request);
 
-        // then - publisher called with TopicTagsChanged carrying id, communityId, proposer, kind, and cleaned tags
+        // then - publisher called with TopicTagsChanged carrying id, communityId, speakers, and cleaned tags
         ArgumentCaptor<TopicTagsChanged> captor = ArgumentCaptor.forClass(TopicTagsChanged.class);
         verify(eventPublisher).publishEvent(captor.capture());
         var event = captor.getValue();
         assertThat(event.topicId()).isEqualTo(42L);
         assertThat(event.communityId()).isEqualTo(1L);
-        assertThat(event.proposerUserId()).isEqualTo("alice");
-        assertThat(event.kind()).isEqualTo(TopicKind.OFFER);
+        assertThat(event.speakerUserIds()).containsExactly("alice");
         assertThat(event.tags()).containsExactly("ddd");
     }
 
@@ -631,22 +637,21 @@ class TopicServiceTest {
     void edit_publishesTopicTagsChanged() {
 
         // given
-        var entity = TopicRecordMother.any().id(7L).proposerUserId("bob").kind(TopicKind.REQUEST).build();
+        var entity = TopicRecordMother.any().id(7L).proposerUserId("bob").build();
         when(topicStore.findByOrganizationIdAndId("default", 7L)).thenReturn(Optional.of(entity));
         when(topicStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
-        var request = new UpdateTopicRequest(TopicKind.REQUEST, "Refined title", "desc", List.of("spring", "boot"));
+        var request = new UpdateTopicRequest("Refined title", "desc", List.of("spring", "boot"));
 
         // when
         sut.update(7L, request);
 
-        // then - publisher called with updated tags and kind
+        // then - publisher called with updated tags and the unchanged, empty speakers
         ArgumentCaptor<TopicTagsChanged> captor = ArgumentCaptor.forClass(TopicTagsChanged.class);
         verify(eventPublisher).publishEvent(captor.capture());
         var event = captor.getValue();
         assertThat(event.topicId()).isEqualTo(7L);
         assertThat(event.communityId()).isEqualTo(1L);
-        assertThat(event.proposerUserId()).isEqualTo("bob");
-        assertThat(event.kind()).isEqualTo(TopicKind.REQUEST);
+        assertThat(event.speakerUserIds()).isEmpty();
         assertThat(event.tags()).containsExactlyInAnyOrder("spring", "boot");
     }
 
@@ -717,5 +722,358 @@ class TopicServiceTest {
 
         // then
         assertThat(actual).isEqualTo(TopicCounts.builder().proposed(3).scheduled(1).done(7).build());
+    }
+
+    // ---- speakers ----
+
+    @Test
+    void propose_offerSeedsCreatorAsSpeaker() {
+
+        // given an organizer proposing an offer in another member's name
+        when(communityAccess.isOrganizer(1L, "alice")).thenReturn(true);
+        when(communityAccess.resolvePerson(1L, "Bob")).thenReturn(new MemberMatch.Matched("bob"));
+        when(topicStore.save(any())).thenAnswer(inv -> ((TopicRecord) inv.getArgument(0)).toBuilder().id(4L).build());
+
+        // when
+        var actual = sut.propose("backend-guild", new ProposeTopicRequest(TopicKind.OFFER, "T", "d", null, "Bob"));
+
+        // then
+        var captor = ArgumentCaptor.forClass(TopicRecord.class);
+        verify(topicStore).save(captor.capture());
+        assertThat(captor.getValue().getProposerUserId()).isEqualTo("bob");
+        assertThat(captor.getValue().getSpeakers()).extracting(TopicSpeaker::getUserId).containsExactly("bob");
+        assertThat(actual.kind()).isEqualTo(TopicKind.OFFER);
+        assertThat(actual.speakerUserIds()).containsExactly("bob");
+    }
+
+    @Test
+    void propose_requestHasNoSpeakers() {
+
+        // given
+        when(topicStore.save(any())).thenAnswer(inv -> ((TopicRecord) inv.getArgument(0)).toBuilder().id(4L).build());
+
+        // when
+        var actual = sut.propose("backend-guild", new ProposeTopicRequest(TopicKind.REQUEST, "T", "d", null, null));
+
+        // then
+        var captor = ArgumentCaptor.forClass(TopicRecord.class);
+        verify(topicStore).save(captor.capture());
+        assertThat(captor.getValue().getSpeakers()).isEmpty();
+        assertThat(actual.kind()).isEqualTo(TopicKind.REQUEST);
+        assertThat(actual.speakerUserIds()).isEmpty();
+    }
+
+    @Test
+    void update_neverChangesSpeakersOrKind() {
+
+        // given an offer whose speaker is bob
+        var offer = TopicRecordMother.any().id(1L).speakers(Set.of(TopicSpeaker.builder().userId("bob").build()))
+                .build();
+        when(topicStore.findByOrganizationIdAndId("default", 1L)).thenReturn(Optional.of(offer));
+        when(topicStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // when
+        var actual = sut.update(1L, new UpdateTopicRequest("Renamed", "desc", List.of("kafka")));
+
+        // then
+        var captor = ArgumentCaptor.forClass(TopicRecord.class);
+        verify(topicStore).save(captor.capture());
+        assertThat(captor.getValue().getSpeakers()).extracting(TopicSpeaker::getUserId).containsExactly("bob");
+        assertThat(actual.kind()).isEqualTo(TopicKind.OFFER);
+        var event = ArgumentCaptor.forClass(TopicTagsChanged.class);
+        verify(eventPublisher).publishEvent(event.capture());
+        assertThat(event.getValue().speakerUserIds()).containsExactly("bob");
+    }
+
+    @Test
+    void get_exposesSpeakersAndWhetherTheCallerManagesThem() {
+
+        // given alice, a plain member, is a speaker of the topic
+        var topic = TopicRecordMother.any().id(1L).proposerUserId("carol").build().withSpeakers(List.of("alice"));
+        when(topicStore.findByOrganizationIdAndId("default", 1L)).thenReturn(Optional.of(topic));
+        when(topicAuthorizer.canManageSpeakers(topic, List.of("alice"), "alice")).thenReturn(true);
+
+        // when
+        var actual = sut.get(1L);
+
+        // then
+        assertThat(actual.speakerUserIds()).containsExactly("alice");
+        assertThat(actual.kind()).isEqualTo(TopicKind.OFFER);
+        assertThat(actual.canManageSpeakers()).isTrue();
+    }
+
+    @Test
+    void list_resolvesSpeakerRightsOncePerCommunity() {
+
+        // given two topics of one community, alice speaking on the first only
+        var spoken = TopicRecordMother.any().id(1L).proposerUserId("carol").build().withSpeakers(List.of("alice"));
+        var other = TopicRecordMother.any().id(2L).proposerUserId("carol").build();
+        var pageable = PageRequest.of(0, 20);
+        when(topicStore.findFiltered(eq("default"), eq(1L), any(), eq(pageable)))
+                .thenReturn(new PageImpl<>(List.of(spoken, other), pageable, 2));
+        when(topicAuthorizer.speakerRightsIn(1L, "alice")).thenReturn(new TopicAuthorizer.SpeakerRights(true, false));
+
+        // when
+        var actual = sut.list("backend-guild", TopicQuery.builder().build(), pageable);
+
+        // then
+        assertThat(actual.getContent()).extracting(Topic::canManageSpeakers).containsExactly(true, false);
+        assertThat(actual.getContent()).extracting(Topic::kind).containsExactly(TopicKind.OFFER, TopicKind.REQUEST);
+        verify(topicAuthorizer, times(1)).speakerRightsIn(1L, "alice");
+    }
+
+    @Test
+    void list_readsBacklogSpeakersFromTheTopicAndAsksTheStoreOnlyForScheduledOnes() {
+
+        // given a backlog offer and a scheduled topic presented by dave on its slot
+        var backlog = TopicRecordMother.any().id(1L).build().withSpeakers(List.of("alice"));
+        var scheduled = TopicRecordMother.any().id(2L).status(TopicStatus.SCHEDULED).build();
+        var pageable = PageRequest.of(0, 20);
+        when(topicStore.findFiltered(eq("default"), eq(1L), any(), eq(pageable)))
+                .thenReturn(new PageImpl<>(List.of(backlog, scheduled), pageable, 2));
+        when(topicStore.findSpeakers("default", List.of(2L))).thenReturn(Map.of(2L, List.of("dave")));
+
+        // when
+        var actual = sut.list("backend-guild", TopicQuery.builder().build(), pageable);
+
+        // then
+        assertThat(actual.getContent()).extracting(Topic::speakerUserIds).containsExactly(List.of("alice"),
+                List.of("dave"));
+        assertThat(actual.getContent()).extracting(Topic::canManageSpeakers).containsExactly(true, false);
+    }
+
+    // ---- speaker writes ----
+
+    private TopicRecord backlogTopic(String creator, String... speakers) {
+
+        var topic = TopicRecordMother.any().id(1L).proposerUserId(creator).speakers(java.util.Arrays.stream(speakers)
+                .map(u -> TopicSpeaker.builder().userId(u).build()).collect(java.util.stream.Collectors.toSet()))
+                .build();
+        when(topicStore.findForUpdate("default", 1L)).thenReturn(Optional.of(topic));
+        return topic;
+    }
+
+    private TopicRecord savedTopic() {
+
+        var captor = ArgumentCaptor.forClass(TopicRecord.class);
+        verify(topicStore).save(captor.capture());
+        return captor.getValue();
+    }
+
+    private List<String> publishedSpeakers() {
+
+        var captor = ArgumentCaptor.forClass(TopicTagsChanged.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        return captor.getValue().speakerUserIds();
+    }
+
+    @Test
+    void addSelf_turnsRequestIntoOffer() {
+
+        // given a request carol asked for
+        backlogTopic("carol");
+        when(topicStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // when
+        sut.addSelfAsSpeaker(1L);
+
+        // then
+        var saved = savedTopic();
+        assertThat(saved.getSpeakers()).extracting(TopicSpeaker::getUserId).containsExactly("alice");
+        assertThat(saved.getProposerUserId()).isEqualTo("carol");
+        assertThat(publishedSpeakers()).containsExactly("alice");
+    }
+
+    @Test
+    void addSelf_whenAlreadySpeaker_isNoOp() {
+
+        // given
+        backlogTopic("carol", "alice");
+
+        // when
+        var actual = sut.addSelfAsSpeaker(1L);
+
+        // then
+        assertThat(actual.id()).isEqualTo(1L);
+        verify(topicStore, never()).save(any());
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    void addSelf_byNonMember_forbidden() {
+
+        // given
+        backlogTopic("carol");
+        when(communityAccess.isMember(1L, "alice")).thenReturn(false);
+
+        // when / then
+        assertThatThrownBy(() -> sut.addSelfAsSpeaker(1L)).isInstanceOf(ForbiddenException.class);
+        verify(topicStore, never()).save(any());
+    }
+
+    @Test
+    void removeLastSpeaker_turnsOfferIntoRequestCreditedToCreator() {
+
+        // given alice's own offer, alice its only speaker
+        backlogTopic("alice", "alice");
+        when(topicStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // when
+        sut.removeSelfAsSpeaker(1L);
+
+        // then
+        var saved = savedTopic();
+        assertThat(saved.getSpeakers()).isEmpty();
+        assertThat(saved.getProposerUserId()).isEqualTo("alice");
+        assertThat(publishedSpeakers()).isEmpty();
+    }
+
+    @Test
+    void removeSelf_whenNotASpeaker_isNoOp() {
+
+        // given
+        backlogTopic("carol", "bob");
+
+        // when
+        sut.removeSelfAsSpeaker(1L);
+
+        // then
+        verify(topicStore, never()).save(any());
+    }
+
+    @Test
+    void speakerWrite_onScheduledTopic_conflictsNotProposed() {
+
+        // given
+        when(topicStore.findForUpdate("default", 1L))
+                .thenReturn(Optional.of(TopicRecordMother.any().id(1L).status(TopicStatus.SCHEDULED).build()));
+
+        // when / then
+        for (org.assertj.core.api.ThrowableAssert.ThrowingCallable write : List.<org.assertj.core.api.ThrowableAssert.ThrowingCallable>of(
+                () -> sut.addSelfAsSpeaker(1L), () -> sut.removeSelfAsSpeaker(1L), () -> sut.addSpeaker(1L, "Bob"),
+                () -> sut.removeSpeaker(1L, "bob"))) {
+            assertThatThrownBy(write).isInstanceOf(ConflictException.class).extracting("code")
+                    .isEqualTo("NOT_PROPOSED");
+        }
+        verify(topicStore, never()).save(any());
+    }
+
+    @Test
+    void speakerWrite_onMissingTopic_notFound() {
+
+        // given
+        when(topicStore.findForUpdate("default", 1L)).thenReturn(Optional.empty());
+
+        // when / then
+        assertThatThrownBy(() -> sut.addSelfAsSpeaker(1L)).isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void addOther_byPlainMember_forbidden() {
+
+        // given
+        var topic = backlogTopic("carol");
+        doThrow(new ForbiddenException("no")).when(topicAuthorizer).requireSpeakerManager(topic, "alice");
+
+        // when / then
+        assertThatThrownBy(() -> sut.addSpeaker(1L, "Bob")).isInstanceOf(ForbiddenException.class);
+        verify(communityAccess, never()).resolvePerson(anyLong(), any());
+    }
+
+    @Test
+    void addOther_byOrganizer_assigns() {
+
+        // given
+        backlogTopic("carol");
+        when(communityAccess.resolvePerson(1L, "Bob")).thenReturn(new MemberMatch.Matched("bob"));
+        when(topicStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // when
+        var actual = sut.addSpeaker(1L, "  Bob ");
+
+        // then
+        assertThat(actual.assigned()).isTrue();
+        assertThat(actual.reason()).isNull();
+        assertThat(savedTopic().getSpeakers()).extracting(TopicSpeaker::getUserId).containsExactly("bob");
+        assertThat(publishedSpeakers()).containsExactly("bob");
+    }
+
+    @Test
+    void addOther_whenAlreadySpeaker_isNoOp() {
+
+        // given
+        backlogTopic("carol", "bob");
+        when(communityAccess.resolvePerson(1L, "Bob")).thenReturn(new MemberMatch.Matched("bob"));
+
+        // when
+        var actual = sut.addSpeaker(1L, "Bob");
+
+        // then
+        assertThat(actual.assigned()).isTrue();
+        verify(topicStore, never()).save(any());
+    }
+
+    @Test
+    void addOther_ambiguous_reportsWithoutAssigning() {
+
+        // given
+        backlogTopic("carol");
+        when(communityAccess.resolvePerson(1L, "Sam")).thenReturn(new MemberMatch.Ambiguous(3));
+
+        // when
+        var actual = sut.addSpeaker(1L, "Sam");
+
+        // then
+        assertThat(actual.assigned()).isFalse();
+        assertThat(actual.reason()).isEqualTo(dev.axonia.events.api.SpeakerAssignment.AMBIGUOUS);
+        assertThat(actual.candidates()).isEqualTo(3);
+        assertThat(actual.topic().id()).isEqualTo(1L);
+        verify(topicStore, never()).save(any());
+    }
+
+    @Test
+    void addOther_notFound_reportsWithoutAssigning() {
+
+        // given
+        backlogTopic("carol");
+        when(communityAccess.resolvePerson(1L, "Nobody")).thenReturn(new MemberMatch.NotFound());
+
+        // when
+        var actual = sut.addSpeaker(1L, "Nobody");
+
+        // then
+        assertThat(actual.assigned()).isFalse();
+        assertThat(actual.reason()).isEqualTo(dev.axonia.events.api.SpeakerAssignment.NOT_FOUND);
+        assertThat(actual.candidates()).isZero();
+        verify(topicStore, never()).save(any());
+    }
+
+    @Test
+    void removeOther_byManager_removes() {
+
+        // given
+        backlogTopic("carol", "bob", "dave");
+        when(topicStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // when
+        sut.removeSpeaker(1L, "bob");
+
+        // then
+        verify(topicAuthorizer).requireSpeakerManager(any(), eq("alice"));
+        assertThat(savedTopic().getSpeakers()).extracting(TopicSpeaker::getUserId).containsExactly("dave");
+        assertThat(publishedSpeakers()).containsExactly("dave");
+    }
+
+    @Test
+    void removeOther_whenNotASpeaker_isNoOp() {
+
+        // given
+        backlogTopic("carol", "dave");
+
+        // when
+        sut.removeSpeaker(1L, "bob");
+
+        // then
+        verify(topicStore, never()).save(any());
     }
 }

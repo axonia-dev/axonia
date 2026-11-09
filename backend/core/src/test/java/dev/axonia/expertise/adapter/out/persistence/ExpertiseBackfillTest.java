@@ -1,6 +1,8 @@
 package dev.axonia.expertise.adapter.out.persistence;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -10,8 +12,8 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 import dev.axonia.events.adapter.out.persistence.TopicEntityMother;
 import dev.axonia.events.adapter.out.persistence.TopicRepository;
+import dev.axonia.events.adapter.out.persistence.TopicSpeakerRef;
 import dev.axonia.events.adapter.out.persistence.TopicTagRef;
-import dev.axonia.events.api.TopicKind;
 import dev.axonia.knowledge.adapter.out.persistence.ArtifactEntityMother;
 import dev.axonia.knowledge.adapter.out.persistence.ArtifactRepository;
 import dev.axonia.knowledge.adapter.out.persistence.ArtifactTagRef;
@@ -24,7 +26,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>
  * Because Flyway runs V11 at container start (before tests seed data), this test reproduces the backfill logic as raw
  * SQL against data it seeds itself. This lets us confirm the normalisation expression and join paths produce the
- * expected rows.
+ * expected rows. V11 selected offers by {@code topic.kind}; V128 replaced that column with {@code topic_speaker}, so
+ * the reproduction selects them by having a speaker, the meaning the column carried.
  *
  * <p>
  * The connection runs as the Testcontainers superuser (table owner), which bypasses RLS - no {@code app.current_org}
@@ -58,8 +61,9 @@ class ExpertiseBackfillTest extends ExpertiseJdbcTestSupport {
     void offeredTopicBackfill_producesOneSignalPerTag() {
 
         // given - OFFER topic with tag "Kafka"
-        var topic = topicRepository.save(TopicEntityMother.any().kind(TopicKind.OFFER).proposerUserId("alice")
-                .tags(java.util.Set.of(TopicTagRef.builder().tag("Kafka").build())).build());
+        var topic = topicRepository.save(TopicEntityMother.any().proposerUserId("alice")
+                .speakers(Set.of(TopicSpeakerRef.builder().userId("alice").build()))
+                .tags(Set.of(TopicTagRef.builder().tag("Kafka").build())).build());
 
         // when - run the OFFERED backfill logic
         jdbc.update("""
@@ -74,7 +78,7 @@ class ExpertiseBackfillTest extends ExpertiseJdbcTestSupport {
                        'OFFERED', 'TOPIC', t.id, t.created_at
                 FROM topic t
                 JOIN topic_tag tt ON tt.topic_id = t.id
-                WHERE t.kind = 'OFFER'
+                WHERE EXISTS (SELECT 1 FROM topic_speaker ts WHERE ts.topic_id = t.id)
                   AND t.id = :topicId
                   AND trim(both '-' from regexp_replace(
                         lower(translate(tt.tag,
@@ -99,8 +103,8 @@ class ExpertiseBackfillTest extends ExpertiseJdbcTestSupport {
     void presentedSlotBackfill_producesOneSignalPerPresenterPerTag() {
 
         // given - OFFER topic with tag "spring-boot", a slot linked to it, and a presenter
-        var topic = topicRepository.save(TopicEntityMother.any().kind(TopicKind.OFFER).proposerUserId("bob")
-                .tags(java.util.Set.of(TopicTagRef.builder().tag("spring-boot").build())).build());
+        var topic = topicRepository.save(TopicEntityMother.any().proposerUserId("bob")
+                .tags(Set.of(TopicTagRef.builder().tag("spring-boot").build())).build());
 
         // Seed the minimal session/section hierarchy and a slot linked to the topic.
         var slotId = seedSlotWithTopic(topic.getId());
@@ -149,7 +153,7 @@ class ExpertiseBackfillTest extends ExpertiseJdbcTestSupport {
 
         // given - active artifact with tag "resilience"
         var artifact = artifactRepository.save(ArtifactEntityMother.any().contributorUserId("diana").status("ACTIVE")
-                .tags(java.util.Set.of(ArtifactTagRef.builder().tag("resilience").build())).build());
+                .tags(Set.of(ArtifactTagRef.builder().tag("resilience").build())).build());
 
         // when
         jdbc.update("""
@@ -188,8 +192,8 @@ class ExpertiseBackfillTest extends ExpertiseJdbcTestSupport {
     void normalisationLowercasesAndStripsHyphens() {
 
         // given - tag with uppercase and spaces
-        var topic = topicRepository.save(TopicEntityMother.any().kind(TopicKind.OFFER).proposerUserId("eve")
-                .tags(java.util.Set.of(TopicTagRef.builder().tag("Apache Kafka").build())).build());
+        var topic = topicRepository.save(TopicEntityMother.any().proposerUserId("eve")
+                .tags(Set.of(TopicTagRef.builder().tag("Apache Kafka").build())).build());
 
         // when
         jdbc.update("""
@@ -224,7 +228,7 @@ class ExpertiseBackfillTest extends ExpertiseJdbcTestSupport {
 
         // given
         var artifact = artifactRepository.save(ArtifactEntityMother.any().contributorUserId("frank").status("ARCHIVED")
-                .tags(java.util.Set.of(ArtifactTagRef.builder().tag("java").build())).build());
+                .tags(Set.of(ArtifactTagRef.builder().tag("java").build())).build());
 
         // when - run contributed backfill (includes WHERE status = 'ACTIVE')
         jdbc.update("""
@@ -257,10 +261,10 @@ class ExpertiseBackfillTest extends ExpertiseJdbcTestSupport {
     void requestTopicIsNotBackfilled() {
 
         // given - REQUEST topic (not OFFER)
-        var topic = topicRepository.save(TopicEntityMother.any().kind(TopicKind.REQUEST)
-                .tags(java.util.Set.of(TopicTagRef.builder().tag("go").build())).build());
+        var topic = topicRepository
+                .save(TopicEntityMother.any().tags(Set.of(TopicTagRef.builder().tag("go").build())).build());
 
-        // when - run OFFERED backfill (WHERE kind='OFFER')
+        // when - run OFFERED backfill (offers only)
         jdbc.update("""
                 INSERT INTO expertise_signal
                     (organization_id, community_id, user_id, tag, signal_type, source_type, source_id, occurred_at)
@@ -273,7 +277,7 @@ class ExpertiseBackfillTest extends ExpertiseJdbcTestSupport {
                        'OFFERED', 'TOPIC', t.id, t.created_at
                 FROM topic t
                 JOIN topic_tag tt ON tt.topic_id = t.id
-                WHERE t.kind = 'OFFER'
+                WHERE EXISTS (SELECT 1 FROM topic_speaker ts WHERE ts.topic_id = t.id)
                   AND t.id = :topicId
                   AND trim(both '-' from regexp_replace(
                         lower(translate(tt.tag,
@@ -291,7 +295,7 @@ class ExpertiseBackfillTest extends ExpertiseJdbcTestSupport {
     // helpers
     // -----------------------------------------------------------------------
 
-    private List<java.util.Map<String, Object>> signalsForSource(String sourceType, Long sourceId) {
+    private List<Map<String, Object>> signalsForSource(String sourceType, Long sourceId) {
 
         return jdbc.queryForList(
                 "SELECT * FROM expertise_signal WHERE source_type = :sourceType AND source_id = :sourceId",

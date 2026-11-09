@@ -20,7 +20,6 @@ export function EditTopicDialog({
       <ProposeTopicForm
         slug={slug}
         topicId={topic.id}
-        initialKind={topic.kind}
         initialTitle={topic.title}
         initialDescription={topic.description}
         initialTags={topic.tags}

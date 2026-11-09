@@ -2,6 +2,7 @@ package dev.axonia.events.adapter.out.persistence;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -29,8 +30,9 @@ import static org.mockito.Mockito.when;
 class JdbcTopicStoreTest {
 
     private static final TopicEntity STORED = TopicEntity.builder().id(9L).organizationId("default").communityId(1L)
-            .kind(TopicKind.OFFER).title("Records").description("Java records").proposerUserId("alice")
-            .status(TopicStatus.SCHEDULED).tags(Set.of(TopicTagRef.builder().tag("java").build()))
+            .title("Records").description("Java records").proposerUserId("alice").status(TopicStatus.SCHEDULED)
+            .tags(Set.of(TopicTagRef.builder().tag("java").build()))
+            .speakers(Set.of(TopicSpeakerRef.builder().userId("bob").build()))
             .createdAt(Instant.parse("2026-06-01T00:00:00Z")).updatedAt(Instant.parse("2026-06-02T00:00:00Z"))
             .version(3L).build();
 
@@ -60,21 +62,25 @@ class JdbcTopicStoreTest {
         var schedule = new TopicSchedule(9L, 7L, 11L, 21L, Instant.parse("2026-06-03T10:00:00Z"), "Dojo");
         var counts = new TopicCounts(1, 2, 3);
         when(topicRepository.findByOrganizationIdAndId("default", 9L)).thenReturn(Optional.of(STORED));
+        when(topicRepository.findLockedByOrganizationIdAndId("default", 9L)).thenReturn(Optional.of(STORED));
         when(topicRepository.findFiltered("default", 1L, filter, pageable))
                 .thenReturn(new PageImpl<>(List.of(STORED), pageable, 1));
         when(topicRepository.findPast("default", 1L, "rec", pageable))
                 .thenReturn(new PageImpl<>(List.of(STORED), pageable, 1));
         when(topicRepository.findSchedules("default", List.of(9L))).thenReturn(List.of(schedule));
         when(topicRepository.countByLifecycle("default", 1L)).thenReturn(counts);
+        when(topicRepository.findSpeakers("default", List.of(9L))).thenReturn(Map.of(9L, List.of("bob")));
 
         // then
         assertThat(sut.findByOrganizationIdAndId("default", 9L)).get().usingRecursiveComparison().isEqualTo(STORED);
+        assertThat(sut.findForUpdate("default", 9L)).get().usingRecursiveComparison().isEqualTo(STORED);
         assertThat(sut.findFiltered("default", 1L, filter, pageable).getContent()).extracting(TopicRecord::getId)
                 .containsExactly(9L);
         assertThat(sut.findPast("default", 1L, "rec", pageable).getContent()).extracting(TopicRecord::getId)
                 .containsExactly(9L);
         assertThat(sut.findSchedules("default", List.of(9L))).containsExactly(schedule);
         assertThat(sut.countByLifecycle("default", 1L)).isEqualTo(counts);
+        assertThat(sut.findSpeakers("default", List.of(9L))).containsExactly(Map.entry(9L, List.of("bob")));
     }
 
     @Test

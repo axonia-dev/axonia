@@ -134,12 +134,9 @@ describe("useEditTopic", () => {
     const { result } = renderHook(() => useEditTopic("backend-guild"), {
       wrapper,
     });
-    result.current.mutate({ topicId: 3, input: { kind: "OFFER", title: "Y" } });
+    result.current.mutate({ topicId: 3, input: { title: "Y" } });
     await waitFor(() =>
-      expect(gateway.editTopic.mock.calls[0]).toEqual([
-        3,
-        { kind: "OFFER", title: "Y" },
-      ]),
+      expect(gateway.editTopic.mock.calls[0]).toEqual([3, { title: "Y" }]),
     );
   });
 });
@@ -171,6 +168,8 @@ describe("optimistic vote cache", () => {
     tags: [],
     proposerUserId: "user-1",
     proposerDisplayName: "Alice",
+    speakerUserIds: [],
+    canManageSpeakers: false,
     canClose: false,
     canReopen: false,
     voteCount: 2,

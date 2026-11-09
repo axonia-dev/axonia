@@ -34,6 +34,7 @@ import dev.axonia.events.api.SectionTemplate;
 import dev.axonia.events.api.SessionRescheduleZoneTest;
 import dev.axonia.events.api.SessionStatus;
 import dev.axonia.events.api.TopicStatus;
+import dev.axonia.events.api.TopicTagsChanged;
 import dev.axonia.events.application.port.out.ActionItemStore;
 import dev.axonia.events.application.port.out.AttendanceStore;
 import dev.axonia.events.application.port.out.CommunityAccess;
@@ -58,6 +59,7 @@ import dev.axonia.events.domain.SessionCancelled;
 import dev.axonia.events.domain.SessionRecord;
 import dev.axonia.events.domain.SessionRecordMother;
 import dev.axonia.events.domain.SessionRescheduled;
+import dev.axonia.events.domain.SlotPresenter;
 import dev.axonia.events.domain.SlotRecord;
 import dev.axonia.events.domain.TopicRecord;
 import dev.axonia.events.domain.TopicRecordMother;
@@ -144,10 +146,12 @@ class SessionServiceTest {
         var upcomingReleasePolicy = new UpcomingReleasePolicy(communityAccess, clock);
         var sectionTypeCatalog = new SectionTypeCatalog(sectionTypeStore);
         var facilitatorResolver = new FacilitatorResolver(communityAccess);
-        sut = new SessionService(sessionStore, seriesStore, topicStore, actionItemStore, checkpointDecisionPass, mapper,
-                sessionListing, new SessionCreation(upcomingReleasePolicy), sessionAuthorizer, communityAccess,
-                currentUser, organizationContext, eventPublisher, clock, upcomingReleasePolicy,
-                new SessionInstant(seriesStore), usageCounters, sectionTypeCatalog, facilitatorResolver,
+        sut = new SessionService(sessionStore, seriesStore, topicStore,
+                new TopicLifecycle(topicStore, new TopicEvidence(eventPublisher), (org, ids) -> Set.copyOf(ids)),
+                actionItemStore, checkpointDecisionPass, mapper, sessionListing,
+                new SessionCreation(upcomingReleasePolicy), sessionAuthorizer, communityAccess, currentUser,
+                organizationContext, eventPublisher, clock, upcomingReleasePolicy, new SessionInstant(seriesStore),
+                usageCounters, sectionTypeCatalog, facilitatorResolver,
                 new WrapUpReleasePolicy(communityAccess, () -> WRAP_UP_WINDOW));
     }
 
@@ -1435,11 +1439,37 @@ class SessionServiceTest {
         when(currentUser.userId()).thenReturn("alice");
         when(topicStore.findByOrganizationIdAndId("default", 99L)).thenReturn(Optional.of(TopicRecord.builder().id(99L)
                 .organizationId("default").communityId(1L).status(TopicStatus.SCHEDULED).build()));
+        when(topicStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(sessionStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         sut.cancel(7L);
 
         verify(topicStore).save(argThat(t -> t.getStatus() == TopicStatus.PROPOSED));
+    }
+
+    @Test
+    void cancelSession_topicsReturnWithSlotPresenters() {
+
+        var slot = SlotRecord.builder().id(11L).topicId(99L).presenters(
+                Set.of(SlotPresenter.builder().userId("bob").build(), SlotPresenter.builder().userId("carol").build()))
+                .build();
+        var section = SectionRecord.builder().id(21L).sectionTypeId(1L).slots(new ArrayList<>(List.of(slot))).build();
+        var entity = SessionRecordMother.any().id(7L).communityId(1L).sections(new ArrayList<>(List.of(section)))
+                .build();
+        when(organizationContext.organizationId()).thenReturn("default");
+        when(sessionStore.findByOrganizationIdAndId("default", 7L)).thenReturn(Optional.of(entity));
+        when(currentUser.userId()).thenReturn("alice");
+        when(topicStore.findByOrganizationIdAndId("default", 99L)).thenReturn(Optional.of(TopicRecord.builder().id(99L)
+                .organizationId("default").communityId(1L).status(TopicStatus.SCHEDULED).build()));
+        when(topicStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(sessionStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        sut.cancel(7L);
+
+        verify(topicStore).save(argThat(
+                t -> t.getStatus() == TopicStatus.PROPOSED && t.speakerUserIds().equals(List.of("bob", "carol"))));
+        verify(eventPublisher).publishEvent(argThat((Object e) -> e instanceof TopicTagsChanged changed
+                && changed.topicId().equals(99L) && changed.speakerUserIds().equals(List.of("bob", "carol"))));
     }
 
     @Test
@@ -1678,6 +1708,7 @@ class SessionServiceTest {
         when(topicStore.findByOrganizationIdAndId("default", 99L)).thenReturn(Optional.of(TopicRecord.builder().id(99L)
                 .organizationId("default").communityId(7L).status(TopicStatus.SCHEDULED).build()));
         when(sessionStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(topicStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
         stubNoReleaseActivity(42L, 7L);
 
         sut.close(42L, new CloseSessionRequest(false, null));

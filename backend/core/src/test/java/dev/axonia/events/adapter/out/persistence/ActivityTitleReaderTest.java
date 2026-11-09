@@ -125,8 +125,8 @@ class ActivityTitleReaderTest extends CoreJdbcTestSupport {
     private Long seedTopicIn(String organizationId, Long communityId, String title) {
 
         return jdbc.queryForObject(
-                "INSERT INTO topic (organization_id, community_id, kind, title, description, proposer_user_id, status, created_at, updated_at, version) "
-                        + "VALUES (:org, :communityId, 'OFFER', :title, '', 'activity-title-proposer', 'PROPOSED', now(), now(), 0) RETURNING id",
+                "INSERT INTO topic (organization_id, community_id, title, description, proposer_user_id, status, created_at, updated_at, version) "
+                        + "VALUES (:org, :communityId, :title, '', 'activity-title-proposer', 'PROPOSED', now(), now(), 0) RETURNING id",
                 new MapSqlParameterSource("org", organizationId).addValue("communityId", communityId).addValue("title",
                         title),
                 Long.class);

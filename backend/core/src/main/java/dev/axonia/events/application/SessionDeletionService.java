@@ -55,12 +55,11 @@ public class SessionDeletionService implements SessionDeletion {
         var communityId = session.getCommunityId();
         // Cancelling already sent the topics back to the backlog, from where one may since have been rescheduled.
         var releasesTopics = !"CANCELLED".equals(session.getStatus());
-        slotsOf(session).forEach(slot -> {
-            if (releasesTopics) {
-                topicLifecycle.release(organizationId, slot.getTopicId());
-            }
-            eventPublisher.publishEvent(new SlotCleared(slot.getId(), communityId));
-        });
+        var slots = slotsOf(session);
+        if (releasesTopics) {
+            topicLifecycle.releaseAll(organizationId, slots);
+        }
+        slots.forEach(slot -> eventPublisher.publishEvent(new SlotCleared(slot.getId(), communityId)));
         participants.forEach(participant -> participant.sessionDeleted(organizationId, communityId, sessionId));
         attendanceStore.deleteAllForSession(organizationId, sessionId);
         actionItemStore.clearPinsFor(organizationId, communityId, sessionId, clock.instant());

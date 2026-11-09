@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useTopics } from "@/features/events/api/use-topics";
 import { BacklogPanel } from "@/features/events/ui/BacklogPanel";
+import { useUsers } from "@/features/identity/api/use-users";
 
 vi.mock("framer-motion", () => ({
   AnimatePresence: ({ children }: { children: ReactNode }) => <>{children}</>,
@@ -14,26 +15,45 @@ vi.mock("framer-motion", () => ({
 }));
 
 vi.mock("@/features/events/api/use-topics", () => ({ useTopics: vi.fn() }));
+vi.mock("@/features/identity/api/use-users", () => ({ useUsers: vi.fn() }));
 vi.mock("@/features/events/ui/TopicRow", () => ({
   TopicRow: ({
     topic,
+    users,
     actions,
   }: {
     topic: { title: string };
+    users: Record<string, { displayName: string }>;
     actions?: ReactNode;
   }) => (
     <div>
       {topic.title}
+      {Object.values(users)
+        .map((user) => user.displayName)
+        .join(", ")}
       {actions}
     </div>
   ),
 }));
 
 const mockUseTopics = vi.mocked(useTopics);
+const mockUseUsers = vi.mocked(useUsers);
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockUseUsers.mockReturnValue({ data: {} } as never);
 });
+
+function proposed(id: number, title: string) {
+  return {
+    id,
+    title,
+    voteCount: 0,
+    status: "PROPOSED",
+    proposerUserId: "ana",
+    speakerUserIds: [] as string[],
+  };
+}
 
 describe("BacklogPanel", () => {
   it("shows skeleton cards while loading", () => {
@@ -72,8 +92,8 @@ describe("BacklogPanel", () => {
     mockUseTopics.mockReturnValue({
       data: {
         content: [
-          { id: 1, title: "Low", voteCount: 1, status: "PROPOSED" },
-          { id: 2, title: "High", voteCount: 9, status: "PROPOSED" },
+          { ...proposed(1, "Low"), voteCount: 1 },
+          { ...proposed(2, "High"), voteCount: 9 },
         ],
       },
       isLoading: false,
@@ -87,7 +107,7 @@ describe("BacklogPanel", () => {
   it("renders topic actions when provided", () => {
     mockUseTopics.mockReturnValue({
       data: {
-        content: [{ id: 3, title: "T", voteCount: 0, status: "PROPOSED" }],
+        content: [{ ...proposed(3, "T"), voteCount: 0 }],
       },
       isLoading: false,
       isError: false,
@@ -128,5 +148,29 @@ describe("BacklogPanel", () => {
       size: 50,
       status: "PROPOSED",
     });
+  });
+
+  it("resolves every creator and speaker and hands them to each row", () => {
+    // given
+    mockUseTopics.mockReturnValue({
+      data: {
+        content: [
+          { ...proposed(1, "Low"), speakerUserIds: ["zoe"] },
+          proposed(2, "High"),
+        ],
+      },
+      isLoading: false,
+      isError: false,
+    } as never);
+    mockUseUsers.mockReturnValue({
+      data: { ana: { displayName: "Ana" }, zoe: { displayName: "Zoe" } },
+    } as never);
+
+    // when
+    render(<BacklogPanel slug="backend-guild" />);
+
+    // then
+    expect(mockUseUsers).toHaveBeenCalledWith(["ana", "zoe"]);
+    expect(screen.getByText("LowAna, Zoe")).toBeInTheDocument();
   });
 });

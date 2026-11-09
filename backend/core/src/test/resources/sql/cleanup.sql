@@ -82,6 +82,7 @@ TRUNCATE TABLE
     scim_token,
     session_attendance,
     topic,
+    topic_speaker,
     topic_tag,
     topic_vote
     RESTART IDENTITY CASCADE;

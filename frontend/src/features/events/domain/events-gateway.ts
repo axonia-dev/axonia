@@ -16,8 +16,7 @@ import type { SectionType } from "@/features/events/domain/section-type";
 import type { Cadence, Series } from "@/features/events/domain/series";
 import type { Session, SessionStatus } from "@/features/events/domain/session";
 import type { SlotGateway } from "@/features/events/domain/slot-gateway";
-import type { Topic, TopicKind } from "@/features/events/domain/topic";
-import type { TopicCounts } from "@/features/events/domain/topic-counts";
+import type { TopicGateway } from "@/features/events/domain/topic-gateway";
 import type { Page } from "@/lib/page";
 
 export interface PageParams {
@@ -84,13 +83,6 @@ export interface SeriesInput {
   defaultStructure: SectionTemplateInput[];
 }
 
-export interface TopicInput {
-  kind: TopicKind;
-  title: string;
-  description?: string;
-  tags?: string[];
-}
-
 /** The order keys the server recognises. Anything else is refused outright rather than ignored,
  *  so this is an allowlist and not a hint: `created_at` is newest first, `checkpoint` is
  *  checkpoint date then due date soonest first, and `updated_at,desc` is newest settled first.
@@ -106,15 +98,6 @@ export interface ActionItemListParams extends PageParams {
   /** Restricts to the items this one session must answer for: pinned here, or unpinned and
    *  resolved to this session as whichever comes next. */
   checkpointSessionId?: number;
-}
-
-export interface TopicListParams extends PageParams {
-  kind?: TopicKind;
-  status?: "PROPOSED" | "SCHEDULED" | "DONE";
-  /** Read-time lifecycle view; only "PAST" is served server-side. */
-  phase?: "PAST";
-  /** Free-text search over title/description (used by the Past topics tab). */
-  q?: string;
 }
 
 /** A create, not a replacement, so an omitted key means "never had one" rather than "cleared".
@@ -199,7 +182,7 @@ interface MessagePreview {
   html: string;
 }
 
-export interface EventsGateway extends SlotGateway {
+export interface EventsGateway extends SlotGateway, TopicGateway {
   /** The zones this community's members read, and how many read each. Members with no clock are
    *  absent; a community nobody has measured answers with an empty list. */
   memberZones(slug: string): Promise<MemberZone[]>;
@@ -256,14 +239,6 @@ export interface EventsGateway extends SlotGateway {
   ): Promise<Page<Attendance>>;
   signalGoing(sessionId: number): Promise<Attendance>;
   unsignalGoing(sessionId: number): Promise<void>;
-  listTopics(slug: string, params: TopicListParams): Promise<Page<Topic>>;
-  getTopicCounts(slug: string): Promise<TopicCounts>;
-  proposeTopic(slug: string, input: TopicInput): Promise<Topic>;
-  voteTopic(topicId: number): Promise<Topic>;
-  unvoteTopic(topicId: number): Promise<void>;
-  editTopic(topicId: number, input: TopicInput): Promise<Topic>;
-  deleteTopic(topicId: number): Promise<void>;
-  returnToBacklog(topicId: number): Promise<void>;
   listActionItems(
     slug: string,
     params: ActionItemListParams,

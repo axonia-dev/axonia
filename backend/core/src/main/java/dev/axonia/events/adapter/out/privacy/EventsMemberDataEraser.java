@@ -31,8 +31,9 @@ import lombok.RequiredArgsConstructor;
  * it. An identifier resurrected after a legal erasure, with nothing anywhere to notice.
  *
  * <p>
- * {@code event_slot_presenter} carries no {@code organization_id} - it is reached through its parents, exactly as
- * {@link EventsDataPurger} reaches it.
+ * {@code event_slot_presenter} and {@code topic_speaker} carry no {@code organization_id} - each is reached through its
+ * parents, exactly as {@link EventsDataPurger} reaches it. A {@code topic_speaker} row exists only on a backlog topic,
+ * a commitment like a future presenter row, so it is deleted.
  *
  * <p>
  * {@code calendar_subscription} is a live credential, not history, so its row is deleted outright rather than
@@ -67,8 +68,14 @@ public class EventsMemberDataEraser implements MemberDataEraser {
         var params = Map.of("org", erasure.organizationId(), "user", erasure.userId(), "surrogate",
                 erasure.surrogateId(), "erasedAt", Timestamp.from(erasure.erasedAt()));
 
+        // A topic_speaker row belongs to its topic's aggregate: the version bump keeps a concurrently-loaded topic from
+        // re-inserting the deleted row on its next save.
+        jdbc.update("UPDATE topic SET version = version + 1, updated_at = :erasedAt WHERE organization_id = :org "
+                + "AND id IN (SELECT topic_id FROM topic_speaker WHERE user_id = :user)", params);
         var deleted = jdbc.update(
                 "DELETE FROM event_slot_presenter WHERE user_id = :user AND slot_id IN (" + FUTURE_SLOTS + ")", params)
+                + jdbc.update("DELETE FROM topic_speaker WHERE user_id = :user AND topic_id IN "
+                        + "(SELECT id FROM topic WHERE organization_id = :org)", params)
                 + calendarSubscriptionRepository.deleteByOrganizationIdAndUserId(erasure.organizationId(),
                         erasure.userId());
 

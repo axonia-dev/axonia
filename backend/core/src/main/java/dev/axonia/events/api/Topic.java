@@ -7,7 +7,7 @@ import lombok.Builder;
 
 @Builder
 public record Topic(Long id, Long communityId, TopicKind kind, String title, String description, List<String> tags,
-        String proposerUserId, String proposerDisplayName, boolean canClose, boolean canReopen, Long voteCount,
-        boolean hasVoted, boolean canEdit, boolean canDelete, TopicStatus status, ScheduledFor scheduledFor,
-        Instant createdAt, Instant updatedAt) {
+        String proposerUserId, String proposerDisplayName, List<String> speakerUserIds, boolean canManageSpeakers,
+        boolean canClose, boolean canReopen, Long voteCount, boolean hasVoted, boolean canEdit, boolean canDelete,
+        TopicStatus status, ScheduledFor scheduledFor, Instant createdAt, Instant updatedAt) {
 }

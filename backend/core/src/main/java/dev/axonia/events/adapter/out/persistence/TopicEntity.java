@@ -10,7 +10,6 @@ import org.springframework.data.annotation.Version;
 import org.springframework.data.relational.core.mapping.MappedCollection;
 import org.springframework.data.relational.core.mapping.Table;
 
-import dev.axonia.events.api.TopicKind;
 import dev.axonia.events.api.TopicStatus;
 import dev.axonia.shared.api.persistence.Entity;
 import lombok.Builder;
@@ -28,7 +27,6 @@ public class TopicEntity implements Entity {
 
     private String organizationId;
     private Long communityId;
-    private TopicKind kind;
     private String title;
     private String description;
     private String proposerUserId;
@@ -36,6 +34,9 @@ public class TopicEntity implements Entity {
 
     @MappedCollection(idColumn = "topic_id")
     private Set<TopicTagRef> tags;
+
+    @MappedCollection(idColumn = "topic_id")
+    private Set<TopicSpeakerRef> speakers;
 
     @CreatedDate
     private Instant createdAt;

@@ -2,11 +2,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { httpEventsGateway } from "@/features/events/adapters/http-events-gateway";
 import { topicKeys, topicMutationKeys } from "@/features/events/api/query-keys";
+import type { Topic } from "@/features/events/domain/topic";
 import type {
+  TopicEditInput,
   TopicInput,
   TopicListParams,
-} from "@/features/events/domain/events-gateway";
-import type { Topic } from "@/features/events/domain/topic";
+} from "@/features/events/domain/topic-gateway";
 
 const gateway = httpEventsGateway;
 
@@ -121,8 +122,13 @@ export function useUnvoteTopic(slug: string) {
 export function useEditTopic(slug: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ topicId, input }: { topicId: number; input: TopicInput }) =>
-      gateway.editTopic(topicId, input),
+    mutationFn: ({
+      topicId,
+      input,
+    }: {
+      topicId: number;
+      input: TopicEditInput;
+    }) => gateway.editTopic(topicId, input),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: topicKeys.community(slug) }),
   });

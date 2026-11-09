@@ -189,6 +189,48 @@ class EventsMemberDataEraserTest extends FootprintTestSupport {
         assertThat(deciderOf(neighbourCheckpointId)).isEqualTo(NEIGHBOUR);
     }
 
+    /**
+     * A backlog speaker row is a commitment nobody will now honour, so it goes; when it was the only one, the topic is
+     * a request in its creator's name, which is the truth.
+     */
+    @Test
+    void erase_deletesBacklogSpeakerRows() {
+
+        var offer = seedTopic(NEIGHBOUR);
+        seedSpeaker(offer, TARGET);
+        seedSpeaker(offer, NEIGHBOUR);
+        var otherCommunity = seedCommunity(OTHER_ORG);
+        var otherOrgTopic = seedTopicIn(OTHER_ORG, otherCommunity, NEIGHBOUR);
+        seedSpeaker(otherOrgTopic, TARGET);
+
+        var counts = eraser.erase(MemberErasure.builder().organizationId(ORG).userId(TARGET).surrogateId(SURROGATE)
+                .erasedAt(ERASED_AT).build());
+
+        assertThat(speakersOf(offer)).containsExactly(NEIGHBOUR);
+        assertThat(speakersOf(otherOrgTopic)).containsExactly(TARGET);
+        assertThat(counts.deleted()).isEqualTo(1);
+        assertThat(topicVersion(offer)).isEqualTo(1L);
+        assertThat(topicVersion(otherOrgTopic)).isZero();
+    }
+
+    private Long topicVersion(Long topicId) {
+
+        return jdbc.queryForObject("SELECT version FROM topic WHERE id = :topicId", Map.of("topicId", topicId),
+                Long.class);
+    }
+
+    private void seedSpeaker(Long topicId, String user) {
+
+        jdbc.update("INSERT INTO topic_speaker (topic_id, user_id) VALUES (:topicId, :user)",
+                Map.of("topicId", topicId, "user", user));
+    }
+
+    private List<String> speakersOf(Long topicId) {
+
+        return jdbc.queryForList("SELECT user_id FROM topic_speaker WHERE topic_id = :topicId",
+                Map.of("topicId", topicId), String.class);
+    }
+
     private Long seedNewActionItem(String raisedBy, String assignee, String outcome) {
 
         return seedNewActionItem(ORG, communityId, raisedBy, assignee, outcome);
@@ -384,8 +426,8 @@ class EventsMemberDataEraserTest extends FootprintTestSupport {
     private Long seedTopicIn(String org, Long forCommunityId, String proposer) {
 
         return jdbc.queryForObject(
-                "INSERT INTO topic (organization_id, community_id, kind, title, description, proposer_user_id, "
-                        + "status, created_at, updated_at, version) VALUES (:org, :communityId, 'REQUEST', "
+                "INSERT INTO topic (organization_id, community_id, title, description, proposer_user_id, "
+                        + "status, created_at, updated_at, version) VALUES (:org, :communityId, "
                         + "'Eraser Test Topic', '', :proposer, 'PROPOSED', now(), now(), 0) RETURNING id",
                 Map.of("org", org, "communityId", forCommunityId, "proposer", proposer), Long.class);
     }

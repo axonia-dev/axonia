@@ -171,10 +171,12 @@ public final class ErasureSweepFixtures {
                         + "VALUES (:org, :communityId, :user, 'sweep-tag', now())",
                 Map.of("org", organizationId, "communityId", communityId, "user", userId));
 
-        // events: a topic still open and one already done, both proposed by the target (anonymised) and one voted
-        // on by the target
+        // events: a topic still open and one already done, both proposed by the target (anonymised), one voted
+        // on by the target, and the open one offered by the target as its speaker (deleted)
         var openTopicId = seedTopic(organizationId, communityId, userId, "PROPOSED");
         seedTopic(organizationId, communityId, userId, "DONE");
+        jdbc.update("INSERT INTO topic_speaker (topic_id, user_id) VALUES (:topicId, :user)",
+                Map.of("topicId", openTopicId, "user", userId));
         jdbc.update(
                 "INSERT INTO topic_vote (organization_id, topic_id, user_id, created_at, updated_at, version) "
                         + "VALUES (:org, :topicId, :user, now(), now(), 0)",
@@ -276,9 +278,9 @@ public final class ErasureSweepFixtures {
     private long seedTopic(String organizationId, long communityId, String userId, String status) {
 
         return jdbc.queryForObject(
-                "INSERT INTO topic (organization_id, community_id, kind, title, description, proposer_user_id, "
+                "INSERT INTO topic (organization_id, community_id, title, description, proposer_user_id, "
                         + "status, created_at, updated_at, version) VALUES (:org, :communityId, "
-                        + "'REQUEST', 'Sweep Topic', 'Write up what we decided about retries.', :user, :status, "
+                        + "'Sweep Topic', 'Write up what we decided about retries.', :user, :status, "
                         + "now(), now(), 0) RETURNING id",
                 Map.of("org", organizationId, "communityId", communityId, "user", userId, "status", status),
                 Long.class);

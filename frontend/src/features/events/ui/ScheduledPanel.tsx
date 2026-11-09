@@ -10,10 +10,11 @@ import {
   type SessionGroup,
 } from "@/features/events/domain/group-topics-by-session";
 import { relativeDayLabel } from "@/features/events/domain/relative-day-label";
-import type { Topic } from "@/features/events/domain/topic";
-import { PresenterHoverCard } from "@/features/events/ui/PresenterHoverCard";
+import { type Topic, topicPeopleIds } from "@/features/events/domain/topic";
+import { TopicByline } from "@/features/events/ui/TopicByline";
 import { TopicKindBadge } from "@/features/events/ui/TopicKindBadge";
 import { TopicListCard } from "@/features/events/ui/TopicListCard";
+import { TopicSpeakerStack } from "@/features/events/ui/TopicSpeakerStack";
 import { useUsers } from "@/features/identity/api/use-users";
 import type { User } from "@/features/identity/domain/user";
 import { cn } from "@/lib/cn";
@@ -21,11 +22,8 @@ import { useNow } from "@/lib/use-wake-at";
 
 const LIST_PARAMS = { page: 0, size: 50, status: "SCHEDULED" } as const;
 
-function proposerIdsOf(groups: SessionGroup[]): string[] {
-  const ids = groups.flatMap((group) =>
-    group.topics.map((topic) => topic.proposerUserId),
-  );
-  return [...new Set(ids)].sort((a, b) => a.localeCompare(b));
+function peopleIdsOf(groups: SessionGroup[]): string[] {
+  return topicPeopleIds(groups.flatMap((group) => group.topics));
 }
 
 function CountdownChip({ scheduledAt }: Readonly<{ scheduledAt: string }>) {
@@ -95,25 +93,26 @@ function SessionNode({
               transition={{ duration: 0.22, ease: "easeOut" }}
             >
               <TopicListCard
+                people={
+                  <TopicSpeakerStack
+                    slug={slug}
+                    topic={topic}
+                    users={users}
+                    interactive={false}
+                  />
+                }
                 title={topic.title}
                 meta={
                   <>
                     <TopicKindBadge kind={topic.kind} />
-                    <span className="text-muted-foreground text-xs">
-                      {topic.proposerDisplayName}
-                    </span>
-                  </>
-                }
-                trailing={
-                  <>
-                    <PresenterHoverCard
+                    <TopicByline
+                      userId={topic.proposerUserId}
                       name={topic.proposerDisplayName}
                       user={users[topic.proposerUserId]}
-                      align="end"
                     />
-                    {renderScheduledActions?.(topic)}
                   </>
                 }
+                trailing={renderScheduledActions?.(topic)}
               />
             </motion.li>
           ))}
@@ -145,7 +144,7 @@ export function ScheduledPanel({
 }>) {
   const topics = useTopics(slug, LIST_PARAMS);
   const groups = groupTopicsBySession(topics.data?.content ?? [], useNow());
-  const users = useUsers(proposerIdsOf(groups)).data ?? {};
+  const users = useUsers(peopleIdsOf(groups)).data ?? {};
 
   if (topics.isLoading) {
     return <ScheduledSkeleton />;

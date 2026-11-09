@@ -19,7 +19,9 @@ export function BacklogSection() {
 
   function renderTopicActions(topic: Topic) {
     if (topic.kind !== "REQUEST") return null;
-    return <SpeakerSuggestions slug={slug} tags={topic.tags} />;
+    return (
+      <SpeakerSuggestions slug={slug} topicId={topic.id} tags={topic.tags} />
+    );
   }
 
   return (

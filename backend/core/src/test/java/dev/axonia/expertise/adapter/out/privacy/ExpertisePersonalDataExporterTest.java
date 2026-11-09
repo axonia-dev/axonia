@@ -243,8 +243,8 @@ class ExpertisePersonalDataExporterTest extends FootprintTestSupport {
     private Long seedTopic(Long communityId, String title) {
 
         return jdbc.queryForObject(
-                "INSERT INTO topic (organization_id, community_id, kind, title, description, proposer_user_id, "
-                        + "status, created_at, updated_at, version) VALUES (:org, :communityId, 'REQUEST', :title, "
+                "INSERT INTO topic (organization_id, community_id, title, description, proposer_user_id, "
+                        + "status, created_at, updated_at, version) VALUES (:org, :communityId, :title, "
                         + "'', 'proposer-user', 'PROPOSED', now(), now(), 0) RETURNING id",
                 Map.of("org", ORG, "communityId", communityId, "title", title), Long.class);
     }

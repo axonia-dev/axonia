@@ -2,8 +2,13 @@ import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import { type ReactNode } from "react";
 
 import { useTopics } from "@/features/events/api/use-topics";
-import type { Topic, TopicKind } from "@/features/events/domain/topic";
+import {
+  type Topic,
+  type TopicKind,
+  topicPeopleIds,
+} from "@/features/events/domain/topic";
 import { TopicRow } from "@/features/events/ui/TopicRow";
+import { useUsers } from "@/features/identity/api/use-users";
 
 const LIST_PARAMS = { page: 0, size: 50, status: "PROPOSED" } as const;
 
@@ -22,6 +27,7 @@ export function BacklogPanel({
   const sorted = (topics.data?.content ?? [])
     .slice()
     .sort((a, b) => b.voteCount - a.voteCount);
+  const users = useUsers(topicPeopleIds(sorted)).data ?? {};
 
   if (topics.isLoading) {
     return <BacklogSkeleton />;
@@ -59,6 +65,7 @@ export function BacklogPanel({
               <TopicRow
                 slug={slug}
                 topic={topic}
+                users={users}
                 {...(renderTopicActions
                   ? { actions: renderTopicActions(topic) }
                   : {})}

@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.context.ApplicationEventPublisher;
@@ -59,16 +60,16 @@ public class SlotService implements Slots {
         var userId = currentUser.userId();
         // A new slot never has a prior topic, so the guard always applies here: attaching one by id is always a
         // genuine queue-topics act, never the pass-through an unchanged re-attachment on an edit gets.
-        var topicId = attachTopic(
+        var attached = attachTopic(
                 new TopicAttachment(organizationId, session.getCommunityId(), request.topicId(), null, userId));
+        var topicId = attached.topicId();
         var section = SessionSections.section(session, sectionId);
 
-        var presenters = new HashSet<SlotPresenter>();
-        presenters.add(SlotPresenter.builder().userId(userId).build());
+        var presenterIds = SlotPresenters.merged(List.of(userId), attached.speakerUserIds());
         var slots = new ArrayList<>(SessionSections.nonNullSlots(section.getSlots()));
-        slots.add(
-                SlotRecord.builder().topicId(topicId).title(request.title()).durationMinutes(request.durationMinutes())
-                        .notes(request.notes()).presenters(presenters).tags(SlotSubject.refs(tags)).build());
+        slots.add(SlotRecord.builder().topicId(topicId).title(request.title())
+                .durationMinutes(request.durationMinutes()).notes(request.notes())
+                .presenters(SlotPresenters.of(presenterIds)).tags(SlotSubject.refs(tags)).build());
 
         var saved = sessionStore
                 .save(SessionSections.replaceSection(session, sectionId, section.toBuilder().slots(slots).build()));
@@ -76,7 +77,7 @@ public class SlotService implements Slots {
         var savedSlots = SessionSections.nonNullSlots(savedSection.getSlots());
         var savedSlot = savedSlots.get(savedSlots.size() - 1);
         slotEventPublisher.publish(new SlotEventCoords(organizationId, session.getCommunityId(), savedSlot.getId()),
-                List.of(userId), topicId, List.copyOf(tags));
+                presenterIds, topicId, List.copyOf(tags));
         return sessionMapper.toSession(saved);
     }
 
@@ -129,18 +130,26 @@ public class SlotService implements Slots {
         var communityId = session.getCommunityId();
         requireMayQueueTopics(communityId, userId);
 
-        var topic = topicLifecycle.schedule(organizationId, session.getCommunityId(), request.topicId());
+        var scheduled = topicLifecycle.schedule(organizationId, communityId, request.topicId());
+        var topic = scheduled.topic();
 
         var section = SessionSections.section(session, sectionId);
         var title = request.title() == null ? topic.getTitle() : request.title();
         var notes = request.notes() == null ? topic.getDescription() : request.notes();
+        var presenterIds = SlotPresenters.merged(List.of(), scheduled.speakerUserIds());
         var slots = new ArrayList<>(SessionSections.nonNullSlots(section.getSlots()));
         // No tags of its own: the topic owns the subject, so this slot never holds a copy that can go stale against it.
         slots.add(SlotRecord.builder().topicId(request.topicId()).title(title).notes(notes)
-                .durationMinutes(request.durationMinutes()).presenters(new HashSet<>()).tags(new HashSet<>()).build());
+                .durationMinutes(request.durationMinutes()).presenters(SlotPresenters.of(presenterIds))
+                .tags(new HashSet<>()).build());
 
-        return sessionMapper.toSession(sessionStore
-                .save(SessionSections.replaceSection(session, sectionId, section.toBuilder().slots(slots).build())));
+        var saved = sessionStore
+                .save(SessionSections.replaceSection(session, sectionId, section.toBuilder().slots(slots).build()));
+        var savedSlots = SessionSections.nonNullSlots(SessionSections.section(saved, sectionId).getSlots());
+        slotEventPublisher.publish(
+                new SlotEventCoords(organizationId, communityId, savedSlots.get(savedSlots.size() - 1).getId()),
+                presenterIds, request.topicId(), List.of());
+        return sessionMapper.toSession(saved);
     }
 
     @Transactional
@@ -204,17 +213,19 @@ public class SlotService implements Slots {
         // Omitted tags keep the subject the slot already has, the same "null means keep current" convention
         // durationMinutes uses below. The invariant is checked against these effective tags, not the request's.
         var tags = SlotSubject.edited(request.topicId(), request.tags(), SessionSections.tags(slot));
-        var previousTopicId = slot.getTopicId();
-        var topicId = attachTopic(new TopicAttachment(organizationId, session.getCommunityId(), request.topicId(),
-                previousTopicId, currentUser.userId()));
-        topicLifecycle.releaseReplaced(organizationId, previousTopicId, topicId);
+        var attached = attachTopic(new TopicAttachment(organizationId, session.getCommunityId(), request.topicId(),
+                slot.getTopicId(), currentUser.userId()));
+        var topicId = attached.topicId();
+        topicLifecycle.releaseReplaced(organizationId, slot, topicId);
+        var presenterIds = SlotPresenters.merged(
+                SessionSections.presenters(slot).stream().map(SlotPresenter::getUserId).toList(),
+                attached.speakerUserIds());
         var updated = slot.toBuilder().title(request.title()).topicId(topicId).notes(request.notes())
                 .durationMinutes(
                         request.durationMinutes() != null ? request.durationMinutes() : slot.getDurationMinutes())
-                .tags(SlotSubject.refs(tags)).build();
+                .presenters(SlotPresenters.of(presenterIds)).tags(SlotSubject.refs(tags)).build();
         var saved = sessionStore.save(SessionSections.replaceSection(session, sectionId,
                 SessionSections.replaceSlot(section, slotId, updated)));
-        var presenterIds = SessionSections.presenters(slot).stream().map(SlotPresenter::getUserId).toList();
         slotEventPublisher.publish(new SlotEventCoords(organizationId, session.getCommunityId(), slotId), presenterIds,
                 topicId, List.copyOf(tags));
         return sessionMapper.toSession(saved);
@@ -235,7 +246,7 @@ public class SlotService implements Slots {
     private Session dropSlot(String organizationId, SessionRecord session, SectionRecord section, Long slotId) {
 
         var slot = SessionSections.slot(section, slotId);
-        topicLifecycle.release(organizationId, slot.getTopicId());
+        topicLifecycle.release(organizationId, slot);
         var slots = new ArrayList<>(SessionSections.nonNullSlots(section.getSlots()));
         slots.removeIf(s -> slotId.equals(s.getId()));
         var saved = sessionStore.save(
@@ -368,17 +379,24 @@ public class SlotService implements Slots {
      * already-attached topic - the title, the notes, an unrelated field - is not a new act of queueing anything, and
      * gating it the same way {@link #queueTopic} gates a genuine attachment would lock a slot's owner out of editing
      * their own slot the moment the policy tightens or an organizer hands them a slot they cannot otherwise queue into.
+     * Nor is it scheduled again: the topic is already SCHEDULED, or DONE on a held session, and stays so.
      */
-    private Long attachTopic(TopicAttachment attachment) {
+    private AttachedTopic attachTopic(TopicAttachment attachment) {
 
         if (attachment.topicId() == null) {
-            return null;
+            return new AttachedTopic(null, Set.of());
         }
-        if (!attachment.topicId().equals(attachment.previousTopicId())) {
-            requireMayQueueTopics(attachment.communityId(), attachment.userId());
+        if (attachment.topicId().equals(attachment.previousTopicId())) {
+            return new AttachedTopic(attachment.topicId(), Set.of());
         }
-        topicLifecycle.schedule(attachment.organizationId(), attachment.communityId(), attachment.topicId());
-        return attachment.topicId();
+        requireMayQueueTopics(attachment.communityId(), attachment.userId());
+        var scheduled = topicLifecycle.schedule(attachment.organizationId(), attachment.communityId(),
+                attachment.topicId());
+        return new AttachedTopic(attachment.topicId(), scheduled.speakerUserIds());
+    }
+
+    /** The topic a slot now carries, and the backlog speakers it brought along to present it. */
+    private record AttachedTopic(Long topicId, Set<String> speakerUserIds) {
     }
 
     /**

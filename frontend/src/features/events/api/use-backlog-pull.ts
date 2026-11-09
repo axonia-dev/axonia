@@ -33,7 +33,7 @@ export function usePresentFromBacklog(
   return useMutation({
     mutationFn: (input: SlotInput) =>
       gateway.addSlot(sessionId, sectionId, input),
-    onSuccess: invalidate,
+    onSettled: invalidate,
   });
 }
 
@@ -46,7 +46,7 @@ export function useQueueTopic(
   return useMutation({
     mutationFn: (input: QueueTopicInput) =>
       gateway.queueTopic(sessionId, sectionId, input),
-    onSuccess: invalidate,
+    onSettled: invalidate,
   });
 }
 
@@ -54,6 +54,6 @@ export function useReturnToBacklog(slug: string) {
   const invalidate = useInvalidateSessionsAndTopics(slug);
   return useMutation({
     mutationFn: (topicId: number) => gateway.returnToBacklog(topicId),
-    onSuccess: invalidate,
+    onSettled: invalidate,
   });
 }
