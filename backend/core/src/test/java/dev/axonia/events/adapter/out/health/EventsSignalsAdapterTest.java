@@ -372,8 +372,9 @@ class EventsSignalsAdapterTest extends CoreJdbcTestSupport {
 
         return jdbc.queryForObject("""
                 INSERT INTO event_series (organization_id, community_id, title, cadence_count, cadence_unit,
-                        starts_on, time_zone, status, created_at, updated_at, version)
-                VALUES ('default', :communityId, 'Talks', :cadenceCount, :cadenceUnit, '2026-01-01', 'UTC', :status,
+                        cadence_monthly_by, starts_on, time_zone, status, created_at, updated_at, version)
+                VALUES ('default', :communityId, 'Talks', :cadenceCount, :cadenceUnit,
+                        CASE WHEN :cadenceUnit = 'MONTH' THEN 'DAY_OF_MONTH' END, '2026-01-01', 'UTC', :status,
                         now(), now(), 0)
                 RETURNING id
                 """, new MapSqlParameterSource().addValue("communityId", communityId)

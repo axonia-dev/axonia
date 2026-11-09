@@ -98,7 +98,9 @@ function initialState(series?: Series, defaultStartsOn?: string): FormState {
     title: series.title,
     cadenceCount: String(series.cadence.count),
     cadenceUnit: series.cadence.unit,
-    monthlyBy: series.cadence.monthlyBy ?? "DAY_OF_MONTH",
+    monthlyBy:
+      series.cadence.monthlyBy ??
+      (series.cadence.unit === "MONTH" ? "DAY_OF_MONTH" : "WEEKDAY_OF_MONTH"),
     startsOn: series.startsOn,
     preferredTime: series.preferredTime ?? "",
     timeZone: series.timeZone,
