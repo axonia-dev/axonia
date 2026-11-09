@@ -18,15 +18,11 @@ vi.mock("@/features/bookmarks/api/use-save", () => ({
   useMarkHelpful: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
-function renderRow(showCommunity = true) {
+function renderRow() {
   return render(
     <MemoryRouter>
       <ul>
-        <SavedArtifactRow
-          item={view()}
-          type={undefined}
-          showCommunity={showCommunity}
-        />
+        <SavedArtifactRow item={view()} type={undefined} />
       </ul>
     </MemoryRouter>,
   );
@@ -55,15 +51,5 @@ describe("SavedArtifactRow", () => {
     expect(
       screen.getByRole("link", { name: /backend guild/i }),
     ).toHaveAttribute("href", "/communities/backend-guild");
-  });
-
-  it("drops the community badge inside that community's own page", () => {
-    renderRow(false);
-    expect(
-      screen.getByRole("link", { name: /virtual threads/i }),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("link", { name: /backend guild/i }),
-    ).not.toBeInTheDocument();
   });
 });

@@ -59,6 +59,14 @@ function renderView(entry = "/communities/guild/library") {
   );
 }
 
+function mockPages(totalPages: number) {
+  mockArtifacts.mockReturnValue({
+    data: { content: [], totalElements: 0, totalPages, number: 0, size: 20 },
+    isLoading: false,
+    isError: false,
+  } as never);
+}
+
 function lastParams() {
   return mockArtifacts.mock.calls.at(-1)![1];
 }
@@ -98,6 +106,34 @@ describe("LibraryView saved filter", () => {
     );
     expect(screen.getByText("Nothing saved here yet")).toBeInTheDocument();
     expect(screen.getByText("helpful-7")).toBeInTheDocument();
+  });
+
+  it("starts the saved list on its first page, wherever the browsing had reached", async () => {
+    mockPages(3);
+    renderView();
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    expect(lastParams()).toMatchObject({ page: 1 });
+
+    await user.click(screen.getByRole("button", { name: "Saved" }));
+
+    expect(lastParams()).toMatchObject({ saved: true, page: 0 });
+  });
+
+  it("falls back to the last page left when an unsave empties the one in view", async () => {
+    mockPages(2);
+    const { rerender } = renderView("/communities/guild/library?saved=1");
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    expect(lastParams()).toMatchObject({ page: 1 });
+
+    mockPages(1);
+    rerender(
+      <MemoryRouter initialEntries={["/communities/guild/library?saved=1"]}>
+        <LibraryView slug="guild" />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    expect(lastParams()).toMatchObject({ page: 0 });
   });
 
   it("toggles the saved filter through the URL", async () => {

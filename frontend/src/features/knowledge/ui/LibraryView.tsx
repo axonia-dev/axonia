@@ -113,6 +113,29 @@ function definedRenderers(renderers: ArtifactRenderers): ArtifactRenderers {
   );
 }
 
+/** Back to the first page whenever the saved filter flips, however the URL changed. Adjusted during
+ *  render rather than in an effect, the "You Might Not Need an Effect" pattern. */
+function usePageFor(saved: boolean) {
+  const [page, setPage] = useState(0);
+  const [pagedFor, setPagedFor] = useState(saved);
+  if (pagedFor !== saved) {
+    setPagedFor(saved);
+    setPage(0);
+  }
+  return [page, setPage] as const;
+}
+
+/** An unsave can empty the last page; fall back to the last page that still has rows. */
+function keepPageInRange(
+  page: number,
+  data: { totalPages: number } | undefined,
+  setPage: (page: number) => void,
+) {
+  if (data && page > 0 && page >= data.totalPages) {
+    setPage(Math.max(0, data.totalPages - 1));
+  }
+}
+
 export function LibraryView({
   slug,
   ...renderers
@@ -125,7 +148,7 @@ export function LibraryView({
   const [sort, setSort] = useState<Sort>(() => sortFromParams(searchParams));
   const focusedId = focusedIdFromParams(searchParams);
   const saved = searchParams.get(SAVED_PARAM) === "1";
-  const [page, setPage] = useState(0);
+  const [page, setPage] = usePageFor(saved);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -180,6 +203,7 @@ export function LibraryView({
   const artifacts = useArtifacts(slug, params);
   const data = artifacts.data;
   const totalPages = data?.totalPages ?? 0;
+  keepPageInRange(page, data, setPage);
 
   return (
     <section className="flex flex-col gap-6">

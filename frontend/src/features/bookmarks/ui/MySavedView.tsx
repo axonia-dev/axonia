@@ -114,7 +114,6 @@ function SavedResults({
               key={`a-${item.artifact.id}`}
               item={item}
               type={typeById.get(item.artifact.typeId)}
-              showCommunity
             />
           ) : (
             <SavedSessionRow

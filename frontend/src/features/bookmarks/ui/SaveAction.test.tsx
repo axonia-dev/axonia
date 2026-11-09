@@ -40,10 +40,12 @@ vi.mock("@/features/bookmarks/api/use-save", () => ({
 
 const navigate = vi.fn();
 let params: { slug?: string } = {};
+let here = { pathname: "/", search: "" };
 vi.mock("react-router-dom", async (orig) => ({
   ...(await orig<typeof import("react-router-dom")>()),
   useNavigate: () => navigate,
   useParams: () => params,
+  useLocation: () => here,
 }));
 
 describe("SaveAction", () => {
@@ -52,6 +54,7 @@ describe("SaveAction", () => {
     state = { viewerHasSaved: false, viewerHelped: null };
     onViewCallback = undefined;
     params = {};
+    here = { pathname: "/", search: "" };
   });
 
   it("saves when not yet saved", async () => {
@@ -86,6 +89,16 @@ describe("SaveAction", () => {
     render(<SaveAction target={{ kind: "artifact", id: 100 }} />);
     onViewCallback?.();
     expect(navigate).toHaveBeenCalledWith("/communities/guild/library?saved=1");
+  });
+
+  it("keeps the library search already typed when viewing from the library itself", () => {
+    params = { slug: "guild" };
+    here = { pathname: "/communities/guild/library", search: "?q=kafka" };
+    render(<SaveAction target={{ kind: "artifact", id: 100 }} />);
+    onViewCallback?.();
+    expect(navigate).toHaveBeenCalledWith(
+      "/communities/guild/library?q=kafka&saved=1",
+    );
   });
 
   it("views a saved session in its community's schedule, saved only", () => {

@@ -16,15 +16,9 @@ import { useNow } from "@/lib/use-wake-at";
 interface Props {
   item: SavedArtifactView;
   type: ArtifactType | undefined;
-  /** False inside a community's own page, where every row shares that community. */
-  showCommunity: boolean;
 }
 
-export function SavedArtifactRow({
-  item,
-  type,
-  showCommunity,
-}: Readonly<Props>) {
+export function SavedArtifactRow({ item, type }: Readonly<Props>) {
   const { artifact } = item;
   const unsave = useUnsave({ kind: "artifact", id: artifact.id });
   const now = useNow();
@@ -52,9 +46,7 @@ export function SavedArtifactRow({
         <ExternalLink size={13} className="text-primary shrink-0" />
       </ArtifactLink>
       <div className="mt-1 flex flex-wrap items-center gap-2">
-        {showCommunity && item.community && (
-          <CommunityBadge community={item.community} />
-        )}
+        {item.community && <CommunityBadge community={item.community} />}
         <p className="text-muted-foreground text-xs">
           {artifact.type} · saved {relativeTime(item.savedAt, now)}
         </p>

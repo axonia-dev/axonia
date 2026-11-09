@@ -1,5 +1,5 @@
 import { Bookmark } from "lucide-react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import { Button } from "@/components/ui/Button";
 import {
@@ -10,23 +10,34 @@ import {
 import type { SaveableRef } from "@/features/bookmarks/domain/saved";
 import { cn } from "@/lib/cn";
 
-/** Private bookmark gesture: no count, no label. Filled = saved. Aggregate
- * demand only ever resurfaces in community health, never here. */
-/** Inside a community a save is filtered where its kind already lives; outside, the cross-community list. */
-function savedListHref(target: SaveableRef, slug: string | undefined) {
+/** Inside a community a save is filtered where its kind already lives, keeping the search already
+ *  typed there; outside, the cross-community list. */
+function savedListHref(
+  target: SaveableRef,
+  slug: string | undefined,
+  here: { pathname: string; search: string },
+) {
   if (slug === undefined) {
     return "/me/saved";
   }
   const page = target.kind === "artifact" ? "library" : "schedule";
-  return `/communities/${slug}/${page}?saved=1`;
+  const pathname = `/communities/${slug}/${page}`;
+  const search = new URLSearchParams(
+    here.pathname === pathname ? here.search : "",
+  );
+  search.set("saved", "1");
+  return `${pathname}?${search.toString()}`;
 }
 
+/** Private bookmark gesture: no count, no label. Filled = saved. Aggregate
+ * demand only ever resurfaces in community health, never here. */
 export function SaveAction({ target }: Readonly<{ target: SaveableRef }>) {
   const navigate = useNavigate();
   const { slug } = useParams();
+  const location = useLocation();
   const state = useSaveState(target);
   const save = useSave(target, () => {
-    void navigate(savedListHref(target, slug));
+    void navigate(savedListHref(target, slug, location));
   });
   const unsave = useUnsave(target);
 
