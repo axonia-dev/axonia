@@ -48,6 +48,9 @@ vi.mock("@/features/events/ui/OneOffSessionForm", () => ({
     </div>
   ),
 }));
+vi.mock("@/features/events/ui/CalendarSyncChip", () => ({
+  CalendarSyncChip: () => null,
+}));
 vi.mock("@/features/events/ui/SeriesForm", () => ({
   SeriesForm: ({ onSaved }: { slug: string; onSaved: () => void }) => (
     <div data-testid="series-form">

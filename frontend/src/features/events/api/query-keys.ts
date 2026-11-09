@@ -54,6 +54,8 @@ export const scheduleKeys = {
 export const calendarSubscriptionKeys = {
   all: ["events", "calendar-subscription"] as const,
   community: (slug: string) => [...calendarSubscriptionKeys.all, slug] as const,
+  status: (slug: string) =>
+    [...calendarSubscriptionKeys.all, "status", slug] as const,
 };
 
 export const topicKeys = {

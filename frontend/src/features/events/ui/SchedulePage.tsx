@@ -28,6 +28,7 @@ import {
   TIMELINE_BLOCK,
 } from "@/features/events/ui/calendar-layout";
 import { CalendarSubscribeDialog } from "@/features/events/ui/CalendarSubscribeDialog";
+import { CalendarSyncChip } from "@/features/events/ui/CalendarSyncChip";
 import { MonthCalendar } from "@/features/events/ui/MonthCalendar";
 import { OneOffSessionForm } from "@/features/events/ui/OneOffSessionForm";
 import type { ScheduleView } from "@/features/events/ui/schedule-preferences";
@@ -162,6 +163,10 @@ export function SchedulePage({ slug }: Readonly<{ slug: string }>) {
           Schedule
         </h1>
         <div className="flex flex-wrap items-center gap-3">
+          <CalendarSyncChip
+            slug={slug}
+            onManage={() => setSubscribeOpen(true)}
+          />
           {canStartSeries && (
             <MenuTrigger>
               <Button variant="ghost" size="sm">

@@ -58,7 +58,7 @@ export function calendarTargets(
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
-const DAY = 24 * HOUR;
+export const DAY = 24 * HOUR;
 
 function ago(count: number, unit: string): string {
   return `${count} ${unit}${count === 1 ? "" : "s"} ago`;
@@ -66,7 +66,7 @@ function ago(count: number, unit: string): string {
 
 /** Elapsed time only, never a formatted date: a delta reads the same in every time zone,
  *  which keeps the line deterministic under the suite's pinned one. */
-function elapsed(delta: number): string {
+export function elapsed(delta: number): string {
   if (delta < MINUTE) return "just now";
   if (delta < HOUR) return ago(Math.floor(delta / MINUTE), "minute");
   if (delta < DAY) return ago(Math.floor(delta / HOUR), "hour");
@@ -84,7 +84,7 @@ const AGENT_LIMIT = 40;
 
 /** A stored user agent is a whole banner. The well-known clients get the name a member would
  *  recognise, and anything else is reduced to its product token, capped. */
-function agentLabel(agent: string): string {
+export function agentLabel(agent: string): string {
   const known = KNOWN_AGENTS.find(([pattern]) => pattern.test(agent));
   if (known !== undefined) return known[1];
   const token = agent.split(" ")[0] ?? agent;

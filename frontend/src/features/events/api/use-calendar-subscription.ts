@@ -44,6 +44,21 @@ export function useCalendarSubscription(slug: string) {
   });
 }
 
+const SYNC_STATUS_REFRESH_MS = 5 * 60 * 1000;
+
+/**
+ * The same read for the schedule's sync chip, under its own key: the chip stays mounted and
+ * refreshes, which the dialog's entry must never do while it holds the only copy of a URL.
+ */
+export function useCalendarSyncStatus(slug: string) {
+  return useQuery({
+    queryKey: calendarSubscriptionKeys.status(slug),
+    queryFn: () => gateway.getCalendarSubscription(slug),
+    refetchInterval: SYNC_STATUS_REFRESH_MS,
+    retry: false,
+  });
+}
+
 // Seeds the answer rather than invalidating: an invalidation refetches through the read,
 // which answers without the URL that was just minted, throwing away its only copy.
 function seed(
@@ -55,6 +70,9 @@ function seed(
     calendarSubscriptionKeys.community(slug),
     subscription,
   );
+  void queryClient.invalidateQueries({
+    queryKey: calendarSubscriptionKeys.status(slug),
+  });
 }
 
 export function useSubscribeToCalendar(slug: string) {

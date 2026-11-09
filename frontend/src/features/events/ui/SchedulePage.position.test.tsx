@@ -53,6 +53,9 @@ vi.mock("@/features/events/ui/MonthCalendar", () => ({
 vi.mock("@/features/events/ui/OneOffSessionForm", () => ({
   OneOffSessionForm: () => <div data-testid="one-off-form" />,
 }));
+vi.mock("@/features/events/ui/CalendarSyncChip", () => ({
+  CalendarSyncChip: () => null,
+}));
 vi.mock("@/features/events/ui/SeriesForm", () => ({
   SeriesForm: () => <div data-testid="series-form" />,
 }));
