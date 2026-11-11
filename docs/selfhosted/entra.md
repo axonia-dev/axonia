@@ -220,6 +220,7 @@ Define the roles in the app registration (App roles), assign them to users or gr
 - `AXONIA_SELFHOSTED_OWNER_GROUP=owner` (Helm chart: `ownerGroup: owner`), the value of the role that makes someone an Owner.
 
 The role values are what Owners bind axonia roles to, as group names are with groups.
+Directory groups synced through SCIM still carry the roles bound to them: the role values say nothing about group membership, so axonia reads it from the synced directory and adds it to the role values.
 The token no longer overflows into the overage case, so step 6's groups claim is not needed; keep its optional claims `email` and `preferred_username`.
 On an installation already running with groups, the role bindings Owners made to group ids stop matching once the token carries roles instead, so Owners must rebind roles to the role values.
 The earlier owner group keeps its Owner binding, but no token carries it any more.

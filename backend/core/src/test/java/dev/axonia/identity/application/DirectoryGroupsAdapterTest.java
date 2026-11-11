@@ -4,13 +4,14 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoSettings;
 
 import dev.axonia.identity.api.IdpProvider;
 import dev.axonia.identity.api.OrganizationIdp;
+import dev.axonia.identity.api.spi.GroupsClaimSource;
 import dev.axonia.identity.api.spi.OrganizationIdpResolver;
 import dev.axonia.identity.application.port.out.DirectoryGroupMemberStore;
 import dev.axonia.identity.application.port.out.DirectoryGroupStore;
@@ -46,8 +47,13 @@ class DirectoryGroupsAdapterTest {
     @Mock
     private DirectoryGroupMemberStore directoryGroupMemberStore;
 
-    @InjectMocks
     private DirectoryGroupsAdapter sut;
+
+    @BeforeEach
+    void groupsClaimListsDirectoryGroups() {
+
+        sut = adapterWith(List.of());
+    }
 
     // -------------------------------------------------------------------------
     // reconciliationKeysForUser
@@ -248,11 +254,22 @@ class DirectoryGroupsAdapterTest {
     }
 
     // -------------------------------------------------------------------------
-    // reconciliationKeysSubstitutingForAbsentClaim
+    // groupKeysFor
     // -------------------------------------------------------------------------
 
     @Test
-    void reconciliationKeysSubstitutingForAbsentClaim_entraConnectedOrganization_returnsTheDirectoryKeys() {
+    void groupKeysFor_claimPresent_returnsTheClaimWithoutReadingTheDirectory() {
+
+        // when
+        var actual = sut.groupKeysFor(ORGANIZATION, USER_ID, List.of("Engineering"));
+
+        // then
+        assertThat(actual).containsExactly("Engineering");
+        verifyNoInteractions(userStore, directoryGroupStore, organizationIdpResolver);
+    }
+
+    @Test
+    void groupKeysFor_claimEmptyInAnEntraConnectedOrganization_returnsTheDirectoryKeys() {
 
         // given
         when(organizationIdpResolver.resolve(ORGANIZATION))
@@ -260,21 +277,21 @@ class DirectoryGroupsAdapterTest {
         givenUserBelongsTo(confirmedGroup(1L, "group-guid-1"));
 
         // when
-        var actual = sut.reconciliationKeysSubstitutingForAbsentClaim(ORGANIZATION, USER_ID);
+        var actual = sut.groupKeysFor(ORGANIZATION, USER_ID, List.of());
 
         // then
         assertThat(actual).containsExactly("group-guid-1");
     }
 
     @Test
-    void reconciliationKeysSubstitutingForAbsentClaim_organizationWithNoDirectoryToRead_returnsEmptyWithoutReadingIt() {
+    void groupKeysFor_claimEmptyWithNoDirectoryToRead_returnsEmptyWithoutReadingIt() {
 
         // given - a provider with no directory to read has no claim overage, so an empty claim means no groups
         when(organizationIdpResolver.resolve(ORGANIZATION))
                 .thenReturn(Optional.of(new OrganizationIdp(IdpProvider.GENERIC_OIDC, null, false)));
 
         // when
-        var actual = sut.reconciliationKeysSubstitutingForAbsentClaim(ORGANIZATION, USER_ID);
+        var actual = sut.groupKeysFor(ORGANIZATION, USER_ID, List.of());
 
         // then
         assertThat(actual).isEmpty();
@@ -282,16 +299,74 @@ class DirectoryGroupsAdapterTest {
     }
 
     @Test
-    void reconciliationKeysSubstitutingForAbsentClaim_organizationWithoutSsoConnection_returnsEmptyWithoutReadingTheDirectory() {
+    void groupKeysFor_claimEmptyWithoutSsoConnection_returnsEmptyWithoutReadingTheDirectory() {
 
         // given - a hub Organization has no SSO connection at all
         when(organizationIdpResolver.resolve(ORGANIZATION)).thenReturn(Optional.empty());
 
         // when
-        var actual = sut.reconciliationKeysSubstitutingForAbsentClaim(ORGANIZATION, USER_ID);
+        var actual = sut.groupKeysFor(ORGANIZATION, USER_ID, List.of());
 
         // then
         assertThat(actual).isEmpty();
+        verifyNoInteractions(userStore, directoryGroupStore);
+    }
+
+    @Test
+    void groupKeysFor_claimFilledFromAppRoles_addsTheDirectoryGroupsTheRolesSayNothingAbout() {
+
+        // given - the token's groups claim carries Entra app roles, so a directory group bound to a role is only
+        // ever known from the synced directory
+        sut = adapterWith(List.of(appRolesIn(ORGANIZATION)));
+        givenUserBelongsTo(confirmedGroup(1L, "group-guid-1"));
+
+        // when
+        var actual = sut.groupKeysFor(ORGANIZATION, USER_ID, List.of("member"));
+
+        // then
+        assertThat(actual).containsExactly("member", "group-guid-1");
+    }
+
+    @Test
+    void groupKeysFor_claimFilledFromAppRoles_readsTheDirectoryWhateverTheProvider() {
+
+        // given - no provider to resolve: the directory is still the only word on group membership
+        sut = adapterWith(List.of(appRolesIn(ORGANIZATION)));
+        givenUserBelongsTo(confirmedGroup(1L, "engineers"));
+
+        // when
+        var actual = sut.groupKeysFor(ORGANIZATION, USER_ID, List.of());
+
+        // then
+        assertThat(actual).containsExactly("engineers");
+        verifyNoInteractions(organizationIdpResolver);
+    }
+
+    @Test
+    void groupKeysFor_claimFilledFromAppRoles_namesAKeyBothCarryOnce() {
+
+        // given
+        sut = adapterWith(List.of(appRolesIn(ORGANIZATION)));
+        givenUserBelongsTo(confirmedGroup(1L, "engineers"));
+
+        // when
+        var actual = sut.groupKeysFor(ORGANIZATION, USER_ID, List.of("engineers"));
+
+        // then
+        assertThat(actual).containsExactly("engineers");
+    }
+
+    @Test
+    void groupKeysFor_appRolesInAnotherOrganization_leavesThisOnesClaimAlone() {
+
+        // given
+        sut = adapterWith(List.of(appRolesIn("globex")));
+
+        // when
+        var actual = sut.groupKeysFor(ORGANIZATION, USER_ID, List.of("Engineering"));
+
+        // then
+        assertThat(actual).containsExactly("Engineering");
         verifyNoInteractions(userStore, directoryGroupStore);
     }
 
@@ -366,5 +441,16 @@ class DirectoryGroupsAdapterTest {
         when(userStore.findByOrganizationIdAndUserId(ORGANIZATION, USER_ID)).thenReturn(Optional.of(user));
         when(directoryGroupStore.findByOrganizationIdAndMemberScimId(ORGANIZATION, SCIM_ID))
                 .thenReturn(List.of(groups));
+    }
+
+    private DirectoryGroupsAdapter adapterWith(List<GroupsClaimSource> groupsClaimSources) {
+
+        return new DirectoryGroupsAdapter(userStore, directoryGroupStore, directoryGroupMemberStore,
+                organizationIdpResolver, groupsClaimSources);
+    }
+
+    private static GroupsClaimSource appRolesIn(String organizationId) {
+
+        return organizationId::equals;
     }
 }

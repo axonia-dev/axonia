@@ -12,6 +12,7 @@ import dev.axonia.identity.api.DirectoryGroups;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class JwtSeamsTest {
 
@@ -55,11 +56,14 @@ class JwtSeamsTest {
     }
 
     @Test
-    void currentTokenCallerIdentityReturnsGroups() {
+    void currentTokenCallerIdentityResolvesTheGroupsClaim() {
 
         // given
         authenticateWithGroups(List.of("Engineering"));
-        var sut = new CurrentTokenCallerIdentity(mock(DirectoryGroups.class));
+        var directoryGroups = mock(DirectoryGroups.class);
+        when(directoryGroups.groupKeysFor("acme", "alice-sub", List.of("Engineering")))
+                .thenReturn(List.of("Engineering"));
+        var sut = new CurrentTokenCallerIdentity(directoryGroups);
 
         // when / then
         assertThat(sut.groups()).containsExactly("Engineering");

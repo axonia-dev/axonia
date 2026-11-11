@@ -6,8 +6,8 @@ import dev.axonia.selfhosted.MockOidcIssuer;
 import dev.axonia.selfhosted.SelfHostedTestInfrastructure;
 
 /**
- * Self-hosted settings as the test infrastructure configures them, with the issuer or the subject claim as the one
- * variable.
+ * Self-hosted settings as the test infrastructure configures them, with the issuer, the subject claim or the groups
+ * claim as the one variable.
  */
 public final class SelfHostedPropertiesMother {
 
@@ -20,12 +20,17 @@ public final class SelfHostedPropertiesMother {
 
     public static SelfHostedProperties issuedBy(String issuerUri) {
 
-        return configured(issuerUri, "sub");
+        return configured(issuerUri, "sub", "groups");
+    }
+
+    public static SelfHostedProperties groupsReadFrom(String groupsClaim) {
+
+        return configured(GENERIC_ISSUER, "sub", groupsClaim);
     }
 
     public static SelfHostedProperties matchingAccountsOn(String subjectClaim) {
 
-        return configured(GENERIC_ISSUER, subjectClaim);
+        return configured(GENERIC_ISSUER, subjectClaim, "groups");
     }
 
     public static SelfHostedProperties any() {
@@ -33,13 +38,13 @@ public final class SelfHostedPropertiesMother {
         return issuedBy(GENERIC_ISSUER);
     }
 
-    private static SelfHostedProperties configured(String issuerUri, String subjectClaim) {
+    private static SelfHostedProperties configured(String issuerUri, String subjectClaim, String groupsClaim) {
 
         return new SelfHostedProperties(
                 new SelfHostedProperties.Organization(SelfHostedTestInfrastructure.ORGANIZATION_ID,
                         SelfHostedTestInfrastructure.ORGANIZATION_NAME),
                 SelfHostedTestInfrastructure.OWNER_GROUP,
-                new SelfHostedProperties.Oidc(issuerUri, MockOidcIssuer.AUDIENCE, subjectClaim, "groups",
+                new SelfHostedProperties.Oidc(issuerUri, MockOidcIssuer.AUDIENCE, subjectClaim, groupsClaim,
                         List.of("email", "preferred_username"), "name"));
     }
 }

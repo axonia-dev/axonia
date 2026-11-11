@@ -39,7 +39,7 @@ A Bootstrap value left unset is absent, never an empty string: an unresolved `${
 | `AXONIA_SELFHOSTED_OIDC_ISSUER_URI` | The identity provider's issuer, character for character as its tokens write `iss` |
 | `AXONIA_SELFHOSTED_OIDC_AUDIENCE` | The audience every access token must carry; tokens without it are refused |
 | `AXONIA_SELFHOSTED_OIDC_SUBJECT_CLAIM` | Default `sub`; `oid` with Microsoft Entra ID. Permanent: a later start with another claim is refused, naming both |
-| `AXONIA_SELFHOSTED_OIDC_GROUPS_CLAIM` | Default `groups` |
+| `AXONIA_SELFHOSTED_OIDC_GROUPS_CLAIM` | Default `groups`. Any other claim, such as Entra's `roles`, is read beside the groups SCIM syncs, never in place of them |
 | `AXONIA_SELFHOSTED_OIDC_EMAIL_CLAIMS` | Default `email,preferred_username`: the first present is the person's address |
 | `AXONIA_SELFHOSTED_OIDC_NAME_CLAIM` | Default `name` |
 

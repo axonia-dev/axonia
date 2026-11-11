@@ -37,18 +37,19 @@ class CurrentTokenCallerIdentityTest {
     }
 
     @Test
-    void groups_claimPresent_readsTheClaimAndNeverTheDirectory() {
+    void groups_claimPresent_resolvesTheClaimThroughTheDirectory() {
 
-        // given
-        authenticate("sub-1", List.of("Engineering"));
+        // given - whether the claim stands alone or the directory adds to it is the directory's call
+        authenticate("sub-1", List.of("member"));
+        when(directoryGroups.groupKeysFor("acme", "sub-1", List.of("member")))
+                .thenReturn(List.of("member", "group-guid-1"));
         var sut = new CurrentTokenCallerIdentity(directoryGroups);
 
         // when
         var actual = sut.groups();
 
         // then
-        assertThat(actual).containsExactly("Engineering");
-        verifyNoInteractions(directoryGroups);
+        assertThat(actual).containsExactly("member", "group-guid-1");
     }
 
     @Test
@@ -56,8 +57,7 @@ class CurrentTokenCallerIdentityTest {
 
         // given
         authenticate("sub-1", List.of());
-        when(directoryGroups.reconciliationKeysSubstitutingForAbsentClaim("acme", "sub-1"))
-                .thenReturn(List.of("group-guid-1"));
+        when(directoryGroups.groupKeysFor("acme", "sub-1", List.of())).thenReturn(List.of("group-guid-1"));
         var sut = new CurrentTokenCallerIdentity(directoryGroups);
 
         // when
@@ -77,8 +77,7 @@ class CurrentTokenCallerIdentityTest {
 
         // given
         authenticateWithoutGroupsClaim();
-        when(directoryGroups.reconciliationKeysSubstitutingForAbsentClaim("acme", "sub-1"))
-                .thenReturn(List.of("group-guid-2"));
+        when(directoryGroups.groupKeysFor("acme", "sub-1", List.of())).thenReturn(List.of("group-guid-2"));
         var sut = new CurrentTokenCallerIdentity(directoryGroups);
 
         // when
@@ -105,8 +104,7 @@ class CurrentTokenCallerIdentityTest {
     void anAgentTokenResolvesNoGroupsHoweverManyTheDirectoryRecords() {
 
         // given
-        lenient().when(directoryGroups.reconciliationKeysSubstitutingForAbsentClaim("acme", "u-1"))
-                .thenReturn(List.of("platform-admins"));
+        lenient().when(directoryGroups.groupKeysFor("acme", "u-1", List.of())).thenReturn(List.of("platform-admins"));
         authenticateWith(tokenBuilder("u-1").claim("org", "acme").claim("tokenId", 7L));
         var sut = new CurrentTokenCallerIdentity(directoryGroups);
 
@@ -124,8 +122,7 @@ class CurrentTokenCallerIdentityTest {
         // given
         beginRequest();
         authenticate("sub-1", List.of());
-        when(directoryGroups.reconciliationKeysSubstitutingForAbsentClaim("acme", "sub-1"))
-                .thenReturn(List.of("group-guid-1"));
+        when(directoryGroups.groupKeysFor("acme", "sub-1", List.of())).thenReturn(List.of("group-guid-1"));
         var sut = new CurrentTokenCallerIdentity(directoryGroups);
 
         // when
@@ -133,7 +130,7 @@ class CurrentTokenCallerIdentityTest {
 
         // then
         assertThat(actual).allSatisfy(groups -> assertThat(groups).containsExactly("group-guid-1"));
-        verify(directoryGroups, times(1)).reconciliationKeysSubstitutingForAbsentClaim("acme", "sub-1");
+        verify(directoryGroups, times(1)).groupKeysFor("acme", "sub-1", List.of());
     }
 
     @Test
@@ -141,10 +138,8 @@ class CurrentTokenCallerIdentityTest {
 
         // given - a memoized value must never be handed to a different subject
         beginRequest();
-        when(directoryGroups.reconciliationKeysSubstitutingForAbsentClaim("acme", "sub-1"))
-                .thenReturn(List.of("group-of-one"));
-        when(directoryGroups.reconciliationKeysSubstitutingForAbsentClaim("acme", "sub-2"))
-                .thenReturn(List.of("group-of-two"));
+        when(directoryGroups.groupKeysFor("acme", "sub-1", List.of())).thenReturn(List.of("group-of-one"));
+        when(directoryGroups.groupKeysFor("acme", "sub-2", List.of())).thenReturn(List.of("group-of-two"));
         var sut = new CurrentTokenCallerIdentity(directoryGroups);
         authenticate("sub-1", List.of());
         sut.groups();
@@ -162,10 +157,8 @@ class CurrentTokenCallerIdentityTest {
 
         // given
         beginRequest();
-        when(directoryGroups.reconciliationKeysSubstitutingForAbsentClaim("acme", "sub-1"))
-                .thenReturn(List.of("acme-group"));
-        when(directoryGroups.reconciliationKeysSubstitutingForAbsentClaim("globex", "sub-1"))
-                .thenReturn(List.of("globex-group"));
+        when(directoryGroups.groupKeysFor("acme", "sub-1", List.of())).thenReturn(List.of("acme-group"));
+        when(directoryGroups.groupKeysFor("globex", "sub-1", List.of())).thenReturn(List.of("globex-group"));
         var sut = new CurrentTokenCallerIdentity(directoryGroups);
         authenticateWith(tokenBuilder("sub-1").claim("org", "acme").claim("groups", List.of()));
         sut.groups();
@@ -179,13 +172,31 @@ class CurrentTokenCallerIdentityTest {
     }
 
     @Test
+    void groups_differentClaimWithinOneRequest_neverServesTheOtherClaimsGroups() {
+
+        // given
+        beginRequest();
+        when(directoryGroups.groupKeysFor("acme", "sub-1", List.of("member"))).thenReturn(List.of("member"));
+        when(directoryGroups.groupKeysFor("acme", "sub-1", List.of("owner"))).thenReturn(List.of("owner"));
+        var sut = new CurrentTokenCallerIdentity(directoryGroups);
+        authenticate("sub-1", List.of("member"));
+        sut.groups();
+
+        // when
+        authenticate("sub-1", List.of("owner"));
+        var actual = sut.groups();
+
+        // then
+        assertThat(actual).containsExactly("owner");
+    }
+
+    @Test
     void groups_nextRequest_doesNotReuseThePreviousRequestsResolvedGroups() {
 
         // given
         beginRequest();
         authenticate("sub-1", List.of());
-        when(directoryGroups.reconciliationKeysSubstitutingForAbsentClaim("acme", "sub-1"))
-                .thenReturn(List.of("group-guid-1"));
+        when(directoryGroups.groupKeysFor("acme", "sub-1", List.of())).thenReturn(List.of("group-guid-1"));
         var sut = new CurrentTokenCallerIdentity(directoryGroups);
         sut.groups();
 
@@ -195,7 +206,7 @@ class CurrentTokenCallerIdentityTest {
 
         // then
         assertThat(actual).containsExactly("group-guid-1");
-        verify(directoryGroups, times(2)).reconciliationKeysSubstitutingForAbsentClaim("acme", "sub-1");
+        verify(directoryGroups, times(2)).groupKeysFor("acme", "sub-1", List.of());
     }
 
     @Test
@@ -203,8 +214,7 @@ class CurrentTokenCallerIdentityTest {
 
         // given - scheduled and async work runs with no request attributes bound
         authenticate("sub-1", List.of());
-        when(directoryGroups.reconciliationKeysSubstitutingForAbsentClaim("acme", "sub-1"))
-                .thenReturn(List.of("group-guid-1"));
+        when(directoryGroups.groupKeysFor("acme", "sub-1", List.of())).thenReturn(List.of("group-guid-1"));
         var sut = new CurrentTokenCallerIdentity(directoryGroups);
 
         // when
@@ -212,7 +222,7 @@ class CurrentTokenCallerIdentityTest {
 
         // then
         assertThat(actual).allSatisfy(groups -> assertThat(groups).containsExactly("group-guid-1"));
-        verify(directoryGroups, times(2)).reconciliationKeysSubstitutingForAbsentClaim("acme", "sub-1");
+        verify(directoryGroups, times(2)).groupKeysFor("acme", "sub-1", List.of());
     }
 
     private static void beginRequest() {

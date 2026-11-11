@@ -13,31 +13,19 @@ import dev.axonia.shared.api.security.CurrentToken;
 import lombok.RequiredArgsConstructor;
 
 /**
- * Reads the caller's identity from the JWT, supplementing the {@code groups} claim from the SCIM-synced directory when
- * the claim is empty and the Organization's identity provider can drop it.
- *
- * <p>
- * Entra's group-claim overage markers ({@code _claim_names}/{@code _claim_sources}) are not read here: a
- * Keycloak-brokered import drops them, and a token Entra issues directly carries them in place of the claim. Either way
- * the token arrives without groups, so overage is undetectable here, and an empty claim is ambiguous between "no
- * groups", "overage", and "misconfigured mapper".
- *
- * <p>
- * The claim stays the primary source and is always current. The directory is consulted only when the claim is empty,
- * which confines its staleness (as fresh as the last SCIM push, up to roughly 40 minutes) to the case that is otherwise
- * a silent denial, and only for the Entra-connected Organizations where overage is possible at all. The read is a
- * single local indexed join over already-synced tables, so it does not violate {@code IdentityProviderDirectory}'s
- * prohibition on outbound calls from the authorisation path.
+ * Reads the caller's identity from the JWT, resolving its {@code groups} claim to group keys through
+ * {@link DirectoryGroups#groupKeysFor}, which decides when the SCIM-synced directory stands in for the claim or adds to
+ * it.
  *
  * <p>
  * The authorization gate re-derives the caller's groups on every permission check, several times per request. The
  * resolved keys are therefore memoized in the current request's attributes, never in a field: this component is a
  * singleton shared by every concurrent request, so a field would serve one caller's groups to another. The cached entry
- * additionally carries the subject and Organization it was resolved for and is ignored unless both match, so a request
- * that changes caller mid-flight re-resolves rather than inherits.
+ * additionally carries the subject, Organization and claim it was resolved for and is ignored unless all match, so a
+ * request that changes caller mid-flight re-resolves rather than inherits.
  *
  * <p>
- * The substitution never runs for an agent token ({@link CurrentToken#isAgentToken()}). An agent holds only the
+ * The directory is never consulted for an agent token ({@link CurrentToken#isAgentToken()}). An agent holds only the
  * permissions bound to the person who minted its token, never a group's: a SCIM client chooses its own group keys, so
  * letting the directory speak for an agent would turn "may provision" into "may be Owner".
  */
@@ -73,24 +61,20 @@ class CurrentTokenCallerIdentity implements CallerIdentity {
             // turn "may provision" into "may be Owner".
             return List.of();
         }
-        var claimed = CurrentToken.groups();
-        if (!claimed.isEmpty()) {
-            return claimed;
-        }
-        return substituteForAbsentClaim(organizationId(), subject());
+        return resolve(organizationId(), subject(), CurrentToken.groups());
     }
 
-    private List<String> substituteForAbsentClaim(String organizationId, String userId) {
+    private List<String> resolve(String organizationId, String userId, List<String> claimed) {
 
         var request = RequestContextHolder.getRequestAttributes();
         if (request == null) {
-            return directoryGroups.reconciliationKeysSubstitutingForAbsentClaim(organizationId, userId);
+            return directoryGroups.groupKeysFor(organizationId, userId, claimed);
         }
-        if (cached(request) instanceof ResolvedGroups hit && hit.resolvedFor(organizationId, userId)) {
+        if (cached(request) instanceof ResolvedGroups hit && hit.resolvedFor(organizationId, userId, claimed)) {
             return hit.keys();
         }
-        var resolved = directoryGroups.reconciliationKeysSubstitutingForAbsentClaim(organizationId, userId);
-        request.setAttribute(CACHE_KEY, new ResolvedGroups(organizationId, userId, resolved),
+        var resolved = directoryGroups.groupKeysFor(organizationId, userId, claimed);
+        request.setAttribute(CACHE_KEY, new ResolvedGroups(organizationId, userId, claimed, resolved),
                 RequestAttributes.SCOPE_REQUEST);
         return resolved;
     }
@@ -100,11 +84,12 @@ class CurrentTokenCallerIdentity implements CallerIdentity {
         return request.getAttribute(CACHE_KEY, RequestAttributes.SCOPE_REQUEST);
     }
 
-    private record ResolvedGroups(String organizationId, String userId, List<String> keys) {
+    private record ResolvedGroups(String organizationId, String userId, List<String> claimed, List<String> keys) {
 
-        boolean resolvedFor(String organizationId, String userId) {
+        boolean resolvedFor(String organizationId, String userId, List<String> claimed) {
 
-            return Objects.equals(this.organizationId, organizationId) && Objects.equals(this.userId, userId);
+            return Objects.equals(this.organizationId, organizationId) && Objects.equals(this.userId, userId)
+                    && this.claimed.equals(claimed);
         }
     }
 }

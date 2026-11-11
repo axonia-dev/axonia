@@ -2,6 +2,7 @@ package dev.axonia.identity.application;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.stream.Stream;
 
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -9,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import dev.axonia.identity.api.DirectoryGroups;
 import dev.axonia.identity.api.IdpProvider;
 import dev.axonia.identity.api.OrganizationIdp;
+import dev.axonia.identity.api.spi.GroupsClaimSource;
 import dev.axonia.identity.api.spi.OrganizationIdpResolver;
 import dev.axonia.identity.application.port.out.DirectoryGroupMemberStore;
 import dev.axonia.identity.application.port.out.DirectoryGroupStore;
@@ -28,6 +30,7 @@ class DirectoryGroupsAdapter implements DirectoryGroups {
     private final DirectoryGroupStore directoryGroupStore;
     private final DirectoryGroupMemberStore directoryGroupMemberStore;
     private final OrganizationIdpResolver organizationIdpResolver;
+    private final List<GroupsClaimSource> groupsClaimSources;
 
     /**
      * A group held unconfirmed contributes nothing. Its key is one a role binding was already waiting on when the
@@ -54,12 +57,21 @@ class DirectoryGroupsAdapter implements DirectoryGroups {
 
     @Override
     @Transactional(readOnly = true)
-    public List<String> reconciliationKeysSubstitutingForAbsentClaim(String organizationId, String userId) {
+    public List<String> groupKeysFor(String organizationId, String userId, List<String> claimed) {
 
-        if (!isEntraConnected(organizationId)) {
-            return List.of();
+        if (claimReadFromAnother(organizationId)) {
+            return Stream.concat(claimed.stream(), reconciliationKeysForUser(organizationId, userId).stream())
+                    .distinct().toList();
         }
-        return reconciliationKeysForUser(organizationId, userId);
+        if (!claimed.isEmpty()) {
+            return claimed;
+        }
+        return isEntraConnected(organizationId) ? reconciliationKeysForUser(organizationId, userId) : List.of();
+    }
+
+    private boolean claimReadFromAnother(String organizationId) {
+
+        return groupsClaimSources.stream().anyMatch(source -> source.readsAnotherClaim(organizationId));
     }
 
     /**
