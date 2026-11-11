@@ -1,12 +1,14 @@
 import { MessageCircle } from "lucide-react";
 
 import { monthName } from "@/lib/declared-on";
+import { useNow } from "@/lib/use-wake-at";
 
 /** The invitation a person open to questions carries on a card, in place of a date line. */
 export function AskAboutPill({
   term,
   since,
 }: Readonly<{ term: string; since: string | null }>) {
+  const now = useNow();
   return (
     <span
       data-testid="ask-about"
@@ -23,7 +25,7 @@ export function AskAboutPill({
       </span>
       {since !== null && (
         <span className="text-muted-foreground shrink-0 font-normal">
-          · since {monthName(since)}
+          · since {monthName(since, now)}
         </span>
       )}
     </span>

@@ -32,8 +32,17 @@ vi.mock("@/features/expertise/ui/DeclarationPreview", () => ({
   ),
 }));
 vi.mock("@/features/expertise/ui/TakingQuestionsSwitch", () => ({
-  TakingQuestionsSwitch: ({ paused }: { paused: boolean }) => (
-    <p>switch {paused ? "off" : "on"}</p>
+  TakingQuestionsSwitch: ({
+    paused,
+    inCommunity,
+  }: {
+    paused: boolean;
+    inCommunity: boolean;
+  }) => (
+    <p>
+      switch {paused ? "off" : "on"}
+      {inCommunity ? " in a community" : ""}
+    </p>
   ),
 }));
 
@@ -48,15 +57,18 @@ const TERRAFORM: SelfDeclaration = {
 
 const PLATFORM = { id: 1, slug: "platform", name: "Platform" };
 
-function renderLane(preview: {
-  tags: string[];
-  tier: "OPEN_TO_QUESTIONS" | null;
-  paused: boolean;
-}) {
+function renderLane(
+  preview: {
+    tags: string[];
+    tier: "OPEN_TO_QUESTIONS" | null;
+    paused: boolean;
+  },
+  { across = false }: { across?: boolean } = {},
+) {
   return render(
     <DeclaredLane
       declarations={[TERRAFORM]}
-      slug="platform"
+      slug={across ? undefined : "platform"}
       communityId={1}
       declarableCommunities={[PLATFORM]}
       preview={preview}
@@ -85,7 +97,7 @@ describe("DeclaredLane preview", () => {
 
     // then
     expect(screen.getByText("add field")).toBeInTheDocument();
-    expect(screen.getByText("switch off")).toBeInTheDocument();
+    expect(screen.getByText("switch off in a community")).toBeInTheDocument();
     expect(
       screen.getByText("preview of terraform+kafka paused"),
     ).toBeInTheDocument();
@@ -116,5 +128,16 @@ describe("DeclaredLane preview", () => {
     // then
     expect(screen.queryByText(/^preview of/)).not.toBeInTheDocument();
     expect(screen.queryByText(/^switch/)).not.toBeInTheDocument();
+  });
+
+  it("acrossCommunitiesTheSwitchCarriesNoCommunityNote", () => {
+    // when
+    renderLane(
+      { tags: ["terraform"], tier: "OPEN_TO_QUESTIONS", paused: false },
+      { across: true },
+    );
+
+    // then
+    expect(screen.getByText("switch on")).toBeInTheDocument();
   });
 });

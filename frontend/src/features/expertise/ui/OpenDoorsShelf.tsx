@@ -38,7 +38,8 @@ export function OpenDoorsShelf({
           </button>
         )}
       </div>
-      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {/* As many columns as fit cards wide enough for four ringed faces, never more than four. */}
+      <ul className="grid grid-cols-[repeat(auto-fill,minmax(max(8.25rem,calc((100%_-_2.25rem)/4)),1fr))] gap-3">
         {shown.map((area) => (
           <li key={area.canonicalTag} className="flex min-w-0">
             <OpenDoorCard

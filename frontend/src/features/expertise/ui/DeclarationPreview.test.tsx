@@ -44,12 +44,27 @@ describe("DeclarationPreview", () => {
   it("showsPausedWithoutTheRing", () => {
     // when
     const { container } = render(
-      <DeclarationPreview tags={["kafka"]} tier="OPEN_TO_QUESTIONS" paused />,
+      <DeclarationPreview tags={["kafka"]} tier="PRACTITIONER" paused />,
     );
 
     // then
     expect(container.querySelector("[data-open]")).toBeNull();
     expect(screen.queryByTestId("ask-about")).not.toBeInTheDocument();
+    expect(screen.getByText("Practitioner")).toBeInTheDocument();
     expect(screen.getByText("Paused")).toBeInTheDocument();
+  });
+
+  it("showsNoCardForAPausedDeclarationOnlyMember", () => {
+    // when
+    const { container } = render(
+      <DeclarationPreview tags={["kafka"]} tier="OPEN_TO_QUESTIONS" paused />,
+    );
+
+    // then
+    expect(screen.getByText("As others see it")).toBeInTheDocument();
+    expect(screen.getByText("Hidden from search while paused")).toBeVisible();
+    expect(screen.queryByText("Open to questions")).not.toBeInTheDocument();
+    expect(screen.queryByText("Dinant, Gabriel")).not.toBeInTheDocument();
+    expect(container.querySelector("[data-open]")).toBeNull();
   });
 });

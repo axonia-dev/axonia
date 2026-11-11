@@ -24,7 +24,7 @@ beforeEach(() => {
 describe("TakingQuestionsSwitch", () => {
   it("turningOffCallsSetPausedTrue", async () => {
     // given
-    render(<TakingQuestionsSwitch paused={false} />);
+    render(<TakingQuestionsSwitch paused={false} inCommunity={false} />);
     const toggle = screen.getByRole("switch", { name: "Taking questions" });
     expect(toggle).toBeChecked();
 
@@ -37,7 +37,7 @@ describe("TakingQuestionsSwitch", () => {
 
   it("turningBackOnCallsSetPausedFalse", async () => {
     // given
-    render(<TakingQuestionsSwitch paused />);
+    render(<TakingQuestionsSwitch paused inCommunity={false} />);
 
     // when
     await userEvent.click(
@@ -50,7 +50,7 @@ describe("TakingQuestionsSwitch", () => {
 
   it("explainsThatPausingLosesNothing", () => {
     // when
-    render(<TakingQuestionsSwitch paused={false} />);
+    render(<TakingQuestionsSwitch paused={false} inCommunity={false} />);
 
     // then
     expect(
@@ -67,11 +67,31 @@ describe("TakingQuestionsSwitch", () => {
     } as never);
 
     // when
-    render(<TakingQuestionsSwitch paused={false} />);
+    render(<TakingQuestionsSwitch paused={false} inCommunity={false} />);
 
     // then
     expect(
       screen.getByRole("switch", { name: "Taking questions" }),
     ).not.toBeChecked();
+  });
+
+  it("saysItAppliesInEveryCommunityOnACommunityPage", () => {
+    // when
+    render(<TakingQuestionsSwitch paused={false} inCommunity />);
+
+    // then
+    expect(screen.getByText("Applies in every community")).toHaveClass(
+      "text-muted-foreground",
+    );
+  });
+
+  it("saysNothingMoreAcrossEveryCommunity", () => {
+    // when
+    render(<TakingQuestionsSwitch paused={false} inCommunity={false} />);
+
+    // then
+    expect(
+      screen.queryByText("Applies in every community"),
+    ).not.toBeInTheDocument();
   });
 });

@@ -9,8 +9,10 @@ const openFaceSchema = z.object({
 export const heldAreaSchema = z.object({
   tag: z.string(),
   declaredAt: z.string(),
-  /** Who is open to questions on the area in this community, the member excluded. */
+  /** Up to four of the people open to questions on the area in this community, the member excluded. */
   open: z.array(openFaceSchema).default([]),
+  /** How many are open, however many faces `open` carries. */
+  openCount: z.number().default(0),
 });
 
 const wantedAreaSchema = z.object({

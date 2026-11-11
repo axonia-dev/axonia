@@ -26,7 +26,10 @@ export function countSummary(evidence: Evidence): string {
 }
 
 /** The line under a person whose only claim on the term is a declaration. */
-export function declarationLine(practitioner: Practitioner): string | null {
+export function declarationLine(
+  practitioner: Practitioner,
+  now: Date,
+): string | null {
   if (
     !practitioner.openToQuestions ||
     practitioner.declaredAt === null ||
@@ -34,5 +37,5 @@ export function declarationLine(practitioner: Practitioner): string | null {
   ) {
     return null;
   }
-  return `Declared in ${monthName(practitioner.declaredAt)}, no activity here yet`;
+  return `Declared in ${monthName(practitioner.declaredAt, now)}, no activity here yet`;
 }

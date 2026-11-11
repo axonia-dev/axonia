@@ -155,11 +155,12 @@ test("the learning page fits a phone, however long an area's name", async ({
         {
           tag: LONG_AREA,
           declaredAt: "2026-03-02T09:00:00Z",
-          open: ["lea", "tom", "ana", "bo", "cy"].map((userId) => ({
+          open: ["lea", "tom", "ana", "bo"].map((userId) => ({
             userId,
             displayName: userId,
             avatarUrl: null,
           })),
+          openCount: 128,
         },
         { tag: "observability", declaredAt: "2026-09-12T09:00:00Z" },
       ],

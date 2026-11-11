@@ -33,4 +33,23 @@ describe("OpenRing", () => {
     // then
     expect(screen.queryByTestId("open-dot")).not.toBeInTheDocument();
   });
+
+  it("saysOpenToQuestionsToAScreenReaderOnlyWhenAsked", () => {
+    // when
+    render(
+      <>
+        <OpenRing dot={false} labelled>
+          <span>labelled face</span>
+        </OpenRing>
+        <OpenRing dot={false}>
+          <span>plain face</span>
+        </OpenRing>
+      </>,
+    );
+
+    // then
+    const label = screen.getByText("Open to questions");
+    expect(label).toHaveClass("sr-only");
+    expect(screen.getAllByText("Open to questions")).toHaveLength(1);
+  });
 });

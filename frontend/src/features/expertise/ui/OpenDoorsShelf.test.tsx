@@ -94,9 +94,13 @@ describe("OpenDoorsShelf", () => {
     renderShelf();
 
     // then
-    const fresh = await screen.findByRole("button", { name: /^kafka/ });
+    const fresh = await screen.findByRole("button", {
+      name: "kafka, 1 person open to questions, new",
+    });
     expect(within(fresh).getByText("New")).toBeInTheDocument();
-    const old = screen.getByRole("button", { name: /^rust/ });
+    const old = screen.getByRole("button", {
+      name: "rust, 1 person open to questions",
+    });
     expect(within(old).queryByText("New")).not.toBeInTheDocument();
   });
 

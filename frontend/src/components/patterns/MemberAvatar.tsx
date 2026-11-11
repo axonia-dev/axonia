@@ -27,6 +27,8 @@ interface MemberAvatarProps {
   open?: boolean;
   /** The speech dot beside the ring, dropped at sizes under about 32 px. */
   openDot?: boolean;
+  /** Names the ring to a screen reader, on a surface with no other text saying the person is open. */
+  openLabelled?: boolean;
 }
 
 /** The positioned box a decoration fills, following the avatar's corners. */
@@ -41,12 +43,13 @@ export function decoratedAvatarClass(shape: Shape): string {
 export function MemberAvatar({
   open = false,
   openDot = true,
+  openLabelled = false,
   ref,
   ...face
 }: Readonly<MemberAvatarProps>) {
   if (!open) return <DecoratedAvatar {...face} {...(ref ? { ref } : {})} />;
   return (
-    <OpenRing ref={ref} dot={openDot}>
+    <OpenRing ref={ref} dot={openDot} labelled={openLabelled}>
       <DecoratedAvatar {...face} />
     </OpenRing>
   );
@@ -60,7 +63,7 @@ function DecoratedAvatar({
   shape = "circle",
   className = "",
   ref,
-}: Readonly<Omit<MemberAvatarProps, "open" | "openDot">>) {
+}: Readonly<Omit<MemberAvatarProps, "open" | "openDot" | "openLabelled">>) {
   const { AvatarDecoration } = useEdition();
   const decorated = AvatarDecoration !== null && subject !== null;
   const avatar = (

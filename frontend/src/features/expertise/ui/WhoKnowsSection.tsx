@@ -9,6 +9,7 @@ import {
   declarationLine,
 } from "@/features/expertise/ui/practitioner-lines";
 import { TierBadge } from "@/features/expertise/ui/TierBadge";
+import { useNow } from "@/lib/use-wake-at";
 import { userHue } from "@/lib/user-hue";
 
 const MAX_ROWS = 4;
@@ -21,10 +22,11 @@ function PersonRow({
   practitioner,
   delayMs,
 }: Readonly<{ practitioner: Practitioner; delayMs: number }>) {
+  const now = useNow();
   const name = practitioner.displayName ?? practitioner.userId;
   const line =
     countSummary(practitioner.evidence) ||
-    (declarationLine(practitioner) ?? "");
+    (declarationLine(practitioner, now) ?? "");
   return (
     <li
       className="flex items-start gap-2.5 motion-safe:animate-[who-knows-in_350ms_ease-out_both]"
@@ -39,6 +41,7 @@ function PersonRow({
         className="size-7 text-xs"
         open={practitioner.openToQuestions}
         openDot={false}
+        openLabelled
       />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">

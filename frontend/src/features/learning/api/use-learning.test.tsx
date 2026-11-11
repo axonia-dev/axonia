@@ -100,6 +100,7 @@ describe("useAddIntent", () => {
       tag: "kafka",
       declaredAt: "2026-09-25T12:00:00Z",
       open: [],
+      openCount: 0,
     });
     const invalidate = vi.spyOn(client, "invalidateQueries");
     const { result } = renderHook(() => useAddIntent("platform"), { wrapper });

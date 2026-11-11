@@ -20,24 +20,25 @@ export function OpenDoorCard({
   return (
     <Button
       onPress={onOpen}
-      aria-label={`${area.canonicalTag}, ${count} open to questions`}
+      aria-label={`${area.canonicalTag}, ${count} open to questions${isNew ? ", new" : ""}`}
       className="border-border bg-surface data-[focus-visible]:ring-focus-ring flex w-full min-w-0 cursor-pointer flex-col items-start gap-2.5 rounded-md border p-3.5 text-left outline-none data-[focus-visible]:ring-2 data-[hovered]:border-[color-mix(in_srgb,var(--primary)_45%,var(--border))] motion-safe:transition-[border-color,transform] motion-safe:duration-200 motion-safe:data-[hovered]:-translate-y-0.5"
     >
       <span className="font-display text-foreground max-w-full text-base font-semibold break-words">
         {area.canonicalTag}
       </span>
-      <span className="flex w-full items-center justify-between gap-2">
-        <MemberFacepile
-          members={area.people.map((person) => ({
-            id: person.userId,
-            name: person.displayName ?? person.userId,
-            hue: userHue(person.userId),
-            src: person.avatarUrl,
-          }))}
-          max={MAX_FACES}
-          size="size-7 text-[0.625rem]"
-          open
-        />
+      <MemberFacepile
+        members={area.people.map((person) => ({
+          id: person.userId,
+          name: person.displayName ?? person.userId,
+          hue: userHue(person.userId),
+          src: person.avatarUrl,
+        }))}
+        max={MAX_FACES}
+        size="size-7 text-[0.625rem]"
+        open
+      />
+      <span className="flex w-full flex-wrap items-center justify-between gap-x-2 gap-y-1">
+        <span className="text-muted-foreground text-xs">{count}</span>
         {isNew && (
           <span className="text-primary-strong inline-flex shrink-0 items-center gap-1.5 text-[0.68rem] font-medium">
             <span
@@ -48,7 +49,6 @@ export function OpenDoorCard({
           </span>
         )}
       </span>
-      <span className="text-muted-foreground text-xs">{count}</span>
     </Button>
   );
 }

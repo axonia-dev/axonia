@@ -12,7 +12,11 @@ export interface LanePreview {
 }
 
 /** The add field and the switch on the left, the card others see on the right; stacked on a phone. */
-export function declaringPanel(field: ReactNode, preview: LanePreview) {
+export function declaringPanel(
+  field: ReactNode,
+  preview: LanePreview,
+  inCommunity: boolean,
+) {
   const showsCard = preview.tags.length > 0;
   const offersPause = showsCard || preview.paused;
   if (field === null && !offersPause) return null;
@@ -28,7 +32,10 @@ export function declaringPanel(field: ReactNode, preview: LanePreview) {
         {field}
         {offersPause && (
           <div className={cn(field !== null && "border-border border-t pt-3")}>
-            <TakingQuestionsSwitch paused={preview.paused} />
+            <TakingQuestionsSwitch
+              paused={preview.paused}
+              inCommunity={inCommunity}
+            />
           </div>
         )}
       </div>

@@ -3,6 +3,8 @@ import type { ReactNode, Ref } from "react";
 
 interface OpenRingProps {
   dot: boolean;
+  /** Says "Open to questions" to a screen reader, where nothing else on the surface does. */
+  labelled?: boolean;
   children: ReactNode;
   ref?: Ref<HTMLElement> | undefined;
 }
@@ -10,7 +12,12 @@ interface OpenRingProps {
 /** The sign of a person open to questions: a slowly turning dashed ring around the face, which
  *  sits inset, and a speech dot at the bottom right. The dash already means "declared, not
  *  proven" on the tier badge and the map. */
-export function OpenRing({ dot, children, ref }: Readonly<OpenRingProps>) {
+export function OpenRing({
+  dot,
+  labelled = false,
+  children,
+  ref,
+}: Readonly<OpenRingProps>) {
   return (
     <span
       ref={ref}
@@ -34,6 +41,7 @@ export function OpenRing({ dot, children, ref }: Readonly<OpenRingProps>) {
         />
       </svg>
       <span className="inline-flex scale-80 rounded-full">{children}</span>
+      {labelled && <span className="sr-only">Open to questions</span>}
       {dot && (
         <span
           data-testid="open-dot"

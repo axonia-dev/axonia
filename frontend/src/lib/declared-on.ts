@@ -4,12 +4,13 @@ const DAY = new Intl.DateTimeFormat("en-GB", {
   year: "numeric",
 });
 
-const MONTH = new Intl.DateTimeFormat("en-GB", {
+const MONTH_YEAR_UTC = new Intl.DateTimeFormat("en-GB", {
   month: "short",
   year: "numeric",
+  timeZone: "UTC",
 });
 
-const MONTH_NAME_UTC = new Intl.DateTimeFormat("en-GB", {
+const MONTH_UTC = new Intl.DateTimeFormat("en-GB", {
   month: "short",
   timeZone: "UTC",
 });
@@ -29,12 +30,13 @@ export function declaredOn(iso: string): string {
   return withThreeLetterMonth(DAY, iso);
 }
 
-/** "Sep 2026", in the reader's own zone. */
+/** "Sep 2026", the month of the instant in UTC. */
 export function declaredMonth(iso: string): string {
-  return withThreeLetterMonth(MONTH, iso);
+  return withThreeLetterMonth(MONTH_YEAR_UTC, iso);
 }
 
-/** "Sep", the month of the instant in UTC. */
-export function monthName(iso: string): string {
-  return withThreeLetterMonth(MONTH_NAME_UTC, iso);
+/** "Sep" in the current year and "Sep 2025" before it, the month of the instant in UTC. */
+export function monthName(iso: string, now: Date): string {
+  const sameYear = new Date(iso).getUTCFullYear() === now.getUTCFullYear();
+  return withThreeLetterMonth(sameYear ? MONTH_UTC : MONTH_YEAR_UTC, iso);
 }

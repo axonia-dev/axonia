@@ -26,6 +26,7 @@ describe("httpLearningGateway", () => {
             open: [
               { userId: "lea", displayName: "Lea Moser", avatarUrl: null },
             ],
+            openCount: 6,
           },
         ],
         wanted: [{ tag: "kafka", learners: 3, canBeAsked: 2 }],
@@ -101,6 +102,7 @@ describe("httpLearningGateway", () => {
         tag: "kafka",
         declaredAt: "2026-09-25T12:00:00Z",
         open: [],
+        openCount: 0,
       });
     });
   });

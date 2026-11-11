@@ -10,6 +10,7 @@ import {
   declarationLine,
 } from "@/features/expertise/ui/practitioner-lines";
 import { TierBadge } from "@/features/expertise/ui/TierBadge";
+import { useNow } from "@/lib/use-wake-at";
 import { userHue } from "@/lib/user-hue";
 
 interface Props {
@@ -20,7 +21,7 @@ interface Props {
 
 function CardLines({ practitioner, term }: Readonly<Props>) {
   const summary = countSummary(practitioner.evidence);
-  const declared = declarationLine(practitioner);
+  const declared = declarationLine(practitioner, useNow());
   const hasEvidence = practitioner.tier !== "OPEN_TO_QUESTIONS";
   return (
     <>

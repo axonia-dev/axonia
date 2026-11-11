@@ -35,8 +35,14 @@ const PAGE: LearningPage = {
         { userId: "lea", displayName: "Lea Moser", avatarUrl: null },
         { userId: "tom", displayName: null, avatarUrl: "/tom.png" },
       ],
+      openCount: 7,
     },
-    { tag: "rust", declaredAt: "2026-09-12T09:00:00Z", open: [] },
+    {
+      tag: "rust",
+      declaredAt: "2026-09-12T09:00:00Z",
+      open: [],
+      openCount: 0,
+    },
   ],
   wanted: [],
 };
@@ -134,7 +140,7 @@ describe("WantToLearnPanel", () => {
 
     // then
     const row = screen.getByRole("listitem", { name: "kafka" });
-    expect(within(row).getByText("2 open to questions")).toBeInTheDocument();
+    expect(within(row).getByText("7 open to questions")).toBeInTheDocument();
     expect(within(row).getByText("since Mar 2026")).toBeInTheDocument();
     expect(row.querySelectorAll("[data-open='true']")).toHaveLength(2);
     expect(within(row).queryByTestId("open-dot")).not.toBeInTheDocument();

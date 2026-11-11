@@ -27,6 +27,7 @@ function tenAreas(): HeldArea[] {
     tag: `area-${at}`,
     declaredAt: "2026-03-02T09:00:00Z",
     open: [],
+    openCount: 0,
   }));
 }
 
@@ -41,7 +42,12 @@ describe("LearningPage", () => {
     page({
       member: true,
       mine: [
-        { tag: "kubernetes", declaredAt: "2026-03-02T09:00:00Z", open: [] },
+        {
+          tag: "kubernetes",
+          declaredAt: "2026-03-02T09:00:00Z",
+          open: [],
+          openCount: 0,
+        },
       ],
     });
 
@@ -87,7 +93,14 @@ describe("LearningPage", () => {
     page({
       member: true,
       archived: true,
-      mine: [{ tag: "kafka", declaredAt: "2026-03-02T09:00:00Z", open: [] }],
+      mine: [
+        {
+          tag: "kafka",
+          declaredAt: "2026-03-02T09:00:00Z",
+          open: [],
+          openCount: 0,
+        },
+      ],
     });
 
     // when
@@ -105,7 +118,14 @@ describe("LearningPage", () => {
     delegated(true);
     page({
       member: true,
-      mine: [{ tag: "kafka", declaredAt: "2026-03-02T09:00:00Z", open: [] }],
+      mine: [
+        {
+          tag: "kafka",
+          declaredAt: "2026-03-02T09:00:00Z",
+          open: [],
+          openCount: 0,
+        },
+      ],
     });
 
     // when

@@ -56,7 +56,7 @@ function OpenFaces({ slug, area }: Readonly<{ slug: string; area: HeldArea }>) {
 
 function IntentRow({ slug, area, isRemoving, onRemove }: Readonly<RowProps>) {
   const nameId = useId();
-  const openCount = area.open.length;
+  const { openCount } = area;
   return (
     <li
       aria-labelledby={nameId}
@@ -69,14 +69,16 @@ function IntentRow({ slug, area, isRemoving, onRemove }: Readonly<RowProps>) {
         >
           {area.tag}
         </p>
-        <p className="text-muted-foreground text-xs">
-          {openCount > 0 ? (
-            <span>{openCount} open to questions</span>
-          ) : (
-            <span className="italic">Nobody open yet</span>
-          )}
-          <span aria-hidden="true">{" · "}</span>
-          <span>since {declaredMonth(area.declaredAt)}</span>
+        {/* Each fact leads with its separator, and the one starting a line is clipped away. */}
+        <p className="text-muted-foreground overflow-hidden text-xs">
+          <span className="-ml-3 flex flex-wrap [&>span]:before:inline-block [&>span]:before:w-3 [&>span]:before:text-center [&>span]:before:not-italic [&>span]:before:content-['·'_/_'']">
+            {openCount > 0 ? (
+              <span>{openCount} open to questions</span>
+            ) : (
+              <span className="italic">Nobody open yet</span>
+            )}
+            <span>since {declaredMonth(area.declaredAt)}</span>
+          </span>
         </p>
       </div>
       <OpenFaces slug={slug} area={area} />

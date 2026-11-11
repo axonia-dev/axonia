@@ -171,4 +171,11 @@ test("openPeopleWearTheRingWithoutTheDot", async () => {
     rings[0] as HTMLElement,
   );
   expect(screen.queryByTestId("open-dot")).not.toBeInTheDocument();
+  expect(screen.getAllByRole("listitem")[0]).toHaveTextContent(
+    "Open to questions",
+  );
+  expect(screen.getByText("Open to questions")).toHaveClass("sr-only");
+  expect(screen.getAllByRole("listitem")[1]).not.toHaveTextContent(
+    "Open to questions",
+  );
 });

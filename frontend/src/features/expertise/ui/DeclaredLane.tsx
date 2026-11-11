@@ -145,7 +145,9 @@ function Lane({
   const remove = useRemoveDeclaration();
   const unhide = useUnhideTag();
   const writable = !useIsDelegated();
-  const panel = writable ? declaringPanel(addField, preview) : null;
+  const panel = writable
+    ? declaringPanel(addField, preview, !showCommunity)
+    : null;
 
   if (declarations.length === 0) {
     return panel === null ? null : (
