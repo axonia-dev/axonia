@@ -95,4 +95,18 @@ class PersonDirectoryAdapterTest {
         // then
         assertThat(result).containsExactly(entry("ghost", Person.unresolved("ghost")));
     }
+
+    @Test
+    void found_leavesOutAnIdTheDirectoryCannotName() {
+
+        // given
+        when(userService.resolve(any()))
+                .thenReturn(List.of(DirectoryUser.builder().id("u1").displayName("Deleted member").build()));
+
+        // when
+        var result = sut.found(List.of("u1", "ghost"));
+
+        // then
+        assertThat(result).containsOnlyKeys("u1");
+    }
 }

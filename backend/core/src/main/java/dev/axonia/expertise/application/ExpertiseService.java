@@ -116,7 +116,7 @@ public class ExpertiseService implements OpenDoors {
                             BinaryOperator.minBy(Comparator.naturalOrder()));
         }
         var people = personDirectory
-                .resolve(declarersByArea.values().stream().flatMap(declarers -> declarers.keySet().stream()).toList());
+                .found(declarersByArea.values().stream().flatMap(declarers -> declarers.keySet().stream()).toList());
         return declarersByArea.entrySet().stream().map(area -> openArea(area.getKey(), area.getValue(), people))
                 .filter(area -> !area.people().isEmpty())
                 .sorted(Comparator.comparing(OpenArea::latestDeclaredAt, Comparator.reverseOrder())
@@ -200,11 +200,8 @@ public class ExpertiseService implements OpenDoors {
 
     private static OpenArea openArea(String canonicalTag, Map<String, Instant> declarers, Map<String, Person> people) {
 
-        var open = declarers.entrySet().stream()
-                .map(declarer -> new Declarer(
-                        people.getOrDefault(declarer.getKey(), Person.unresolved(declarer.getKey())),
-                        declarer.getValue()))
-                .filter(declarer -> !declarer.person().isUnresolved()).map(Declarer::open)
+        var open = declarers.entrySet().stream().filter(declarer -> people.containsKey(declarer.getKey()))
+                .map(declarer -> new Declarer(people.get(declarer.getKey()), declarer.getValue())).map(Declarer::open)
                 .sorted(Comparator.comparing(OpenPerson::declaredAt, Comparator.reverseOrder())
                         .thenComparing(OpenPerson::displayName, String.CASE_INSENSITIVE_ORDER))
                 .toList();

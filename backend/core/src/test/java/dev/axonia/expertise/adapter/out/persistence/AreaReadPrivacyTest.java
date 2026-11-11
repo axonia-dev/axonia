@@ -172,7 +172,7 @@ class AreaReadPrivacyTest extends ExpertiseJdbcTestSupport {
         preferences.setPaused(ORG, "area-bob", true);
         preferences.setOptOut(ORG, "area-carol", true);
         preferences.hideTag(ORG, "area-dana", "kafka");
-        when(personDirectory.resolve(any())).thenAnswer(call -> {
+        when(personDirectory.found(any())).thenAnswer(call -> {
             java.util.Collection<String> ids = call.getArgument(0);
             return ids.stream().collect(java.util.stream.Collectors.toMap(id -> id,
                     id -> new dev.axonia.expertise.domain.Person(id, id, null, null)));

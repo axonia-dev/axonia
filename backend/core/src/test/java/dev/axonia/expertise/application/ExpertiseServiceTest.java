@@ -771,7 +771,7 @@ class ExpertiseServiceTest {
         // given
         when(tagAliasRepository.aliasMap("org-1", 1L)).thenReturn(Map.of("apache-kafka", "kafka"));
         givenDeclarationsInCommunity(declared("ann", "apache-kafka", EARLY), declared("ben", "kafka", LATE));
-        when(personDirectory.resolve(any())).thenReturn(
+        when(personDirectory.found(any())).thenReturn(
                 Map.of("ann", new Person("ann", "Ann", "ann.png", null), "ben", new Person("ben", "Ben", null, null)));
 
         // when
@@ -824,7 +824,7 @@ class ExpertiseServiceTest {
 
         // given
         givenDeclarationsInCommunity(declared("zed", "kafka", LATE), declared("amy", "kafka", LATE));
-        when(personDirectory.resolve(any())).thenReturn(
+        when(personDirectory.found(any())).thenReturn(
                 Map.of("zed", new Person("zed", "Zed", null, null), "amy", new Person("amy", "amy", null, null)));
 
         // when
@@ -840,14 +840,28 @@ class ExpertiseServiceTest {
 
         // given
         givenDeclarationsInCommunity(declared("ghost", "kafka", LATE), declared("ann", "observability", EARLY));
-        when(personDirectory.resolve(any()))
-                .thenReturn(Map.of("ghost", Person.unresolved("ghost"), "ann", new Person("ann", "Ann", null, null)));
+        when(personDirectory.found(any())).thenReturn(Map.of("ann", new Person("ann", "Ann", null, null)));
 
         // when
         var result = sut.openIn("eng");
 
         // then
         assertThat(result).extracting(OpenArea::canonicalTag).containsExactly("observability");
+    }
+
+    @Test
+    void openInKeepsAMemberWhoseNameReadsLikeTheDeletedLabel() {
+
+        // given
+        givenDeclarationsInCommunity(declared("dm", "kafka", LATE));
+        when(personDirectory.found(any())).thenReturn(Map.of("dm", Person.unresolved("dm")));
+
+        // when
+        var result = sut.openIn("eng");
+
+        // then
+        assertThat(result).singleElement().extracting(OpenArea::people).asInstanceOf(InstanceOfAssertFactories.LIST)
+                .extracting("userId").containsExactly("dm");
     }
 
     @Test
@@ -868,7 +882,7 @@ class ExpertiseServiceTest {
         for (var userId : userIds) {
             people.put(userId, new Person(userId, userId, null, null));
         }
-        when(personDirectory.resolve(any())).thenReturn(people);
+        when(personDirectory.found(any())).thenReturn(people);
     }
 
     private static Declaration declared(String userId, String tag, Instant at) {

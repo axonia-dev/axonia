@@ -18,12 +18,10 @@ class PersonDirectoryAdapter implements PersonDirectory {
     private final MemberProfiles userService;
 
     @Override
-    public Map<String, Person> resolve(Collection<String> userIds) {
+    public Map<String, Person> found(Collection<String> userIds) {
 
-        var found = userService.resolve(userIds).stream().collect(Collectors.toMap(u -> u.id(), u -> new Person(u.id(),
+        return userService.resolve(userIds).stream().collect(Collectors.toMap(u -> u.id(), u -> new Person(u.id(),
                 u.displayName(), u.avatarUrl(), firstNonBlank(u.team(), u.department(), u.businessUnit()))));
-        return userIds.stream().distinct()
-                .collect(Collectors.toMap(id -> id, id -> found.getOrDefault(id, Person.unresolved(id))));
     }
 
     private static String firstNonBlank(String... values) {
