@@ -21,6 +21,7 @@ vi.mock("@/features/expertise/api/use-self-view", () => ({
 }));
 vi.mock("@/features/expertise/api/use-expertise-prefs", () => ({
   useSetOptOut: vi.fn(),
+  useSetPaused: () => ({ mutate: vi.fn(), isPending: false }),
   useHideTag: vi.fn(),
   useUnhideTag: vi.fn(),
   useDismissSignal: vi.fn(),

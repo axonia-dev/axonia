@@ -21,6 +21,7 @@ import {
   sortAreas,
 } from "@/features/expertise/domain/area-filter";
 import {
+  asOthersSeeIt,
   canDeclareFrom,
   declarationsIn,
   declaredOnly,
@@ -279,6 +280,10 @@ export function MyExpertiseView() {
         slug={slug}
         communityId={layout.lensId}
         declarableCommunities={data.declarableCommunities}
+        preview={{
+          ...asOthersSeeIt(data, layout.markedDeclarations),
+          paused: data.paused,
+        }}
       />
     </section>
   );

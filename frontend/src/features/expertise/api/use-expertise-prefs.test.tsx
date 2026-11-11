@@ -8,12 +8,15 @@ import {
   useDismissSignal,
   useHideTag,
   useSetOptOut,
+  useSetPaused,
   useUnhideTag,
 } from "@/features/expertise/api/use-expertise-prefs";
+import { learningKeys } from "@/features/learning/api/query-keys";
 
 vi.mock("@/features/expertise/adapters/http-expertise-gateway", () => ({
   httpExpertiseGateway: {
     setOptOut: vi.fn(),
+    setPaused: vi.fn(),
     hideTag: vi.fn(),
     unhideTag: vi.fn(),
     dismiss: vi.fn(),
@@ -61,6 +64,10 @@ const MUTATIONS: [string, (wrapper: Wrapper) => void][] = [
     (w) => renderHook(useSetOptOut, { wrapper: w }).result.current.mutate(true),
   ],
   [
+    "a pause",
+    (w) => renderHook(useSetPaused, { wrapper: w }).result.current.mutate(true),
+  ],
+  [
     "a hide",
     (w) => renderHook(useHideTag, { wrapper: w }).result.current.mutate("pg"),
   ],
@@ -74,6 +81,7 @@ describe("a change to what the member shows", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     gateway.setOptOut.mockResolvedValue(undefined);
+    gateway.setPaused.mockResolvedValue(undefined);
     gateway.hideTag.mockResolvedValue(undefined);
     gateway.unhideTag.mockResolvedValue(undefined);
   });
@@ -91,6 +99,29 @@ describe("a change to what the member shows", () => {
       expect(stale(expertiseKeys.selfView())).toBe(true);
     },
   );
+});
+
+describe("useSetPaused", () => {
+  it("refreshesTheLearningListsThatCountTheMember", async () => {
+    // given
+    gateway.setPaused.mockResolvedValue(undefined);
+    const client = new QueryClient();
+    client.setQueryData(learningKeys.page("platform"), { mine: [] });
+    const cached = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+
+    // when
+    renderHook(useSetPaused, { wrapper: cached }).result.current.mutate(false);
+
+    // then
+    await waitFor(() =>
+      expect(
+        client.getQueryState(learningKeys.page("platform"))?.isInvalidated,
+      ).toBe(true),
+    );
+    expect(gateway.setPaused).toHaveBeenCalledWith(false);
+  });
 });
 
 describe("useSetOptOut", () => {

@@ -57,6 +57,7 @@ describe("ExpertiseHeader", () => {
       <ExpertiseHeader
         view={{
           optedOut: false,
+          paused: false,
           areas: [area("PRACTITIONER")],
           declarations: [],
           declarableCommunities: [],
@@ -74,6 +75,7 @@ describe("ExpertiseHeader", () => {
       <ExpertiseHeader
         view={{
           optedOut: false,
+          paused: false,
           areas: [area("PRACTITIONER"), area("CONTRIBUTOR")],
           declarations: [],
           declarableCommunities: [],
@@ -92,6 +94,7 @@ describe("ExpertiseHeader", () => {
       <ExpertiseHeader
         view={{
           optedOut: false,
+          paused: false,
           areas: [area("PRACTITIONER")],
           declarations: [],
           declarableCommunities: [],
@@ -109,6 +112,7 @@ describe("ExpertiseHeader", () => {
       <ExpertiseHeader
         view={{
           optedOut: false,
+          paused: false,
           areas: [],
           declarations: [declaration("kafka", 1)],
           declarableCommunities: [],
@@ -136,6 +140,7 @@ describe("ExpertiseHeader", () => {
       <ExpertiseHeader
         view={{
           optedOut: false,
+          paused: false,
           areas: [],
           declarations: [],
           declarableCommunities: [],
@@ -153,6 +158,7 @@ describe("ExpertiseHeader", () => {
       <ExpertiseHeader
         view={{
           optedOut: false,
+          paused: false,
           areas: [],
           declarations: [],
           declarableCommunities: [],
@@ -172,6 +178,7 @@ describe("ExpertiseHeader", () => {
       <ExpertiseHeader
         view={{
           optedOut: false,
+          paused: false,
           areas: [],
           declarations: [declaration("kafka", 1), declaration("spark", 2)],
           declarableCommunities: [],
@@ -192,6 +199,7 @@ describe("ExpertiseHeader", () => {
       <ExpertiseHeader
         view={{
           optedOut: false,
+          paused: false,
           areas: [
             {
               ...area("PRACTITIONER"),

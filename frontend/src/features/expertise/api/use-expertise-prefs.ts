@@ -4,6 +4,7 @@ import { notify, notifyError } from "@/components/ui/toast";
 import { httpExpertiseGateway } from "@/features/expertise/adapters/http-expertise-gateway";
 import { expertiseKeys } from "@/features/expertise/api/query-keys";
 import type { DismissInput } from "@/features/expertise/domain/expertise-gateway";
+import { learningKeys } from "@/features/learning/api/query-keys";
 
 const gateway = httpExpertiseGateway;
 
@@ -13,6 +14,20 @@ export function useSetOptOut() {
     mutationFn: (optedOut: boolean) => gateway.setOptOut(optedOut),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: expertiseKeys.all }),
+  });
+}
+
+/** A pause reaches every reader of declarations, the learning lists' open faces included. */
+export function useSetPaused() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (paused: boolean) => gateway.setPaused(paused),
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: expertiseKeys.all }),
+        queryClient.invalidateQueries({ queryKey: learningKeys.all }),
+      ]),
+    onError: () => notifyError("Could not change Taking questions."),
   });
 }
 

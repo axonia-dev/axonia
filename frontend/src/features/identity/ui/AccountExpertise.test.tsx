@@ -59,6 +59,7 @@ describe("AccountExpertise", () => {
   it("shows each area with a tier its tooltip names", () => {
     stubSelfView({
       optedOut: false,
+      paused: false,
       areas: [area("kafka", "PRACTITIONER"), area("rust", "INTERESTED")],
     });
 
@@ -78,9 +79,14 @@ describe("AccountExpertise", () => {
       hidden: false,
       declaredAt: "2026-09-12T12:00:00Z",
     };
-    stubSelfView({ optedOut: false, areas: [area("kafka", "PRACTITIONER")] }, [
-      declaration,
-    ]);
+    stubSelfView(
+      {
+        optedOut: false,
+        paused: false,
+        areas: [area("kafka", "PRACTITIONER")],
+      },
+      [declaration],
+    );
 
     // when
     render(<AccountExpertise />, { wrapper: withQueryClient });
@@ -93,6 +99,7 @@ describe("AccountExpertise", () => {
   it("excludes hidden areas", () => {
     stubSelfView({
       optedOut: false,
+      paused: false,
       areas: [
         area("kafka", "PRACTITIONER"),
         { ...area("secret", "PRACTITIONER"), hidden: true },
@@ -105,7 +112,11 @@ describe("AccountExpertise", () => {
   });
 
   it("renders nothing at all for a member who opted out of the graph", () => {
-    stubSelfView({ optedOut: true, areas: [area("kafka", "PRACTITIONER")] });
+    stubSelfView({
+      optedOut: true,
+      paused: false,
+      areas: [area("kafka", "PRACTITIONER")],
+    });
 
     const { container } = render(<AccountExpertise />, {
       wrapper: withQueryClient,
@@ -117,6 +128,7 @@ describe("AccountExpertise", () => {
   it("renders nothing when every area is hidden", () => {
     stubSelfView({
       optedOut: false,
+      paused: false,
       areas: [
         { ...area("kafka", "PRACTITIONER"), hidden: true },
         { ...area("rust", "INTERESTED"), hidden: true },
@@ -146,7 +158,7 @@ describe("AccountExpertise", () => {
     const areas = Array.from({ length: 30 }, (_, i) =>
       area(`tag-${i}`, "PRACTITIONER"),
     );
-    stubSelfView({ optedOut: false, areas });
+    stubSelfView({ optedOut: false, paused: false, areas });
 
     const { container } = render(<AccountExpertise />, {
       wrapper: withQueryClient,

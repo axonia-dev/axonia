@@ -35,6 +35,8 @@ const TERRAFORM: SelfDeclaration = {
   declaredAt: "2026-09-12T12:00:00Z",
 };
 
+const NO_PREVIEW = { tags: [], tier: null, paused: false };
+
 const PLATFORM = { id: 1, slug: "platform", name: "Platform" };
 
 const SPARK: SelfDeclaration = {
@@ -72,6 +74,7 @@ describe("DeclaredLane", () => {
     // when
     render(
       <DeclaredLane
+        preview={NO_PREVIEW}
         declarations={[TERRAFORM, SPARK]}
         communityId={ALL_COMMUNITIES}
         declarableCommunities={[]}
@@ -95,6 +98,7 @@ describe("DeclaredLane", () => {
     // when
     render(
       <DeclaredLane
+        preview={NO_PREVIEW}
         declarations={[TERRAFORM]}
         slug="platform"
         communityId={ALL_COMMUNITIES}
@@ -115,6 +119,7 @@ describe("DeclaredLane", () => {
     // given
     render(
       <DeclaredLane
+        preview={NO_PREVIEW}
         declarations={[TERRAFORM, SPARK]}
         communityId={ALL_COMMUNITIES}
         declarableCommunities={[]}
@@ -137,6 +142,7 @@ describe("DeclaredLane", () => {
     // when
     render(
       <DeclaredLane
+        preview={NO_PREVIEW}
         declarations={[TERRAFORM]}
         slug="platform"
         communityId={ALL_COMMUNITIES}
@@ -155,6 +161,7 @@ describe("DeclaredLane", () => {
     removing("spark");
     render(
       <DeclaredLane
+        preview={NO_PREVIEW}
         declarations={[TERRAFORM, SPARK]}
         communityId={ALL_COMMUNITIES}
         declarableCommunities={[]}
@@ -177,6 +184,7 @@ describe("DeclaredLane", () => {
     // when
     render(
       <DeclaredLane
+        preview={NO_PREVIEW}
         declarations={[SPARK]}
         slug="data"
         communityId={ALL_COMMUNITIES}
@@ -192,6 +200,7 @@ describe("DeclaredLane", () => {
     // given
     render(
       <DeclaredLane
+        preview={NO_PREVIEW}
         declarations={[TERRAFORM, SPARK]}
         communityId={ALL_COMMUNITIES}
         declarableCommunities={[]}
@@ -214,6 +223,7 @@ describe("DeclaredLane", () => {
     // when
     const { container } = render(
       <DeclaredLane
+        preview={NO_PREVIEW}
         declarations={[]}
         communityId={ALL_COMMUNITIES}
         declarableCommunities={[]}
@@ -228,6 +238,7 @@ describe("DeclaredLane", () => {
     // when
     render(
       <DeclaredLane
+        preview={NO_PREVIEW}
         declarations={[]}
         slug="platform"
         communityId={ALL_COMMUNITIES}
@@ -246,6 +257,7 @@ describe("DeclaredLane", () => {
     // when
     const { container } = render(
       <DeclaredLane
+        preview={NO_PREVIEW}
         declarations={[]}
         slug="platform"
         communityId={ALL_COMMUNITIES}
@@ -261,6 +273,7 @@ describe("DeclaredLane", () => {
     // when
     render(
       <DeclaredLane
+        preview={NO_PREVIEW}
         declarations={[TERRAFORM]}
         slug="platform"
         communityId={ALL_COMMUNITIES}

@@ -49,6 +49,7 @@ export interface ExpertiseGateway {
     limit: number,
   ): Promise<AreaEvidencePage>;
   setOptOut(optedOut: boolean): Promise<void>;
+  setPaused(paused: boolean): Promise<void>;
   hideTag(tag: string): Promise<void>;
   unhideTag(tag: string): Promise<void>;
   dismiss(input: DismissInput): Promise<void>;

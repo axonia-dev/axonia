@@ -153,6 +153,8 @@ const declarableCommunitySchema = z.object({
 
 export const selfViewSchema = z.object({
   optedOut: z.boolean(),
+  /** Not taking questions for now: others see no declaration of the member, which all stay kept. */
+  paused: z.boolean().default(false),
   areas: z.array(selfAreaSchema),
   declarations: z.array(selfDeclarationSchema).default([]),
   declarableCommunities: z.array(declarableCommunitySchema).default([]),
@@ -212,7 +214,6 @@ export type SelfView = z.infer<typeof selfViewSchema>;
 export type SelfDeclaration = z.infer<typeof selfDeclarationSchema>;
 export type DeclarableCommunity = z.infer<typeof declarableCommunitySchema>;
 export type DeclaredArea = z.infer<typeof declaredAreaSchema>;
-export type OpenPerson = z.infer<typeof openPersonSchema>;
 export type OpenArea = z.infer<typeof openAreaSchema>;
 export type MergeSuggestion = z.infer<typeof mergeSuggestionSchema>;
 export type AreaEvidencePage = z.infer<typeof areaEvidencePageSchema>;

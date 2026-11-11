@@ -35,7 +35,6 @@ export const learnerSchema = z.object({
   declaredAt: z.string(),
 });
 
-export type OpenFace = z.infer<typeof openFaceSchema>;
 export type HeldArea = z.infer<typeof heldAreaSchema>;
 export type WantedArea = z.infer<typeof wantedAreaSchema>;
 export type LearningPage = z.infer<typeof learningPageSchema>;

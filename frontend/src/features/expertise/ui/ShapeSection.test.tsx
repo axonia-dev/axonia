@@ -61,6 +61,7 @@ const SMALL_MAP: TopicMap = {
 function view(over: Partial<SelfView> = {}): SelfView {
   return {
     optedOut: false,
+    paused: false,
     areas: [
       {
         canonicalTag: "kafka",

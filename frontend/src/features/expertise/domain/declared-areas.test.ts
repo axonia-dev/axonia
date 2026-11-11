@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  asOthersSeeIt,
   canDeclareFrom,
   declarationsIn,
   declaredOnly,
@@ -46,6 +47,7 @@ function area(tag: string, communityId: number): SelfArea {
 
 const VIEW: SelfView = {
   optedOut: false,
+  paused: false,
   areas: [area("kafka", 1)],
   declarations: [
     declaration("kafka", 1, "platform"),
@@ -81,6 +83,7 @@ describe("declared-areas", () => {
     // given
     const view: SelfView = {
       optedOut: false,
+      paused: false,
       areas: [{ ...area("kafka", 1), hidden: true }, area("rust", 1)],
       declarations: [
         { ...declaration("kafka", 2, "data"), hidden: true },
@@ -115,5 +118,40 @@ describe("declared-areas", () => {
       ),
     ).toBe(true);
     expect(canDeclareFrom([], undefined)).toBe(false);
+  });
+
+  it("showsOthersEveryVisibleDeclaredTagOnceUnderTheStrongestTier", () => {
+    // given
+    const hidden = { ...declaration("spark", 1, "platform"), hidden: true };
+
+    // when
+    const actual = asOthersSeeIt(VIEW, [...VIEW.declarations, hidden]);
+
+    // then
+    expect(actual).toEqual({
+      tags: ["kafka", "terraform"],
+      tier: "CONTRIBUTOR",
+    });
+  });
+
+  it("showsADeclarationOnlyMemberAsOpenToQuestions", () => {
+    // when
+    const actual = asOthersSeeIt(VIEW, [
+      declaration("terraform", 1, "platform"),
+    ]);
+
+    // then
+    expect(actual).toEqual({ tags: ["terraform"], tier: "OPEN_TO_QUESTIONS" });
+  });
+
+  it("showsOthersNothingOfAnOptedOutMember", () => {
+    // when
+    const actual = asOthersSeeIt(
+      { ...VIEW, optedOut: true },
+      VIEW.declarations,
+    );
+
+    // then
+    expect(actual.tags).toEqual([]);
   });
 });

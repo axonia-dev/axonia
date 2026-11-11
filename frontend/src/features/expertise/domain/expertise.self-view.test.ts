@@ -49,4 +49,12 @@ describe("selfViewSchema", () => {
     expect(parsedOlder.areas[0]!.communityTiers).toBeUndefined();
     expect(parsedOlder.areas[0]!.communities[0]!.slug).toBeUndefined();
   });
+
+  it("readsAMemberAsTakingQuestionsWhenAnOlderServerSaysNothing", () => {
+    // when
+    const actual = selfViewSchema.parse({ optedOut: false, areas: [] });
+
+    // then
+    expect(actual.paused).toBe(false);
+  });
 });

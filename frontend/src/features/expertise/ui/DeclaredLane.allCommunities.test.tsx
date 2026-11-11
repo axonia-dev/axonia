@@ -29,6 +29,8 @@ vi.mock("@/features/expertise/api/use-expertise-prefs", () => ({
 }));
 
 const DATA: DeclarableCommunity = { id: 2, slug: "data", name: "Data" };
+const NO_PREVIEW = { tags: [], tier: null, paused: false };
+
 const PLATFORM: DeclarableCommunity = {
   id: 1,
   slug: "platform",
@@ -50,6 +52,7 @@ function declaring(state: { isError: boolean; error: unknown }) {
 function lane(communityId: number, declarable: DeclarableCommunity[]) {
   return (
     <DeclaredLane
+      preview={NO_PREVIEW}
       declarations={[]}
       communityId={communityId}
       declarableCommunities={declarable}

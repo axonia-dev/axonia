@@ -131,6 +131,13 @@ export const httpExpertiseGateway: ExpertiseGateway = {
     });
   },
 
+  async setPaused(paused: boolean) {
+    await apiFetchVoid("/axonia/expertise/me/paused", {
+      method: "PUT",
+      body: JSON.stringify({ paused }),
+    });
+  },
+
   async hideTag(tag: string) {
     await apiFetchVoid(
       `/axonia/expertise/me/hidden/${encodeURIComponent(tag)}`,

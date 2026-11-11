@@ -3,6 +3,7 @@ import type {
   SelfArea,
   SelfDeclaration,
   SelfView,
+  Tier,
 } from "@/features/expertise/domain/expertise";
 
 export function declarationsIn(
@@ -53,4 +54,29 @@ export function canDeclareFrom(
   return slug === undefined
     ? declarable.length > 0
     : declarable.some((community) => community.slug === slug);
+}
+
+const EVIDENCE_TIERS: readonly Tier[] = [
+  "PRACTITIONER",
+  "CONTRIBUTOR",
+  "INTERESTED",
+];
+
+/** What others see of the member's declarations: every tag they can be asked about, once, under the strongest
+ *  tier the member holds on any of them. Hidden declarations and an opted-out member show nothing. */
+export function asOthersSeeIt(
+  view: SelfView,
+  declarations: ReadonlyArray<SelfDeclaration>,
+): { tags: string[]; tier: Tier } {
+  const tags = view.optedOut
+    ? []
+    : [...new Set(declarations.filter((d) => !d.hidden).map((d) => d.tag))];
+  const held = view.areas.filter(
+    (area) => !area.hidden && tags.includes(area.canonicalTag),
+  );
+  const tier =
+    EVIDENCE_TIERS.find((candidate) =>
+      held.some((area) => area.tier === candidate),
+    ) ?? "OPEN_TO_QUESTIONS";
+  return { tags, tier };
 }

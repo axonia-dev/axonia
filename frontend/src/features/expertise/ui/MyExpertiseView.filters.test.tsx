@@ -18,11 +18,15 @@ vi.mock("@/features/expertise/api/use-self-view", () => ({
 }));
 vi.mock("@/features/expertise/api/use-expertise-prefs", () => ({
   useSetOptOut: vi.fn(),
+  useSetPaused: () => ({ mutate: vi.fn(), isPending: false }),
   useHideTag: vi.fn(),
   useUnhideTag: vi.fn(),
   useDismissSignal: vi.fn(),
 }));
 vi.mock("@/features/identity/api/use-me", () => ({ useMe: vi.fn() }));
+vi.mock("@/features/expertise/ui/DeclarationPreview", () => ({
+  DeclarationPreview: () => null,
+}));
 vi.mock("@/features/community/api/use-communities", () => ({
   useCommunity: vi.fn(),
 }));
@@ -117,7 +121,7 @@ describe("MyExpertiseView declarations under the toolbar", () => {
       [declaration("typescript", ENGINEERING)],
     );
     renderView();
-    expect(screen.getByText("Open to questions")).toBeInTheDocument();
+    expect(screen.getAllByText("Open to questions").length).toBeGreaterThan(0);
 
     // when
     await selectCommunity("Data");

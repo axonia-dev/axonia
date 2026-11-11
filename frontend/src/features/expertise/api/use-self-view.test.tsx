@@ -21,6 +21,7 @@ const gateway = vi.mocked(httpExpertiseGateway);
 
 const selfView = {
   optedOut: false,
+  paused: false,
   areas: [
     {
       canonicalTag: "typescript",
@@ -70,6 +71,7 @@ describe("useSelfView", () => {
     // given
     gateway.selfView.mockResolvedValue({
       optedOut: true,
+      paused: false,
       areas: [],
       declarations: [],
       declarableCommunities: [],

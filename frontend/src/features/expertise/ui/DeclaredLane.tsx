@@ -14,6 +14,10 @@ import type {
 } from "@/features/expertise/domain/expertise";
 import { AddDeclarationField } from "@/features/expertise/ui/AddDeclarationField";
 import { AreaVisibilityButton } from "@/features/expertise/ui/AreaVisibilityButton";
+import {
+  declaringPanel,
+  type LanePreview,
+} from "@/features/expertise/ui/declaring-panel";
 import { TIER_META } from "@/features/expertise/ui/tier-meta";
 import { cn } from "@/lib/cn";
 import { declaredOn } from "@/lib/declared-on";
@@ -27,6 +31,8 @@ interface Props {
   communityId: number;
   /** Where the member can declare: on a community's page, that community or none. */
   declarableCommunities: DeclarableCommunity[];
+  /** What others see of the member's declarations under the page's lens, and whether the member is paused. */
+  preview: LanePreview;
 }
 
 interface RowProps {
@@ -125,21 +131,27 @@ interface LaneProps {
   declarations: SelfDeclaration[];
   showCommunity: boolean;
   addField: ReactNode;
+  preview: LanePreview;
 }
 
 /** Not collapsible like the tier lanes: it holds the add field, and a folded field goes unfound.
  *  A delegated session is refused every declaration write, so it is offered none. */
-function Lane({ declarations, showCommunity, addField }: Readonly<LaneProps>) {
+function Lane({
+  declarations,
+  showCommunity,
+  addField,
+  preview,
+}: Readonly<LaneProps>) {
   const remove = useRemoveDeclaration();
   const unhide = useUnhideTag();
   const writable = !useIsDelegated();
-  const field = writable ? addField : null;
+  const panel = writable ? declaringPanel(addField, preview) : null;
 
   if (declarations.length === 0) {
-    return field === null ? null : (
+    return panel === null ? null : (
       <section className="flex flex-col gap-2">
         <LaneHeading />
-        {field}
+        {panel}
       </section>
     );
   }
@@ -167,7 +179,7 @@ function Lane({ declarations, showCommunity, addField }: Readonly<LaneProps>) {
           }
         />
       ))}
-      {field}
+      {panel}
     </section>
   );
 }
@@ -177,11 +189,13 @@ function CommunityLane({
   declarations,
   slug,
   declarableCommunities,
+  preview,
 }: Readonly<Omit<Props, "communityId"> & { slug: string }>) {
   return (
     <Lane
       declarations={declarations}
       showCommunity={false}
+      preview={preview}
       addField={
         canDeclareFrom(declarableCommunities, slug) ? (
           <AddDeclarationField slug={slug} />
@@ -206,6 +220,7 @@ function AllCommunitiesLane({
   declarations,
   communityId,
   declarableCommunities,
+  preview,
 }: Readonly<Omit<Props, "slug">>) {
   const [chosen, setChosen] = useState<string | null>(null);
   const options = declarableUnderLens(declarableCommunities, communityId).map(
@@ -217,6 +232,7 @@ function AllCommunitiesLane({
     <Lane
       declarations={declarations}
       showCommunity
+      preview={preview}
       addField={
         slug === undefined ? null : (
           <AddDeclarationField
@@ -242,18 +258,21 @@ export function DeclaredLane({
   slug,
   communityId,
   declarableCommunities,
+  preview,
 }: Readonly<Props>) {
   return slug === undefined ? (
     <AllCommunitiesLane
       declarations={declarations}
       communityId={communityId}
       declarableCommunities={declarableCommunities}
+      preview={preview}
     />
   ) : (
     <CommunityLane
       declarations={declarations}
       slug={slug}
       declarableCommunities={declarableCommunities}
+      preview={preview}
     />
   );
 }

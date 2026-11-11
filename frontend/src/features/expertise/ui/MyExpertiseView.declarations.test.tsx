@@ -24,11 +24,15 @@ vi.mock("@/features/expertise/api/use-self-view", () => ({
 }));
 vi.mock("@/features/expertise/api/use-expertise-prefs", () => ({
   useSetOptOut: vi.fn(),
+  useSetPaused: () => ({ mutate: vi.fn(), isPending: false }),
   useHideTag: vi.fn(),
   useUnhideTag: vi.fn(),
   useDismissSignal: vi.fn(),
 }));
 vi.mock("@/features/identity/api/use-me", () => ({ useMe: vi.fn() }));
+vi.mock("@/features/expertise/ui/DeclarationPreview", () => ({
+  DeclarationPreview: () => null,
+}));
 vi.mock("@/features/community/api/use-communities", () => ({
   useCommunity: vi.fn(),
 }));
@@ -246,14 +250,16 @@ describe("MyExpertiseView with declarations", () => {
     // when
     renderView();
 
-    // then
-    expect(screen.getAllByText("Open to questions")).toHaveLength(1);
+    // then - the lane holds only the pause, since nothing is declared without evidence
     expect(
       screen.queryByRole("button", { name: /Stop being open to questions/ }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByText(/Declared, not yet shown/),
     ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("switch", { name: "Taking questions" }),
+    ).toBeChecked();
   });
 
   it("keeps adding on a community's page, which has no lens to point elsewhere", () => {

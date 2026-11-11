@@ -8,6 +8,7 @@ const PAGE = { id: 1, slug: "platform", name: "Platform Guild" };
 
 const VIEW: SelfView = {
   optedOut: false,
+  paused: false,
   areas: [
     {
       canonicalTag: "kafka",

@@ -87,6 +87,23 @@ describe("httpExpertiseGateway: prefs & mutations", () => {
     });
   });
 
+  describe("setPaused", () => {
+    it("PUTs the paused flag and resolves void", async () => {
+      // given
+      fetchSpy.mockResolvedValue(voidResponse());
+
+      // when
+      const result = await httpExpertiseGateway.setPaused(true);
+
+      // then
+      expect(result).toBeUndefined();
+      const [url, init] = fetchSpy.mock.calls[0] ?? [];
+      expect(urlOf(url)).toContain("/axonia/expertise/me/paused");
+      expect(methodOf(init)).toBe("PUT");
+      expect(bodyOf(init)).toBe('{"paused":true}');
+    });
+  });
+
   describe("hideTag", () => {
     it("PUTs the hidden tag URL-encoded", async () => {
       // given

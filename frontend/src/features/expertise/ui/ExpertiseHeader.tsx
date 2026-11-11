@@ -4,30 +4,10 @@ import { MemberAvatar } from "@/components/patterns/MemberAvatar";
 import { declaredOnly } from "@/features/expertise/domain/declared-areas";
 import type { SelfView, Tier } from "@/features/expertise/domain/expertise";
 import { summarize } from "@/features/expertise/ui/expertise-summary";
+import { ownIdentity } from "@/features/expertise/ui/own-identity";
 import { TIER_META, TIER_ORDER } from "@/features/expertise/ui/tier-meta";
 import { useMe } from "@/features/identity/api/use-me";
-import { primaryOrgUnit, type User } from "@/features/identity/domain/user";
 import { plural } from "@/lib/plural";
-import { userHue } from "@/lib/user-hue";
-
-interface Identity {
-  name: string;
-  role: string | null;
-  hue: string;
-  avatarUrl: string | null;
-}
-
-function identityOf(user: User | undefined): Identity {
-  if (!user) {
-    return { name: "Me", role: null, hue: userHue("Me"), avatarUrl: null };
-  }
-  return {
-    name: user.displayName,
-    role: primaryOrgUnit(user),
-    hue: userHue(user.id),
-    avatarUrl: user.avatarUrl ?? null,
-  };
-}
 
 interface DistributionProps {
   counts: Record<Tier, number>;
@@ -95,7 +75,7 @@ export function ExpertiseHeader({ view, action }: Readonly<Props>) {
     view === undefined
       ? undefined
       : summarize(view.areas, declaredOnly(view).length);
-  const { name, role, hue, avatarUrl } = identityOf(me.data);
+  const { name, role, hue, avatarUrl } = ownIdentity(me.data);
 
   return (
     <header className="border-border flex flex-col gap-4 border-b pb-5">
