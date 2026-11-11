@@ -92,4 +92,17 @@ describe("Switch", () => {
       container.querySelector("[data-slot='switch-track']")?.className,
     ).not.toContain("policy-pulse");
   });
+
+  it("edges its off track in the control edge, which stands out from every ground", () => {
+    // given
+    const { container } = render(<Switch label="Manage members" />);
+
+    // then
+    const classes = container
+      .querySelector("[data-slot='switch-track']")
+      ?.className.split(" ");
+    expect(classes).toContain("border-control-edge");
+    expect(classes).toContain("group-data-[selected]:border-primary");
+    expect(classes).not.toContain("border-border");
+  });
 });

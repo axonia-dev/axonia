@@ -158,7 +158,7 @@ describe("ExpertiseSearchView narrowing", () => {
 
   it("openingACardAsksAboutTheAreaWithWhoOpen", async () => {
     // given
-    renderView("eng", "?term=redis");
+    renderView("eng");
 
     // when
     await user.click(screen.getByRole("button", { name: "open kafka" }));
@@ -177,5 +177,47 @@ describe("ExpertiseSearchView narrowing", () => {
     await waitFor(() =>
       expect(location().textContent).toBe("?term=kafka&who=open"),
     );
+  });
+
+  it("showsTheShelfOnlyBeforeAnythingIsTyped", async () => {
+    // given
+    renderView("eng");
+    expect(
+      screen.getByRole("button", { name: "open kafka" }),
+    ).toBeInTheDocument();
+
+    // when
+    await user.type(
+      screen.getByRole("searchbox", { name: /who knows/i }),
+      "redis",
+    );
+
+    // then
+    expect(
+      screen.queryByRole("button", { name: "open kafka" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("hidesTheShelfWhileATermIsAsked", () => {
+    // when
+    renderView("eng", "?term=kafka");
+
+    // then
+    expect(
+      screen.queryByRole("button", { name: "open kafka" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("bringsTheShelfBackWhenTheTermIsCleared", async () => {
+    // given
+    renderView("eng", "?term=kafka&who=open");
+
+    // when
+    await user.click(screen.getByRole("button", { name: "clear" }));
+
+    // then
+    expect(
+      screen.getByRole("button", { name: "open kafka" }),
+    ).toBeInTheDocument();
   });
 });

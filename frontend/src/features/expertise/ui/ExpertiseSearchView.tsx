@@ -41,6 +41,11 @@ function write(params: URLSearchParams, key: string, value: string | null) {
   }
 }
 
+/** The shelf offers a first question, so it gives way the moment one is typed. */
+function nothingTyped(input: string, term: string): boolean {
+  return input.trim() === "" && term === "";
+}
+
 export function ExpertiseSearchView() {
   const { slug = "" } = useParams();
   const [params, setParams] = useSearchParams();
@@ -104,7 +109,9 @@ export function ExpertiseSearchView() {
             className="flex-1"
           />
         </div>
-        <OpenDoorsShelf slug={slug} onOpen={(tag) => askAbout(tag, "open")} />
+        {nothingTyped(input, term) && (
+          <OpenDoorsShelf slug={slug} onOpen={(tag) => askAbout(tag, "open")} />
+        )}
         <div className="border-border border-t p-5">
           <CommunityKnows
             slug={slug}

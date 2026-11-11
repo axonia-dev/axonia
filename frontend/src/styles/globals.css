@@ -16,6 +16,8 @@
   --muted-foreground: #786a7e;
   --border: #ede4e9;
   --border-strong: #e2d6de;
+  /* The edge of a control whose off state is otherwise only a fill: 3:1 on every ground. */
+  --control-edge: #8f8195;
   --paper: #f4eee8;
   --paper-edge: #e5d9cd;
   --ink-sepia: #6e5a4b;
@@ -139,6 +141,7 @@
   --muted-foreground: #a99cb0;
   --border: #322839;
   --border-strong: #3d3145;
+  --control-edge: #7d6f86;
   --paper: #2b241f;
   --paper-edge: #3d332b;
   --ink-sepia: #dccab8;
@@ -228,6 +231,7 @@
   --color-map-ink: var(--map-ink);
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
+  --color-control-edge: var(--control-edge);
   --color-paper: var(--paper);
   --color-paper-edge: var(--paper-edge);
   --color-ink-sepia: var(--ink-sepia);

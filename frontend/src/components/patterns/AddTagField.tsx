@@ -63,31 +63,38 @@ export function AddTagField({
     if (isEnterOnTypedText(event)) add(text);
   }
 
+  const field = (
+    <div className="flex min-w-0 flex-1 items-start gap-2">
+      <div className="min-w-0 flex-1" onKeyDownCapture={addOnEnter}>
+        <ComboBox
+          label={label}
+          hideLabel
+          value={text}
+          options={options}
+          onInputChange={changeText}
+          onSelect={(option) => add(option.id)}
+          placeholder={placeholder}
+          {...(errorMessage === undefined ? {} : { errorMessage })}
+        />
+      </div>
+      <Button
+        variant="secondary"
+        isPending={isPending}
+        onPress={() => add(text)}
+      >
+        Add
+      </Button>
+    </div>
+  );
+
+  if (picker === undefined) return field;
+
+  // The row may sit in half a page, so it reads its own width rather than the viewport's.
   return (
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
-      {picker !== undefined && (
-        <div className="sm:w-48 sm:shrink-0">{picker}</div>
-      )}
-      <div className="flex min-w-0 flex-1 items-start gap-2">
-        <div className="min-w-0 flex-1" onKeyDownCapture={addOnEnter}>
-          <ComboBox
-            label={label}
-            hideLabel
-            value={text}
-            options={options}
-            onInputChange={changeText}
-            onSelect={(option) => add(option.id)}
-            placeholder={placeholder}
-            {...(errorMessage === undefined ? {} : { errorMessage })}
-          />
-        </div>
-        <Button
-          variant="secondary"
-          isPending={isPending}
-          onPress={() => add(text)}
-        >
-          Add
-        </Button>
+    <div className="@container">
+      <div className="flex flex-col gap-2 @lg:flex-row @lg:items-start">
+        <div className="@lg:w-48 @lg:shrink-0">{picker}</div>
+        {field}
       </div>
     </div>
   );

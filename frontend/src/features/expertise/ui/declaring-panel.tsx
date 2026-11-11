@@ -11,7 +11,8 @@ export interface LanePreview {
   paused: boolean;
 }
 
-/** The add field and the switch on the left, the card others see on the right; stacked on a phone. */
+/** The add field and the switch on the left, the card others see on the right; stacked wherever the panel
+ *  itself is narrow, which the viewport alone cannot tell beside the sidebar. */
 export function declaringPanel(
   field: ReactNode,
   preview: LanePreview,
@@ -21,31 +22,35 @@ export function declaringPanel(
   const offersPause = showsCard || preview.paused;
   if (field === null && !offersPause) return null;
   return (
-    <div
-      className={
-        showsCard
-          ? "mt-2 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-start"
-          : "mt-2 grid grid-cols-1 gap-4"
-      }
-    >
-      <div className="flex min-w-0 flex-col gap-3">
-        {field}
-        {offersPause && (
-          <div className={cn(field !== null && "border-border border-t pt-3")}>
-            <TakingQuestionsSwitch
-              paused={preview.paused}
-              inCommunity={inCommunity}
-            />
-          </div>
+    <div className="@container mt-2">
+      <div
+        className={
+          showsCard
+            ? "grid grid-cols-1 gap-4 @2xl:grid-cols-2 @2xl:items-start"
+            : "grid grid-cols-1 gap-4"
+        }
+      >
+        <div className="flex min-w-0 flex-col gap-3">
+          {field}
+          {offersPause && (
+            <div
+              className={cn(field !== null && "border-border border-t pt-3")}
+            >
+              <TakingQuestionsSwitch
+                paused={preview.paused}
+                inCommunity={inCommunity}
+              />
+            </div>
+          )}
+        </div>
+        {showsCard && (
+          <DeclarationPreview
+            tags={preview.tags}
+            tier={preview.tier}
+            paused={preview.paused}
+          />
         )}
       </div>
-      {showsCard && (
-        <DeclarationPreview
-          tags={preview.tags}
-          tier={preview.tier}
-          paused={preview.paused}
-        />
-      )}
     </div>
   );
 }

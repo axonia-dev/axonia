@@ -140,4 +140,19 @@ describe("DeclaredLane preview", () => {
     // then
     expect(screen.getByText("switch on")).toBeInTheDocument();
   });
+
+  it("setsThePreviewBesideTheFieldOnlyWhenThePanelItselfIsWide", () => {
+    // when
+    renderLane({
+      tags: ["terraform"],
+      tier: "OPEN_TO_QUESTIONS",
+      paused: false,
+    });
+
+    // then
+    const grid = screen.getByText("preview of terraform").parentElement!;
+    expect(grid.className).toMatch(/(^| )@2xl:grid-cols-2( |$)/);
+    expect(grid.className).not.toMatch(/(^| )sm:grid-cols-2( |$)/);
+    expect(grid.parentElement!.className).toMatch(/(^| )@container( |$)/);
+  });
 });

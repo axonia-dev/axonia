@@ -225,4 +225,16 @@ describe("AddTagField", () => {
     // then
     expect(screen.getByText("Platform picker")).toBeInTheDocument();
   });
+
+  it("sets the picker beside the field only when the row itself is wide enough for both", () => {
+    // when
+    renderField({ picker: <span>Platform picker</span> });
+
+    // then
+    const row =
+      screen.getByText("Platform picker").parentElement!.parentElement!;
+    expect(row.className).toMatch(/(^| )@lg:flex-row( |$)/);
+    expect(row.className).not.toMatch(/(^| )sm:flex-row( |$)/);
+    expect(row.parentElement!.className).toMatch(/(^| )@container( |$)/);
+  });
 });

@@ -59,7 +59,7 @@ export function Switch({
           // Disabled fades rather than greys: the track keeps the hue that says on or off.
           // One neutral for both states makes a locked-on switch read as an off one.
           className={cn(
-            "border-border bg-surface-sunken group-data-[selected]:bg-primary group-data-[focus-visible]:ring-focus-ring mt-0.5 flex h-5 w-9 shrink-0 rounded-full border p-0.5 transition-colors group-data-[disabled]:opacity-55 group-data-[focus-visible]:ring-2",
+            "border-control-edge bg-surface-sunken group-data-[selected]:border-primary group-data-[selected]:bg-primary group-data-[focus-visible]:ring-focus-ring mt-0.5 flex h-5 w-9 shrink-0 rounded-full border p-0.5 transition-colors group-data-[disabled]:opacity-55 group-data-[focus-visible]:ring-2",
             isPulsing && "motion-safe:animate-[policy-pulse_500ms_ease-out]",
           )}
         >
