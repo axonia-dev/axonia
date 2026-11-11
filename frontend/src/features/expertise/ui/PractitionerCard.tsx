@@ -3,6 +3,7 @@ import { useState } from "react";
 
 import { MemberAvatar } from "@/components/patterns/MemberAvatar";
 import type { Practitioner } from "@/features/expertise/domain/expertise";
+import { AskAboutPill } from "@/features/expertise/ui/AskAboutPill";
 import { EvidenceDetails } from "@/features/expertise/ui/EvidenceDetails";
 import {
   countSummary,
@@ -13,14 +14,41 @@ import { userHue } from "@/lib/user-hue";
 
 interface Props {
   practitioner: Practitioner;
+  /** The area the card answers for, which an open person invites questions on. */
+  term: string;
 }
 
-export function PractitionerCard({ practitioner }: Readonly<Props>) {
+function CardLines({ practitioner, term }: Readonly<Props>) {
+  const summary = countSummary(practitioner.evidence);
+  const declared = declarationLine(practitioner);
+  const hasEvidence = practitioner.tier !== "OPEN_TO_QUESTIONS";
+  return (
+    <>
+      {practitioner.orgUnit !== null && (
+        <p className="text-muted-foreground text-sm">{practitioner.orgUnit}</p>
+      )}
+      {summary !== "" && (
+        <p className="text-muted-foreground mt-1 text-xs">{summary}</p>
+      )}
+      {declared !== null && (
+        <p className="text-muted-foreground mt-1 text-xs">{declared}</p>
+      )}
+      {practitioner.openToQuestions && (
+        <div className="mt-2">
+          <AskAboutPill
+            term={term}
+            since={hasEvidence ? practitioner.declaredAt : null}
+          />
+        </div>
+      )}
+    </>
+  );
+}
+
+export function PractitionerCard({ practitioner, term }: Readonly<Props>) {
   const [expanded, setExpanded] = useState(false);
   const name = practitioner.displayName ?? practitioner.userId;
   const hue = userHue(practitioner.userId);
-  const summary = countSummary(practitioner.evidence);
-  const declared = declarationLine(practitioner);
   const hasEvidence = practitioner.tier !== "OPEN_TO_QUESTIONS";
 
   return (
@@ -33,6 +61,7 @@ export function PractitionerCard({ practitioner }: Readonly<Props>) {
           src={practitioner.avatarUrl}
           shape="circle"
           className="size-10 text-sm"
+          open={practitioner.openToQuestions}
         />
 
         <div className="min-w-0 flex-1">
@@ -40,17 +69,7 @@ export function PractitionerCard({ practitioner }: Readonly<Props>) {
             <span className="text-foreground font-medium">{name}</span>
             <TierBadge tier={practitioner.tier} />
           </div>
-          {practitioner.orgUnit !== null && (
-            <p className="text-muted-foreground text-sm">
-              {practitioner.orgUnit}
-            </p>
-          )}
-          {summary !== "" && (
-            <p className="text-muted-foreground mt-1 text-xs">{summary}</p>
-          )}
-          {declared !== null && (
-            <p className="text-muted-foreground mt-1 text-xs">{declared}</p>
-          )}
+          <CardLines practitioner={practitioner} term={term} />
         </div>
 
         {hasEvidence && (

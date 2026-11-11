@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { declaredMonth, declaredOn } from "@/lib/declared-on";
+import { declaredMonth, declaredOn, monthName } from "@/lib/declared-on";
 
 describe("declaredOn", () => {
   it("formats the declaration date as a day with a three-letter month", () => {
@@ -13,5 +13,15 @@ describe("declaredMonth", () => {
   it("formats the declaration date as a three-letter month and a year", () => {
     expect(declaredMonth("2026-09-12T12:00:00Z")).toBe("Sep 2026");
     expect(declaredMonth("2026-03-02T09:00:00Z")).toBe("Mar 2026");
+  });
+});
+
+describe("monthName", () => {
+  it("names the three-letter month of the instant in UTC", () => {
+    // when
+    const actual = monthName("2026-09-30T23:30:00Z");
+
+    // then
+    expect(actual).toBe("Sep");
   });
 });

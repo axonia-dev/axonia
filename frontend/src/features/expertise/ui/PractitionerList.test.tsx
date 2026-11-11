@@ -43,6 +43,7 @@ function renderList(
 ) {
   const defaults = {
     practitioners: [alice],
+    term: "kafka",
     isLoading: false,
     isError: false,
     demonstratedOnly: false,

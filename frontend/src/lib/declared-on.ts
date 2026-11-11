@@ -9,6 +9,11 @@ const MONTH = new Intl.DateTimeFormat("en-GB", {
   year: "numeric",
 });
 
+const MONTH_NAME_UTC = new Intl.DateTimeFormat("en-GB", {
+  month: "short",
+  timeZone: "UTC",
+});
+
 /** Recent ICU writes en-GB September as "Sept"; the other short months are three letters already. */
 function withThreeLetterMonth(format: Intl.DateTimeFormat, iso: string) {
   return format
@@ -27,4 +32,9 @@ export function declaredOn(iso: string): string {
 /** "Sep 2026", in the reader's own zone. */
 export function declaredMonth(iso: string): string {
   return withThreeLetterMonth(MONTH, iso);
+}
+
+/** "Sep", the month of the instant in UTC. */
+export function monthName(iso: string): string {
+  return withThreeLetterMonth(MONTH_NAME_UTC, iso);
 }

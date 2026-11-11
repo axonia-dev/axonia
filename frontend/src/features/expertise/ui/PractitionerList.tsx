@@ -7,6 +7,8 @@ interface Props {
   practitioners: Practitioner[];
   isLoading: boolean;
   isError: boolean;
+  /** The term searched for, which every open person's card invites questions on. */
+  term: string;
   /** The result filter: on, only people with activity on the term are listed. */
   demonstratedOnly: boolean;
   onShowAnyone: () => void;
@@ -36,6 +38,7 @@ export function PractitionerList({
   practitioners,
   isLoading,
   isError,
+  term,
   demonstratedOnly,
   onShowAnyone,
 }: Readonly<Props>) {
@@ -61,7 +64,7 @@ export function PractitionerList({
     <ul className="flex flex-col gap-3">
       {practitioners.map((practitioner) => (
         <li key={practitioner.userId}>
-          <PractitionerCard practitioner={practitioner} />
+          <PractitionerCard practitioner={practitioner} term={term} />
         </li>
       ))}
     </ul>

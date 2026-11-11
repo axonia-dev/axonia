@@ -58,7 +58,7 @@ const base: Practitioner = {
 function renderCard(overrides: Partial<Practitioner> = {}) {
   return render(
     <MemoryRouter>
-      <PractitionerCard practitioner={{ ...base, ...overrides }} />
+      <PractitionerCard term="kafka" practitioner={{ ...base, ...overrides }} />
     </MemoryRouter>,
   );
 }
@@ -171,9 +171,9 @@ describe("PractitionerCard", () => {
     expect(screen.queryByText("Platform Team")).not.toBeInTheDocument();
   });
 
-  it("says a declared-only person has no activity yet, with nothing to expand", () => {
+  it("declarationOnlyPersonKeepsTheBadgeAndGetsThePill", () => {
     // when
-    renderCard({
+    const { container } = renderCard({
       tier: "OPEN_TO_QUESTIONS",
       evidence: {
         presentedCount: 0,
@@ -188,42 +188,45 @@ describe("PractitionerCard", () => {
     // then
     expect(screen.getByText("Open to questions")).toBeInTheDocument();
     expect(
-      screen.getByText("Declared 12 Sep 2026, no activity yet"),
+      screen.getByText("Declared in Sep, no activity here yet"),
     ).toBeInTheDocument();
+    expect(screen.getByTestId("ask-about")).toHaveTextContent(
+      /^Ask about kafka$/,
+    );
+    expect(container.querySelector("[data-open='true']")).not.toBeNull();
     expect(
       screen.queryByRole("button", { name: "Expand evidence" }),
     ).not.toBeInTheDocument();
   });
 
-  it("marks an evidenced person who is also open to questions", () => {
+  it("openPractitionerWearsTheRingAndThePill", () => {
     // when
-    renderCard({ openToQuestions: true, declaredAt: "2026-09-12T12:00:00Z" });
+    const { container } = renderCard({
+      openToQuestions: true,
+      declaredAt: "2026-11-01T00:30:00Z",
+    });
 
     // then
+    expect(container.querySelector("[data-open='true']")).not.toBeNull();
+    expect(screen.getByTestId("open-dot")).toBeInTheDocument();
+    expect(screen.getByTestId("ask-about")).toHaveTextContent(
+      "Ask about kafka· since Nov",
+    );
     expect(
-      screen.getByText("Open to questions since 12 Sep 2026"),
-    ).toBeInTheDocument();
+      screen.queryByText(/Open to questions since/),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Expand evidence" }),
     ).toBeInTheDocument();
   });
 
-  it("carries no declaration line for a person who declared nothing", () => {
+  it("notOpenPersonHasNoRingNoPill", () => {
     // when
-    renderCard();
+    const { container } = renderCard({ declaredAt: "2026-09-12T12:00:00Z" });
 
     // then
-    expect(screen.queryByText(/Open to questions/)).not.toBeInTheDocument();
+    expect(container.querySelector("[data-open]")).toBeNull();
+    expect(screen.queryByTestId("ask-about")).not.toBeInTheDocument();
     expect(screen.queryByText(/Declared/)).not.toBeInTheDocument();
-  });
-
-  it("lets the openToQuestions flag decide the declaration line", () => {
-    // when
-    renderCard({ openToQuestions: false, declaredAt: "2026-09-12T12:00:00Z" });
-
-    // then
-    expect(
-      screen.queryByText(/Open to questions since/),
-    ).not.toBeInTheDocument();
   });
 });

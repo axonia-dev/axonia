@@ -149,3 +149,26 @@ test("with a cue the section stays out of sight until the echo has crossed the m
     await screen.findByRole("heading", { name: "Who knows kafka" }),
   ).toBeInTheDocument();
 });
+
+test("openPeopleWearTheRingWithoutTheDot", async () => {
+  // given
+  gateway.search.mockResolvedValue([
+    person("ana", {
+      openToQuestions: true,
+      declaredAt: "2026-09-12T12:00:00Z",
+    }),
+    person("bo"),
+  ]);
+
+  // when
+  const { container } = renderSection();
+
+  // then
+  await screen.findByRole("heading", { name: "Who knows kafka" });
+  const rings = container.querySelectorAll("[data-open='true']");
+  expect(rings).toHaveLength(1);
+  expect(screen.getAllByRole("listitem")[0]).toContainElement(
+    rings[0] as HTMLElement,
+  );
+  expect(screen.queryByTestId("open-dot")).not.toBeInTheDocument();
+});

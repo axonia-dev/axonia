@@ -120,6 +120,7 @@ export function ExpertiseSearchView() {
             practitioners={result.data ?? []}
             isLoading={result.isLoading}
             isError={result.isError}
+            term={term}
             demonstratedOnly={demonstratedOnly}
             onShowAnyone={() => setDemonstratedOnly(false)}
           />
