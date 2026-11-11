@@ -1,5 +1,7 @@
 package dev.axonia.events.adapter.out.persistence;
 
+import java.time.temporal.ChronoUnit;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,6 +14,7 @@ import dev.axonia.events.domain.FeedbackTally;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.within;
 
 class JdbcSessionFeedbackStoreTest extends CoreJdbcTestSupport {
 
@@ -55,9 +58,10 @@ class JdbcSessionFeedbackStoreTest extends CoreJdbcTestSupport {
         var mine = sut.findMine("default", sessionId, "alice");
 
         // then
-        assertThat(mine).get().usingRecursiveComparison().isEqualTo(saved);
+        assertThat(mine).get().usingRecursiveComparison().ignoringFields("createdAt", "updatedAt").isEqualTo(saved);
+        assertThat(mine.orElseThrow().getCreatedAt()).isCloseTo(saved.getCreatedAt(), within(1, ChronoUnit.MICROS));
+        assertThat(mine.orElseThrow().getUpdatedAt()).isCloseTo(saved.getUpdatedAt(), within(1, ChronoUnit.MICROS));
         assertThat(saved.getId()).isNotNull();
-        assertThat(saved.getCreatedAt()).isNotNull();
         assertThat(saved.getVersion()).isZero();
         assertThat(sut.findMine("default", sessionId, "bob")).isEmpty();
         assertThat(sut.findMine("other", sessionId, "alice")).isEmpty();
