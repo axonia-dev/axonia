@@ -78,7 +78,7 @@ public class LearningService implements LearningIntents {
         var declaredAt = clock.instant().truncatedTo(ChronoUnit.MILLIS);
         repository.insert(org, LearningIntent.builder().communityId(community.id()).userId(userId).tag(tag)
                 .declaredAt(declaredAt).build());
-        return new HeldArea(area, declaredAt, List.of());
+        return new HeldArea(area, declaredAt, 0, List.of());
     }
 
     /**

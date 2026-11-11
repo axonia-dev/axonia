@@ -3,6 +3,7 @@ package dev.axonia.learning.domain;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 
@@ -26,8 +27,8 @@ class LearningFoldTest {
         var held = LearningFold.held(List.of(intent("alice", "kafka", LATE), intent("alice", "kubernetes", LATE),
                 intent("alice", "k8s", EARLY)), areas, Map.of(), "alice");
 
-        assertThat(held).containsExactly(new HeldArea("kubernetes", EARLY, List.of()),
-                new HeldArea("kafka", LATE, List.of()));
+        assertThat(held).containsExactly(new HeldArea("kubernetes", EARLY, 0, List.of()),
+                new HeldArea("kafka", LATE, 0, List.of()));
     }
 
     @Test
@@ -36,8 +37,8 @@ class LearningFoldTest {
         var held = LearningFold.held(List.of(intent("alice", "rust", EARLY), intent("alice", "helm", EARLY)), areas,
                 Map.of(), "alice");
 
-        assertThat(held).containsExactly(new HeldArea("helm", EARLY, List.of()),
-                new HeldArea("rust", EARLY, List.of()));
+        assertThat(held).containsExactly(new HeldArea("helm", EARLY, 0, List.of()),
+                new HeldArea("rust", EARLY, 0, List.of()));
     }
 
     @Test
@@ -49,7 +50,7 @@ class LearningFoldTest {
         var held = LearningFold.held(List.of(intent("alice", "k8s", EARLY)), areas,
                 Map.of("kubernetes", List.of(lea, ben), "kafka", List.of(new OpenFace("kim", "Kim", null))), "alice");
 
-        assertThat(held).containsExactly(new HeldArea("kubernetes", EARLY, List.of(lea, ben)));
+        assertThat(held).containsExactly(new HeldArea("kubernetes", EARLY, 2, List.of(lea, ben)));
     }
 
     @Test
@@ -60,7 +61,20 @@ class LearningFoldTest {
         var held = LearningFold.held(List.of(intent("alice", "kafka", EARLY)), areas,
                 Map.of("kafka", List.of(new OpenFace("alice", "Alice", null), lea)), "alice");
 
-        assertThat(held).containsExactly(new HeldArea("kafka", EARLY, List.of(lea)));
+        assertThat(held).containsExactly(new HeldArea("kafka", EARLY, 1, List.of(lea)));
+    }
+
+    @Test
+    void heldAreaShowsTheFirstFourFacesAndCountsEveryoneElseOpen() {
+
+        var faces = Stream.of("alice", "a", "b", "c", "d", "e").map(id -> new OpenFace(id, id, null)).toList();
+
+        var held = LearningFold.held(List.of(intent("alice", "kafka", EARLY)), areas, Map.of("kafka", faces), "alice");
+
+        assertThat(held).singleElement().satisfies(area -> {
+            assertThat(area.openCount()).isEqualTo(5);
+            assertThat(area.open()).extracting(OpenFace::userId).containsExactly("a", "b", "c", "d");
+        });
     }
 
     @Test
@@ -69,7 +83,7 @@ class LearningFoldTest {
         var held = LearningFold.held(List.of(intent("alice", "rust", EARLY)), areas,
                 Map.of("kafka", List.of(new OpenFace("lea", "Lea Moser", null))), "alice");
 
-        assertThat(held).containsExactly(new HeldArea("rust", EARLY, List.of()));
+        assertThat(held).containsExactly(new HeldArea("rust", EARLY, 0, List.of()));
     }
 
     @Test

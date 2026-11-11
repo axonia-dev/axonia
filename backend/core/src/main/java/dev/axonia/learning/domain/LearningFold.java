@@ -23,8 +23,8 @@ public final class LearningFold {
     }
 
     /**
-     * One member's areas, each at the earliest date they stated any spelling of it, earliest first, with the people
-     * open to questions on it other than the member.
+     * One member's areas, each at the earliest date they stated any spelling of it, earliest first, with how many
+     * people other than the member are open to questions on it and the first of them, in the order given.
      */
     public static List<HeldArea> held(List<LearningIntent> intents, CommunityAreas areas,
             Map<String, List<OpenFace>> open, String memberId) {
@@ -33,14 +33,16 @@ public final class LearningFold {
         for (var intent : intents) {
             firstByArea.merge(areas.canonicalOf(intent.tag()), intent.declaredAt(), EARLIER);
         }
-        return firstByArea.entrySet().stream()
-                .map(e -> new HeldArea(e.getKey(), e.getValue(), othersOpenOn(open, e.getKey(), memberId)))
+        return firstByArea.entrySet().stream().map(e -> heldArea(e.getKey(), e.getValue(), open, memberId))
                 .sorted(Comparator.comparing(HeldArea::declaredAt).thenComparing(HeldArea::tag)).toList();
     }
 
-    private static List<OpenFace> othersOpenOn(Map<String, List<OpenFace>> open, String area, String memberId) {
+    private static HeldArea heldArea(String area, Instant declaredAt, Map<String, List<OpenFace>> open,
+            String memberId) {
 
-        return open.getOrDefault(area, List.of()).stream().filter(face -> !face.userId().equals(memberId)).toList();
+        var others = open.getOrDefault(area, List.of()).stream().filter(face -> !face.userId().equals(memberId))
+                .toList();
+        return new HeldArea(area, declaredAt, others.size(), others.stream().limit(HeldArea.MAX_FACES).toList());
     }
 
     /** Every area wanted, counting each member once however many spellings they typed, most wanted first. */

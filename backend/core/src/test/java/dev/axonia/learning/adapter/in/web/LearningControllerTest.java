@@ -34,7 +34,7 @@ class LearningControllerTest extends ControllerTestSupport {
 
         // given
         when(learningService.page("platform")).thenReturn(new LearningPage(true, false, 10,
-                List.of(new HeldArea("kafka", DECLARED_AT, List.of())), List.of(new WantedArea("kafka", 4, 0))));
+                List.of(new HeldArea("kafka", DECLARED_AT, 0, List.of())), List.of(new WantedArea("kafka", 4, 0))));
 
         // when
         var actual = mvc.get().uri("/axonia/communities/{slug}/learning", "platform").exchange();
@@ -52,7 +52,7 @@ class LearningControllerTest extends ControllerTestSupport {
 
         // given
         when(learningService.page("platform")).thenReturn(new LearningPage(true, false, 10,
-                List.of(new HeldArea("kafka", DECLARED_AT, List.of(new OpenFace("lea", "Lea Moser", null)))),
+                List.of(new HeldArea("kafka", DECLARED_AT, 1, List.of(new OpenFace("lea", "Lea Moser", null)))),
                 List.of()));
 
         // when
@@ -60,7 +60,7 @@ class LearningControllerTest extends ControllerTestSupport {
 
         // then
         actual.assertThat().hasStatusOk().bodyJson().isLenientlyEqualTo("""
-                {"mine": [{"tag": "kafka", "declaredAt": "2026-09-12T12:00:00Z",
+                {"mine": [{"tag": "kafka", "declaredAt": "2026-09-12T12:00:00Z", "openCount": 1,
                            "open": [{"userId": "lea", "displayName": "Lea Moser", "avatarUrl": null}]}]}
                 """);
     }
@@ -86,7 +86,7 @@ class LearningControllerTest extends ControllerTestSupport {
     void addingReturnsTheAreaAndItsDate() {
 
         // given
-        when(learningService.add("platform", "Kafka")).thenReturn(new HeldArea("kafka", DECLARED_AT, List.of()));
+        when(learningService.add("platform", "Kafka")).thenReturn(new HeldArea("kafka", DECLARED_AT, 0, List.of()));
 
         // when
         var actual = mvc.post().uri("/axonia/communities/{slug}/learning/intents", "platform")
