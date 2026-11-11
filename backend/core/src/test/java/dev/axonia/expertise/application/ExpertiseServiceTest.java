@@ -276,6 +276,69 @@ class ExpertiseServiceTest {
     // -------------------------------------------------------------------------
 
     @Test
+    void openPractitionerComesBeforeANewerPractitionerWhoDidNotDeclare() {
+
+        // given - bob has the newer evidence, alice declared kafka
+        var older = ExpertiseSignalMother.any().userId("alice").signalType(SignalType.PRESENTED)
+                .occurredAt(Instant.parse("2025-01-01T00:00:00Z")).tag("kafka").build();
+        var newer = ExpertiseSignalMother.any().userId("bob").signalType(SignalType.PRESENTED)
+                .occurredAt(Instant.parse("2026-06-01T00:00:00Z")).tag("kafka").build();
+        when(expertiseQueryRepository.findPractitioners(eq("org-1"), eq(1L), any()))
+                .thenReturn(List.of(new UserSignals("bob", List.of(newer)), new UserSignals("alice", List.of(older))));
+        when(declarationRepository.visibleIn(eq("org-1"), eq(1L), any()))
+                .thenReturn(List.of(declared("alice", "kafka", LATE)));
+
+        // when
+        var result = sut.whoKnows("eng", "kafka", false);
+
+        // then
+        assertThat(result).extracting(Practitioner::userId).containsExactly("alice", "bob");
+    }
+
+    @Test
+    void openNeverJumpsATier() {
+
+        // given - carol contributed and declared, alice presented and did not declare, dana only declared
+        var presented = ExpertiseSignalMother.any().userId("alice").signalType(SignalType.PRESENTED).tag("kafka")
+                .build();
+        var contributed = ExpertiseSignalMother.any().userId("carol").signalType(SignalType.CONTRIBUTED).tag("kafka")
+                .build();
+        when(expertiseQueryRepository.findPractitioners(eq("org-1"), eq(1L), any())).thenReturn(
+                List.of(new UserSignals("carol", List.of(contributed)), new UserSignals("alice", List.of(presented))));
+        when(declarationRepository.visibleIn(eq("org-1"), eq(1L), any()))
+                .thenReturn(List.of(declared("dana", "kafka", LATE), declared("carol", "kafka", LATE)));
+
+        // when
+        var result = sut.whoKnows("eng", "kafka", false);
+
+        // then
+        assertThat(result).extracting(Practitioner::userId).containsExactly("alice", "carol", "dana");
+    }
+
+    @Test
+    void speakerSuggestionsIgnoreOpenness() {
+
+        // given - the two practitioners keep their recency order; suggestions never read declarations
+        when(currentUser.userId()).thenReturn("organizer");
+        when(communityAccess.isOrganizer(1L, "organizer")).thenReturn(true);
+        var older = ExpertiseSignalMother.any().userId("alice").signalType(SignalType.PRESENTED)
+                .occurredAt(Instant.parse("2025-01-01T00:00:00Z")).tag("kafka").build();
+        var newer = ExpertiseSignalMother.any().userId("bob").signalType(SignalType.PRESENTED)
+                .occurredAt(Instant.parse("2026-06-01T00:00:00Z")).tag("kafka").build();
+        when(expertiseQueryRepository.findPractitioners(eq("org-1"), eq(1L), any()))
+                .thenReturn(List.of(new UserSignals("alice", List.of(older)), new UserSignals("bob", List.of(newer))));
+        when(declarationRepository.visibleIn(eq("org-1"), eq(1L), any()))
+                .thenReturn(List.of(declared("alice", "kafka", LATE)));
+
+        // when
+        var result = sut.suggestSpeakers("eng", List.of("kafka"));
+
+        // then
+        assertThat(result).extracting(Practitioner::userId).containsExactly("bob", "alice");
+        assertThat(result).noneMatch(Practitioner::openToQuestions);
+    }
+
+    @Test
     void whoKnows_recencyTiebreak_newerFirst() {
 
         // given

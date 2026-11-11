@@ -72,7 +72,7 @@ public class ExpertiseService {
 
         var userSignals = expertiseQueryRepository.findPractitioners(org, community, tags);
         var declared = earliestDeclarationByUser(declarationRepository.visibleIn(org, community, tags));
-        return sortPractitioners(buildPractitioners(userSignals, declared, demonstratedOnly));
+        return buildPractitioners(userSignals, declared, demonstratedOnly).stream().sorted(searchOrder()).toList();
     }
 
     /**
@@ -107,7 +107,7 @@ public class ExpertiseService {
 
         var userSignals = expertiseQueryRepository.findPractitioners(org, community, tags);
         var practitioners = buildPractitioners(userSignals, Map.of(), true);
-        return sortPractitioners(practitioners).stream().limit(8).toList();
+        return practitioners.stream().sorted(speakerOrder()).limit(8).toList();
     }
 
     private Set<String> expandTerm(String term, Map<String, String> aliasMap) {
@@ -179,15 +179,27 @@ public class ExpertiseService {
                 .build();
     }
 
-    private List<Practitioner> sortPractitioners(List<Practitioner> practitioners) {
+    /** Strongest claim first and, inside a tier, the people open to questions on the area before the rest. */
+    private static Comparator<Practitioner> searchOrder() {
 
-        return practitioners.stream().sorted(practitionerOrder()).toList();
+        return tierRank().thenComparing(Practitioner::openToQuestions, Comparator.reverseOrder())
+                .thenComparing(recency());
     }
 
-    private Comparator<Practitioner> practitionerOrder() {
+    /** A suggestion puts a person in front of a room, which willingness alone does not earn, so openness is no key. */
+    private static Comparator<Practitioner> speakerOrder() {
 
-        return Comparator.comparingInt((Practitioner p) -> TierPolicy.rank(p.tier()))
-                .thenComparing(ExpertiseService::claimedAt, Comparator.reverseOrder())
+        return tierRank().thenComparing(recency());
+    }
+
+    private static Comparator<Practitioner> tierRank() {
+
+        return Comparator.comparingInt((Practitioner p) -> TierPolicy.rank(p.tier()));
+    }
+
+    private static Comparator<Practitioner> recency() {
+
+        return Comparator.comparing(ExpertiseService::claimedAt, Comparator.reverseOrder())
                 .thenComparing(Practitioner::displayName, String.CASE_INSENSITIVE_ORDER);
     }
 
