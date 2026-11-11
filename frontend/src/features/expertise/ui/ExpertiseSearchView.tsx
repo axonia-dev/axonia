@@ -6,19 +6,30 @@ import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { useExpertiseSearch } from "@/features/expertise/api/use-expertise-search";
 import { CommunityKnows } from "@/features/expertise/ui/CommunityKnows";
 import { PractitionerList } from "@/features/expertise/ui/PractitionerList";
+import {
+  countsByWho,
+  filterByWho,
+  parseWho,
+  type Who,
+} from "@/features/expertise/ui/who-filter";
 import { LearnersBridge } from "@/features/learning/ui/LearnersBridge";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
 
 const DEBOUNCE_MS = 300;
 
-const ANYONE = "anyone";
-const DEMONSTRATED = "demonstrated";
 const WHO = "who";
 
-const PROOF_OPTIONS = [
-  { id: ANYONE, label: "Anyone" },
-  { id: DEMONSTRATED, label: "Practised" },
-];
+function option(id: Who, label: string, count: number | undefined) {
+  return count === undefined ? { id, label } : { id, label, count };
+}
+
+function whoOptions(counts: Record<Who, number> | undefined) {
+  return [
+    option("anyone", "Anyone", counts?.anyone),
+    option("demonstrated", "Practised", counts?.demonstrated),
+    option("open", "Open to questions", counts?.open),
+  ];
+}
 
 /** A null value leaves the parameter out, so a default never reaches the URL. */
 function write(params: URLSearchParams, key: string, value: string | null) {
@@ -34,8 +45,8 @@ export function ExpertiseSearchView() {
   const [params, setParams] = useSearchParams();
   const [input, setInput] = useState(params.get("term") ?? "");
   const [term, setTerm] = useState(() => input.trim());
-  const [demonstratedOnly, setDemonstratedOnly] = useState(
-    () => term !== "" && params.get(WHO) === DEMONSTRATED,
+  const [who, setWho] = useState<Who>(() =>
+    term === "" ? "anyone" : parseWho(params.get(WHO)),
   );
   const debouncedInput = useDebouncedValue(input, DEBOUNCE_MS);
 
@@ -47,24 +58,27 @@ export function ExpertiseSearchView() {
     setSeenDebounced(debouncedInput);
     const settling = debouncedInput.trim();
     setTerm(settling);
-    if (settling === "") setDemonstratedOnly(false);
+    if (settling === "") setWho("anyone");
   }
 
   // Replaced, not pushed: each settled term is the same search refined, not a page to go back to.
   // The filter rides along so a deep link and a reload land on the same result.
-  const who = demonstratedOnly ? DEMONSTRATED : null;
+  const whoParam = who === "anyone" ? null : who;
   useEffect(() => {
     const settled =
-      (params.get("term") ?? "") === term && params.get(WHO) === who;
+      (params.get("term") ?? "") === term && params.get(WHO) === whoParam;
     if (settled) return;
     const next = new URLSearchParams(params);
     write(next, "term", term === "" ? null : term);
-    write(next, WHO, who);
+    write(next, WHO, whoParam);
     setParams(next, { replace: true });
-  }, [term, who, params, setParams]);
+  }, [term, whoParam, params, setParams]);
 
   const enabled = term !== "";
-  const result = useExpertiseSearch(slug, { term, demonstratedOnly });
+  // Everyone is asked for once and narrowed here, so each narrowing can show its count before it is chosen.
+  const result = useExpertiseSearch(slug, { term, demonstratedOnly: false });
+  const counts =
+    result.data === undefined ? undefined : countsByWho(result.data);
 
   // The filter belongs to the question on screen, so every new question drops it: a picked area
   // lists as many people as the count on the tag just tapped, and clearing leaves an idle page
@@ -73,7 +87,7 @@ export function ExpertiseSearchView() {
   function askAbout(tag: string) {
     setInput(tag);
     setTerm(tag);
-    setDemonstratedOnly(false);
+    setWho("anyone");
   }
 
   return (
@@ -110,19 +124,19 @@ export function ExpertiseSearchView() {
             <SegmentedControl
               label="Who to list"
               hideLabel
-              value={demonstratedOnly ? DEMONSTRATED : ANYONE}
-              options={PROOF_OPTIONS}
-              onChange={(value) => setDemonstratedOnly(value === DEMONSTRATED)}
+              value={who}
+              options={whoOptions(counts)}
+              onChange={(value) => setWho(parseWho(value))}
               className="sm:ml-auto"
             />
           </div>
           <PractitionerList
-            practitioners={result.data ?? []}
+            practitioners={filterByWho(result.data ?? [], who)}
             isLoading={result.isLoading}
             isError={result.isError}
             term={term}
-            demonstratedOnly={demonstratedOnly}
-            onShowAnyone={() => setDemonstratedOnly(false)}
+            who={who}
+            onShowAnyone={() => setWho("anyone")}
           />
           <LearnersBridge slug={slug} term={term} />
         </div>

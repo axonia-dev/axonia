@@ -46,7 +46,7 @@ function renderList(
     term: "kafka",
     isLoading: false,
     isError: false,
-    demonstratedOnly: false,
+    who: "anyone" as const,
     onShowAnyone: vi.fn(),
   };
   return render(
@@ -98,13 +98,28 @@ describe("PractitionerList", () => {
 
   it("blames the filter and offers to clear it when it is on", async () => {
     const onShowAnyone = vi.fn();
-    renderList({ practitioners: [], demonstratedOnly: true, onShowAnyone });
+    renderList({ practitioners: [], who: "demonstrated", onShowAnyone });
 
     expect(screen.getByText(/nobody has done this here/i)).toBeInTheDocument();
 
     const user = userEvent.setup();
     await user.click(screen.getByRole("button", { name: "Show anyone" }));
 
+    expect(onShowAnyone).toHaveBeenCalledTimes(1);
+  });
+
+  it("saysNobodyIsOpenOnTheTermAndOffersEveryone", async () => {
+    // given
+    const onShowAnyone = vi.fn();
+    renderList({ practitioners: [], who: "open", onShowAnyone });
+
+    // when
+    await userEvent.click(screen.getByRole("button", { name: "Show anyone" }));
+
+    // then
+    expect(
+      screen.getByText("Nobody open to questions on kafka"),
+    ).toBeInTheDocument();
     expect(onShowAnyone).toHaveBeenCalledTimes(1);
   });
 

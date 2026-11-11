@@ -83,13 +83,13 @@ describe("ExpertiseSearchView URL", () => {
     renderView("eng", "?term=kafka&who=demonstrated");
 
     // then
-    expect(screen.getByRole("radio", { name: "Practised" })).toHaveAttribute(
+    expect(screen.getByRole("radio", { name: /^Practised/ })).toHaveAttribute(
       "aria-checked",
       "true",
     );
     expect(mockSearch).toHaveBeenCalledWith(
       "eng",
-      expect.objectContaining({ demonstratedOnly: true }),
+      expect.objectContaining({ term: "kafka", demonstratedOnly: false }),
     );
   });
 
@@ -98,7 +98,7 @@ describe("ExpertiseSearchView URL", () => {
     renderView("eng", "?term=kafka");
 
     // when
-    await user.click(screen.getByRole("radio", { name: "Practised" }));
+    await user.click(screen.getByRole("radio", { name: /^Practised/ }));
 
     // then
     await waitFor(() =>
@@ -149,7 +149,7 @@ describe("ExpertiseSearchView URL", () => {
     renderView("eng", "?term=kafka&who=demonstrated");
 
     // when
-    await user.click(screen.getByRole("radio", { name: "Anyone" }));
+    await user.click(screen.getByRole("radio", { name: /^Anyone/ }));
 
     // then
     await waitFor(() => expect(location().textContent).toBe("?term=kafka"));

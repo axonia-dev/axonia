@@ -2,6 +2,7 @@ import { EmptyState } from "@/components/patterns/EmptyState";
 import { Button } from "@/components/ui/Button";
 import type { Practitioner } from "@/features/expertise/domain/expertise";
 import { PractitionerCard } from "@/features/expertise/ui/PractitionerCard";
+import type { Who } from "@/features/expertise/ui/who-filter";
 
 interface Props {
   practitioners: Practitioner[];
@@ -9,29 +10,41 @@ interface Props {
   isError: boolean;
   /** The term searched for, which every open person's card invites questions on. */
   term: string;
-  /** The result filter: on, only people with activity on the term are listed. */
-  demonstratedOnly: boolean;
+  /** The narrowing the people were listed under, which an empty list blames. */
+  who: Who;
   onShowAnyone: () => void;
 }
 
 function NobodyFound({
-  demonstratedOnly,
+  term,
+  who,
   onShowAnyone,
-}: Readonly<Pick<Props, "demonstratedOnly" | "onShowAnyone">>) {
-  if (demonstratedOnly) {
+}: Readonly<Pick<Props, "term" | "who" | "onShowAnyone">>) {
+  if (who === "anyone") {
+    return (
+      <EmptyState title="Nobody matches" description="Try another term." />
+    );
+  }
+  const showAnyone = (
+    <Button variant="secondary" onPress={onShowAnyone}>
+      Show anyone
+    </Button>
+  );
+  if (who === "open") {
     return (
       <EmptyState
-        title="Nobody has done this here"
-        description="The filter lists only members with activity on this term in this community."
-        action={
-          <Button variant="secondary" onPress={onShowAnyone}>
-            Show anyone
-          </Button>
-        }
+        title={`Nobody open to questions on ${term}`}
+        action={showAnyone}
       />
     );
   }
-  return <EmptyState title="Nobody matches" description="Try another term." />;
+  return (
+    <EmptyState
+      title="Nobody has done this here"
+      description="The filter lists only members with activity on this term in this community."
+      action={showAnyone}
+    />
+  );
 }
 
 export function PractitionerList({
@@ -39,7 +52,7 @@ export function PractitionerList({
   isLoading,
   isError,
   term,
-  demonstratedOnly,
+  who,
   onShowAnyone,
 }: Readonly<Props>) {
   if (isLoading) {
@@ -53,12 +66,7 @@ export function PractitionerList({
     );
   }
   if (practitioners.length === 0) {
-    return (
-      <NobodyFound
-        demonstratedOnly={demonstratedOnly}
-        onShowAnyone={onShowAnyone}
-      />
-    );
+    return <NobodyFound term={term} who={who} onShowAnyone={onShowAnyone} />;
   }
   return (
     <ul className="flex flex-col gap-3">

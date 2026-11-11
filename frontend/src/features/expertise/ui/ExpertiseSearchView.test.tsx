@@ -184,7 +184,7 @@ describe("ExpertiseSearchView", () => {
     // then
     expect(screen.queryByRole("switch")).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("radio", { name: "Practised" }),
+      screen.queryByRole("radio", { name: /^Practised/ }),
     ).not.toBeInTheDocument();
   });
 
@@ -193,27 +193,13 @@ describe("ExpertiseSearchView", () => {
     renderView("eng", "?term=kafka");
 
     // then
-    expect(screen.getByRole("radio", { name: "Anyone" })).toHaveAttribute(
+    expect(screen.getByRole("radio", { name: /^Anyone/ })).toHaveAttribute(
       "aria-checked",
       "true",
     );
     expect(mockSearch).toHaveBeenCalledWith(
       "eng",
       expect.objectContaining({ demonstratedOnly: false }),
-    );
-  });
-
-  it("narrows the result to people who practised here", async () => {
-    // given
-    renderView("eng", "?term=kafka");
-
-    // when
-    await user.click(screen.getByRole("radio", { name: "Practised" }));
-
-    // then
-    expect(mockSearch).toHaveBeenLastCalledWith(
-      "eng",
-      expect.objectContaining({ demonstratedOnly: true }),
     );
   });
 
@@ -229,7 +215,7 @@ describe("ExpertiseSearchView", () => {
       "eng",
       expect.objectContaining({ term: "kafka", demonstratedOnly: false }),
     );
-    expect(screen.getByRole("radio", { name: "Anyone" })).toHaveAttribute(
+    expect(screen.getByRole("radio", { name: /^Anyone/ })).toHaveAttribute(
       "aria-checked",
       "true",
     );
@@ -252,11 +238,12 @@ describe("ExpertiseSearchView", () => {
     await waitFor(() =>
       expect(mockSearch).toHaveBeenLastCalledWith(
         "eng",
-        expect.objectContaining({
-          term: "kafka-streams",
-          demonstratedOnly: true,
-        }),
+        expect.objectContaining({ term: "kafka-streams" }),
       ),
+    );
+    expect(screen.getByRole("radio", { name: /^Practised/ })).toHaveAttribute(
+      "aria-checked",
+      "true",
     );
   });
 });
