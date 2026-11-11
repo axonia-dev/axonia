@@ -1,6 +1,7 @@
 package dev.axonia.communication.adapter.out.persistence;
 
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -86,11 +87,36 @@ class JdbcOutboxInAppRowTest extends CommunicationJdbcTestSupport {
     }
 
     @Test
+    void aMessageAboutAMemberNamesThemBesideTheSendersFacts() {
+
+        outbox.enqueue(OutboundMessageMother.any().subjectRef("306").aboutUserId("lea").build());
+
+        assertThat(storedFact("306", "aboutUserId")).isEqualTo("lea");
+        assertThat(storedFact("306", "sessionTitle")).isEqualTo("Frontend Dojo");
+    }
+
+    @Test
+    void aMessageAboutNobodyStoresTheSendersFactsAlone() {
+
+        outbox.enqueue(OutboundMessageMother.any().subjectRef("307").build());
+
+        assertThat(storedFact("307", "aboutUserId")).isNull();
+        assertThat(storedFact("307", "sessionTitle")).isEqualTo("Frontend Dojo");
+    }
+
+    @Test
     void aMessageWithNoRecipientsWritesNoInAppRows() {
 
         outbox.enqueue(OutboundMessageMother.any().subjectRef("304").recipientUserIds(List.of()).build());
 
         assertThat(countByChannel("304", "IN_APP")).isZero();
+    }
+
+    private String storedFact(String subjectRef, String fact) {
+
+        return jdbc.queryForObject(
+                "SELECT facts->>:fact FROM communication_message WHERE subject_ref = :subject AND organization_id = 'acme'",
+                Map.of("subject", subjectRef, "fact", fact), String.class);
     }
 
     /**

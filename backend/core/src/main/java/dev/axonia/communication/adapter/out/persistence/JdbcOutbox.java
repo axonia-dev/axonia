@@ -7,6 +7,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -289,6 +290,17 @@ public class JdbcOutbox implements CommunicationPort, MessageOutcomePort, Outbox
         return (int) Arrays.stream(inserted).filter(count -> count > 0).count();
     }
 
+    /** The sender's facts, with the member the message is about, if any, under the name their erasure reads. */
+    private static Map<String, Object> storedFacts(OutboundMessage message) {
+
+        if (message.aboutUserId() == null) {
+            return message.facts();
+        }
+        var facts = new HashMap<>(message.facts());
+        facts.put(OutboundMessage.ABOUT_USER_FACT, message.aboutUserId());
+        return facts;
+    }
+
     /**
      * The message row is the idempotency anchor, so its facts are written once and never overwritten: re-producing the
      * same subject with freshly assembled facts leaves the frozen ones alone, which is what makes divergent facts for
@@ -342,7 +354,7 @@ public class JdbcOutbox implements CommunicationPort, MessageOutcomePort, Outbox
 
         var params = new MapSqlParameterSource().addValue("org", organizationId).addValue("type", message.type().code())
                 .addValue("subject", message.subjectRef()).addValue("template", message.template())
-                .addValue("facts", jsonMapper.writeValueAsString(message.facts())).addValue("now", now);
+                .addValue("facts", jsonMapper.writeValueAsString(storedFacts(message))).addValue("now", now);
 
         return jdbc.query("""
                 INSERT INTO communication_message

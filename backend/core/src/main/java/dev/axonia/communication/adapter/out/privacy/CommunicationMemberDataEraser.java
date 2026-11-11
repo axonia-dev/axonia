@@ -6,6 +6,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import dev.axonia.communication.api.OutboundMessage;
 import dev.axonia.shared.api.personaldata.ErasureCounts;
 import dev.axonia.shared.api.personaldata.MemberDataEraser;
 import dev.axonia.shared.api.personaldata.MemberErasure;
@@ -15,8 +16,8 @@ import lombok.RequiredArgsConstructor;
  * A member's preference row and their deliveries exist only to describe that one person's relationship with the spine,
  * so both go with them outright rather than being anonymised. The message they point at does not: it is equally the
  * record of what every other recipient received, so it survives its erased recipient and is removed only once nothing
- * references it at all. A message about the member, naming them in its {@code aboutUserId} fact, goes for every
- * recipient: it exists only to say something about the person being erased.
+ * references it at all. A message about the member, naming them under {@link OutboundMessage#ABOUT_USER_FACT}, goes for
+ * every recipient: it exists only to say something about the person being erased.
  */
 @Component
 @RequiredArgsConstructor
@@ -28,7 +29,8 @@ public class CommunicationMemberDataEraser implements MemberDataEraser {
     @Transactional
     public ErasureCounts erase(MemberErasure erasure) {
 
-        var params = Map.of("org", erasure.organizationId(), "user", erasure.userId());
+        var params = Map.of("org", erasure.organizationId(), "user", erasure.userId(), "aboutFact",
+                OutboundMessage.ABOUT_USER_FACT);
         var deleted = jdbc.update(
                 "DELETE FROM communication_preference WHERE organization_id = :org AND user_id = :user", params);
         deleted += jdbc.update("DELETE FROM communication_delivery WHERE organization_id = :org AND user_id = :user",
@@ -38,7 +40,7 @@ public class CommunicationMemberDataEraser implements MemberDataEraser {
                  USING communication_message m
                  WHERE m.id = d.message_id
                    AND m.organization_id = :org
-                   AND m.facts->>'aboutUserId' = :user
+                   AND m.facts->>:aboutFact = :user
                 """, params);
         deleted += jdbc.update("""
                 DELETE FROM communication_message m
