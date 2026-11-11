@@ -180,10 +180,16 @@ public class RoleBindingService implements OrganizationOwners {
      * subject type, so a GROUP Owner binding sitting alongside the last USER Owner binding would silently mask this
      * guard. {@link OrganizationOwnership#isSoleUserOwner} counts direct USER bindings only, matching that class's own
      * notion of who actually holds Owner.
+     *
+     * <p>
+     * Where ownership is anchored outside the product ({@link OrganizationOwnership#isAnchoredOutsideTheProduct}), as a
+     * Self-hosted installation's configured owner group is bound again at every start, the premise fails: the
+     * Organization can always be repaired, so the last direct Owner is as revocable as any other.
      */
     private void guardLastOwnerRetained(SubjectBinding binding) {
 
-        if (!"USER".equals(binding.subjectType()) || !ownership.isOwnerRoleBinding(binding)) {
+        if (!"USER".equals(binding.subjectType()) || !ownership.isOwnerRoleBinding(binding)
+                || ownership.isAnchoredOutsideTheProduct(binding.organizationId())) {
             return;
         }
         if (ownership.isSoleUserOwner(binding.organizationId(), binding.subjectId())) {

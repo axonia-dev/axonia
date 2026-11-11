@@ -12,6 +12,7 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import dev.axonia.access.api.AuthorizationGate;
 import dev.axonia.access.api.Permission;
 import dev.axonia.access.api.spi.DirectoryGroupsPolicy;
+import dev.axonia.access.api.spi.OwnershipAnchorPolicy;
 import dev.axonia.access.application.port.out.OrganizationContext;
 import dev.axonia.access.application.port.out.RoleBindingStore;
 import dev.axonia.access.application.port.out.RoleStore;
@@ -55,6 +56,8 @@ class RoleBindingServiceTest {
 
     private Boolean groupsApplyHere;
 
+    private Boolean ownershipAnchoredHere;
+
     /**
      * {@link RoleCeiling} and {@link OrganizationOwnership} are wired in for real, not mocked: every ceiling assertion
      * below is about which permissions the caller is refused and what it is told, and every last-Owner assertion is
@@ -64,9 +67,11 @@ class RoleBindingServiceTest {
     void buildService() {
 
         DirectoryGroupsPolicy policy = organizationId -> Optional.ofNullable(groupsApplyHere);
+        OwnershipAnchorPolicy anchor = organizationId -> Optional.ofNullable(ownershipAnchoredHere);
         sut = new RoleBindingService(bindingStore, roleStore, gate, organization, directoryGroupConfirmation,
                 new RoleCeiling(gate, new KnownPermissions(List.of())),
-                new OrganizationOwnership(roleStore, bindingStore), new GroupBindingApplicability(List.of(policy)));
+                new OrganizationOwnership(roleStore, bindingStore, List.of(anchor)),
+                new GroupBindingApplicability(List.of(policy)));
     }
 
     @Test
@@ -379,6 +384,39 @@ class RoleBindingServiceTest {
         assertThatThrownBy(() -> sut.delete(1L)).isInstanceOf(ConflictException.class)
                 .extracting(ex -> ((ConflictException) ex).getCode()).isEqualTo("last_owner");
         verify(bindingStore, never()).deleteById(any());
+    }
+
+    /**
+     * Where the operator anchors ownership outside the product, as a Self-hosted installation's configured owner group
+     * is bound again at every start, no binding removed inside the product can leave the Organization without an Owner,
+     * so the last direct Owner is as revocable as any other.
+     */
+    @Test
+    void theLastUserOwnerBindingIsRevocableWhereOwnershipIsAnchoredOutsideTheProduct() {
+
+        // given - the configured owner group holds Owner beside one person granted it directly
+        ownershipAnchoredHere = true;
+        var ownerRole = RoleDefinitionMother.any().id(2L).organizationId("default").name("Owner")
+                .permissions(List.of(RoleDefinitionMother.permission(Permission.ROLE_ASSIGN.code()))).build();
+        var userBinding = SubjectBinding.builder().id(1L).organizationId("default").subjectType("USER")
+                .subjectId("u-provisioned").roleId(2L).build();
+        var groupBinding = SubjectBinding.builder().id(2L).organizationId("default").subjectType("GROUP")
+                .subjectId("owner").roleId(2L).build();
+        when(bindingStore.find(1L)).thenReturn(Optional.of(userBinding));
+        when(roleStore.find(2L)).thenReturn(Optional.of(ownerRole));
+        when(gate.currentPermissions()).thenReturn(Permission.OPEN);
+        when(roleStore.findByName("default", "Owner")).thenReturn(Optional.of(ownerRole));
+        // lenient: the anchored Organization never asks who else holds Owner, yet without the anchor this is exactly
+        // the sole-USER-Owner refusal theLastUserOwnerBindingCannotBeRevokedWhenAGroupAlsoHoldsOwner pins
+        lenient().when(bindingStore.boundTo(2L)).thenReturn(List.of(userBinding, groupBinding));
+        when(roleStore.listIn("default")).thenReturn(List.of(ownerRole));
+        when(bindingStore.listIn("default")).thenReturn(List.of(userBinding, groupBinding));
+
+        // when
+        sut.delete(1L);
+
+        // then
+        verify(bindingStore).deleteById(1L);
     }
 
     /** A second Owner makes the first revocable again, which is how ownership is actually transferred. */

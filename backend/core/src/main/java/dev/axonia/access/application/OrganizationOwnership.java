@@ -6,10 +6,12 @@ import java.util.Optional;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import dev.axonia.access.api.spi.OwnershipAnchorPolicy;
 import dev.axonia.access.application.port.out.RoleBindingStore;
 import dev.axonia.access.application.port.out.RoleStore;
 import dev.axonia.access.domain.RoleDefinition;
 import dev.axonia.access.domain.SubjectBinding;
+import dev.axonia.shared.api.policy.PolicyOpinions;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -37,6 +39,7 @@ public class OrganizationOwnership {
 
     private final RoleStore roleStore;
     private final RoleBindingStore bindingStore;
+    private final List<OwnershipAnchorPolicy> anchors;
 
     /**
      * Whether {@code subject} is the sole Owner of this Organization: a lone binding to the Owner role, held directly
@@ -62,6 +65,15 @@ public class OrganizationOwnership {
         var userOwnerBindings = ownerBindings(organizationId).stream().filter(b -> USER.equals(b.subjectType()))
                 .toList();
         return userOwnerBindings.size() == 1 && userOwnerBindings.get(0).subjectId().equals(subject);
+    }
+
+    /**
+     * Whether the Organization's ownership is anchored outside the product ({@link OwnershipAnchorPolicy}), so that no
+     * binding removed inside it can leave the Organization without an Owner. No, unless a contributor says so.
+     */
+    public boolean isAnchoredOutsideTheProduct(String organizationId) {
+
+        return PolicyOpinions.sole(anchors, anchor -> anchor.anchoredOutsideTheProduct(organizationId)).orElse(false);
     }
 
     /** Whether {@code binding} is a binding to this Organization's seeded Owner role, not to some other role. */
