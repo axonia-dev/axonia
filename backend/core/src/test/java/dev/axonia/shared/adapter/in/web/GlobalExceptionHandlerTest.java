@@ -56,6 +56,12 @@ class GlobalExceptionHandlerTest extends ControllerTestSupport {
             throw new ForbiddenException("organizer required");
         }
 
+        @GetMapping("/test/forbidden-coded")
+        void forbiddenCoded() {
+
+            throw new ForbiddenException("NOT_ELIGIBLE", "not eligible");
+        }
+
         @GetMapping("/test/missing-organization")
         void missingOrganization() {
 
@@ -133,7 +139,17 @@ class GlobalExceptionHandlerTest extends ControllerTestSupport {
         var actual = mvc.get().uri("/test/forbidden");
 
         // then
-        actual.assertThat().hasStatus(403);
+        actual.assertThat().hasStatus(403).bodyJson().doesNotHavePath("$.code");
+    }
+
+    @Test
+    void handlesCodedForbidden() {
+
+        // when
+        var actual = mvc.get().uri("/test/forbidden-coded");
+
+        // then
+        actual.assertThat().hasStatus(403).bodyJson().extractingPath("$.code").isEqualTo("NOT_ELIGIBLE");
     }
 
     @Test

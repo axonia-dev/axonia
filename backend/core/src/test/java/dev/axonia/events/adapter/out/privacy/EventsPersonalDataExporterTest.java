@@ -70,6 +70,8 @@ class EventsPersonalDataExporterTest extends FootprintTestSupport {
         seedVote(NEIGHBOUR, proposedByTarget);
         seedAttendance(TARGET, sessionId);
         seedAttendance(NEIGHBOUR, sessionId);
+        seedFeedback(TARGET, sessionId);
+        seedFeedback(NEIGHBOUR, sessionId);
         seedPresenter(TARGET, slotId);
         seedPresenter(NEIGHBOUR, neighbourSlot);
         seedSubscription(TARGET, "target-subscription-hash");
@@ -87,6 +89,7 @@ class EventsPersonalDataExporterTest extends FootprintTestSupport {
         assertThat(onlyRow(fragment, "community_session")).containsEntry("facilitator_user_id", TARGET);
         assertThat(onlyRow(fragment, "topic_vote")).containsEntry("user_id", TARGET);
         assertThat(onlyRow(fragment, "session_attendance")).containsEntry("user_id", TARGET);
+        assertThat(onlyRow(fragment, "session_feedback")).containsEntry("user_id", TARGET);
         assertThat(onlyRow(fragment, "event_slot_presenter")).containsEntry("user_id", TARGET);
         assertThat(onlyRow(fragment, "calendar_subscription")).containsEntry("user_id", TARGET);
         assertThat(onlyRow(fragment, "topic_speaker")).containsEntry("user_id", TARGET);
@@ -110,6 +113,8 @@ class EventsPersonalDataExporterTest extends FootprintTestSupport {
         assertThat(onlyRow(fragment, "topic_vote")).containsOnlyKeys("user_id", "created_at", "updated_at", "topic");
         assertThat(onlyRow(fragment, "session_attendance")).containsOnlyKeys("user_id", "created_at", "updated_at",
                 "session", "session_date");
+        assertThat(onlyRow(fragment, "session_feedback")).containsOnlyKeys("user_id", "enjoyed", "learned",
+                "created_at", "updated_at", "session", "session_date");
         assertThat(onlyRow(fragment, "community_session")).containsOnlyKeys("facilitator_user_id", "status",
                 "scheduled_at", "has_time", "time_zone", "duration_minutes", "notes", "recording_url", "location",
                 "join_url", "joining_details", "occurrence_date", "title", "closed_at", "created_at", "updated_at",
@@ -138,6 +143,9 @@ class EventsPersonalDataExporterTest extends FootprintTestSupport {
         assertThat(onlyRow(fragment, "topic_vote")).containsEntry("topic", TOPIC_TITLE);
         assertThat(onlyRow(fragment, "session_attendance")).containsEntry("session", SESSION_TITLE);
         assertThat(onlyRow(fragment, "session_attendance").get("session_date")).hasToString(OCCURRENCE.toString());
+        assertThat(onlyRow(fragment, "session_feedback")).containsEntry("session", SESSION_TITLE)
+                .containsEntry("enjoyed", 9).containsEntry("learned", 7);
+        assertThat(onlyRow(fragment, "session_feedback").get("session_date")).hasToString(OCCURRENCE.toString());
         assertThat(onlyRow(fragment, "community_session")).containsEntry("community", COMMUNITY_NAME)
                 .containsEntry("series", SERIES_TITLE);
         assertThat(onlyRow(fragment, "event_slot_presenter")).containsEntry("slot", SLOT_TITLE).containsEntry("session",
@@ -197,11 +205,31 @@ class EventsPersonalDataExporterTest extends FootprintTestSupport {
         assertThat(rowsOf(fragment, "community_session")).hasSize(2);
         assertThat(rowsOf(fragment, "topic_vote")).hasSize(2);
         assertThat(rowsOf(fragment, "session_attendance")).hasSize(2);
+        assertThat(rowsOf(fragment, "session_feedback")).isEmpty();
         assertThat(rowsOf(fragment, "event_slot_presenter")).hasSize(2);
         assertThat(rowsOf(fragment, "calendar_subscription")).hasSize(2);
         assertThat(rowsOf(fragment, "action_item_checkpoint")).hasSize(2);
         assertThat(rowsOf(fragment, "topic_speaker")).hasSize(2);
         assertThat(json(fragment)).contains(TARGET, NEIGHBOUR);
+    }
+
+    /**
+     * Session feedback is anonymous to organizers, and an administrator's export is read by an organizer: no answer and
+     * no author of one may reach it, not even the timestamps that would date an answer to a departure.
+     */
+    @Test
+    void organizationScopedExportCarriesNoSessionFeedback() {
+
+        // given
+        var feedbackOnlyMember = "feedback-only-member";
+        seedFeedback(feedbackOnlyMember, seedSession(TARGET));
+
+        // when
+        var fragment = exporter.export(new ExportScope.WholeOrganization(ORG));
+
+        // then
+        assertThat(fragment.payload()).containsKey("session_feedback");
+        assertThat(json(fragment)).doesNotContain(feedbackOnlyMember, "enjoyed", "learned");
     }
 
     /** One row in every table of the module, all of it named after the same person and all of it labelled. */
@@ -212,6 +240,7 @@ class EventsPersonalDataExporterTest extends FootprintTestSupport {
         var actionItemId = seedActionItem(ACTION_ITEM_TITLE, user, user, sessionId);
         seedVote(user, topicId);
         seedAttendance(user, sessionId);
+        seedFeedback(user, sessionId);
         seedPresenter(user, seedSlot(sessionId));
         seedSubscription(user, user + "-subscription-hash");
         seedCheckpoint(actionItemId, sessionId, user);
@@ -346,6 +375,14 @@ class EventsPersonalDataExporterTest extends FootprintTestSupport {
         jdbc.update(
                 "INSERT INTO session_attendance (organization_id, session_id, user_id, created_at, updated_at, "
                         + "version) VALUES (:org, :sessionId, :user, now(), now(), 0)",
+                Map.of("org", ORG, "sessionId", forSessionId, "user", user));
+    }
+
+    private void seedFeedback(String user, Long forSessionId) {
+
+        jdbc.update(
+                "INSERT INTO session_feedback (organization_id, session_id, user_id, enjoyed, learned, created_at, "
+                        + "updated_at, version) VALUES (:org, :sessionId, :user, 9, 7, now(), now(), 0)",
                 Map.of("org", ORG, "sessionId", forSessionId, "user", user));
     }
 

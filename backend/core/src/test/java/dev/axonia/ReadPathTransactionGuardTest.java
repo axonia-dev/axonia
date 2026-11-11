@@ -390,10 +390,10 @@ class ReadPathTransactionGuardTest {
     private static final Pattern CLASS_DECLARATION = Pattern
             .compile("^\\s*(?:public\\s+)?(?:final\\s+)?(?:abstract\\s+)?class\\s+\\w+");
 
-    /** The named exemption this half holds. Never a pattern here - only another reasoned entry. */
+    /** The named exemptions this half holds. Never a pattern here - only another reasoned entry. */
     protected Set<String> namedExemptions() {
 
-        return Set.of(GROUP_BINDING_SERVICE_LIST);
+        return Set.of(GROUP_BINDING_SERVICE_LIST, SESSION_FEEDBACK_SERVICE_GIVE);
     }
 
     /** Each named exemption resting on an outbound call, by the call that is its whole reason. */
@@ -468,6 +468,12 @@ class ReadPathTransactionGuardTest {
      * {@link #namedExemptionsStillMakeTheOutboundCallTheirReasonNames} fails the build if the Graph call goes.
      */
     private static final String GROUP_BINDING_SERVICE_LIST = "src/main/java/dev/axonia/access/application/GroupBindingService.java#list";
+
+    /**
+     * {@code SessionFeedbackService.give} retries a lost insert or version race, and Postgres aborts the transaction a
+     * failed insert ran in, so the retry needs a fresh one; one around the whole method would make the retry fail too.
+     */
+    private static final String SESSION_FEEDBACK_SERVICE_GIVE = "src/main/java/dev/axonia/events/application/SessionFeedbackService.java#give";
 
     /**
      * A {@code @Bean} method returning a transaction manager, anywhere in {@code src/main} - the one change that makes

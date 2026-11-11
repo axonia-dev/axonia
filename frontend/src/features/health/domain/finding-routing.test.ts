@@ -39,6 +39,12 @@ describe("finding routing", () => {
     expect(CHAPTER_OF.KNOWLEDGE_REUSED).toBe("payoff");
   });
 
+  it("files what the room said under paying off, beside the reuse evidence", () => {
+    expect(CHAPTER_OF.LEARNING_LANDS).toBe("payoff");
+    expect(CHAPTER_OF.ENJOYED_NOT_LEARNED).toBe("payoff");
+    expect(CHAPTER_OF.SESSIONS_LAND_POORLY).toBe("payoff");
+  });
+
   it("keeps the diagnosis order within a chapter", () => {
     const findings: Finding[] = [
       { kind: "RISK", code: "SINGLE_POINT" },

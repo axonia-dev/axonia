@@ -54,7 +54,7 @@ public class EventsPersonalDataFootprint implements PersonalDataFootprint {
         return List.of(topic(), topicVote(), sessionAttendance(), communitySession(), eventSlotPresenter(),
                 eventSection(), eventSectionType(), eventSeries(), eventSeriesSectionType(), eventSlot(), topicTag(),
                 eventSlotTag(), topicSpeaker(), calendarSubscription(), actionItem(), actionItemTag(),
-                actionItemCheckpoint());
+                actionItemCheckpoint(), sessionFeedback(), sessionFeedbackImport(), sessionFeedbackImportAnswer());
     }
 
     private TableFootprint topic() {
@@ -82,6 +82,31 @@ public class EventsPersonalDataFootprint implements PersonalDataFootprint {
                 .personal(List.of(new ColumnFootprint("user_id", Classification.SUBJECT, Disposition.ANONYMISE)))
                 .notPersonal(Set.of("id", "organization_id", "session_id", "created_at", "updated_at", "version"))
                 .exportedContext(Set.of("created_at", "updated_at")).exportedLabels(Set.of("session", "session_date"))
+                .build();
+    }
+
+    private TableFootprint sessionFeedback() {
+
+        return TableFootprint.builder().table("session_feedback").category(DataCategory.HOW_YOU_TAKE_PART)
+                .personal(List.of(new ColumnFootprint("user_id", Classification.SUBJECT, Disposition.ANONYMISE)))
+                .notPersonal(Set.of("id", "organization_id", "session_id", "enjoyed", "learned", "created_at",
+                        "updated_at", "version"))
+                .exportedContext(Set.of("enjoyed", "learned", "created_at", "updated_at"))
+                .exportedLabels(Set.of("session", "session_date")).build();
+    }
+
+    /** An import is the session's tally from another tool: it names nobody, answer by answer. */
+    private TableFootprint sessionFeedbackImport() {
+
+        return TableFootprint.builder().table("session_feedback_import").category(DataCategory.HOW_YOU_TAKE_PART)
+                .personal(List.of())
+                .notPersonal(Set.of("id", "organization_id", "session_id", "scale", "source", "created_at")).build();
+    }
+
+    private TableFootprint sessionFeedbackImportAnswer() {
+
+        return TableFootprint.builder().table("session_feedback_import_answer").category(DataCategory.HOW_YOU_TAKE_PART)
+                .personal(List.of()).notPersonal(Set.of("id", "organization_id", "import_id", "enjoyed", "learned"))
                 .build();
     }
 

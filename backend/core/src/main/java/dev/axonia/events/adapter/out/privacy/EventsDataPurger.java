@@ -46,6 +46,9 @@ public class EventsDataPurger implements OrganizationDataPurger {
         jdbc.update("DELETE FROM event_series_section_type WHERE series_id IN "
                 + "(SELECT id FROM event_series WHERE organization_id = :org)", params);
         jdbc.update("DELETE FROM session_attendance WHERE organization_id = :org", params);
+        jdbc.update("DELETE FROM session_feedback WHERE organization_id = :org", params);
+        jdbc.update("DELETE FROM session_feedback_import_answer WHERE organization_id = :org", params);
+        jdbc.update("DELETE FROM session_feedback_import WHERE organization_id = :org", params);
         jdbc.update("DELETE FROM action_item_checkpoint WHERE organization_id = :org", params);
         jdbc.update("DELETE FROM action_item WHERE organization_id = :org", params); // action_item_tag cascades
         jdbc.update("DELETE FROM community_session WHERE organization_id = :org", params);

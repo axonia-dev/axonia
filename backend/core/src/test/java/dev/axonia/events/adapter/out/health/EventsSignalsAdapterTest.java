@@ -14,6 +14,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import dev.axonia.CoreJdbcTestSupport;
 import dev.axonia.health.api.BucketCredit;
 import dev.axonia.health.api.BucketTalks;
+import dev.axonia.health.api.FeedbackAverages;
 import dev.axonia.health.api.SeriesPulse;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -26,6 +27,7 @@ class EventsSignalsAdapterTest extends CoreJdbcTestSupport {
     private static final Instant INSIDE = Instant.parse("2026-04-15T18:00:00Z");
     private static final Instant ALSO_INSIDE = Instant.parse("2026-05-01T18:00:00Z");
     private static final Instant BEFORE = Instant.parse("2026-02-01T18:00:00Z");
+    private static final Instant NOW = Instant.parse("2026-06-03T12:00:00Z");
 
     /**
      * A twelve-day window buckets by the day, so bucket n is day n and a fixture reads off the calendar. It
@@ -304,6 +306,86 @@ class EventsSignalsAdapterTest extends CoreJdbcTestSupport {
         assertThat(actual).containsExactlyInAnyOrder(new BucketCredit(4, "bob"), new BucketCredit(9, "dana"));
     }
 
+    @Test
+    void feedbackAverages_countsRevealedLiveSessionsOnly() {
+
+        // given one session still in its window, one closed exactly a window ago with three answers, one with two
+        var communityId = community("backend-guild");
+        var open = heldSession(communityId, Instant.parse("2026-05-30T18:00:00Z"), NOW.minus(Duration.ofDays(2)));
+        feedback(open, "alice", 1, 1);
+        feedback(open, "bob", 1, 1);
+        feedback(open, "carol", 1, 1);
+        var revealed = heldSession(communityId, Instant.parse("2026-05-27T10:00:00Z"), NOW.minus(Duration.ofDays(7)));
+        feedback(revealed, "alice", 8, 7);
+        feedback(revealed, "bob", 9, 6);
+        feedback(revealed, "carol", 10, 8);
+        var tooFew = heldSession(communityId, INSIDE, INSIDE.plus(Duration.ofHours(2)));
+        feedback(tooFew, "alice", 2, 2);
+        feedback(tooFew, "bob", 3, 3);
+
+        // when
+        var actual = sut.feedbackAverages(communityId, FROM, TO, NOW);
+
+        // then the open session contributes nothing and the two-answer one only its count
+        assertThat(actual).isEqualTo(new FeedbackAverages(3, 3, 27, 3, 21, 1, 1));
+    }
+
+    @Test
+    void feedbackAverages_importedCountsAtOnceOnTheTenPointRange() {
+
+        // given an import on a five-point scale closed an hour ago, each question skipped once, and a two-answer import
+        var communityId = community("backend-guild");
+        var imported = feedbackImport(heldSession(communityId, INSIDE, NOW.minus(Duration.ofHours(1))), 5);
+        importAnswer(imported, 5, 4);
+        importAnswer(imported, 3, null);
+        importAnswer(imported, null, 1);
+        importAnswer(imported, 1, 5);
+        var tooFew = feedbackImport(heldSession(communityId, ALSO_INSIDE, ALSO_INSIDE), 10);
+        importAnswer(tooFew, 9, 9);
+        importAnswer(tooFew, 8, 8);
+
+        // when
+        var actual = sut.feedbackAverages(communityId, FROM, TO, NOW);
+
+        // then four answer rows; enjoyed 10 + 5.5 + 1 and learned 7.75 + 1 + 10, each over the answers that hold it
+        assertThat(actual).isEqualTo(new FeedbackAverages(4, 3, 16.5, 3, 18.75, 1, 1));
+    }
+
+    @Test
+    void feedbackAverages_ignoresOtherCommunitiesAndOutsideTheWindow() {
+
+        // given one counted session, then one before the window, one at its exclusive end, one in another community
+        // and one closed but not held, each with three answers
+        var communityId = community("backend-guild");
+        var otherId = community("frontend-guild");
+        threeAnswers(heldSession(communityId, INSIDE, INSIDE.plus(Duration.ofHours(2))), 6);
+        threeAnswers(heldSession(communityId, BEFORE, BEFORE.plus(Duration.ofHours(2))), 1);
+        threeAnswers(heldSession(communityId, TO, TO.plus(Duration.ofHours(2))), 1);
+        threeAnswers(heldSession(otherId, INSIDE, INSIDE.plus(Duration.ofHours(2))), 1);
+        threeAnswers(closedSession(communityId, "SCHEDULED", ALSO_INSIDE, ALSO_INSIDE.plus(Duration.ofHours(2))), 1);
+
+        // when
+        var actual = sut.feedbackAverages(communityId, FROM, TO, NOW);
+
+        // then
+        assertThat(actual).isEqualTo(new FeedbackAverages(3, 3, 18, 3, 18, 1, 0));
+    }
+
+    @Test
+    void feedbackAverages_noneWhenNothingRevealed() {
+
+        // given a held session nobody answered and one still in its window
+        var communityId = community("backend-guild");
+        heldSession(communityId, INSIDE, INSIDE.plus(Duration.ofHours(2)));
+        threeAnswers(heldSession(communityId, Instant.parse("2026-05-31T18:00:00Z"), NOW.minus(Duration.ofDays(1))), 9);
+
+        // when
+        var actual = sut.feedbackAverages(communityId, FROM, TO, NOW);
+
+        // then a session without answers is not one with too few
+        assertThat(actual).isEqualTo(FeedbackAverages.NONE);
+    }
+
     /** Midday on day n of the twelve-day window, so a fixture never sits on a bucket boundary. */
     private static Instant day(int index) {
 
@@ -362,6 +444,59 @@ class EventsSignalsAdapterTest extends CoreJdbcTestSupport {
                         .addValue("communityId", communityId).addValue("status", status)
                         .addValue("scheduledAt", Timestamp.from(scheduledAt)),
                 Long.class);
+    }
+
+    private long heldSession(long communityId, Instant scheduledAt, Instant closedAt) {
+
+        return closedSession(communityId, "HELD", scheduledAt, closedAt);
+    }
+
+    private long closedSession(long communityId, String status, Instant scheduledAt, Instant closedAt) {
+
+        return jdbc.queryForObject("""
+                INSERT INTO community_session (organization_id, series_id, community_id, status, scheduled_at,
+                        occurrence_date, notes, recording_url, has_time, closed_at, created_at, updated_at, version)
+                VALUES ('default', NULL, :communityId, :status, :scheduledAt, NULL, '', '', true, :closedAt,
+                        now(), now(), 0)
+                RETURNING id
+                """, new MapSqlParameterSource().addValue("communityId", communityId).addValue("status", status)
+                .addValue("scheduledAt", Timestamp.from(scheduledAt)).addValue("closedAt", Timestamp.from(closedAt)),
+                Long.class);
+    }
+
+    private void threeAnswers(long sessionId, int value) {
+
+        feedback(sessionId, "alice", value, value);
+        feedback(sessionId, "bob", value, value);
+        feedback(sessionId, "carol", value, value);
+    }
+
+    private void feedback(long sessionId, String userId, int enjoyed, int learned) {
+
+        jdbc.update("""
+                INSERT INTO session_feedback (organization_id, session_id, user_id, enjoyed, learned, created_at,
+                        updated_at, version)
+                VALUES ('default', :sessionId, :userId, :enjoyed, :learned, now(), now(), 0)
+                """, new MapSqlParameterSource().addValue("sessionId", sessionId).addValue("userId", userId)
+                .addValue("enjoyed", enjoyed).addValue("learned", learned));
+    }
+
+    private long feedbackImport(long sessionId, int scale) {
+
+        return jdbc.queryForObject("""
+                INSERT INTO session_feedback_import (organization_id, session_id, scale, source, created_at)
+                VALUES ('default', :sessionId, :scale, 'Microsoft Forms', now())
+                RETURNING id
+                """, new MapSqlParameterSource().addValue("sessionId", sessionId).addValue("scale", scale), Long.class);
+    }
+
+    private void importAnswer(long importId, Integer enjoyed, Integer learned) {
+
+        jdbc.update("""
+                INSERT INTO session_feedback_import_answer (organization_id, import_id, enjoyed, learned)
+                VALUES ('default', :importId, :enjoyed, :learned)
+                """, new MapSqlParameterSource().addValue("importId", importId)
+                .addValue("enjoyed", enjoyed, Types.SMALLINT).addValue("learned", learned, Types.SMALLINT));
     }
 
     private long section(long sessionId) {

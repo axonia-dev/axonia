@@ -50,6 +50,9 @@ public interface CommunityAccess {
      */
     boolean canManageCommunication(long communityId, String userId);
 
+    /** Whether this user may read the community's health, the same right that reveals how a session landed. */
+    boolean canViewHealth(long communityId, String userId);
+
     /** The community's communication settings, notably the wrap-up grace period, for closing a session. */
     CommunicationSettings communicationSettings(long communityId);
 

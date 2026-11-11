@@ -8,6 +8,9 @@ public final class StatusRules {
     static final int MIN_TALKS = 3;
     static final int SHARED_STAGE_SPEAKERS = 3;
     static final int PAYING_OFF_HELPED = 3;
+    static final int MIN_FEEDBACK_ANSWERS = 5;
+    static final double LEARNING_A_LOT = 8.0;
+    static final double LEARNING = 6.5;
 
     private StatusRules() {
     }
@@ -70,5 +73,40 @@ public final class StatusRules {
             return Status.of(StatusCode.NO_PAYOFF_YET);
         }
         return Status.of(StatusCode.NOTHING_OPENED);
+    }
+
+    /** In the room: read from the learned average once enough answers hold that question. */
+    public static Status learning(Double learned, long learnedAnswers) {
+
+        if (learned == null || learnedAnswers < MIN_FEEDBACK_ANSWERS) {
+            return Status.of(StatusCode.LEARNING_TOO_FEW);
+        }
+        if (learned >= LEARNING_A_LOT) {
+            return Status.of(StatusCode.LEARNING_A_LOT);
+        }
+        if (learned >= LEARNING) {
+            return Status.of(StatusCode.LEARNING);
+        }
+        return Status.of(StatusCode.LITTLE_LEARNED);
+    }
+
+    /**
+     * The paying-off pill: whichever of reuse and learning reads stronger, since paying off means knowledge was reused
+     * or people learned. A tie keeps reuse.
+     */
+    public static Status payoff(Status reuse, Status learning) {
+
+        return strength(learning.level()) > strength(reuse.level()) ? learning : reuse;
+    }
+
+    private static int strength(StatusLevel level) {
+
+        return switch (level) {
+            case QUIET -> 0;
+            case WORRY -> 1;
+            case WATCH -> 2;
+            case GOOD -> 3;
+            case GREAT -> 4;
+        };
     }
 }

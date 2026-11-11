@@ -64,7 +64,7 @@ class ChatPostMatchesMailTest {
      */
     private static final Set<String> FACTS_THE_POST_CONSUMES = Set.of("sessionTitle", "sender", "sessionUrl",
             "scheduledAt", "hasTime", "timeZone", "talks", "recordingUrl", "attendeeCount", "followUpNotes",
-            "resources");
+            "resources", "feedbackClosesAt");
 
     /**
      * {@code SessionFacts.of} writes these for every wrap-up too, and the wrap-up mail genuinely renders every one of
@@ -177,6 +177,11 @@ class ChatPostMatchesMailTest {
         // exactly the kind of one-sided failure this class exists to catch.
         assertThat(mail.html()).contains("15 August 2026");
         assertThat(post.whenLine()).contains("15 August 2026");
+
+        // feedbackClosesAt: the same day in the mail's ask and the post's own "How was it?" row, rehydrated to an
+        // Instant on the way back, or the mail's #temporals call and the post's instanceof guard would both miss it.
+        assertThat(mail.html()).contains("Two taps, anonymous, open until 22 Aug");
+        assertThat(post.details()).containsEntry("How was it?", "Open until 22 Aug");
     }
 
     /**
@@ -306,6 +311,7 @@ class ChatPostMatchesMailTest {
                 .resourcesBySlotId(Map.of(1L, List.of(new ResourceLink(null, "https://axonia.example/slides/99"))))
                 .sessionResources(List.of(new ResourceLink("Session notes", "https://axonia.example/notes/1")))
                 .actionPoints(actionPoints).checkedItems(checkedItems)
-                .community(new CommunityIdentity("backend-guild", "Backend Guild", null)).communityId(9L).build();
+                .community(new CommunityIdentity("backend-guild", "Backend Guild", null)).communityId(9L)
+                .feedbackClosesAt(Instant.parse("2026-08-22T18:30:00Z")).build();
     }
 }

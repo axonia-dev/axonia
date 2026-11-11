@@ -24,6 +24,10 @@ describe("STATUS_WORD", () => {
       SAVED_NOT_CONFIRMED: "Saved, not confirmed",
       NO_PAYOFF_YET: "No payoff yet",
       NOTHING_OPENED: "Nothing opened yet",
+      LEARNING_A_LOT: "Learning a lot",
+      LEARNING: "Learning",
+      LITTLE_LEARNED: "Little learned",
+      LEARNING_TOO_FEW: "Too few answers",
     });
   });
 

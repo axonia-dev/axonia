@@ -31,22 +31,24 @@ public final class FactRehydration {
 
     private static final TypeReference<Map<String, Object>> FACTS_TYPE = new TypeReference<>() {
     };
+    private static final List<String> INSTANT_FACTS = List.of("scheduledAt", "feedbackClosesAt");
 
     private FactRehydration() {
     }
 
-    /** Parses a row's raw {@code facts} jsonb and repairs both temporal facts in one call. */
+    /** Parses a row's raw {@code facts} jsonb and repairs every temporal fact in one call. */
     public static Map<String, Object> parse(JsonMapper jsonMapper, String factsJson) {
 
         var facts = new LinkedHashMap<>(jsonMapper.readValue(factsJson, FACTS_TYPE));
-        rehydrateScheduledAt(facts);
+        INSTANT_FACTS.forEach(key -> rehydrateInstant(facts, key));
         rehydrateActionPointDueDates(facts);
         return facts;
     }
 
     /**
-     * The {@code instanceof String} check is a live assumption, not a formality: {@code events}' {@code SessionFacts}
-     * is the only producer of this fact today, and {@code jsonMapper}'s current configuration is what makes "a String"
+     * Repairs {@code scheduledAt} and {@code feedbackClosesAt}, the two instants {@code SessionFacts} writes. The
+     * {@code instanceof String} check is a live assumption, not a formality: {@code events}' {@code SessionFacts} is
+     * the only producer of these facts today, and {@code jsonMapper}'s current configuration is what makes "a String"
      * the only shape a JSON round trip can leave behind. Either half of that could change under this code without
      * changing this method - a future producer adding a second temporal fact, or {@code write-dates-as-timestamps} ever
      * getting enabled on the auto-configured {@code JsonMapper}, would make {@code scheduledAt} come back as something
@@ -55,22 +57,22 @@ public final class FactRehydration {
      * present-but-unrecognized value therefore fails loudly, right here, rather than silently passing through to
      * resurface as an opaque OGNL stack trace several layers into Thymeleaf.
      */
-    private static void rehydrateScheduledAt(Map<String, Object> facts) {
+    private static void rehydrateInstant(Map<String, Object> facts, String key) {
 
-        var value = facts.get("scheduledAt");
+        var value = facts.get(key);
         if (value == null || value instanceof Instant) {
             return;
         }
         if (value instanceof String iso) {
-            facts.put("scheduledAt", Instant.parse(iso));
+            facts.put(key, Instant.parse(iso));
             return;
         }
         throw new IllegalStateException(
-                "scheduledAt fact is neither absent, an Instant, nor a String: " + value.getClass().getName());
+                key + " fact is neither absent, an Instant, nor a String: " + value.getClass().getName());
     }
 
     /**
-     * The exact same repair as {@link #rehydrateScheduledAt}, for the second temporal fact {@code events}'
+     * The exact same repair as {@link #rehydrateInstant}, for the second temporal fact {@code events}'
      * {@code SessionFacts} now writes: {@code actionPoints[].dueDate} is a real {@code java.time.LocalDate} going into
      * {@code JdbcOutbox}, but {@code facts} just crossed the same type-erased JSON round trip, so each {@code dueDate}
      * comes back out as the plain {@code yyyy-MM-dd} string it was written as, or is simply absent when that action
@@ -82,7 +84,7 @@ public final class FactRehydration {
      * {@code actionPoints} itself being absent is not an error - a session that raised none never sets the fact at all,
      * see {@code events}' {@code SessionFacts.of}. Once it is present, though, this repairs every element's
      * {@code dueDate} unconditionally, with the same absent / already-typed / {@code String} / else-throw ladder
-     * {@link #rehydrateScheduledAt} uses and for the identical reason: a future change to what shape {@code dueDate}
+     * {@link #rehydrateInstant} uses and for the identical reason: a future change to what shape {@code dueDate}
      * travels in - a new producer, a mapper reconfigured to write dates as numbers - must fail loudly right here, not
      * three layers deeper inside Thymeleaf with a stack trace that names OGNL, not the real cause.
      */

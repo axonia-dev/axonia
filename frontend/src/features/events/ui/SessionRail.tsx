@@ -4,6 +4,7 @@ import {
   sectionLabel,
 } from "@/features/events/domain/section";
 import type { Session } from "@/features/events/domain/session";
+import { FEEDBACK_ANCHOR_ID } from "@/features/events/domain/session-feedback";
 import type { SessionPhase } from "@/features/events/domain/session-phase";
 import { cn } from "@/lib/cn";
 
@@ -44,6 +45,8 @@ interface Props {
   phase: SessionPhase;
   /** The anchor the reader is currently inside, from the page's scroll spy. */
   activeId: string | null;
+  /** Whether the session's feedback section has anything for this reader. */
+  feedbackShows?: boolean;
 }
 
 /**
@@ -53,7 +56,12 @@ interface Props {
  * and drops an `aria-current` passed in from outside, which is exactly wrong for a map of one
  * page's own contents.
  */
-export function SessionRail({ session, phase, activeId }: Readonly<Props>) {
+export function SessionRail({
+  session,
+  phase,
+  activeId,
+  feedbackShows = false,
+}: Readonly<Props>) {
   const sheet = runSheet(session);
   return (
     <nav
@@ -65,6 +73,14 @@ export function SessionRail({ session, phase, activeId }: Readonly<Props>) {
           <h4 className="text-muted-foreground mb-3 text-[10px] font-bold tracking-widest uppercase">
             This session
           </h4>
+          {feedbackShows && (
+            <RailRow
+              href={`#${FEEDBACK_ANCHOR_ID}`}
+              label="Feedback"
+              accent="var(--data-1)"
+              active={activeId === FEEDBACK_ANCHOR_ID}
+            />
+          )}
           <RailRow
             href="#session-outcomes"
             label="Action points"

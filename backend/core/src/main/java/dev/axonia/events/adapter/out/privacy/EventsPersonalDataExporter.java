@@ -108,6 +108,9 @@ public class EventsPersonalDataExporter implements PersonalDataExporter {
     private static final LabelledTable SESSION_ATTENDANCE = new LabelledTable("session_attendance", "sa", "user_id",
             DATED_SESSION_LABEL, SESSION_JOIN.formatted("sa"));
 
+    private static final LabelledTable SESSION_FEEDBACK = new LabelledTable("session_feedback", "sf", "user_id",
+            DATED_SESSION_LABEL, SESSION_JOIN.formatted("sf"));
+
     private static final LabelledTable COMMUNITY_SESSION = new LabelledTable("community_session", "cs",
             "facilitator_user_id", COMMUNITY_LABEL + ", ser.title AS series",
             COMMUNITY_JOIN.formatted("cs") + SERIES_JOIN);
@@ -135,13 +138,26 @@ public class EventsPersonalDataExporter implements PersonalDataExporter {
 
     private ExportFragment organizationFragment(ExportScope.InOrganization scope) {
 
-        Map<String, Object> payload = Map.of("topic", rowsWithLabels(TOPIC, scope), "topic_vote",
-                rowsWithLabels(TOPIC_VOTE, scope), "session_attendance", rowsWithLabels(SESSION_ATTENDANCE, scope),
-                "community_session", rowsWithLabels(COMMUNITY_SESSION, scope), "event_slot_presenter",
-                parentScoped(PRESENTER, scope), "topic_speaker", parentScoped(TOPIC_SPEAKER, scope),
-                "calendar_subscription", rowsWithLabels(CALENDAR_SUBSCRIPTION, scope), "action_item",
-                actionItems(scope), "action_item_checkpoint", rowsWithLabels(ACTION_ITEM_CHECKPOINT, scope));
+        Map<String, Object> payload = Map.ofEntries(Map.entry("topic", rowsWithLabels(TOPIC, scope)),
+                Map.entry("topic_vote", rowsWithLabels(TOPIC_VOTE, scope)),
+                Map.entry("session_attendance", rowsWithLabels(SESSION_ATTENDANCE, scope)),
+                Map.entry("session_feedback", ownFeedback(scope)),
+                Map.entry("community_session", rowsWithLabels(COMMUNITY_SESSION, scope)),
+                Map.entry("event_slot_presenter", parentScoped(PRESENTER, scope)),
+                Map.entry("topic_speaker", parentScoped(TOPIC_SPEAKER, scope)),
+                Map.entry("calendar_subscription", rowsWithLabels(CALENDAR_SUBSCRIPTION, scope)),
+                Map.entry("action_item", actionItems(scope)),
+                Map.entry("action_item_checkpoint", rowsWithLabels(ACTION_ITEM_CHECKPOINT, scope)));
         return new ExportFragment("events.json", payload, List.of());
+    }
+
+    /**
+     * Session feedback is anonymous to everyone but its author, so only a member's own export carries it; an
+     * Organization's export keeps the key and no rows.
+     */
+    private List<Map<String, Object>> ownFeedback(ExportScope.InOrganization scope) {
+
+        return scope instanceof ExportScope.OneMember ? rowsWithLabels(SESSION_FEEDBACK, scope) : List.of();
     }
 
     /**

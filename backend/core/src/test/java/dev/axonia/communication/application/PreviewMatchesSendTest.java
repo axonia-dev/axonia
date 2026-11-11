@@ -88,7 +88,8 @@ class PreviewMatchesSendTest {
     private static final Instant NOW = Instant.parse("2026-08-01T12:00:00Z");
     private static final String ORG = "acme";
     private static final String FACTS_JSON = """
-            {"sessionTitle":"Frontend Dojo","talks":[],"scheduledAt":"2026-08-15T18:30:00Z"}""";
+            {"sessionTitle":"Frontend Dojo","talks":[],"scheduledAt":"2026-08-15T18:30:00Z",\
+            "feedbackClosesAt":"2026-08-22T22:30:00Z"}""";
 
     @Mock
     private JdbcOutbox outbox;
@@ -120,14 +121,15 @@ class PreviewMatchesSendTest {
 
     static Stream<Arguments> releasedMessages() {
 
-        return Stream.of(Arguments.of(MessageType.SESSION_WRAP_UP, "session-wrap-up", "Frontend Dojo: what happened"),
-                Arguments.of(MessageType.SESSION_UPCOMING, "session-upcoming", "Frontend Dojo: happening soon"));
+        return Stream.of(
+                Arguments.of(MessageType.SESSION_WRAP_UP, "session-wrap-up", "Frontend Dojo: what happened", true),
+                Arguments.of(MessageType.SESSION_UPCOMING, "session-upcoming", "Frontend Dojo: happening soon", false));
     }
 
     @ParameterizedTest
     @MethodSource("releasedMessages")
     void previewAndSendRenderTheIdenticalSubjectAndHtmlForTheSameEnqueuedRow(MessageType type, String template,
-            String expectedSubject) {
+            String expectedSubject, boolean asksHowItWas) {
 
         // given - one row, claimable by the drain and independently findable by the preview adapter.
         var row = OutboxDelivery.builder().id(1L).organizationId(ORG).messageType(type.code()).subjectRef("42")
@@ -162,5 +164,7 @@ class PreviewMatchesSendTest {
         assertThat(previewed.get().html()).isEqualTo(sent.html());
         assertThat(sent.subject()).isEqualTo(expectedSubject);
         assertThat(sent.html()).contains("15 August 2026");
+        // 22:30Z on 22 August is already the 23rd on the recipient's Berlin clock, on both paths alike.
+        assertThat(sent.html().contains("open until 23 Aug")).isEqualTo(asksHowItWas);
     }
 }

@@ -48,6 +48,19 @@ export const healthSnapshot = {
     savesTrend: trend(0, "UP"),
     status: { code: "SAVED_NOT_CONFIRMED", level: "WATCH" },
   },
+  learning: {
+    enjoyed: 8.7,
+    learned: 8.3,
+    answers: 42,
+    enjoyedAnswers: 42,
+    learnedAnswers: 42,
+    sessions: 6,
+    sessionsTooFew: 1,
+    previousEnjoyed: 8.7,
+    previousLearned: 7.6,
+    status: { code: "LEARNING_A_LOT", level: "GREAT" },
+  },
+  payoff: { code: "LEARNING_A_LOT", level: "GREAT" },
   series: {
     talks: [0, 5, 0, 0, 0, 0, 4, 0, 0, 0, 4, 0],
     people: [2, 8, 3, 2, 1, 2, 7, 3, 2, 4, 6, 5],
@@ -64,6 +77,7 @@ export const healthSnapshot = {
       { kind: "RISK", code: "CURATION_LEANS_ON_ONE" },
       { kind: "STRENGTH", code: "ON_RHYTHM" },
       { kind: "GAP", code: "INTEREST_WITHOUT_PAYOFF" },
+      { kind: "STRENGTH", code: "LEARNING_LANDS" },
     ],
   },
 };

@@ -8,6 +8,7 @@ import java.util.Set;
 
 import dev.axonia.health.api.BucketCredit;
 import dev.axonia.health.api.BucketTalks;
+import dev.axonia.health.api.FeedbackAverages;
 import dev.axonia.health.api.SeriesPulse;
 
 /**
@@ -53,4 +54,11 @@ public interface EventsSignals {
 
     /** Members with an engagement act in the window: topic votes or attendance. */
     Set<String> engagedUserIds(long communityId, Instant from, Instant to);
+
+    /**
+     * Feedback over sessions held (status HELD) in [from, to) and revealed by {@code now}: a live session once its
+     * feedback window has closed, an imported one at once. A session with some answers but fewer than the reveal
+     * minimum only counts in {@code sessionsTooFew}; imported answers are summed on the ten-point range.
+     */
+    FeedbackAverages feedbackAverages(long communityId, Instant from, Instant to, Instant now);
 }

@@ -99,6 +99,8 @@ public class EventsMemberDataEraser implements MemberDataEraser {
                         + "updated_at = :erasedAt WHERE organization_id = :org AND user_id = :user", params)
                 + jdbc.update("UPDATE session_attendance SET user_id = :surrogate, version = version + 1, "
                         + "updated_at = :erasedAt WHERE organization_id = :org AND user_id = :user", params)
+                + jdbc.update("UPDATE session_feedback SET user_id = :surrogate, version = version + 1, "
+                        + "updated_at = :erasedAt WHERE organization_id = :org AND user_id = :user", params)
                 // event_slot_presenter is the one table here with neither column: it is a plain link row carrying
                 // only slot_id and user_id, with no @Version to invalidate and no updated_at to stamp.
                 + jdbc.update("UPDATE event_slot_presenter SET user_id = :surrogate "

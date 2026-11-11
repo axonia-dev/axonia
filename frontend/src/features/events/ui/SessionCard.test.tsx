@@ -22,6 +22,10 @@ vi.mock("@/features/knowledge/ui/SessionOrphanResources", () => ({
 vi.mock("@/features/events/ui/SessionToVerify", () => ({
   SessionToVerify: () => null,
 }));
+vi.mock("@/features/events/ui/SessionFeedback", () => ({
+  SessionFeedback: () => null,
+  SessionFeedbackResult: () => null,
+}));
 vi.mock("@/features/events/ui/SessionActionPoints", () => ({
   SessionActionPoints: () => <button type="button">+ Action point</button>,
 }));

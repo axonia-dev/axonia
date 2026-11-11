@@ -90,4 +90,43 @@ describe("SessionRail", () => {
       screen.getByRole("link", { name: /Action points/ }),
     ).toBeInTheDocument();
   });
+
+  it("leads the held outcomes with feedback while that section has something to show", () => {
+    // when
+    render(
+      <SessionRail
+        session={bigSession()}
+        phase="held"
+        activeId="feedback"
+        feedbackShows
+      />,
+    );
+
+    // then
+    const feedback = screen.getByRole("link", { name: "Feedback" });
+    expect(feedback).toHaveAttribute("href", "#feedback");
+    expect(feedback).toHaveAttribute("aria-current", "location");
+    expect(
+      feedback.compareDocumentPosition(
+        screen.getByRole("link", { name: /Action points/ }),
+      ),
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+
+  it("offers no feedback row when the section is empty for this reader", () => {
+    // when
+    render(
+      <SessionRail
+        session={bigSession()}
+        phase="held"
+        activeId={null}
+        feedbackShows={false}
+      />,
+    );
+
+    // then
+    expect(
+      screen.queryByRole("link", { name: "Feedback" }),
+    ).not.toBeInTheDocument();
+  });
 });

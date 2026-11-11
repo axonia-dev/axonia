@@ -20,6 +20,10 @@ const statusCodeSchema = z.enum([
   "SAVED_NOT_CONFIRMED",
   "NO_PAYOFF_YET",
   "NOTHING_OPENED",
+  "LEARNING_A_LOT",
+  "LEARNING",
+  "LITTLE_LEARNED",
+  "LEARNING_TOO_FEW",
 ]);
 export type StatusCode = z.infer<typeof statusCodeSchema>;
 
@@ -50,4 +54,8 @@ export const STATUS_WORD: Record<StatusCode, string> = {
   SAVED_NOT_CONFIRMED: "Saved, not confirmed",
   NO_PAYOFF_YET: "No payoff yet",
   NOTHING_OPENED: "Nothing opened yet",
+  LEARNING_A_LOT: "Learning a lot",
+  LEARNING: "Learning",
+  LITTLE_LEARNED: "Little learned",
+  LEARNING_TOO_FEW: "Too few answers",
 };

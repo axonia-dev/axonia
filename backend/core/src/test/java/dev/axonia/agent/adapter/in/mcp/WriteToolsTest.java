@@ -7,6 +7,7 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -40,6 +41,8 @@ import dev.axonia.events.api.ActionItems;
 import dev.axonia.events.api.Attendance;
 import dev.axonia.events.api.Attendances;
 import dev.axonia.events.api.CreateOneOffRequest;
+import dev.axonia.events.api.FeedbackImportRequest;
+import dev.axonia.events.api.FeedbackImportResult;
 import dev.axonia.events.api.PresenterAssignment;
 import dev.axonia.events.api.PresenterResolution;
 import dev.axonia.events.api.ProposeTopicRequest;
@@ -56,6 +59,7 @@ import dev.axonia.events.api.Session;
 import dev.axonia.events.api.SessionClosure;
 import dev.axonia.events.api.SessionClosureRequest;
 import dev.axonia.events.api.SessionDeletion;
+import dev.axonia.events.api.SessionFeedbackImports;
 import dev.axonia.events.api.SessionNaming;
 import dev.axonia.events.api.SessionStatus;
 import dev.axonia.events.api.Sessions;
@@ -74,6 +78,7 @@ import dev.axonia.knowledge.api.Resources;
 import dev.axonia.shared.api.error.ConflictException;
 import dev.axonia.shared.api.error.ForbiddenException;
 import dev.axonia.shared.api.error.NotFoundException;
+import dev.axonia.shared.api.error.ValidationException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -118,6 +123,8 @@ class WriteToolsTest {
     TagReports tagReports;
     @Mock
     SessionNaming sessionNaming;
+    @Mock
+    SessionFeedbackImports sessionFeedbackImports;
 
     /** The community's tags before a write: kubernetes, with k8s merged into it. */
     private static final Pending PENDING = new Pending(
@@ -137,7 +144,7 @@ class WriteToolsTest {
         var support = new AgentToolSupport(new AgentScopeGate(),
                 new ToolCallRecorder(auditRepo, Clock.fixed(Instant.parse("2026-07-07T09:00:00Z"), ZoneOffset.UTC)));
         sut = new WriteTools(support, artifacts, topics, slots, attendance, memberships, resources, sessions, sections,
-                actionItems, sessionDeletion, sessionClosure, tagReports, sessionNaming);
+                actionItems, sessionDeletion, sessionClosure, tagReports, sessionNaming, sessionFeedbackImports);
         lenient().when(tagReports.inCommunity(any(), any())).thenReturn(Pending.NOTHING);
         lenient().when(tagReports.inSession(any(), any())).thenReturn(Pending.NOTHING);
         authenticateWithScopes("library:contribute", "topic:propose", "actionItem:raise", "session:signup",
@@ -540,6 +547,82 @@ class WriteToolsTest {
         assertThatThrownBy(() -> sut.closeSession(new WriteTools.CloseSessionParams(42L, null, null, null)))
                 .isInstanceOf(AgentToolException.class).hasMessageContaining("schedule:manage");
         verifyNoInteractions(sessionClosure);
+    }
+
+    @Test
+    void importFeedback_carriesTheFormAsGivenAndReportsTheOutcome() {
+        // given
+        authenticateWithScopes("schedule:manage");
+        given(sessionFeedbackImports.importFeedback(eq(42L), any(FeedbackImportRequest.class)))
+                .willReturn(new FeedbackImportResult(42L, 3, 2, true));
+
+        // when
+        var result = sut.importFeedback(new WriteTools.ImportFeedbackParams(42L, 5, "Microsoft Forms",
+                List.of(new WriteTools.ImportedAnswerParam(5, 4), new WriteTools.ImportedAnswerParam(3, null),
+                        new WriteTools.ImportedAnswerParam(4, 5))));
+
+        // then
+        assertThat(result).isEqualTo(new WriteTools.ImportedFeedbackView(42L, 3, 2, true));
+        verify(sessionFeedbackImports).importFeedback(42L,
+                FeedbackImportRequest.builder().scale(5).source("Microsoft Forms")
+                        .answers(List.of(new FeedbackImportRequest.Answer(5, 4),
+                                new FeedbackImportRequest.Answer(3, null), new FeedbackImportRequest.Answer(4, 5)))
+                        .build());
+    }
+
+    /** A missing list must reach the domain as missing, never as the empty list that removes an import. */
+    @Test
+    void importFeedback_leavesAMissingListAndScaleForTheDomainToRefuse() {
+        // given
+        authenticateWithScopes("schedule:manage");
+        given(sessionFeedbackImports.importFeedback(eq(42L), any(FeedbackImportRequest.class)))
+                .willThrow(new ValidationException("FEEDBACK_ANSWERS_REQUIRED", "answers is required"));
+
+        // when / then
+        assertThatThrownBy(() -> sut.importFeedback(new WriteTools.ImportFeedbackParams(42L, null, null, null)))
+                .isInstanceOf(AgentToolException.class).hasMessage("answers is required");
+        verify(sessionFeedbackImports).importFeedback(42L, FeedbackImportRequest.builder().scale(0).build());
+    }
+
+    @Test
+    void importFeedback_passesANullAnswerOnForTheDomainToRefuse() {
+        // given
+        authenticateWithScopes("schedule:manage");
+        var answers = new ArrayList<WriteTools.ImportedAnswerParam>();
+        answers.add(null);
+        given(sessionFeedbackImports.importFeedback(eq(42L), any(FeedbackImportRequest.class)))
+                .willReturn(new FeedbackImportResult(42L, 0, 0, false));
+
+        // when
+        sut.importFeedback(new WriteTools.ImportFeedbackParams(42L, 10, "Forms", answers));
+
+        // then
+        var captor = ArgumentCaptor.forClass(FeedbackImportRequest.class);
+        verify(sessionFeedbackImports).importFeedback(eq(42L), captor.capture());
+        assertThat(captor.getValue().answers()).containsExactly((FeedbackImportRequest.Answer) null);
+    }
+
+    @Test
+    void importFeedback_saysWhyAnOpenWindowRefuses() {
+        // given
+        authenticateWithScopes("schedule:manage");
+        given(sessionFeedbackImports.importFeedback(eq(42L), any(FeedbackImportRequest.class)))
+                .willThrow(new ConflictException("FEEDBACK_WINDOW_OPEN", "The feedback window is still open"));
+
+        // when / then
+        assertThatThrownBy(() -> sut.importFeedback(new WriteTools.ImportFeedbackParams(42L, 5, "Forms", List.of())))
+                .isInstanceOf(AgentToolException.class).hasMessage("The feedback window is still open");
+    }
+
+    @Test
+    void importFeedback_refusedWithoutScheduleManageScope() {
+        // given
+        authenticateWithScopes("read", "session:delete");
+
+        // when / then
+        assertThatThrownBy(() -> sut.importFeedback(new WriteTools.ImportFeedbackParams(42L, 5, "Forms", List.of())))
+                .isInstanceOf(AgentToolException.class).hasMessageContaining("schedule:manage");
+        verifyNoInteractions(sessionFeedbackImports);
     }
 
     /** A session whose section holds an untagged slot beside slot {@code slotId}, which carries the stored tags. */

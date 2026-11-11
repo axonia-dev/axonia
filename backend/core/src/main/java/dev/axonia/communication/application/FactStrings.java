@@ -42,6 +42,12 @@ public final class FactStrings {
         return moment == null ? null : verb + " " + moment;
     }
 
+    /** The day an instant fact falls on, "13 Nov", read on the same clock {@link #when} uses; null when absent. */
+    public static String shortDay(Map<String, Object> facts, String key) {
+
+        return MomentLine.shortDay(facts, key);
+    }
+
     /**
      * The same fallback the mail shell's own {@code h1} uses: a session routinely carries no title of its own, and
      * every platform mapper must still say the same thing the email a member already got says, rather than rendering a

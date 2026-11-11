@@ -43,7 +43,11 @@ function withPayoff(
   status: HealthStatus,
   helped = snapshot.reuse.helped,
 ): HealthSnapshot {
-  return { ...snapshot, reuse: { ...snapshot.reuse, status, helped } };
+  return {
+    ...snapshot,
+    reuse: { ...snapshot.reuse, status, helped },
+    payoff: status,
+  };
 }
 
 describe("summaryOf", () => {

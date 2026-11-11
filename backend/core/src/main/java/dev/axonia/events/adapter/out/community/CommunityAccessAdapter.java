@@ -77,6 +77,12 @@ public class CommunityAccessAdapter implements CommunityAccess {
     }
 
     @Override
+    public boolean canViewHealth(long communityId, String userId) {
+
+        return communityCapabilities.canViewHealth(communityId, userId);
+    }
+
+    @Override
     public CommunicationSettings communicationSettings(long communityId) {
 
         return communityPolicyService.getCommunicationSettingsById(organizationContext.organizationId(), communityId);

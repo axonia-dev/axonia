@@ -1,5 +1,6 @@
 package dev.axonia.events.application;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -26,6 +27,7 @@ import dev.axonia.events.application.port.out.CommunityAccess;
 import dev.axonia.events.application.port.out.SeriesStore;
 import dev.axonia.events.application.port.out.SessionStore;
 import dev.axonia.events.application.port.out.UserProfileAccess;
+import dev.axonia.events.application.port.out.WrapUpWindow;
 import dev.axonia.events.domain.ActionItemCheckpointRecord;
 import dev.axonia.events.domain.ActionItemRecord;
 import dev.axonia.events.domain.CheckpointOutcome;
@@ -76,6 +78,8 @@ class SessionFactsAssemblerTest {
 
     private final PublicUrls publicUrlProperties = new PublicUrlProperties("https://axonia.example");
 
+    private final WrapUpWindow wrapUpWindow = () -> Duration.ofDays(30);
+
     private SessionFactsAssembler assembler;
 
     @BeforeEach
@@ -85,7 +89,7 @@ class SessionFactsAssemblerTest {
         // constructor strategy only fills parameters it can match to a mock - it would otherwise pass null.
         assembler = new SessionFactsAssembler(sessionMapper, seriesStore, sessionStore, communityAccess,
                 userProfileAccess, sessionResourceAccess, actionItemStore, actionItemCheckpointStore,
-                publicUrlProperties);
+                publicUrlProperties, wrapUpWindow);
     }
 
     @Test
@@ -590,6 +594,57 @@ class SessionFactsAssemblerTest {
 
         assertThat(assembler.facts(ORGANIZATION_ID, entity)).containsEntry("backlogUrl",
                 "https://axonia.example/communities/frontend-guild/backlog");
+    }
+
+    @Test
+    void factsForWrapUp_asksForFeedbackUntilTheWindowClosesWhileItIsOpen() {
+
+        // given
+        var entity = aHeldRecord(NOW.minus(Duration.ofHours(2)), NOW.minus(Duration.ofHours(1)));
+        givenMappedSession(entity, SessionMother.aHeldSession().id(42L).seriesId(null).build());
+        givenLeafDependencies(entity);
+
+        // when
+        var facts = assembler.factsForWrapUp(ORGANIZATION_ID, entity, NOW);
+
+        // then
+        assertThat(facts).containsEntry("feedbackClosesAt", NOW.minus(Duration.ofHours(1)).plus(Duration.ofDays(7)));
+    }
+
+    @Test
+    void factsForWrapUp_asksNothingOnceTheWindowHasClosed() {
+
+        // given
+        var entity = aHeldRecord(NOW.minus(Duration.ofDays(9)), NOW.minus(Duration.ofDays(8)));
+        givenMappedSession(entity, SessionMother.aHeldSession().id(42L).seriesId(null).build());
+        givenLeafDependencies(entity);
+
+        // when
+        var facts = assembler.factsForWrapUp(ORGANIZATION_ID, entity, NOW);
+
+        // then
+        assertThat(facts).containsEntry("feedbackClosesAt", null);
+    }
+
+    @Test
+    void factsForWrapUp_asksNothingForASessionClosedBeyondTheWrapUpWindow() {
+
+        // given
+        var entity = aHeldRecord(NOW.minus(Duration.ofDays(40)), NOW.minus(Duration.ofHours(1)));
+        givenMappedSession(entity, SessionMother.aHeldSession().id(42L).seriesId(null).build());
+        givenLeafDependencies(entity);
+
+        // when
+        var facts = assembler.factsForWrapUp(ORGANIZATION_ID, entity, NOW);
+
+        // then
+        assertThat(facts).containsEntry("feedbackClosesAt", null);
+    }
+
+    private static SessionRecord aHeldRecord(Instant scheduledAt, Instant closedAt) {
+
+        return SessionRecordMother.any().id(42L).communityId(COMMUNITY_ID).seriesId(null).status("HELD")
+                .scheduledAt(scheduledAt).closedAt(closedAt).build();
     }
 
     private void givenMappedSession(SessionRecord entity, Session session) {

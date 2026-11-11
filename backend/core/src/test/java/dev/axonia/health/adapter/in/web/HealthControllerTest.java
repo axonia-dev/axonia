@@ -16,6 +16,7 @@ import dev.axonia.health.domain.CadenceStatus;
 import dev.axonia.health.domain.Diagnosis;
 import dev.axonia.health.domain.Finding;
 import dev.axonia.health.domain.HealthSnapshot;
+import dev.axonia.health.domain.LearningDial;
 import dev.axonia.health.domain.Status;
 import dev.axonia.health.domain.StatusCode;
 import dev.axonia.health.domain.Trend;
@@ -60,6 +61,10 @@ class HealthControllerTest extends ControllerTestSupport {
                 .reuse(HealthSnapshot.ReuseDial.builder().opened(214).artifactsOpened(18)
                         .openingsTrend(Trend.of(214, 151)).saves(37).artifactsSaved(12).helped(9).notHelped(4)
                         .savesTrend(Trend.of(37, 40)).status(Status.of(StatusCode.PAYING_OFF)).build())
+                .learning(LearningDial.builder().enjoyed(8.7).learned(8.3).answers(44).enjoyedAnswers(42)
+                        .learnedAnswers(41).sessions(6).sessionsTooFew(1).previousEnjoyed(8.6).previousLearned(7.6)
+                        .status(Status.of(StatusCode.LEARNING_A_LOT)).build())
+                .payoff(Status.of(StatusCode.PAYING_OFF))
                 .series(new HealthSnapshot.Series(A_SERIES, A_SERIES, A_SERIES))
                 .heldSessionDates(List.of(Instant.parse("2026-04-02T17:00:00Z")))
                 .diagnosis(new Diagnosis(List.of(new Finding(Finding.Kind.RISK, Finding.Code.CURATION_LEANS_ON_ONE))))
@@ -107,6 +112,38 @@ class HealthControllerTest extends ControllerTestSupport {
         json.extractingPath("$.series.people.length()").isEqualTo(12);
         json.extractingPath("$.series.joins.length()").isEqualTo(12);
         json.extractingPath("$.diagnosis.findings[0].code").isEqualTo("CURATION_LEANS_ON_ONE");
+        json.extractingPath("$.learning.enjoyed").isEqualTo(8.7);
+        json.extractingPath("$.learning.learned").isEqualTo(8.3);
+        json.extractingPath("$.learning.answers").isEqualTo(44);
+        json.extractingPath("$.learning.enjoyedAnswers").isEqualTo(42);
+        json.extractingPath("$.learning.learnedAnswers").isEqualTo(41);
+        json.extractingPath("$.learning.sessions").isEqualTo(6);
+        json.extractingPath("$.learning.sessionsTooFew").isEqualTo(1);
+        json.extractingPath("$.learning.previousEnjoyed").isEqualTo(8.6);
+        json.extractingPath("$.learning.previousLearned").isEqualTo(7.6);
+        json.extractingPath("$.learning.status.code").isEqualTo("LEARNING_A_LOT");
+        json.extractingPath("$.learning.status.level").isEqualTo("GREAT");
+        json.extractingPath("$.payoff.code").isEqualTo("PAYING_OFF");
+        json.extractingPath("$.payoff.level").isEqualTo("GREAT");
+    }
+
+    @Test
+    void snapshot_absentAveragesAreSentAsNull() {
+
+        // given
+        when(healthService.snapshot("backend-guild", 90))
+                .thenReturn(aSnapshot().toBuilder().learning(LearningDial.empty()).build());
+
+        // when
+        var actual = mvc.get().uri("/axonia/communities/{slug}/health", "backend-guild").exchange();
+
+        // then the frontend's schema reads each average as present and nullable, never missing
+        var json = actual.assertThat().hasStatus2xxSuccessful().bodyJson();
+        json.extractingPath("$.learning.enjoyed").isNull();
+        json.extractingPath("$.learning.learned").isNull();
+        json.extractingPath("$.learning.previousEnjoyed").isNull();
+        json.extractingPath("$.learning.previousLearned").isNull();
+        json.extractingPath("$.learning.status.code").isEqualTo("LEARNING_TOO_FEW");
     }
 
     @Test

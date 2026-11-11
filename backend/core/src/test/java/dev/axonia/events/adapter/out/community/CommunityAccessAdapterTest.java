@@ -135,6 +135,16 @@ class CommunityAccessAdapterTest {
     }
 
     @Test
+    void canViewHealth_delegatesToCommunityCapabilities() {
+
+        // given
+        when(communityCapabilities.canViewHealth(7L, "dev-user")).thenReturn(true);
+
+        // when / then
+        assertThat(sut.canViewHealth(7L, "dev-user")).isTrue();
+    }
+
+    @Test
     void topicManagementPolicy_delegatesToCommunityService() {
 
         // given

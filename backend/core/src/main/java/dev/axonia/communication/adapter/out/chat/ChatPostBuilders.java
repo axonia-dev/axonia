@@ -48,6 +48,7 @@ public class ChatPostBuilders {
         putIfPresent(details, "Resources", resourceLine(facts));
         putIfPresent(details, "Recording", FactStrings.text(facts.get("recordingUrl")));
         putIfPresent(details, "Attended", positiveCount(facts.get("attendeeCount")));
+        putIfPresent(details, "How was it?", feedbackLine(facts));
         return common(facts).whenLine(FactStrings.when(facts, "Held"))
                 .body(FactStrings.text(facts.get("followUpNotes"))).details(details).actionLabel("View the wrap-up")
                 .build();
@@ -107,6 +108,12 @@ public class ChatPostBuilders {
         }
         var title = FactStrings.text(resource.get("title"));
         return title == null ? url : title + ": " + url;
+    }
+
+    private static String feedbackLine(Map<String, Object> facts) {
+
+        var closesOn = FactStrings.shortDay(facts, "feedbackClosesAt");
+        return closesOn == null ? null : "Open until " + closesOn;
     }
 
     private static String positiveCount(Object value) {

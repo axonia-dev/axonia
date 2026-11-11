@@ -1,9 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { httpHealthGateway } from "@/features/health/adapters/http-health-gateway";
-import { snapshotFixture } from "@/features/health/domain/snapshot-fixture";
+import {
+  learningFixture,
+  snapshotFixture,
+} from "@/features/health/domain/snapshot-fixture";
 
-const raw = snapshotFixture();
+const raw = snapshotFixture({
+  learning: learningFixture,
+  payoff: { code: "LEARNING_A_LOT", level: "GREAT" },
+});
 
 beforeEach(() => {
   vi.restoreAllMocks();
@@ -48,6 +54,23 @@ describe("httpHealthGateway", () => {
     expect(snapshot.series.talks).toHaveLength(12);
     expect(snapshot.series.joins).toEqual(raw.series.joins);
     expect(snapshot.heldSessionDates).toEqual(raw.heldSessionDates);
+  });
+
+  it("parses what the room said and the combined payoff", async () => {
+    // given
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify(raw), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+
+    // when
+    const snapshot = await httpHealthGateway.getSnapshot("ring", "90d");
+
+    // then
+    expect(snapshot.learning).toEqual(learningFixture);
+    expect(snapshot.payoff).toEqual({ code: "LEARNING_A_LOT", level: "GREAT" });
   });
 });
 

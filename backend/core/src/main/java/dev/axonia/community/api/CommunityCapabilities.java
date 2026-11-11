@@ -10,4 +10,6 @@ public interface CommunityCapabilities {
     boolean canManageCommunication(long communityId, String userId);
 
     boolean canCreditContributions(long communityId, String userId);
+
+    boolean canViewHealth(long communityId, String userId);
 }

@@ -427,6 +427,107 @@ class RlsIsolationTest {
         }
     }
 
+    @Test
+    @IsolationProbe("session_feedback")
+    void sessionFeedbackIsOrganizationIsolated() throws Exception {
+        try (var c = asApp(); var s = c.createStatement()) {
+            // given an answer given under 'rls-fb-org'
+            var session = seedHeldSession(s, "rls-fb-org");
+            var seeded = s.executeUpdate("INSERT INTO session_feedback (organization_id, session_id, user_id, enjoyed,"
+                    + " learned, created_at, updated_at, version) VALUES ('rls-fb-org', " + session
+                    + ", 'u-rls-feedback', 9, 7, now(), now(), 0)");
+            s.execute("SET app.current_org = 'acme'");
+
+            // when
+            var otherScope = countOf(s, "SELECT count(*) FROM session_feedback WHERE user_id = 'u-rls-feedback'");
+            var changed = s.executeUpdate("UPDATE session_feedback SET enjoyed = 1 WHERE user_id = 'u-rls-feedback'");
+
+            // then
+            assertThat(seeded).isOne();
+            assertThat(otherScope).isZero();
+            assertThat(changed).isZero();
+            assertThatThrownBy(() -> s.execute("INSERT INTO session_feedback (organization_id, session_id, user_id,"
+                    + " enjoyed, learned, created_at, updated_at, version) VALUES ('rls-fb-org', " + session
+                    + ", 'u-rls-sneaky', 1, 1, now(), now(), 0)")).hasMessageContaining("row-level security");
+        }
+    }
+
+    @Test
+    @IsolationProbe("session_feedback_import")
+    void sessionFeedbackImportIsOrganizationIsolated() throws Exception {
+        try (var c = asApp(); var s = c.createStatement()) {
+            // given an import made under 'rls-fbi-org'
+            var session = seedHeldSession(s, "rls-fbi-org");
+            var seeded = s.executeUpdate("INSERT INTO session_feedback_import (organization_id, session_id, scale,"
+                    + " source, created_at) VALUES ('rls-fbi-org', " + session + ", 5, 'rls-import', now())");
+            s.execute("SET app.current_org = 'acme'");
+
+            // when
+            var otherScope = countOf(s, "SELECT count(*) FROM session_feedback_import WHERE source = 'rls-import'");
+            var changed = s.executeUpdate("UPDATE session_feedback_import SET scale = 10 WHERE source = 'rls-import'");
+
+            // then
+            assertThat(seeded).isOne();
+            assertThat(otherScope).isZero();
+            assertThat(changed).isZero();
+            assertThatThrownBy(() -> s.execute("INSERT INTO session_feedback_import (organization_id, session_id,"
+                    + " scale, source, created_at) VALUES ('rls-fbi-org', " + session + ", 5, 'rls-sneaky', now())"))
+                    .hasMessageContaining("row-level security");
+        }
+    }
+
+    @Test
+    @IsolationProbe("session_feedback_import_answer")
+    void sessionFeedbackImportAnswerIsOrganizationIsolated() throws Exception {
+        try (var c = asApp(); var s = c.createStatement()) {
+            // given an imported answer under 'rls-fbia-org'
+            var session = seedHeldSession(s, "rls-fbia-org");
+            long importId;
+            try (var rs = s.executeQuery("INSERT INTO session_feedback_import (organization_id, session_id, scale,"
+                    + " source, created_at) VALUES ('rls-fbia-org', " + session + ", 10, 'rls-answer', now())"
+                    + " RETURNING id")) {
+                rs.next();
+                importId = rs.getLong(1);
+            }
+            var seeded = s.executeUpdate("INSERT INTO session_feedback_import_answer (organization_id, import_id,"
+                    + " enjoyed, learned) VALUES ('rls-fbia-org', " + importId + ", 8, NULL)");
+            s.execute("SET app.current_org = 'acme'");
+
+            // when
+            var otherScope = countOf(s,
+                    "SELECT count(*) FROM session_feedback_import_answer WHERE import_id = " + importId);
+            var changed = s.executeUpdate(
+                    "UPDATE session_feedback_import_answer SET enjoyed = 1 WHERE import_id = " + importId);
+
+            // then
+            assertThat(seeded).isOne();
+            assertThat(otherScope).isZero();
+            assertThat(changed).isZero();
+            assertThatThrownBy(() -> s.execute("INSERT INTO session_feedback_import_answer (organization_id,"
+                    + " import_id, enjoyed, learned) VALUES ('rls-fbia-org', " + importId + ", 2, 2)"))
+                    .hasMessageContaining("row-level security");
+        }
+    }
+
+    /** Leaves the statement scoped to the organization it seeded. */
+    private static long seedHeldSession(java.sql.Statement s, String org) throws Exception {
+        s.execute("SET app.current_org = '" + org + "'");
+        s.execute("INSERT INTO organization (id, name, kind, created_at, updated_at)" + " VALUES ('" + org
+                + "','Feedback Org','ENTERPRISE', now(), now())");
+        s.execute("INSERT INTO community_kind (organization_id, label, created_at, updated_at, version)" + " VALUES ('"
+                + org + "','Guild', now(), now(), 0)");
+        s.execute("INSERT INTO communities (organization_id, slug, name, description, status, kind_id, created_at,"
+                + " updated_at, version) SELECT '" + org + "','" + org + "','Feedback','', 'ACTIVE', k.id, now(),"
+                + " now(), 0 FROM community_kind k WHERE k.organization_id = '" + org + "'");
+        try (var rs = s.executeQuery("INSERT INTO community_session (organization_id, community_id, status,"
+                + " scheduled_at, notes, recording_url, has_time, created_at, updated_at, version)" + " SELECT '" + org
+                + "', id, 'HELD', now(), '', '', true, now(), now(), 0 FROM communities" + " WHERE organization_id = '"
+                + org + "' RETURNING id")) {
+            rs.next();
+            return rs.getLong(1);
+        }
+    }
+
     private static int countOf(java.sql.Statement s, String query) throws Exception {
         try (var rs = s.executeQuery(query)) {
             rs.next();

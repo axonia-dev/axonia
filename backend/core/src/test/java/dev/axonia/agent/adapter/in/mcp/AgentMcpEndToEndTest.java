@@ -59,16 +59,16 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>
  * Assertions (each maps to a spec guarantee):
  * <ol>
- * <li>A scoped token lists exactly the 44 tools (surface allowlist + auth passes).</li>
+ * <li>A scoped token lists exactly the 45 tools (surface allowlist + auth passes).</li>
  * <li>A scoped {@code topic.propose} call succeeds, a topic is created, and an {@code OK} audit row is written.</li>
  * <li>An unscoped {@code library.contribute} call is refused (scope layer), a {@code SCOPE_DENIED} audit row is
  * written, and the org's artifact count is unchanged.</li>
  * <li>A bogus bearer on {@code /mcp} is rejected with 401 (chain gate).</li>
  * <li>The same {@code axp_} token presented to the REST chain ({@code /axonia/**}) is rejected with 401 (surface
  * isolation).</li>
- * <li>{@code tools/list} contains exactly the 44 known tool names, and exactly six of them declare
+ * <li>{@code tools/list} contains exactly the 45 known tool names, and exactly seven of them declare
  * {@code destructiveHint}: {@code session.detachArtifact}, {@code learning.remove}, {@code session.delete},
- * {@code tag.delete}, {@code tag.rename} and {@code namedArea.delete}.</li>
+ * {@code tag.delete}, {@code tag.rename}, {@code namedArea.delete} and {@code session.importFeedback}.</li>
  * <li>The scoped {@code topic.propose} guarantee holds identically in a second, independently seeded ENTERPRISE
  * organization: the tool code path does not depend on which organization it runs in.</li>
  * <li>The full library round trip: {@code library.contribute} then {@code session.attachArtifact} then
@@ -109,12 +109,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AgentMcpEndToEndTest {
 
     /**
-     * The complete tool catalog. Assertion 6 checks {@code tools/list} is EXACTLY this set, and that exactly six tools
-     * declare {@code destructiveHint} - {@code session.detachArtifact}, {@code session.delete} and {@code tag.delete},
-     * each gated behind a scope of its own; {@code learning.remove}, which drops the date an area was named and takes
-     * back only the caller's own statement; and {@code tag.rename} and {@code namedArea.delete}, the two curation
-     * writes that cannot be undone, a rename onto a name already carried folding two tags into one. Every other tool is
-     * additive or undoable.
+     * The complete tool catalog. Assertion 6 checks {@code tools/list} is EXACTLY this set, and that exactly seven
+     * tools declare {@code destructiveHint} - {@code session.detachArtifact}, {@code session.delete} and
+     * {@code tag.delete}, each gated behind a scope of its own; {@code learning.remove}, which drops the date an area
+     * was named and takes back only the caller's own statement; {@code tag.rename} and {@code namedArea.delete}, the
+     * two curation writes that cannot be undone, a rename onto a name already carried folding two tags into one; and
+     * {@code session.importFeedback}, which replaces a session's earlier import whole. Every other tool is additive or
+     * undoable.
      */
     private static final Set<String> EXPECTED_TOOLS = Set.of("communities.list", "schedule.read", "session.get",
             "library.artifactTypes", "library.contribute", "topic.propose", "session.signup", "attendance.signal",
@@ -124,11 +125,12 @@ class AgentMcpEndToEndTest {
             "learning.learners", "learning.add", "learning.remove", "session.delete", "tag.usage", "tag.delete",
             "tag.list", "tag.vocabulary", "tag.suggestions", "tag.merge", "tag.split", "tag.rename",
             "tag.dismissSuggestion", "tag.undismissSuggestion", "namedArea.list", "namedArea.create",
-            "namedArea.rename", "namedArea.delete", "namedArea.assignTags", "namedArea.unassignTag", "session.rename");
+            "namedArea.rename", "namedArea.delete", "namedArea.assignTags", "namedArea.unassignTag", "session.rename",
+            "session.importFeedback");
 
     /** The destructive tools on the agent surface. Assertion 6 pins this list to prevent silent growth. */
     private static final Set<String> DESTRUCTIVE_TOOLS = Set.of("session.detachArtifact", "learning.remove",
-            "session.delete", "tag.delete", "tag.rename", "namedArea.delete");
+            "session.delete", "tag.delete", "tag.rename", "namedArea.delete", "session.importFeedback");
 
     /** Reads a tool result's JSON text back into fields, e.g. the {@code sessionId} a create call reports. */
     private static final JsonMapper JSON = JsonMapper.builder().build();
@@ -284,11 +286,11 @@ class AgentMcpEndToEndTest {
     }
 
     // -------------------------------------------------------------------------
-    // Assertion 1: a scoped token lists exactly the 44 tools.
+    // Assertion 1: a scoped token lists exactly the 45 tools.
     // -------------------------------------------------------------------------
 
     @Test
-    void scopedToken_listsExactlyTheFortyFourTools() {
+    void scopedToken_listsExactlyTheFortyFiveTools() {
         var bearer = mint(ENTERPRISE_ORG, ENTERPRISE_USER, Set.of("read", "topic:propose"));
         var client = connect(bearer);
         try {
@@ -413,11 +415,11 @@ class AgentMcpEndToEndTest {
     }
 
     // -------------------------------------------------------------------------
-    // Assertion 6: tools/list is EXACTLY the 44 known names, and exactly six declare destructiveHint.
+    // Assertion 6: tools/list is EXACTLY the 45 known names, and exactly seven declare destructiveHint.
     // -------------------------------------------------------------------------
 
     @Test
-    void toolCatalog_isExactlyTheFortyThreeKnownTools_andOnlyTheSixIrreversibleWritesAreDestructive() {
+    void toolCatalog_isExactlyTheFortyFiveKnownTools_andOnlyTheSevenIrreversibleWritesAreDestructive() {
         var bearer = mint(ENTERPRISE_ORG, ENTERPRISE_USER, Set.of("read"));
         var client = connect(bearer);
         try {
@@ -431,8 +433,8 @@ class AgentMcpEndToEndTest {
                     .filter(t -> Boolean.TRUE.equals(t.annotations().destructiveHint())).map(McpSchema.Tool::name)
                     .collect(Collectors.toSet());
             assertThat(destructive)
-                    .as("exactly six destructive tools: detaching an artifact, removing an area, deleting a session, "
-                            + "deleting a tag, renaming a tag and deleting a named area")
+                    .as("exactly seven destructive tools: detaching an artifact, removing an area, deleting a session, "
+                            + "deleting a tag, renaming a tag, deleting a named area and replacing a feedback import")
                     .isEqualTo(DESTRUCTIVE_TOOLS);
         } finally {
             close(client);

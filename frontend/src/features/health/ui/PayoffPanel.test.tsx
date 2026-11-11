@@ -1,7 +1,10 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { snapshotFixture } from "@/features/health/domain/snapshot-fixture";
+import {
+  learningFixture,
+  snapshotFixture,
+} from "@/features/health/domain/snapshot-fixture";
 import { PayoffPanel } from "@/features/health/ui/PayoffPanel";
 
 describe("PayoffPanel", () => {
@@ -17,6 +20,38 @@ describe("PayoffPanel", () => {
       "data-level",
       "QUIET",
     );
+  });
+
+  it("is judged by the combined payoff, not by reuse alone", () => {
+    // given
+    const snapshot = snapshotFixture({
+      learning: learningFixture,
+      payoff: { code: "LEARNING_A_LOT", level: "GREAT" },
+    });
+
+    // when
+    render(<PayoffPanel snapshot={snapshot} />);
+
+    // then
+    expect(screen.getByText("Learning a lot")).toHaveAttribute(
+      "data-level",
+      "GREAT",
+    );
+    expect(screen.queryByText("No payoff yet")).not.toBeInTheDocument();
+  });
+
+  it("sets the Library beside what was said in the room", () => {
+    // when
+    render(
+      <PayoffPanel snapshot={snapshotFixture({ learning: learningFixture })} />,
+    );
+
+    // then
+    expect(screen.getByRole("heading", { name: "Library" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "In the room" })).toBeVisible();
+    expect(
+      screen.getByRole("img", { name: "Learned 8.3 out of 10" }),
+    ).toBeVisible();
   });
 
   it("reads the funnel in three steps", () => {
@@ -36,8 +71,10 @@ describe("PayoffPanel", () => {
         findings: [
           { kind: "GAP", code: "INTEREST_WITHOUT_PAYOFF" },
           { kind: "STRENGTH", code: "ON_RHYTHM" },
+          { kind: "STRENGTH", code: "LEARNING_LANDS" },
         ],
       },
+      learning: learningFixture,
     });
 
     // when
@@ -46,6 +83,9 @@ describe("PayoffPanel", () => {
     // then
     expect(
       screen.getByText("0 saved, none confirmed helpful yet."),
+    ).toBeVisible();
+    expect(
+      screen.getByText("Attendees report learning a lot: 8.3 out of 10."),
     ).toBeVisible();
     expect(
       screen.queryByText("Sessions keep a steady rhythm."),

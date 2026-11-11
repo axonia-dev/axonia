@@ -3,6 +3,33 @@ import type { HealthSnapshot } from "@/features/health/domain/health";
 const TALK_COUNTS = [2, 2, 2, 2, 1, 1, 1, 1, 1];
 const TALKS = TALK_COUNTS.reduce((sum, count) => sum + count, 0);
 
+const NO_FEEDBACK: HealthSnapshot["learning"] = {
+  enjoyed: null,
+  learned: null,
+  answers: 0,
+  enjoyedAnswers: 0,
+  learnedAnswers: 0,
+  sessions: 0,
+  sessionsTooFew: 0,
+  previousEnjoyed: null,
+  previousLearned: null,
+  status: { code: "LEARNING_TOO_FEW", level: "QUIET" },
+};
+
+/** The design's room that learned: 42 answers across 6 sessions, learning up and enjoyment level. */
+export const learningFixture: HealthSnapshot["learning"] = {
+  enjoyed: 8.7,
+  learned: 8.3,
+  answers: 42,
+  enjoyedAnswers: 42,
+  learnedAnswers: 42,
+  sessions: 6,
+  sessionsTooFew: 1,
+  previousEnjoyed: 8.7,
+  previousLearned: 7.6,
+  status: { code: "LEARNING_A_LOT", level: "GREAT" },
+};
+
 /** The spec's healthy community: about monthly, nine speakers from seven teams, nothing paid off yet. */
 export function snapshotFixture(
   overrides: Partial<HealthSnapshot> = {},
@@ -59,6 +86,8 @@ export function snapshotFixture(
       savesTrend: { previous: 0, direction: "FLAT" },
       status: { code: "NO_PAYOFF_YET", level: "QUIET" },
     },
+    learning: NO_FEEDBACK,
+    payoff: { code: "NO_PAYOFF_YET", level: "QUIET" },
     series: {
       talks: [0, 5, 0, 0, 0, 0, 4, 0, 0, 0, 4, 0],
       people: [2, 8, 3, 2, 1, 2, 7, 3, 2, 4, 6, 5],
@@ -128,6 +157,7 @@ export function troubledSnapshotFixture(): HealthSnapshot {
       savesTrend: { previous: 0, direction: "FLAT" },
       status: { code: "NOTHING_OPENED", level: "QUIET" },
     },
+    payoff: { code: "NOTHING_OPENED", level: "QUIET" },
     series: {
       talks: [0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0],
       people: [1, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0],

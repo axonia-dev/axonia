@@ -223,7 +223,7 @@ class UpcomingSessionProducerTest {
 
         var realAssembler = new SessionFactsAssembler(sessionMapper, seriesStore, loopSessionRepository,
                 loopCommunityAccess, userProfileAccess, sessionResourceAccess, actionItemStore,
-                actionItemCheckpointStore, publicUrlProperties);
+                actionItemCheckpointStore, publicUrlProperties, () -> Duration.ofDays(30));
         var loopProducer = new UpcomingSessionProducer(loopSessionRepository, loopCommunityAccess, realAssembler, port,
                 organizationResolver, watermark);
 

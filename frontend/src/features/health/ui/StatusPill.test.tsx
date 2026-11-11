@@ -11,6 +11,10 @@ describe("StatusPill", () => {
     [{ code: "ON_RHYTHM", level: "GOOD" }, "On rhythm"],
     [{ code: "SHARED_STAGE", level: "GREAT" }, "Shared stage"],
     [{ code: "NOTHING_OPENED", level: "QUIET" }, "Nothing opened yet"],
+    [{ code: "LEARNING_A_LOT", level: "GREAT" }, "Learning a lot"],
+    [{ code: "LEARNING", level: "GOOD" }, "Learning"],
+    [{ code: "LITTLE_LEARNED", level: "WATCH" }, "Little learned"],
+    [{ code: "LEARNING_TOO_FEW", level: "QUIET" }, "Too few answers"],
   ])("carries the word and the level of %j", (status, word) => {
     // when
     render(<StatusPill status={status} />);

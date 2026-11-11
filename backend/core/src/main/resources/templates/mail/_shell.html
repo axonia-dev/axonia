@@ -227,6 +227,46 @@ the caller-supplied text when there are no talks to name.
 </td>
 </tr>
 
+<!-- The wrap-up's feedback ask: a small rising row of bars in the sender's ink beside the heading, the sentence, then
+     a plain link to the card. A link and not a button, because the message's one call to action is still primaryButton
+     at its foot. The bars are table cells rather than an image so they render with images blocked; brand pink stands in
+     when no sender travels with the facts. -->
+<tr th:fragment="feedbackAsk(heading, text, url, label)" th:with="markInk=${sender} != null ? ${sender.tintForeground} : '#de3b78'">
+<td style="padding:24px 0 0 0;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td valign="bottom" style="padding:0 8px 0 0;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" aria-hidden="true">
+<tr>
+<td th:replace="~{_shell.html :: risingBar(height=4, ink=${markInk})}">Bar</td>
+<td th:replace="~{_shell.html :: risingBar(height=6, ink=${markInk})}">Bar</td>
+<td th:replace="~{_shell.html :: risingBar(height=8, ink=${markInk})}">Bar</td>
+<td th:replace="~{_shell.html :: risingBar(height=10, ink=${markInk})}">Bar</td>
+<td th:replace="~{_shell.html :: risingBar(height=12, ink=${markInk})}">Bar</td>
+<td th:replace="~{_shell.html :: risingBar(height=14, ink=${markInk})}">Bar</td>
+</tr>
+</table>
+</td>
+<td valign="bottom">
+<p th:text="${heading}" style="margin:0; font-size:11px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; line-height:14px; color:#786a7e;">Heading</p>
+</td>
+</tr>
+</table>
+<p th:text="${text}" style="margin:10px 0 0 0; font-size:15px; line-height:1.55; color:#211a26;">Ask</p>
+<p style="margin:6px 0 0 0; font-size:15px; line-height:1.55;"><a th:href="${url}" th:text="${label}"
+    style="color:#c32c66; text-decoration:underline; font-weight:600;">Link</a></p>
+</td>
+</tr>
+
+<!-- One bar of feedbackAsk's rising row, bottom-aligned so the row rises left to right. -->
+<td th:fragment="risingBar(height, ink)" valign="bottom" style="padding:0 2px 0 0;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td width="4" th:attr="height=${height},style='width:4px;height:' + ${height} + 'px;font-size:0;line-height:0;border-radius:1px;background-color:' + ${ink} + ';'">&nbsp;</td>
+</tr>
+</table>
+</td>
+
 <!-- An uppercase section label - "What happened", "What we agreed to do", "From the session", "Agenda". Top padding
      only: a fixed 24px gap from whatever precedes it, so a new section always reads as a new section - never doubled
      up with a preceding block's own spacing, because no block below sets a bottom gap of its own to add to it. -->

@@ -24,6 +24,7 @@ import dev.axonia.health.domain.Curation;
 import dev.axonia.health.domain.DiagnosisEngine;
 import dev.axonia.health.domain.Distribution;
 import dev.axonia.health.domain.HealthSnapshot;
+import dev.axonia.health.domain.LearningDial;
 import dev.axonia.health.domain.Reach;
 import dev.axonia.health.domain.StatusRules;
 import dev.axonia.health.domain.Trend;
@@ -83,6 +84,8 @@ public class HealthService {
 
         var heldDates = eventsSignals.heldSessionDates(communityId, window.from(), window.now());
         var curation = Curation.of(cohorts.current().curation().values());
+        var reuse = reuseOf(communityId, window);
+        var learning = learningOf(communityId, window);
 
         return HealthSnapshot.builder().window(window.days() + "d").generatedAt(window.now()).stage(stageOf(cohorts))
                 .curation(new HealthSnapshot.CurationDial(curation.acts(), curation.topShare()))
@@ -91,7 +94,8 @@ public class HealthService {
                 .engagement(new HealthSnapshot.EngagementDial(loves, Trend.of(loves, previousLoves)))
                 .membershipGrowth(
                         new HealthSnapshot.MembershipGrowthDial(joins, memberCount, Trend.of(joins, previousJoins)))
-                .reach(reachOf(scope.organizationId(), cohorts)).reuse(reuseOf(communityId, window))
+                .reach(reachOf(scope.organizationId(), cohorts)).reuse(reuse).learning(learning)
+                .payoff(StatusRules.payoff(reuse.status(), learning.status()))
                 .series(new SnapshotSeries(eventsSignals, artifactSignals, membershipSignals).of(communityId,
                         window.from(), window.now(), cohorts.current().involved()))
                 .heldSessionDates(heldDates).build();
@@ -154,6 +158,13 @@ public class HealthService {
                 .artifactsSaved(reuse.distinctArtifactsSaved()).helped(reuse.helped()).notHelped(reuse.notHelped())
                 .savesTrend(Trend.of(reuse.saves(), previousReuse.saves()))
                 .status(StatusRules.payoff(openings.openings(), reuse.saves(), reuse.helped())).build();
+    }
+
+    private LearningDial learningOf(long communityId, Window window) {
+
+        var current = eventsSignals.feedbackAverages(communityId, window.from(), window.now(), window.now());
+        var previous = eventsSignals.feedbackAverages(communityId, window.previousFrom(), window.from(), window.now());
+        return LearningDial.of(current, previous);
     }
 
     /**

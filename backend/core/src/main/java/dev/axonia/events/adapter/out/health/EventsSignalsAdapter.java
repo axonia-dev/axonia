@@ -1,5 +1,7 @@
 package dev.axonia.events.adapter.out.health;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.HashMap;
@@ -17,9 +19,11 @@ import org.springframework.transaction.annotation.Transactional;
 import dev.axonia.events.application.port.out.OrganizationContext;
 import dev.axonia.events.domain.Cadence;
 import dev.axonia.events.domain.CadenceUnit;
+import dev.axonia.events.domain.FeedbackRules;
 import dev.axonia.health.api.BucketCredit;
 import dev.axonia.health.api.BucketTalks;
 import dev.axonia.health.api.BucketedSeries;
+import dev.axonia.health.api.FeedbackAverages;
 import dev.axonia.health.api.SeriesPulse;
 import dev.axonia.health.api.spi.EventsSignals;
 import lombok.RequiredArgsConstructor;
@@ -43,6 +47,27 @@ class EventsSignalsAdapter implements EventsSignals {
             WHERE cs.organization_id = :organizationId AND cs.community_id = :communityId
               AND cs.status NOT IN ('CANCELLED', 'SKIPPED') AND cs.scheduled_at >= :from AND cs.scheduled_at < :to
             """;
+
+    private static final String HELD_FOR_FEEDBACK = """
+            cs.organization_id = :organizationId AND cs.community_id = :communityId
+              AND cs.status = 'HELD' AND cs.scheduled_at >= :from AND cs.scheduled_at < :to
+            """;
+
+    private static final String FEEDBACK_ANSWERS = """
+            SELECT session_id, scale, enjoyed, learned, count(*) AS answers FROM (
+                SELECT cs.id AS session_id, 10 AS scale, f.enjoyed, f.learned
+                FROM community_session cs
+                JOIN session_feedback f ON f.session_id = cs.id AND f.organization_id = cs.organization_id
+                WHERE cs.closed_at <= :revealedBefore AND {held}
+                UNION ALL
+                SELECT cs.id, i.scale, a.enjoyed, a.learned
+                FROM community_session cs
+                JOIN session_feedback_import i ON i.session_id = cs.id AND i.organization_id = cs.organization_id
+                JOIN session_feedback_import_answer a ON a.import_id = i.id AND a.organization_id = i.organization_id
+                WHERE {held}
+            ) answer
+            GROUP BY session_id, scale, enjoyed, learned
+            """.replace("{held}", HELD_FOR_FEEDBACK);
 
     private static final String SESSION_BUCKET = "least(floor(extract(epoch FROM (cs.scheduled_at - :from))"
             + " / :bucketSeconds), :lastBucket)::int";
@@ -217,6 +242,60 @@ class EventsSignalsAdapter implements EventsSignals {
                 ) engaged
                 """;
         return new HashSet<>(jdbc.query(sql, window(communityId, from, to), (rs, rowNum) -> rs.getString("user_id")));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public FeedbackAverages feedbackAverages(long communityId, Instant from, Instant to, Instant now) {
+
+        var params = window(communityId, from, to).addValue("revealedBefore",
+                Timestamp.from(now.minus(FeedbackRules.WINDOW)));
+        var perSession = new HashMap<Long, SessionAnswers>();
+        jdbc.query(FEEDBACK_ANSWERS, params, rs -> {
+            perSession.merge(rs.getLong("session_id"), SessionAnswers.of(rs), SessionAnswers::plus);
+        });
+        var revealed = SessionAnswers.NONE;
+        var sessions = 0;
+        var sessionsTooFew = 0;
+        for (var session : perSession.values()) {
+            if (session.answers() >= FeedbackRules.MIN_REVEAL) {
+                revealed = revealed.plus(session);
+                sessions++;
+            } else {
+                sessionsTooFew++;
+            }
+        }
+        return new FeedbackAverages(revealed.answers(), revealed.enjoyedAnswers(), revealed.enjoyedSum(),
+                revealed.learnedAnswers(), revealed.learnedSum(), sessions, sessionsTooFew);
+    }
+
+    /** One session's answers on the ten-point range; each question counts only the answers that hold it. */
+    private record SessionAnswers(long answers, long enjoyedAnswers, double enjoyedSum, long learnedAnswers,
+            double learnedSum) {
+
+        static final SessionAnswers NONE = new SessionAnswers(0, 0, 0, 0, 0);
+
+        static SessionAnswers of(ResultSet rs) throws SQLException {
+
+            var answers = rs.getLong("answers");
+            var scale = rs.getInt("scale");
+            var enjoyed = rs.getObject("enjoyed", Integer.class);
+            var learned = rs.getObject("learned", Integer.class);
+            return new SessionAnswers(answers, enjoyed == null ? 0 : answers, sumOf(enjoyed, scale, answers),
+                    learned == null ? 0 : answers, sumOf(learned, scale, answers));
+        }
+
+        private static double sumOf(Integer value, int scale, long answers) {
+
+            return value == null ? 0 : FeedbackRules.toTen(value, scale) * answers;
+        }
+
+        SessionAnswers plus(SessionAnswers other) {
+
+            return new SessionAnswers(answers + other.answers, enjoyedAnswers + other.enjoyedAnswers,
+                    enjoyedSum + other.enjoyedSum, learnedAnswers + other.learnedAnswers,
+                    learnedSum + other.learnedSum);
+        }
     }
 
     private MapSqlParameterSource window(long communityId, Instant from, Instant to) {

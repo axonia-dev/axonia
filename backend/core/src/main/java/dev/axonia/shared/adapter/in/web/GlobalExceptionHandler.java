@@ -59,7 +59,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ForbiddenException.class)
     ProblemDetail handleForbidden(ForbiddenException ex) {
 
-        return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, ex.getMessage());
+        var problem = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, ex.getMessage());
+        if (ex.getCode() != null) {
+            problem.setProperty("code", ex.getCode());
+        }
+        return problem;
     }
 
     @ExceptionHandler(ValidationException.class)

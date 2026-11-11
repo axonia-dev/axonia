@@ -60,6 +60,24 @@ class ChatPostBuildersTest {
         assertThat(post.details()).doesNotContainKey("Recording");
         assertThat(post.details()).doesNotContainKey("Attended");
         assertThat(post.details()).doesNotContainKey("Resources");
+        assertThat(post.details()).doesNotContainKey("How was it?");
+    }
+
+    @Test
+    void wrapUp_asksHowItWasUntilTheFeedbackWindowCloses() {
+
+        // given
+        var facts = Map.<String, Object>of("sessionTitle", "Event sourcing in anger", "scheduledAt",
+                Instant.parse("2026-11-06T16:00:00Z"), "timeZone", "Europe/Berlin", "sessionUrl",
+                "https://axonia.example/s/1", "feedbackClosesAt", Instant.parse("2026-11-13T12:00:00Z"), "sender",
+                SENDER);
+
+        // when
+        var post = sut.build(readBack("session_wrap_up"), facts);
+
+        // then
+        assertThat(post.details()).containsEntry("How was it?", "Open until 13 Nov");
+        assertThat(post.actionUrl()).isEqualTo("https://axonia.example/s/1");
     }
 
     @Test

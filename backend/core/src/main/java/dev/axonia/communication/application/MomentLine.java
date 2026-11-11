@@ -40,6 +40,7 @@ final class MomentLine {
             Locale.ENGLISH);
     private static final DateTimeFormatter COMPACT_DAY = DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.ENGLISH);
     private static final DateTimeFormatter HOUR = DateTimeFormatter.ofPattern("HH:mm", Locale.ENGLISH);
+    private static final DateTimeFormatter SHORT_DAY = DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH);
 
     /**
      * {@code ZoneId.of("UTC")}, never {@code ZoneOffset.UTC}, whose id is the single character {@code Z}: this zone is
@@ -63,6 +64,15 @@ final class MomentLine {
     static String compact(Map<String, Object> facts) {
 
         return line(facts, COMPACT, COMPACT_DAY);
+    }
+
+    /** A deadline's day, "13 Nov", on the reader's clock or else the session's; null when the fact is no instant. */
+    static String shortDay(Map<String, Object> facts, String key) {
+
+        if (!(facts.get(key) instanceof Instant at)) {
+            return null;
+        }
+        return SHORT_DAY.withZone(readerZoneOr(facts, sessionZoneOf(facts))).format(at);
     }
 
     private static String line(Map<String, Object> facts, DateTimeFormatter timed, DateTimeFormatter dayOnly) {

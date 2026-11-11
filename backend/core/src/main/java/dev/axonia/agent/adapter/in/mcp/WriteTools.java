@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 import org.springframework.ai.mcp.annotation.McpTool;
@@ -19,6 +20,7 @@ import dev.axonia.community.api.Memberships;
 import dev.axonia.events.api.ActionItems;
 import dev.axonia.events.api.Attendances;
 import dev.axonia.events.api.CreateOneOffRequest;
+import dev.axonia.events.api.FeedbackImportRequest;
 import dev.axonia.events.api.ProposeTopicRequest;
 import dev.axonia.events.api.RaiseActionItemRequest;
 import dev.axonia.events.api.RecordSlotRequest;
@@ -29,6 +31,7 @@ import dev.axonia.events.api.Sections;
 import dev.axonia.events.api.SessionClosure;
 import dev.axonia.events.api.SessionClosureRequest;
 import dev.axonia.events.api.SessionDeletion;
+import dev.axonia.events.api.SessionFeedbackImports;
 import dev.axonia.events.api.SessionNaming;
 import dev.axonia.events.api.Sessions;
 import dev.axonia.events.api.Slots;
@@ -45,14 +48,15 @@ import lombok.RequiredArgsConstructor;
  * The write agent tools: contributing to a community's library, proposing a topic, raising an action item, signing up
  * to present in a session's slot, signalling attendance, joining a community, attaching or detaching a session's
  * artifacts, backfilling a community's history by creating a past session, adding a section to it, recording who
- * presented a slot, correcting a slot's presenter afterwards, and closing it as held, naming a session, and deleting a
- * session that never took place.
+ * presented a slot, correcting a slot's presenter afterwards, and closing it as held, naming a session, importing the
+ * feedback a community collected on it before axonia, and deleting a session that never took place.
  *
  * <p>
  * Most calls are additive and not idempotent: calling one twice with the same arguments either creates a second record
  * or hits a domain conflict (e.g. "already going"). The exceptions: {@code session.attachArtifact} is idempotent (it
- * returns any existing matching attachment), {@code session.rename} sets a title and so lands the same way twice, and
- * the two destructive tools, {@code session.detachArtifact} and {@code session.delete}, are each gated behind a scope
+ * returns any existing matching attachment), {@code session.rename} sets a title and so lands the same way twice,
+ * {@code session.importFeedback} replaces the session's import whole and so is idempotent though destructive, and the
+ * two other destructive tools, {@code session.detachArtifact} and {@code session.delete}, are each gated behind a scope
  * of their own.
  *
  * <p>
@@ -77,6 +81,7 @@ class WriteTools {
     private final SessionClosure sessionClosure;
     private final TagReports tagReports;
     private final SessionNaming sessionNaming;
+    private final SessionFeedbackImports sessionFeedbackImports;
 
     /**
      * The tail shared by both write tools' actor-reference rule, spelled the same way so the two descriptions cannot
@@ -198,6 +203,25 @@ class WriteTools {
     }
 
     record DeletedSessionView(Long sessionId) {
+    }
+
+    record ImportedAnswerParam(
+            @McpToolParam(description = "How much this person enjoyed the session, on the form's scale. Omit it when "
+                    + "they skipped the question.", required = false) Integer enjoyed,
+            @McpToolParam(description = "How much this person learned, on the form's scale. Omit it when they "
+                    + "skipped the question.", required = false) Integer learned) {
+    }
+
+    record ImportFeedbackParams(@McpToolParam(description = "Session id", required = true) Long sessionId,
+            @McpToolParam(description = "The scale the old form used: 5 or 10", required = false) Integer scale,
+            @McpToolParam(description = "Where the answers came from, shown on the result, e.g. Microsoft Forms. Up "
+                    + "to 80 characters.", required = false) String source,
+            @McpToolParam(description = "One entry per respondent, each with enjoyed, learned or both. An empty list "
+                    + "removes the session's import.", required = true) List<ImportedAnswerParam> answers) {
+    }
+
+    /** {@code revealed} is whether the session shows its result: it does from 3 answers. */
+    record ImportedFeedbackView(Long sessionId, long enjoyedAnswers, long learnedAnswers, boolean revealed) {
     }
 
     record CreatedSessionView(Long sessionId, String title, Instant scheduledAt, String status) {
@@ -491,5 +515,33 @@ class WriteTools {
             sessionDeletion.delete(sessionId);
             return new DeletedSessionView(sessionId);
         });
+    }
+
+    @McpTool(name = "session.importFeedback", description = "Import the anonymous answers a community collected before "
+            + "axonia about one held session: how much each person enjoyed it and how much they learned, on the scale "
+            + "the old form used (5 or 10). Match each form to its session by date and title with the session reads "
+            + "first, and backfill a missing session with the schedule tools. Send no name, email or timestamp: drop "
+            + "those columns. Importing again replaces the session's earlier import, and an empty list removes it. "
+            + "Refused for a session whose feedback window opened with member answers or is still open.", annotations = @McpAnnotations(readOnlyHint = false, destructiveHint = true, idempotentHint = true))
+    public ImportedFeedbackView importFeedback(
+            @McpToolParam(description = "The session and its answers", required = true) ImportFeedbackParams params) {
+        return support.run("session.importFeedback", AgentScope.SCHEDULE_MANAGE, () -> {
+            var imported = sessionFeedbackImports.importFeedback(params.sessionId(),
+                    FeedbackImportRequest.builder().scale(Objects.requireNonNullElse(params.scale(), 0))
+                            .source(params.source()).answers(answers(params.answers())).build());
+            return new ImportedFeedbackView(imported.sessionId(), imported.enjoyedAnswers(), imported.learnedAnswers(),
+                    imported.revealed());
+        });
+    }
+
+    /** Null stays null, so the domain refuses a missing list instead of reading it as a removal. */
+    private static List<FeedbackImportRequest.Answer> answers(List<ImportedAnswerParam> params) {
+
+        return params == null ? null : params.stream().map(WriteTools::answer).toList();
+    }
+
+    private static FeedbackImportRequest.Answer answer(ImportedAnswerParam param) {
+
+        return param == null ? null : new FeedbackImportRequest.Answer(param.enjoyed(), param.learned());
     }
 }

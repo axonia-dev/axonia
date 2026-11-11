@@ -18,7 +18,10 @@ export const AGENT_SCOPES = [
   { code: "community:join", label: "Join communities" },
   { code: "session:attach", label: "Attach artifacts to sessions" },
   { code: "session:detach", label: "Remove artifacts from sessions" },
-  { code: "schedule:manage", label: "Create and shape sessions" },
+  {
+    code: "schedule:manage",
+    label: "Create and shape sessions, import earlier feedback",
+  },
   { code: "learning:declare", label: "Declare areas to learn" },
   { code: "session:delete", label: "Delete sessions that never took place" },
   {

@@ -12,6 +12,9 @@
 <div th:replace="~{_shell.html :: page(body=~{::content}, when='Held', reason='You are a member of')}">
 <th:block th:fragment="content">
 <tr th:replace="~{_shell.html :: statStrip}">Stats</tr>
+<th:block th:if="${feedbackClosesAt} != null" th:with="feedbackZone=${readerTimeZone} ?: (${timeZone} ?: 'UTC'), feedbackClosesOn=${#temporals.format(feedbackClosesAt, 'd MMM', feedbackZone)}">
+<tr th:replace="~{_shell.html :: feedbackAsk(heading='How was it?', text='Two taps, anonymous, open until ' + ${feedbackClosesOn}, url=${sessionUrl} + '#feedback', label='Give feedback')}">Feedback</tr>
+</th:block>
 <tr th:replace="~{_shell.html :: sectionHeading(text='What happened')}">Heading</tr>
 <th:block th:if="${talks} == null or ${talks.isEmpty()}">
 <tr th:replace="~{_shell.html :: bodyText(text='No talks were recorded for this session.')}">No talks</tr>

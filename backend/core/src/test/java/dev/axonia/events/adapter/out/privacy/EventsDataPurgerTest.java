@@ -33,6 +33,9 @@ class EventsDataPurgerTest extends PurgerTestSupport {
         assertThat(count("community_session")).isZero();
         assertThat(count("event_series")).isZero();
         assertThat(count("session_attendance")).isZero();
+        assertThat(count("session_feedback")).isZero();
+        assertThat(count("session_feedback_import")).isZero();
+        assertThat(count("session_feedback_import_answer")).isZero();
         assertThat(count("topic")).isZero();
         assertThat(count("topic_vote")).isZero();
         assertThat(countAll("topic_speaker")).isZero();
@@ -108,6 +111,19 @@ class EventsDataPurgerTest extends PurgerTestSupport {
                         + "version) VALUES (:org, :sessionId, 'attendee-user', now(), now(), 0)",
                 Map.of("org", ORG, "sessionId", sessionId));
 
+        jdbc.update(
+                "INSERT INTO session_feedback (organization_id, session_id, user_id, enjoyed, learned, created_at, "
+                        + "updated_at, version) VALUES (:org, :sessionId, 'attendee-user', 9, 7, now(), now(), 0)",
+                Map.of("org", ORG, "sessionId", sessionId));
+
+        var importId = jdbc.queryForObject(
+                "INSERT INTO session_feedback_import (organization_id, session_id, scale, source, created_at) "
+                        + "VALUES (:org, :sessionId, 5, 'Microsoft Forms', now()) RETURNING id",
+                Map.of("org", ORG, "sessionId", sessionId), Long.class);
+
+        jdbc.update("INSERT INTO session_feedback_import_answer (organization_id, import_id, enjoyed, learned) "
+                + "VALUES (:org, :importId, 4, 5)", Map.of("org", ORG, "importId", importId));
+
         var topicId = jdbc.queryForObject(
                 "INSERT INTO topic (organization_id, community_id, title, description, proposer_user_id, "
                         + "status, created_at, updated_at, version) VALUES (:org, :communityId, "
@@ -153,6 +169,15 @@ class EventsDataPurgerTest extends PurgerTestSupport {
                     Map.of("org", ORG), Long.class);
             case "session_attendance" ->
                 jdbc.queryForObject("SELECT count(*) FROM session_attendance WHERE organization_id = :org",
+                        Map.of("org", ORG), Long.class);
+            case "session_feedback" ->
+                jdbc.queryForObject("SELECT count(*) FROM session_feedback WHERE organization_id = :org",
+                        Map.of("org", ORG), Long.class);
+            case "session_feedback_import" ->
+                jdbc.queryForObject("SELECT count(*) FROM session_feedback_import WHERE organization_id = :org",
+                        Map.of("org", ORG), Long.class);
+            case "session_feedback_import_answer" ->
+                jdbc.queryForObject("SELECT count(*) FROM session_feedback_import_answer WHERE organization_id = :org",
                         Map.of("org", ORG), Long.class);
             case "topic" -> jdbc.queryForObject("SELECT count(*) FROM topic WHERE organization_id = :org",
                     Map.of("org", ORG), Long.class);

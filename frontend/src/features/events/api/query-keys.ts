@@ -29,6 +29,8 @@ export const sessionKeys = {
     [...sessionKeys.all, "detail", sessionId] as const,
   attendance: (sessionId: number) =>
     [...sessionKeys.all, "attendance", sessionId] as const,
+  feedback: (sessionId: number) =>
+    [...sessionKeys.all, "feedback", sessionId] as const,
   // The message type is part of the key, not just the request: a session's reminder and
   // its wrap-up are two different renders of the same session, so a key naming only the
   // session would serve one dialog the other's cached HTML.

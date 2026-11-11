@@ -30,7 +30,8 @@ class SessionFactsTest {
     private static final String SESSION_URL = "https://axonia.example/communities/frontend-guild/sessions/7";
     private static final Set<String> FACT_KEYS = Set.of("sessionTitle", "seriesTitle", "scheduledAt", "hasTime",
             "timeZone", "sessionUrl", "talks", "resources", "actionPoints", "checkedItems", "followUpNotes",
-            "recordingUrl", "attendeeCount", "nextSession", "sender", "nudgeArm", "openSlotCount", "backlogUrl");
+            "recordingUrl", "attendeeCount", "nextSession", "sender", "nudgeArm", "openSlotCount", "backlogUrl",
+            "feedbackClosesAt");
     private static final Set<String> TALK_KEYS = Set.of("title", "presenter", "presenters", "subjects",
             "durationMinutes", "resources");
 
@@ -704,6 +705,77 @@ class SessionFactsTest {
                 .doesNotContain("user-ada");
         assertThat(html).doesNotContain("What was checked");
         assertThat(text).doesNotContain("What was checked");
+        assertThat(facts).containsEntry("feedbackClosesAt", null);
+        assertThat(html).doesNotContain("How was it?").doesNotContain("Give feedback").doesNotContain("#feedback");
+        assertThat(text).doesNotContain("How was it?").doesNotContain("#feedback");
+    }
+
+    /**
+     * The feedback ask, bound to both halves. Its {@code th:if} sits on the wrapping block, never beside the
+     * {@code th:replace} of a shell row, so its absence above is real and its presence here names the deadline's day on
+     * the session's clock when no reader's clock travels with the facts.
+     */
+    @Test
+    void theWrapUpTemplateAsksHowItWasInBothHalvesWhileTheWindowIsOpen() {
+
+        // given
+        var facts = SessionFacts.of(SessionMother.aHeldSession().timeZone("Europe/Berlin").build(),
+                aContext().feedbackClosesAt(Instant.parse("2026-11-12T23:30:00Z")).build());
+
+        // when
+        var html = render("session-wrap-up.html", facts);
+        var text = render("session-wrap-up.txt", facts);
+
+        // then
+        assertThat(facts).containsEntry("feedbackClosesAt", Instant.parse("2026-11-12T23:30:00Z"));
+        assertThat(html).contains("How was it?").contains("Two taps, anonymous, open until 13 Nov")
+                .contains("href=\"" + SESSION_URL + "#feedback\"").contains("Give feedback");
+        assertThat(text).contains("How was it? Two taps, anonymous, open until 13 Nov: " + SESSION_URL + "#feedback");
+    }
+
+    /**
+     * The ask is a link beside a rising row of bars in the community's ink, never a second button: the message's one
+     * call to action stays "Open the session" at its foot.
+     */
+    @Test
+    void theWrapUpFeedbackAskIsALinkUnderARisingRowAndNotASecondButton() {
+
+        // given
+        var facts = SessionFacts.of(SessionMother.aHeldSession().build(),
+                aContext().feedbackClosesAt(Instant.parse("2026-11-12T23:30:00Z"))
+                        .community(new CommunityIdentity("backend-guild", "Backend Guild", "#0d9488")).communityId(7L)
+                        .build());
+        @SuppressWarnings("unchecked")
+        var ink = ((Map<String, String>) facts.get("sender")).get("tintForeground");
+
+        // when
+        var html = render("session-wrap-up.html", facts);
+
+        // then
+        assertThat(html).containsOnlyOnce(
+                "display:inline-block; background-color:#de3b78; color:#ffffff; text-decoration:none;");
+        assertThat(html).contains("Open the session").contains("<a href=\"" + SESSION_URL + "#feedback\"");
+        for (var height : List.of(4, 6, 8, 10, 12, 14)) {
+            assertThat(html).containsOnlyOnce("width:4px;height:" + height + "px;font-size:0;line-height:0;"
+                    + "border-radius:1px;background-color:" + ink + ";");
+        }
+    }
+
+    /** With no sender to take an ink from, the rising row wears the brand pink rather than no colour at all. */
+    @Test
+    void theWrapUpFeedbackMarkFallsBackToBrandPinkWithoutASender() {
+
+        // given
+        var facts = SessionFacts.of(SessionMother.aHeldSession().build(),
+                aContext().feedbackClosesAt(Instant.parse("2026-11-12T23:30:00Z")).build());
+
+        // when
+        var html = render("session-wrap-up.html", facts);
+
+        // then
+        assertThat(facts).containsEntry("sender", null);
+        assertThat(html).contains(
+                "width:4px;height:14px;font-size:0;line-height:0;border-radius:1px;" + "background-color:#de3b78;");
     }
 
     /**

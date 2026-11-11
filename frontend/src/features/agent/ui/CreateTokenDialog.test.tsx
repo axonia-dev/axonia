@@ -36,7 +36,9 @@ describe("CreateTokenDialog", () => {
 
     // then
     expect(
-      await screen.findByRole("switch", { name: "Create and shape sessions" }),
+      await screen.findByRole("switch", {
+        name: "Create and shape sessions, import earlier feedback",
+      }),
     ).toBeInTheDocument();
   });
 

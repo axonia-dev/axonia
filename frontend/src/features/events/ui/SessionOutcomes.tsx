@@ -1,6 +1,11 @@
 import type { Session } from "@/features/events/domain/session";
+import { FEEDBACK_ANCHOR_ID } from "@/features/events/domain/session-feedback";
 import { sessionPhase } from "@/features/events/domain/session-phase";
 import { SessionActionPoints } from "@/features/events/ui/SessionActionPoints";
+import {
+  SessionFeedback,
+  SessionFeedbackResult,
+} from "@/features/events/ui/SessionFeedback";
 import { SessionNote } from "@/features/events/ui/SessionNote";
 import { SessionToVerify } from "@/features/events/ui/SessionToVerify";
 import { SessionOrphanResources } from "@/features/knowledge/ui/SessionOrphanResources";
@@ -17,7 +22,8 @@ interface Props {
  * What this session must verify leads regardless of phase: a checkpoint consumes no agenda time
  * of its own, so an item carried here shows up whether the session is still ahead or already
  * held. A finished session is then visited for its record, not for its agenda, so the record
- * follows: what the session left behind in words, then what it raised, then what it produced.
+ * follows: the ask for how the hour felt, then what the session left behind in words and how it
+ * landed with the room, then what it raised, then what it produced.
  * That second block is gated on the phase rather than on the view's mode: gated on `capture`,
  * opening the session for editing took the action points off the page, which is content loss
  * dressed up as a mode change.
@@ -29,7 +35,15 @@ export function SessionOutcomes({ slug, session, canManage }: Readonly<Props>) {
       <SessionToVerify slug={slug} sessionId={session.id} />
       {held && (
         <div className="flex flex-col gap-3">
+          <section
+            id={FEEDBACK_ANCHOR_ID}
+            aria-label="Feedback"
+            className="scroll-mt-24 empty:hidden"
+          >
+            <SessionFeedback slug={slug} session={session} />
+          </section>
           <SessionNote session={session} />
+          <SessionFeedbackResult session={session} />
           <section
             id="session-outcomes"
             aria-label="Action points"

@@ -13,11 +13,13 @@ import lombok.Builder;
 @Builder(toBuilder = true)
 public record HealthSnapshot(String window, Instant generatedAt, StageDial stage, CurationDial curation,
         CadenceDial cadence, PeopleDial people, EngagementDial engagement, MembershipGrowthDial membershipGrowth,
-        CrossTeamReachDial reach, ReuseDial reuse, Series series, List<Instant> heldSessionDates, Diagnosis diagnosis) {
+        CrossTeamReachDial reach, ReuseDial reuse, LearningDial learning, Status payoff, Series series,
+        List<Instant> heldSessionDates, Diagnosis diagnosis) {
 
     public HealthSnapshot {
         heldSessionDates = heldSessionDates == null ? List.of() : List.copyOf(heldSessionDates);
         series = series == null ? Series.empty() : series;
+        learning = learning == null ? LearningDial.empty() : learning;
     }
 
     /**

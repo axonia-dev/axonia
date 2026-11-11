@@ -32,6 +32,12 @@ class DiagnosisEngineTest {
                 .status(StatusRules.payoff(0, saves, helped)).build();
     }
 
+    private static LearningDial learning(long answers, double enjoyed, double learned) {
+
+        return LearningDial.builder().enjoyed(enjoyed).learned(learned).enjoyedAnswers(answers).learnedAnswers(answers)
+                .sessions(2).status(StatusRules.learning(learned, answers)).build();
+    }
+
     /** A healthy baseline: six speakers sharing the stage, on rhythm, reused. Each test tweaks one axis. */
     private HealthSnapshot.HealthSnapshotBuilder healthy() {
 
@@ -209,5 +215,74 @@ class DiagnosisEngineTest {
 
         // then
         assertThat(actual).containsExactly(Finding.Kind.RISK, Finding.Kind.GAP, Finding.Kind.STRENGTH);
+    }
+
+    @Test
+    void learningLands_fromEightWithFiveAnswers() {
+
+        // when / then
+        assertThat(codes(healthy().learning(learning(5, 7.0, 8.0)).build())).containsExactly(
+                Finding.Code.WELL_DISTRIBUTED, Finding.Code.ON_RHYTHM, Finding.Code.KNOWLEDGE_REUSED,
+                Finding.Code.LEARNING_LANDS);
+        assertThat(codes(healthy().learning(learning(5, 7.0, 7.9)).build()))
+                .doesNotContain(Finding.Code.LEARNING_LANDS);
+        assertThat(codes(healthy().learning(learning(4, 7.0, 9.0)).build()))
+                .doesNotContain(Finding.Code.LEARNING_LANDS);
+    }
+
+    @Test
+    void enjoyedNotLearned_enjoyedFromSevenAndAHalfLearnedBelowSix() {
+
+        // when / then
+        assertThat(codes(healthy().learning(learning(5, 7.5, 5.9)).build())).contains(Finding.Code.ENJOYED_NOT_LEARNED);
+        assertThat(codes(healthy().learning(learning(5, 7.4, 5.9)).build()))
+                .doesNotContain(Finding.Code.ENJOYED_NOT_LEARNED);
+        assertThat(codes(healthy().learning(learning(5, 9.0, 6.0)).build()))
+                .doesNotContain(Finding.Code.ENJOYED_NOT_LEARNED);
+        assertThat(codes(healthy().learning(learning(4, 9.0, 3.0)).build()))
+                .doesNotContain(Finding.Code.ENJOYED_NOT_LEARNED);
+    }
+
+    @Test
+    void enjoyedNotLearned_needsFiveAnswersOfEachQuestion() {
+
+        // given five enjoyed answers but only four learned ones
+        var learning = LearningDial.builder().enjoyed(9.0).learned(3.0).enjoyedAnswers(5).learnedAnswers(4)
+                .status(StatusRules.learning(3.0, 4)).build();
+
+        // when
+        var actual = codes(healthy().learning(learning).build());
+
+        // then
+        assertThat(actual).doesNotContain(Finding.Code.ENJOYED_NOT_LEARNED);
+    }
+
+    @Test
+    void sessionsLandPoorly_enjoyedBelowFive() {
+
+        // when / then
+        assertThat(codes(healthy().learning(learning(5, 4.9, 7.0)).build()))
+                .contains(Finding.Code.SESSIONS_LAND_POORLY);
+        assertThat(codes(healthy().learning(learning(5, 5.0, 7.0)).build()))
+                .doesNotContain(Finding.Code.SESSIONS_LAND_POORLY);
+        assertThat(codes(healthy().learning(learning(4, 2.0, 7.0)).build()))
+                .doesNotContain(Finding.Code.SESSIONS_LAND_POORLY);
+    }
+
+    @Test
+    void learningGaps_followInterestWithoutPayoff() {
+
+        // given saves with no payoff, and sessions enjoyed but neither teaching nor landing
+        var both = LearningDial.builder().enjoyed(4.0).learned(2.0).enjoyedAnswers(5).learnedAnswers(5)
+                .status(StatusRules.learning(2.0, 5)).build();
+        var enjoyedNotLearned = learning(5, 8.0, 5.0);
+
+        // when / then
+        assertThat(codes(healthy().reuse(reuse(18, 0)).learning(enjoyedNotLearned).build())).containsExactly(
+                Finding.Code.INTEREST_WITHOUT_PAYOFF, Finding.Code.ENJOYED_NOT_LEARNED, Finding.Code.WELL_DISTRIBUTED,
+                Finding.Code.ON_RHYTHM);
+        assertThat(codes(healthy().reuse(reuse(18, 0)).learning(both).build())).containsExactly(
+                Finding.Code.INTEREST_WITHOUT_PAYOFF, Finding.Code.SESSIONS_LAND_POORLY, Finding.Code.WELL_DISTRIBUTED,
+                Finding.Code.ON_RHYTHM);
     }
 }

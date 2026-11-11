@@ -2,6 +2,7 @@ import { screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  learningFixture,
   snapshotFixture,
   troubledSnapshotFixture,
 } from "@/features/health/domain/snapshot-fixture";
@@ -67,6 +68,46 @@ describe("HealthView findings", () => {
 
     // then
     expectEveryFindingStatedOnce(quiet);
+  });
+
+  it("states every finding once for a room that answered", () => {
+    // given
+    const answered = snapshotFixture({
+      diagnosis: { findings: EVERY_FINDING },
+      learning: learningFixture,
+      payoff: { code: "LEARNING_A_LOT", level: "GREAT" },
+    });
+    mockLoaded(answered);
+
+    // when
+    renderHealthView();
+
+    // then
+    expectEveryFindingStatedOnce(answered);
+  });
+
+  it("files what the room said under paying off", () => {
+    // given
+    mockLoaded(
+      snapshotFixture({
+        diagnosis: { findings: EVERY_FINDING },
+        learning: { ...learningFixture, enjoyed: 4.6 },
+      }),
+    );
+
+    // when
+    const payoff = renderPanel("payoff");
+
+    // then
+    expect(
+      payoff.getByText("Attendees report learning a lot: 8.3 out of 10."),
+    ).toBeVisible();
+    expect(
+      payoff.getByText("Sessions are enjoyed more than they teach."),
+    ).toBeVisible();
+    expect(
+      payoff.getByText("Sessions are not landing: enjoyed 4.6 out of 10."),
+    ).toBeVisible();
   });
 
   it("files curation leaning on one person under who carries it", () => {

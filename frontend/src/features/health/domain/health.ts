@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { formatAverage } from "@/components/patterns/average-bars/format-average";
 import { healthStatusSchema } from "@/features/health/domain/status";
 import { plural } from "@/lib/plural";
 
@@ -70,6 +71,19 @@ export const healthSnapshotSchema = z.object({
     savesTrend: trendSchema,
     status: healthStatusSchema,
   }),
+  learning: z.object({
+    enjoyed: z.number().nullable(),
+    learned: z.number().nullable(),
+    answers: z.number(),
+    enjoyedAnswers: z.number(),
+    learnedAnswers: z.number(),
+    sessions: z.number(),
+    sessionsTooFew: z.number(),
+    previousEnjoyed: z.number().nullable(),
+    previousLearned: z.number().nullable(),
+    status: healthStatusSchema,
+  }),
+  payoff: healthStatusSchema,
   series: z.object({
     talks: z.array(z.number()),
     people: z.array(z.number()),
@@ -92,6 +106,9 @@ export const healthSnapshotSchema = z.object({
           "WELL_DISTRIBUTED",
           "ON_RHYTHM",
           "KNOWLEDGE_REUSED",
+          "LEARNING_LANDS",
+          "ENJOYED_NOT_LEARNED",
+          "SESSIONS_LAND_POORLY",
         ]),
       }),
     ),
@@ -133,6 +150,11 @@ const FINDING_TEXT: Record<FindingCode, (s: HealthSnapshot) => string> = {
     `${s.reuse.saves} saved, none confirmed helpful yet.`,
   KNOWLEDGE_REUSED: (s) =>
     `Knowledge is being reused: ${s.reuse.helped} confirmed it helped.`,
+  LEARNING_LANDS: (s) =>
+    `Attendees report learning a lot: ${formatAverage(s.learning.learned ?? 0)} out of 10.`,
+  ENJOYED_NOT_LEARNED: () => "Sessions are enjoyed more than they teach.",
+  SESSIONS_LAND_POORLY: (s) =>
+    `Sessions are not landing: enjoyed ${formatAverage(s.learning.enjoyed ?? 0)} out of 10.`,
 };
 
 export function findingText(

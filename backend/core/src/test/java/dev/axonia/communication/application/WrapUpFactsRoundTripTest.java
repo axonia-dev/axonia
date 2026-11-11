@@ -58,6 +58,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class WrapUpFactsRoundTripTest {
 
     private static final Instant SCHEDULED_AT = Instant.parse("2026-08-15T18:30:00Z");
+    private static final Instant FEEDBACK_CLOSES_AT = Instant.parse("2026-08-22T12:00:00Z");
 
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(JacksonAutoConfiguration.class));
@@ -86,6 +87,13 @@ class WrapUpFactsRoundTripTest {
                     .contains("Renew the certificate").contains("Carried").contains("Session notes")
                     .contains("Great session, lots of questions.").contains("Open the session").contains("12 September")
                     .contains("5 in the room");
+            // The feedback deadline, a second Instant, formatted as a day in both halves rather than left as ISO text.
+            assertThat(rehydrated.get("feedbackClosesAt")).isEqualTo(FEEDBACK_CLOSES_AT);
+            assertThat(rendered.html()).contains("Two taps, anonymous, open until 22 Aug")
+                    .contains("https://axonia.test/communities/frontend/sessions/42#feedback")
+                    .doesNotContain("2026-08-22T12:00:00Z");
+            assertThat(rendered.text()).contains(
+                    "How was it? Two taps, anonymous, open until 22 Aug: https://axonia.test/communities/frontend/sessions/42#feedback");
         });
     }
 
@@ -115,6 +123,6 @@ class WrapUpFactsRoundTripTest {
                 .seriesTitle("Frontend Dojo Series").nextSession("12 September")
                 .resourcesBySlotId(Map.of(10L, List.of(new ResourceLink("Slides", "https://example.test/slides.pdf"))))
                 .sessionResources(List.of(new ResourceLink("Session notes", "https://example.test/notes.pdf")))
-                .actionPoints(actionPoints).checkedItems(checkedItems).build();
+                .actionPoints(actionPoints).checkedItems(checkedItems).feedbackClosesAt(FEEDBACK_CLOSES_AT).build();
     }
 }

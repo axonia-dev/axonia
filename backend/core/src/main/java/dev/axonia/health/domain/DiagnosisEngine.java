@@ -11,6 +11,9 @@ public final class DiagnosisEngine {
 
     static final int CURATION_MIN_ACTS = 5;
     static final double CURATION_TOP_SHARE = 0.75;
+    static final double ENJOYED_A_LOT = 7.5;
+    static final double ENJOYED_NOT_LEARNED_LEARNED = 6.0;
+    static final double SESSIONS_LAND_POORLY_ENJOYED = 5.0;
 
     private DiagnosisEngine() {
     }
@@ -75,6 +78,12 @@ public final class DiagnosisEngine {
         if (s.reuse().saves() > 0 && s.reuse().helped() == 0) {
             out.add(new Finding(Kind.GAP, Code.INTEREST_WITHOUT_PAYOFF));
         }
+        if (isEnjoyedNotLearned(s.learning())) {
+            out.add(new Finding(Kind.GAP, Code.ENJOYED_NOT_LEARNED));
+        }
+        if (enjoyedIsRead(s.learning()) && s.learning().enjoyed() < SESSIONS_LAND_POORLY_ENJOYED) {
+            out.add(new Finding(Kind.GAP, Code.SESSIONS_LAND_POORLY));
+        }
         if (isNarrowReach(s)) {
             out.add(new Finding(Kind.GAP, Code.NARROW_REACH));
         }
@@ -84,6 +93,22 @@ public final class DiagnosisEngine {
 
         return s.engagement().loves() > 0 && s.stage().talks() == 0 && s.reuse().helped() == 0
                 && s.cadence().rhythm() != CadenceStatus.DORMANT;
+    }
+
+    private static boolean isEnjoyedNotLearned(LearningDial learning) {
+
+        return enjoyedIsRead(learning) && learnedIsRead(learning) && learning.enjoyed() >= ENJOYED_A_LOT
+                && learning.learned() < ENJOYED_NOT_LEARNED_LEARNED;
+    }
+
+    private static boolean enjoyedIsRead(LearningDial learning) {
+
+        return learning.enjoyedAnswers() >= StatusRules.MIN_FEEDBACK_ANSWERS;
+    }
+
+    private static boolean learnedIsRead(LearningDial learning) {
+
+        return learning.learnedAnswers() >= StatusRules.MIN_FEEDBACK_ANSWERS;
     }
 
     private static boolean isNarrowReach(HealthSnapshot s) {
@@ -103,6 +128,9 @@ public final class DiagnosisEngine {
         }
         if (s.reuse().helped() > 0) {
             out.add(new Finding(Kind.STRENGTH, Code.KNOWLEDGE_REUSED));
+        }
+        if (learnedIsRead(s.learning()) && s.learning().learned() >= StatusRules.LEARNING_A_LOT) {
+            out.add(new Finding(Kind.STRENGTH, Code.LEARNING_LANDS));
         }
     }
 }

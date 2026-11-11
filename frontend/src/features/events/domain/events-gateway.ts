@@ -15,6 +15,10 @@ import type { ScheduleEntry } from "@/features/events/domain/schedule";
 import type { SectionType } from "@/features/events/domain/section-type";
 import type { Cadence, Series } from "@/features/events/domain/series";
 import type { Session, SessionStatus } from "@/features/events/domain/session";
+import type {
+  FeedbackAnswer,
+  SessionFeedback,
+} from "@/features/events/domain/session-feedback";
 import type { SlotGateway } from "@/features/events/domain/slot-gateway";
 import type { TopicGateway } from "@/features/events/domain/topic-gateway";
 import type { Page } from "@/lib/page";
@@ -239,6 +243,12 @@ export interface EventsGateway extends SlotGateway, TopicGateway {
   ): Promise<Page<Attendance>>;
   signalGoing(sessionId: number): Promise<Attendance>;
   unsignalGoing(sessionId: number): Promise<void>;
+  getSessionFeedback(sessionId: number): Promise<SessionFeedback>;
+  /** Answers or replaces the caller's own answer while the window is open. */
+  giveSessionFeedback(
+    sessionId: number,
+    answer: FeedbackAnswer,
+  ): Promise<SessionFeedback>;
   listActionItems(
     slug: string,
     params: ActionItemListParams,

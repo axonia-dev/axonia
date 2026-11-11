@@ -24,10 +24,12 @@ import dev.axonia.events.application.port.out.CommunityAccess;
 import dev.axonia.events.application.port.out.SeriesStore;
 import dev.axonia.events.application.port.out.SessionStore;
 import dev.axonia.events.application.port.out.UserProfileAccess;
+import dev.axonia.events.application.port.out.WrapUpWindow;
 import dev.axonia.events.domain.ActionItemCheckpointRecord;
 import dev.axonia.events.domain.ActionItemRecord;
 import dev.axonia.events.domain.ActionPointSource;
 import dev.axonia.events.domain.CheckedItemSource;
+import dev.axonia.events.domain.FeedbackRules;
 import dev.axonia.events.domain.SeriesRecord;
 import dev.axonia.events.domain.SessionFacts;
 import dev.axonia.events.domain.SessionFactsContext;
@@ -61,6 +63,7 @@ public class SessionFactsAssembler {
     private final ActionItemStore actionItemStore;
     private final ActionItemCheckpointStore actionItemCheckpointStore;
     private final PublicUrls publicUrlProperties;
+    private final WrapUpWindow wrapUpWindow;
 
     /**
      * Facts for a notice that never mentions what follows this session - {@code SESSION_UPCOMING} and both arms of the
@@ -79,8 +82,9 @@ public class SessionFactsAssembler {
 
     /**
      * Facts for the wrap-up, which alone carries {@code nextSession} - the series' next occurrence after this one, when
-     * there is one - {@code actionPoints} (what this session raised) and {@code checkedItems} (what this session
-     * answered), resolved here because the wrap-up is the one message that renders them.
+     * there is one - {@code actionPoints} (what this session raised), {@code checkedItems} (what this session answered)
+     * and {@code feedbackClosesAt} (when its feedback window closes, only while it is open at {@code now}), resolved
+     * here because the wrap-up is the one message that renders them.
      */
     @Transactional(readOnly = true)
     public Map<String, Object> factsForWrapUp(String organizationId, SessionRecord entity, Instant now) {
@@ -91,7 +95,13 @@ public class SessionFactsAssembler {
         var checkedItems = checkedItems(organizationId, entity.getCommunityId(), entity.getId());
         return facts(FactsRequest.builder().organizationId(organizationId).entity(entity).series(series)
                 .nextSession(nextSessionLabel(organizationId, entity, series, now))
-                .actionPointEntities(actionPointEntities).checkedItems(checkedItems).build());
+                .actionPointEntities(actionPointEntities).checkedItems(checkedItems)
+                .feedbackClosesAt(openFeedbackClosesAt(entity, now)).build());
+    }
+
+    private Instant openFeedbackClosesAt(SessionRecord entity, Instant now) {
+
+        return FeedbackRules.closesAt(entity, wrapUpWindow.maxAge()).filter(now::isBefore).orElse(null);
     }
 
     /**
@@ -153,7 +163,8 @@ public class SessionFactsAssembler {
      */
     @Builder
     private record FactsRequest(String organizationId, SessionRecord entity, SeriesRecord series, String nextSession,
-            List<ActionItemRecord> actionPointEntities, List<CheckedItemSource> checkedItems, String nudgeArm) {
+            List<ActionItemRecord> actionPointEntities, List<CheckedItemSource> checkedItems, String nudgeArm,
+            Instant feedbackClosesAt) {
 
         private FactsRequest {
             actionPointEntities = actionPointEntities == null ? List.of() : actionPointEntities;
@@ -175,7 +186,7 @@ public class SessionFactsAssembler {
                 .actionPoints(actionPoints(request.actionPointEntities())).checkedItems(request.checkedItems())
                 .community(community).communityId(request.entity().getCommunityId()).nudgeArm(request.nudgeArm())
                 .backlogUrl(BACKLOG_URL_TEMPLATE.formatted(publicUrlProperties.publicBaseUrl(), community.slug()))
-                .build();
+                .feedbackClosesAt(request.feedbackClosesAt()).build();
         return SessionFacts.of(session, context);
     }
 

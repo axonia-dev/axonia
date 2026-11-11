@@ -5,7 +5,9 @@ Held [(${scheduledAtLabel})].[/]
 [# th:if="${talks} != null and not ${talks.isEmpty()}" th:with="talkCount=${talks.size()}"]
 [(${talkCount})] [# th:if="${talkCount} == 1"]talk[/][# th:unless="${talkCount} == 1"]talks[/].[/][# th:if="${attendeeCount} != null and ${attendeeCount} > 0"]
 [(${attendeeCount})] in the room.[/][# th:if="not ${#strings.isEmpty(recordingUrl)}"]
-Recording available: [(${recordingUrl})][/]
+Recording available: [(${recordingUrl})][/][# th:if="${feedbackClosesAt} != null" th:with="feedbackZone=${readerTimeZone} ?: (${timeZone} ?: 'UTC')"]
+
+How was it? Two taps, anonymous, open until [(${#temporals.format(feedbackClosesAt, 'd MMM', feedbackZone)})]: [(${sessionUrl})]#feedback[/]
 
 [# th:if="${talks} == null or ${talks.isEmpty()}"]
 No talks were recorded for this session.[/][# th:each="talk : ${talks}"]

@@ -64,6 +64,24 @@ describe("GlanceRow", () => {
     );
   });
 
+  it("reads library openings with the combined payoff, which learning can lift", () => {
+    // given
+    const snapshot = snapshotFixture({
+      payoff: { code: "LEARNING_A_LOT", level: "GREAT" },
+    });
+
+    // when
+    render(<GlanceRow snapshot={snapshot} />);
+
+    // then
+    const openings = tile("Library openings");
+    expect(openings.getByText("Learning a lot")).toHaveAttribute(
+      "data-level",
+      "GREAT",
+    );
+    expect(openings.queryByText("No payoff yet")).not.toBeInTheDocument();
+  });
+
   it("says all members when everybody involved is one", () => {
     // when
     render(<GlanceRow snapshot={troubledSnapshotFixture()} />);

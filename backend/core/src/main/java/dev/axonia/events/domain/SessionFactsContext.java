@@ -1,5 +1,6 @@
 package dev.axonia.events.domain;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -54,12 +55,16 @@ import lombok.Builder;
  * {@code backlogUrl} is the community's backlog page - the quiet second act the upcoming notice offers once its agenda
  * already has something on it. Built by the caller from the exact same community slug that {@code sessionUrl} is built
  * from, never resolved a second time.
+ *
+ * <p>
+ * {@code feedbackClosesAt} is set only by the wrap-up, and only while the session's feedback window is open when the
+ * wrap-up is assembled; absent, the wrap-up asks nothing.
  */
 @Builder
 public record SessionFactsContext(String sessionUrl, Map<String, String> displayNamesByUserId, String seriesTitle,
         String nextSession, Map<Long, List<ResourceLink>> resourcesBySlotId, List<ResourceLink> sessionResources,
         List<ActionPointSource> actionPoints, List<CheckedItemSource> checkedItems, CommunityIdentity community,
-        Long communityId, String nudgeArm, String backlogUrl) {
+        Long communityId, String nudgeArm, String backlogUrl, Instant feedbackClosesAt) {
 
     public SessionFactsContext {
         if (sessionUrl == null || sessionUrl.isBlank()) {

@@ -123,6 +123,28 @@ class EventsMemberDataEraserTest extends FootprintTestSupport {
         assertThat(counts.anonymised()).isEqualTo(2);
     }
 
+    @Test
+    void anonymisesFeedbackKeepingTheAnswersAndBumpingTheVersion() {
+
+        // given
+        var sessionId = seedSession(NEIGHBOUR, Instant.parse("2026-01-01T10:00:00Z"));
+        seedFeedback(TARGET, sessionId);
+        seedFeedback(NEIGHBOUR, sessionId);
+
+        // when
+        var counts = eraser.erase(MemberErasure.builder().organizationId(ORG).userId(TARGET).surrogateId(SURROGATE)
+                .erasedAt(ERASED_AT).build());
+
+        // then
+        assertThat(jdbc.queryForList("SELECT user_id FROM session_feedback WHERE session_id = :id",
+                Map.of("id", sessionId), String.class)).containsExactlyInAnyOrder(SURROGATE, NEIGHBOUR);
+        assertThat(jdbc.queryForMap(
+                "SELECT enjoyed, learned, version, updated_at FROM session_feedback " + "WHERE user_id = :user",
+                Map.of("user", SURROGATE))).containsEntry("enjoyed", 9).containsEntry("learned", 7)
+                .containsEntry("version", 1L).containsEntry("updated_at", Timestamp.from(ERASED_AT));
+        assertThat(counts.anonymised()).isEqualTo(1);
+    }
+
     /**
      * The {@code action_item} table's own assignee split: a closed item has nothing left to honour, so its assignment
      * becomes history like everything else, but an open one is still a live dispatch. {@code DROPPED} closes without
@@ -456,6 +478,14 @@ class EventsMemberDataEraserTest extends FootprintTestSupport {
     private void seedAttendance(String user, Long sessionId) {
 
         seedAttendance(ORG, user, sessionId);
+    }
+
+    private void seedFeedback(String user, Long sessionId) {
+
+        jdbc.update(
+                "INSERT INTO session_feedback (organization_id, session_id, user_id, enjoyed, learned, created_at, "
+                        + "updated_at, version) VALUES (:org, :sessionId, :user, 9, 7, now(), now(), 0)",
+                Map.of("org", ORG, "sessionId", sessionId, "user", user));
     }
 
     private String facilitatorOf(Long sessionId) {

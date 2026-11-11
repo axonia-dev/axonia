@@ -18,6 +18,9 @@ export const CHAPTER_OF: Record<FindingCode, Chapter> = {
   SOCIAL_CLUB_DRIFT: "alive",
   KNOWLEDGE_REUSED: "payoff",
   INTEREST_WITHOUT_PAYOFF: "payoff",
+  LEARNING_LANDS: "payoff",
+  ENJOYED_NOT_LEARNED: "payoff",
+  SESSIONS_LAND_POORLY: "payoff",
 };
 
 export function findingsFor(chapter: Chapter, findings: Finding[]): Finding[] {

@@ -121,6 +121,48 @@ class MomentLineTest {
         assertThat(MomentLine.compact(facts("Europe/Berlin", null))).isEqualTo("1 October 2026 at 18:00 in Berlin");
     }
 
+    /** 23:30Z on 12 November is already the 13th in Berlin and still the 12th in Los Angeles. */
+    @Test
+    void aDeadlineNamesItsDayOnTheReadersClock() {
+
+        // given
+        var facts = facts("America/Los_Angeles", "Europe/Berlin");
+        facts.put("feedbackClosesAt", Instant.parse("2026-11-12T23:30:00Z"));
+
+        // when
+        var day = MomentLine.shortDay(facts, "feedbackClosesAt");
+
+        // then
+        assertThat(day).isEqualTo("13 Nov");
+    }
+
+    @Test
+    void aDeadlineWithNoReaderNamesItsDayOnTheSessionsClock() {
+
+        // given
+        var facts = facts("America/Los_Angeles", null);
+        facts.put("feedbackClosesAt", Instant.parse("2026-11-12T23:30:00Z"));
+
+        // when
+        var day = MomentLine.shortDay(facts, "feedbackClosesAt");
+
+        // then
+        assertThat(day).isEqualTo("12 Nov");
+    }
+
+    @Test
+    void anAbsentDeadlineHasNoDay() {
+
+        // given
+        var facts = facts("Europe/Berlin", null);
+
+        // when
+        var day = MomentLine.shortDay(facts, "feedbackClosesAt");
+
+        // then
+        assertThat(day).isNull();
+    }
+
     private static Map<String, Object> facts(String sessionZone, String readerZone) {
 
         var facts = new HashMap<String, Object>();

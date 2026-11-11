@@ -56,6 +56,9 @@ const PAYOFF_SENTENCE: Partial<Record<StatusCode, string>> = {
   SAVED_NOT_CONFIRMED:
     "Library knowledge is being saved but has not paid off yet.",
   NO_PAYOFF_YET: "Library knowledge is being opened but has not paid off yet.",
+  LEARNING_A_LOT: "Attendees report *learning a lot*.",
+  LEARNING: "Attendees report *learning*.",
+  LITTLE_LEARNED: "Attendees report *little learned*.",
 };
 
 export interface SummaryPart {
@@ -70,14 +73,25 @@ function partsOf(marked: string): SummaryPart[] {
     .filter(({ text }) => text !== "");
 }
 
+/** The reuse reading, or what learning adds after it when reuse won the pill and the room spoke. */
+function payoffClause({ payoff, reuse, learning }: HealthSnapshot): string {
+  const lead =
+    PAYOFF_SENTENCE[payoff.code] ??
+    PAYOFF_SENTENCE[reuse.status.code] ??
+    "Nothing from the Library has been opened.";
+  const fromReuse = payoff.code !== learning.status.code;
+  const learned =
+    learning.status.level === "QUIET"
+      ? undefined
+      : PAYOFF_SENTENCE[learning.status.code];
+  return fromReuse && learned !== undefined ? `${lead} ${learned}` : lead;
+}
+
 /**
- * One or two sentences composed from the three statuses and their headline facts, with the phrases
- * a reader scans for emphasised. Deterministic, so the same snapshot always reads the same, and
+ * A few short sentences composed from the statuses and their headline facts, with the phrases a
+ * reader scans for emphasised. Deterministic, so the same snapshot always reads the same, and
  * never a score.
  */
 export function summaryOf(snapshot: HealthSnapshot): SummaryPart[] {
-  const payoff =
-    PAYOFF_SENTENCE[snapshot.reuse.status.code] ??
-    "Nothing from the Library has been opened.";
-  return partsOf(`${firstSentence(snapshot)} ${payoff}`);
+  return partsOf(`${firstSentence(snapshot)} ${payoffClause(snapshot)}`);
 }

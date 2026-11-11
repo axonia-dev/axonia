@@ -266,6 +266,17 @@ describe("GET /auth/login", () => {
     expect(opened?.returnTo).toBe("/me/profile");
   });
 
+  it("remembers the fragment of a returnTo, so a mail link to a page section lands on it", async () => {
+    const target = "/c/dojo/sessions/42#feedback";
+    const response = await call(
+      `https://app.example.com/auth/login?returnTo=${encodeURIComponent(target)}`,
+    );
+
+    const handoff = cookieNamed(response, OAUTH_COOKIE) ?? "";
+    const opened = await unseal<{ returnTo: string }>(valueOf(handoff), await sealingKey(KEY));
+    expect(opened?.returnTo).toBe(target);
+  });
+
   it.each(OFF_ORIGIN_RETURN_TOS)("refuses %j as a returnTo", async (raw) => {
     const response = await call(
       `https://app.example.com/auth/login?returnTo=${encodeURIComponent(raw)}`,
@@ -365,6 +376,17 @@ describe("GET /auth/callback", () => {
     );
 
     expect(response.headers.get("Location")).toBe("/me/profile");
+  });
+
+  it("returns the member to the page section the login started from", async () => {
+    const { cookie, state } = await startedLogin("?returnTo=%2Fc%2Fdojo%2Fsessions%2F42%23feedback");
+
+    const response = await call(
+      `https://app.example.com/auth/callback?code=the-code&state=${state}`,
+      { headers: { Cookie: cookie } },
+    );
+
+    expect(response.headers.get("Location")).toBe("/c/dojo/sessions/42#feedback");
   });
 
   it("clears the handoff cookie, so a verifier cannot be paired with a second code", async () => {

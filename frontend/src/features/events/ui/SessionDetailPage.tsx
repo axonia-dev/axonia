@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { SaveAction } from "@/features/bookmarks/ui/SaveAction";
 import { useCommunityCrumbs } from "@/features/community/ui/community-chrome";
 import { useSession } from "@/features/events/api/use-session";
+import { useFeedbackSectionShows } from "@/features/events/api/use-session-feedback";
 import { sectionAnchorId } from "@/features/events/domain/run-sheet";
 import type { Session } from "@/features/events/domain/session";
 import {
@@ -14,6 +15,7 @@ import {
   isSkipped,
   nextSessionMark,
 } from "@/features/events/domain/session";
+import { FEEDBACK_ANCHOR_ID } from "@/features/events/domain/session-feedback";
 import type { SessionPhase } from "@/features/events/domain/session-phase";
 import {
   sessionPhase,
@@ -47,10 +49,15 @@ function canToggleEditStructure(
 }
 
 /** The ids a scroll spy watches for this session. A session that has not loaded yet has none,
- *  rather than skipping the hook call the loading state below still has to reach. */
-function anchorIdsFor(session: Session | null): string[] {
+ *  rather than skipping the hook call the loading state below still has to reach. The feedback
+ *  section is watched only while it shows, since an empty one is hidden and never intersects. */
+function anchorIdsFor(
+  session: Session | null,
+  feedbackShows: boolean,
+): string[] {
   if (!session) return [];
   return [
+    ...(feedbackShows ? [FEEDBACK_ANCHOR_ID] : []),
     ...(sessionPhase(session) === "held"
       ? ["session-outcomes", "session-resources"]
       : []),
@@ -153,7 +160,8 @@ export function SessionDetailPage({ slug }: Readonly<{ slug: string }>) {
   useCommunityCrumbs(session ? [{ label: session.displayTitle }] : []);
   // Hooks run every render regardless of the loading/error returns below, so the ids a session
   // has not loaded yet resolve to none rather than skip a hook call.
-  const activeId = useScrollSpy(anchorIdsFor(session));
+  const feedbackShows = useFeedbackSectionShows(session);
+  const activeId = useScrollSpy(anchorIdsFor(session, feedbackShows));
   // The page states what the session is doing right now, so it turns over on the session's own
   // clock rather than on a reload: "starting soon" stops the moment it starts, and "running now"
   // the moment it finishes, which is also when the close question is finally owed.
@@ -209,7 +217,12 @@ export function SessionDetailPage({ slug }: Readonly<{ slug: string }>) {
         headerActions={headerActions}
         rail={
           showRail ? (
-            <SessionRail session={session} phase={phase} activeId={activeId} />
+            <SessionRail
+              session={session}
+              phase={phase}
+              activeId={activeId}
+              feedbackShows={feedbackShows}
+            />
           ) : null
         }
         {...(renderSessionActions

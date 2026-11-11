@@ -62,6 +62,19 @@ const raw = {
     savesTrend: { previous: 0, direction: "FLAT" },
     status: { code: "NO_PAYOFF_YET", level: "QUIET" },
   },
+  learning: {
+    enjoyed: 4.6,
+    learned: 8.3,
+    answers: 43,
+    enjoyedAnswers: 42,
+    learnedAnswers: 41,
+    sessions: 6,
+    sessionsTooFew: 1,
+    previousEnjoyed: null,
+    previousLearned: 7.6,
+    status: { code: "LEARNING_A_LOT", level: "GREAT" },
+  },
+  payoff: { code: "LEARNING_A_LOT", level: "GREAT" },
   series: {
     talks: [0, 5, 0, 0, 0, 0, 4, 0, 0, 0, 4, 0],
     people: [2, 8, 3, 2, 1, 2, 7, 3, 2, 4, 6, 5],
@@ -91,6 +104,9 @@ describe("healthSnapshotSchema", () => {
     expect(actual.people.members).toBe(2);
     expect(actual.series.talks).toHaveLength(12);
     expect(actual.diagnosis.findings[0]?.code).toBe("CURATION_LEANS_ON_ONE");
+    expect(actual.learning.learned).toBeCloseTo(8.3);
+    expect(actual.learning.previousEnjoyed).toBeNull();
+    expect(actual.payoff).toEqual({ code: "LEARNING_A_LOT", level: "GREAT" });
   });
 
   it("accepts no median gap, no next session and no session ever held", () => {
@@ -162,6 +178,12 @@ describe("findingText", () => {
     ["ON_RHYTHM", "Sessions keep a steady rhythm."],
     ["INTEREST_WITHOUT_PAYOFF", "0 saved, none confirmed helpful yet."],
     ["KNOWLEDGE_REUSED", "Knowledge is being reused: 0 confirmed it helped."],
+    ["LEARNING_LANDS", "Attendees report learning a lot: 8.3 out of 10."],
+    ["ENJOYED_NOT_LEARNED", "Sessions are enjoyed more than they teach."],
+    [
+      "SESSIONS_LAND_POORLY",
+      "Sessions are not landing: enjoyed 4.6 out of 10.",
+    ],
   ])("phrases %s", (code, text) => {
     // when
     const actual = findingText(code, snapshot);

@@ -64,6 +64,10 @@ public final class OpenSeed {
                 "INSERT INTO session_attendance (organization_id, session_id, user_id, created_at, updated_at, "
                         + "version) VALUES (:org, :sessionId, 'layer3-user', now(), now(), 0)",
                 Map.of("org", ORG, "sessionId", sessionId));
+        jdbc.update(
+                "INSERT INTO session_feedback (organization_id, session_id, user_id, enjoyed, learned, created_at, "
+                        + "updated_at, version) VALUES (:org, :sessionId, 'layer3-user', 9, 7, now(), now(), 0)",
+                Map.of("org", ORG, "sessionId", sessionId));
         jdbc.update("INSERT INTO event_slot_presenter (slot_id, user_id) VALUES (:slotId, 'layer3-user')",
                 Map.of("slotId", slotId));
         jdbc.update("INSERT INTO topic_speaker (topic_id, user_id) VALUES (:topicId, 'layer3-user')",

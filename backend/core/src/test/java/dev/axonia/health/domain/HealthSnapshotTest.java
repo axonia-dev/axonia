@@ -42,4 +42,28 @@ class HealthSnapshotTest {
 
         assertThat(stage.distribution()).isEmpty();
     }
+
+    @Test
+    void learning_isTheEmptyDialWhenNoneWasAssembled() {
+
+        // when
+        var snapshot = HealthSnapshot.builder().window("90d").build();
+
+        // then
+        assertThat(snapshot.learning()).isEqualTo(LearningDial.empty());
+    }
+
+    @Test
+    void learning_isKeptAsGiven() {
+
+        // given
+        var learning = LearningDial.builder().learned(8.1).learnedAnswers(6)
+                .status(Status.of(StatusCode.LEARNING_A_LOT)).build();
+
+        // when
+        var snapshot = HealthSnapshot.builder().window("90d").learning(learning).build();
+
+        // then
+        assertThat(snapshot.learning()).isEqualTo(learning);
+    }
 }

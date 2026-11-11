@@ -185,6 +185,10 @@ public final class ErasureSweepFixtures {
                 "INSERT INTO session_attendance (organization_id, session_id, user_id, created_at, updated_at, "
                         + "version) VALUES (:org, :sessionId, :user, now(), now(), 0)",
                 Map.of("org", organizationId, "sessionId", pastSessionId, "user", userId));
+        jdbc.update(
+                "INSERT INTO session_feedback (organization_id, session_id, user_id, enjoyed, learned, created_at, "
+                        + "updated_at, version) VALUES (:org, :sessionId, :user, 9, 7, now(), now(), 0)",
+                Map.of("org", organizationId, "sessionId", pastSessionId, "user", userId));
 
         // events: an action item still open (assignee cleared) and one already answered (assignee anonymised as
         // history, exactly like a DONE topic); raised_by is anonymised on both regardless of outcome, and the

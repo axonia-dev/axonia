@@ -13,6 +13,10 @@ vi.mock("@/features/events/ui/SessionToVerify", () => ({
 vi.mock("@/features/knowledge/ui/SessionOrphanResources", () => ({
   SessionOrphanResources: () => <p>resources</p>,
 }));
+vi.mock("@/features/events/ui/SessionFeedback", () => ({
+  SessionFeedback: () => <p>feedback</p>,
+  SessionFeedbackResult: () => <p>how it landed</p>,
+}));
 
 const held = aScheduledSession({
   status: "HELD",
@@ -28,6 +32,23 @@ describe("SessionOutcomes", () => {
     expect(points.compareDocumentPosition(resources)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     );
+  });
+
+  it("leads a held session with its feedback, ahead of the note", () => {
+    render(
+      <SessionOutcomes
+        slug="dojo"
+        session={{ ...held, notes: "The p95 numbers landed." }}
+        canManage
+      />,
+    );
+    const feedback = screen.getByText("feedback");
+    expect(feedback.closest("section")).toHaveAttribute("id", "feedback");
+    expect(
+      feedback.compareDocumentPosition(
+        screen.getByText("The p95 numbers landed."),
+      ),
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
 
   it("says nothing on a session that has not happened yet", () => {
@@ -63,6 +84,29 @@ describe("SessionOutcomes", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it("tells how it landed beneath the note, outside the feedback section", () => {
+    // when
+    render(
+      <SessionOutcomes
+        slug="dojo"
+        session={{ ...held, notes: "The p95 numbers landed." }}
+        canManage
+      />,
+    );
+
+    // then
+    const landed = screen.getByText("how it landed");
+    expect(landed.closest("#feedback")).toBeNull();
+    expect(
+      screen
+        .getByText("The p95 numbers landed.")
+        .compareDocumentPosition(landed),
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(
+      landed.compareDocumentPosition(screen.getByText("action points")),
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+
   it("quotes the note ahead of the action points", () => {
     render(
       <SessionOutcomes
@@ -86,6 +130,6 @@ describe("SessionOutcomes", () => {
         canManage
       />,
     );
-    expect(container.firstElementChild?.childElementCount).toBe(2);
+    expect(container.firstElementChild?.childElementCount).toBe(4);
   });
 });

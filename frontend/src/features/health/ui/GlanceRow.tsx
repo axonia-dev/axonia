@@ -20,7 +20,7 @@ function membersLine({
 export function GlanceRow({
   snapshot,
 }: Readonly<{ snapshot: HealthSnapshot }>) {
-  const { cadence, stage, people, reuse } = snapshot;
+  const { cadence, stage, people, reuse, payoff } = snapshot;
   const members = membersLine(people);
   return (
     <div className="grid grid-cols-2 gap-3.5 md:grid-cols-4">
@@ -46,7 +46,7 @@ export function GlanceRow({
         value={reuse.opened}
         trend={reuse.openingsTrend}
       >
-        <StatusPill status={reuse.status} />
+        <StatusPill status={payoff} />
       </StatTile>
     </div>
   );

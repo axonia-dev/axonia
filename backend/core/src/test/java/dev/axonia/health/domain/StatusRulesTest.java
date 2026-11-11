@@ -197,4 +197,91 @@ class StatusRulesTest {
         // then
         assertThat(actual).isEqualTo(new Status(StatusCode.NOTHING_OPENED, StatusLevel.QUIET));
     }
+
+    @Test
+    void learning_tooFewBelowFiveAnswers() {
+
+        // when / then
+        assertThat(StatusRules.learning(9.0, 4)).isEqualTo(new Status(StatusCode.LEARNING_TOO_FEW, StatusLevel.QUIET));
+        assertThat(StatusRules.learning(null, 0)).isEqualTo(new Status(StatusCode.LEARNING_TOO_FEW, StatusLevel.QUIET));
+    }
+
+    @Test
+    void learning_aLotFromEight() {
+
+        // when
+        var actual = StatusRules.learning(8.0, 5);
+
+        // then
+        assertThat(actual).isEqualTo(new Status(StatusCode.LEARNING_A_LOT, StatusLevel.GREAT));
+    }
+
+    @Test
+    void learning_learningFromSixAndAHalf() {
+
+        // when / then
+        assertThat(StatusRules.learning(7.99, 5)).isEqualTo(new Status(StatusCode.LEARNING, StatusLevel.GOOD));
+        assertThat(StatusRules.learning(6.5, 5)).isEqualTo(new Status(StatusCode.LEARNING, StatusLevel.GOOD));
+    }
+
+    @Test
+    void learning_littleLearnedBelowSixAndAHalf() {
+
+        // when
+        var actual = StatusRules.learning(6.49, 5);
+
+        // then
+        assertThat(actual).isEqualTo(new Status(StatusCode.LITTLE_LEARNED, StatusLevel.WATCH));
+    }
+
+    @Test
+    void payoff_takesTheStronger() {
+
+        // given
+        var reuse = Status.of(StatusCode.SAVED_NOT_CONFIRMED);
+        var learning = Status.of(StatusCode.LEARNING_A_LOT);
+
+        // when / then
+        assertThat(StatusRules.payoff(reuse, learning)).isEqualTo(learning);
+        assertThat(StatusRules.payoff(Status.of(StatusCode.PAYING_OFF), Status.of(StatusCode.LEARNING)))
+                .isEqualTo(Status.of(StatusCode.PAYING_OFF));
+    }
+
+    @Test
+    void payoff_tieKeepsReuse() {
+
+        // given
+        var reuse = Status.of(StatusCode.STARTING_TO_PAY_OFF);
+
+        // when
+        var actual = StatusRules.payoff(reuse, Status.of(StatusCode.LEARNING));
+
+        // then
+        assertThat(actual).isEqualTo(reuse);
+    }
+
+    @Test
+    void payoff_watchBeatsQuiet() {
+
+        // given
+        var learning = Status.of(StatusCode.LITTLE_LEARNED);
+
+        // when / then
+        assertThat(StatusRules.payoff(Status.of(StatusCode.NOTHING_OPENED), learning)).isEqualTo(learning);
+        assertThat(
+                StatusRules.payoff(Status.of(StatusCode.SAVED_NOT_CONFIRMED), Status.of(StatusCode.LEARNING_TOO_FEW)))
+                .isEqualTo(Status.of(StatusCode.SAVED_NOT_CONFIRMED));
+    }
+
+    @Test
+    void payoff_worryReadsAboveQuietAndBelowWatch() {
+
+        // given
+        var worry = Status.of(StatusCode.STALLED);
+
+        // when / then
+        assertThat(StatusRules.payoff(worry, Status.of(StatusCode.LEARNING_TOO_FEW))).isEqualTo(worry);
+        assertThat(StatusRules.payoff(worry, Status.of(StatusCode.LITTLE_LEARNED)))
+                .isEqualTo(Status.of(StatusCode.LITTLE_LEARNED));
+    }
 }

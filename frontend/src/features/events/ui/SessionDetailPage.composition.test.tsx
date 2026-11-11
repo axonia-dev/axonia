@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -6,6 +6,7 @@ import {
   useMessagePreview,
   useSession,
 } from "@/features/events/api/use-session";
+import { useFeedbackSectionShows } from "@/features/events/api/use-session-feedback";
 import type { Session } from "@/features/events/domain/session";
 import { SessionDetailPage } from "@/features/events/ui/SessionDetailPage";
 import { useEventActions } from "@/features/events/ui/useEventActions";
@@ -19,6 +20,9 @@ vi.mock("@/features/events/api/use-session", () => ({
   useSession: vi.fn(),
   useSetUpcomingRelease: vi.fn(),
   useMessagePreview: vi.fn(),
+}));
+vi.mock("@/features/events/api/use-session-feedback", () => ({
+  useFeedbackSectionShows: vi.fn(() => false),
 }));
 vi.mock("@/features/events/ui/useEventActions", () => ({
   useEventActions: vi.fn(),
@@ -43,6 +47,10 @@ vi.mock("@/features/knowledge/ui/SessionOrphanResources", () => ({
 }));
 vi.mock("@/features/events/ui/SessionToVerify", () => ({
   SessionToVerify: () => null,
+}));
+vi.mock("@/features/events/ui/SessionFeedback", () => ({
+  SessionFeedback: () => null,
+  SessionFeedbackResult: () => null,
 }));
 vi.mock("@/features/events/ui/SessionActionPoints", () => ({
   SessionActionPoints: () => <button type="button">+ Action point</button>,
@@ -117,6 +125,7 @@ function cancelledSession() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(useFeedbackSectionShows).mockReturnValue(false);
 });
 
 describe("composition by phase", () => {
@@ -170,5 +179,21 @@ describe("composition by phase", () => {
     expect(
       await screen.findByRole("navigation", { name: "This session" }),
     ).toBeInTheDocument();
+  });
+
+  it("names the feedback on the rail only while its section shows", async () => {
+    // given
+    vi.mocked(useFeedbackSectionShows).mockReturnValue(true);
+
+    // when
+    renderPage(heldSession({ sectionCount: 4 }));
+
+    // then
+    const rail = await screen.findByRole("navigation", {
+      name: "This session",
+    });
+    expect(
+      within(rail).getByRole("link", { name: "Feedback" }),
+    ).toHaveAttribute("href", "#feedback");
   });
 });

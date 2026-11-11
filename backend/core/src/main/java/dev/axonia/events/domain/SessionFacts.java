@@ -75,6 +75,7 @@ public final class SessionFacts {
         facts.put("nextSession", blankToNull(context.nextSession()));
         facts.put("sender", sender(context));
         facts.put("nudgeArm", blankToNull(context.nudgeArm()));
+        facts.put("feedbackClosesAt", context.feedbackClosesAt());
         return Collections.unmodifiableMap(facts);
     }
 

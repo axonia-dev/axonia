@@ -30,6 +30,7 @@ public class CommunityCapabilityService implements dev.axonia.community.api.Comm
         return holds(communityId, userId, CommunityRecord::isCanCurateTags);
     }
 
+    @Override
     @Transactional(readOnly = true)
     public boolean canViewHealth(long communityId, String userId) {
 

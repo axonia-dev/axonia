@@ -18,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import dev.axonia.health.api.BucketCredit;
 import dev.axonia.health.api.BucketTalks;
 import dev.axonia.health.api.Buckets;
+import dev.axonia.health.api.FeedbackAverages;
 import dev.axonia.health.api.OpeningCounts;
 import dev.axonia.health.api.OrgUnitLabels;
 import dev.axonia.health.api.ReuseCounts;
@@ -35,6 +36,7 @@ import dev.axonia.health.application.port.out.OrganizationContext;
 import dev.axonia.health.domain.CadenceStatus;
 import dev.axonia.health.domain.Finding;
 import dev.axonia.health.domain.HealthSnapshot;
+import dev.axonia.health.domain.LearningDial;
 import dev.axonia.health.domain.Status;
 import dev.axonia.health.domain.StatusCode;
 import dev.axonia.health.domain.Trend;
@@ -135,6 +137,8 @@ class HealthServiceTest {
         lenient().when(directorySignals.unitsOf(eq("default"), any())).thenReturn(Map.of());
         lenient().when(reuseSignals.reuseCounts(anyLong(), any(), any())).thenReturn(new ReuseCounts(0, 0, 0, 0));
         lenient().when(openingSignals.openingCounts(anyLong(), any(), any())).thenReturn(new OpeningCounts(0, 0));
+        lenient().when(eventsSignals.feedbackAverages(anyLong(), any(), any(), any()))
+                .thenReturn(FeedbackAverages.NONE);
         lenient().when(eventsSignals.talkCreditsPerBucket(anyLong(), any(), any(), eq(Buckets.COUNT)))
                 .thenReturn(List.of());
         lenient().when(eventsSignals.topicCreditsPerBucket(anyLong(), any(), any(), eq(Buckets.COUNT)))
@@ -209,7 +213,7 @@ class HealthServiceTest {
                         .reuse(HealthSnapshot.ReuseDial.builder().opened(4).artifactsOpened(2)
                                 .openingsTrend(Trend.of(4, 2)).saves(2).artifactsSaved(1).helped(0).notHelped(0)
                                 .savesTrend(Trend.of(2, 0)).status(Status.of(StatusCode.SAVED_NOT_CONFIRMED)).build())
-                        .build());
+                        .learning(LearningDial.empty()).payoff(Status.of(StatusCode.SAVED_NOT_CONFIRMED)).build());
         assertThat(actual.diagnosis().findings()).extracting(Finding::code).containsExactly(Finding.Code.OVER_RELIANCE,
                 Finding.Code.CURATION_LEANS_ON_ONE, Finding.Code.INTEREST_WITHOUT_PAYOFF, Finding.Code.ON_RHYTHM);
     }
@@ -517,5 +521,42 @@ class HealthServiceTest {
         assertThat(actual.reuse().openingsTrend()).isEqualTo(Trend.of(40L, 31L));
         assertThat(actual.reuse().savesTrend()).isEqualTo(Trend.of(0L, 0L));
         assertThat(actual.reuse().status()).isEqualTo(Status.of(StatusCode.NO_PAYOFF_YET));
+    }
+
+    @Test
+    void snapshot_readsLearningFromTheCurrentAndPreviousWindowRevealedAsOfNow() {
+
+        // given
+        givenAViewableCommunity();
+        when(eventsSignals.feedbackAverages(1L, FROM, NOW, NOW))
+                .thenReturn(new FeedbackAverages(7, 6, 49.8, 6, 51, 2, 1));
+        when(eventsSignals.feedbackAverages(1L, PREVIOUS_FROM, FROM, NOW))
+                .thenReturn(new FeedbackAverages(6, 5, 40, 4, 30, 1, 0));
+
+        // when
+        var actual = sut().snapshot("backend-guild", 90);
+
+        // then nothing was opened, so the pill reads learning
+        assertThat(actual.learning()).isEqualTo(LearningDial.builder().enjoyed(8.3).learned(8.5).answers(7)
+                .enjoyedAnswers(6).learnedAnswers(6).sessions(2).sessionsTooFew(1).previousEnjoyed(8.0)
+                .previousLearned(7.5).status(Status.of(StatusCode.LEARNING_A_LOT)).build());
+        assertThat(actual.reuse().status()).isEqualTo(Status.of(StatusCode.NOTHING_OPENED));
+        assertThat(actual.payoff()).isEqualTo(Status.of(StatusCode.LEARNING_A_LOT));
+        assertThat(actual.diagnosis().findings()).extracting(Finding::code).contains(Finding.Code.LEARNING_LANDS);
+    }
+
+    @Test
+    void snapshot_payoffKeepsReuseWhenLearningIsQuiet() {
+
+        // given
+        givenAViewableCommunity();
+        when(reuseSignals.reuseCounts(1L, FROM, NOW)).thenReturn(new ReuseCounts(0, 0, 3, 0));
+
+        // when
+        var actual = sut().snapshot("backend-guild", 90);
+
+        // then
+        assertThat(actual.learning().status()).isEqualTo(Status.of(StatusCode.LEARNING_TOO_FEW));
+        assertThat(actual.payoff()).isEqualTo(Status.of(StatusCode.PAYING_OFF));
     }
 }

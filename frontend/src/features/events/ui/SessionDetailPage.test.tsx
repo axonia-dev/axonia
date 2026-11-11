@@ -21,6 +21,9 @@ vi.mock("@/features/events/api/use-session", () => ({
   useSetUpcomingRelease: vi.fn(),
   useMessagePreview: vi.fn(),
 }));
+vi.mock("@/features/events/api/use-session-feedback", () => ({
+  useFeedbackSectionShows: vi.fn(() => false),
+}));
 vi.mock("@/features/events/ui/useEventActions", () => ({
   useEventActions: vi.fn(),
 }));
