@@ -57,6 +57,41 @@ class LearningMemberDataEraserTest extends FootprintTestSupport {
         assertThat(count(OTHER_ORG, ALICE)).isEqualTo(1);
     }
 
+    @Test
+    void erasingADeclarerForgetsTheExpiredNoticesAboutThem() {
+
+        // given - two expired notices about alice, one about bob, one of another type ending like alice's
+        seedExpired(ORG, "open_to_questions", "7:kafka:" + ALICE);
+        seedExpired(ORG, "open_to_questions", "8:rust:" + ALICE);
+        seedExpired(ORG, "open_to_questions", "7:kafka:" + BOB);
+        seedExpired(ORG, "open_to_questions", "7:kafka:x" + ALICE);
+        seedExpired(ORG, "session_wrap_up", "7:kafka:" + ALICE);
+        seedExpired(OTHER_ORG, "open_to_questions", "7:kafka:" + ALICE);
+
+        // when
+        var counts = eraser.erase(erasureOf(ALICE));
+
+        // then
+        assertThat(counts).isEqualTo(new ErasureCounts(2, 0, 0, 0));
+        assertThat(expiredSubjects(ORG)).containsExactlyInAnyOrder("open_to_questions 7:kafka:" + BOB,
+                "open_to_questions 7:kafka:x" + ALICE, "session_wrap_up 7:kafka:" + ALICE);
+        assertThat(expiredSubjects(OTHER_ORG)).containsExactly("open_to_questions 7:kafka:" + ALICE);
+    }
+
+    private void seedExpired(String org, String type, String subjectRef) {
+
+        jdbc.update("INSERT INTO communication_expired_message (organization_id, message_type, subject_ref, "
+                + "pending_count, sent_count, suppressed_count, unreachable_count, abandoned_count, expired_at) "
+                + "VALUES (:org, :type, :subject, 0, 1, 0, 0, 0, now())",
+                Map.of("org", org, "type", type, "subject", subjectRef));
+    }
+
+    private java.util.List<String> expiredSubjects(String org) {
+
+        return jdbc.queryForList("SELECT message_type || ' ' || subject_ref FROM communication_expired_message "
+                + "WHERE organization_id = :org", Map.of("org", org), String.class);
+    }
+
     private static MemberErasure erasureOf(String userId) {
 
         return MemberErasure.builder().organizationId(ORG).userId(userId).surrogateId("erased:test-surrogate")

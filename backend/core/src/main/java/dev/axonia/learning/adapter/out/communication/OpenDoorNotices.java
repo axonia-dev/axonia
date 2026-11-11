@@ -34,12 +34,18 @@ public class OpenDoorNotices implements LearnerNotices {
     public void notify(OpenDoorNotice notice) {
 
         communication.enqueue(OutboundMessage.builder().type(TYPE)
-                .subjectRef(notice.communityId() + ":" + notice.area() + ":" + notice.declarerId())
+                .subjectRef(notice.communityId() + ":" + notice.area() + aboutSuffix(notice.declarerId()))
                 .recipientUserIds(notice.learnerIds()).template(TEMPLATE).inAppOnly(true)
                 .facts(Map.of("sessionTitle", notice.declarerName() + " is now open to questions on " + notice.area(),
                         "communityName", notice.communityName(), "searchUrl", searchUrl(notice), "aboutUserId",
                         notice.declarerId()))
                 .build());
+    }
+
+    /** How every notice's subject about the declarer ends, so their erasure can find them all. */
+    public static String aboutSuffix(String declarerId) {
+
+        return ":" + declarerId;
     }
 
     private String searchUrl(OpenDoorNotice notice) {
