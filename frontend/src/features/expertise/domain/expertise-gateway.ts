@@ -4,6 +4,7 @@ import type {
   ExpertiseArea,
   MapContributions,
   MergeSuggestion,
+  OpenArea,
   Practitioner,
   SelfView,
   SourceType,
@@ -31,6 +32,8 @@ export interface ExpertiseGateway {
   /** Every visible contribution the community can show on its map, capped and enriched. */
   mapContributions(slug: string): Promise<MapContributions>;
   suggestions(slug: string, tags: string[]): Promise<Practitioner[]>;
+  /** Every area someone is open to questions on in the community, newest declaration first. */
+  openDoors(slug: string): Promise<OpenArea[]>;
   selfView(): Promise<SelfView>;
   /** The same self view read from one community's signals and declarations alone. */
   selfViewIn(slug: string): Promise<SelfView>;

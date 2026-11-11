@@ -7,6 +7,8 @@ export const expertiseKeys = {
     [...expertiseKeys.community(slug), "search", params] as const,
   areas: (slug: string, search?: string) =>
     [...expertiseKeys.community(slug), "areas", search] as const,
+  openDoors: (slug: string) =>
+    [...expertiseKeys.community(slug), "open"] as const,
   map: (slug: string) => [...expertiseKeys.community(slug), "map"] as const,
   mapContributions: (slug: string) =>
     [...expertiseKeys.map(slug), "contributions"] as const,

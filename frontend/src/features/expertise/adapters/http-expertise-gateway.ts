@@ -6,6 +6,7 @@ import {
   expertiseAreaSchema,
   mapContributionsSchema,
   mergeSuggestionSchema,
+  openAreaSchema,
   practitionerSchema,
   selfViewSchema,
   tagUsageSchema,
@@ -24,6 +25,7 @@ const practitionerListSchema = z.array(practitionerSchema);
 const expertiseAreaListSchema = z.array(expertiseAreaSchema);
 const mergeSuggestionListSchema = z.array(mergeSuggestionSchema);
 const namedAreaListSchema = z.array(namedAreaSchema);
+const openAreaListSchema = z.array(openAreaSchema);
 
 function namedAreasPath(slug: string): string {
   return `/axonia/communities/${slug}/expertise/curation/named-areas`;
@@ -69,6 +71,13 @@ export const httpExpertiseGateway: ExpertiseGateway = {
       `/axonia/communities/${slug}/expertise/map`,
     );
     return topicMapSchema.parse(data);
+  },
+
+  async openDoors(slug: string) {
+    const data = await apiFetch<unknown>(
+      `/axonia/communities/${slug}/expertise/open`,
+    );
+    return openAreaListSchema.parse(data);
   },
 
   async mapContributions(slug: string) {

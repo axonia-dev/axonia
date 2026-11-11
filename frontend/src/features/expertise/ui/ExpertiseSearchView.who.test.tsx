@@ -27,6 +27,14 @@ vi.mock("@/features/expertise/ui/PractitionerList", () => ({
   ),
 }));
 
+vi.mock("@/features/expertise/ui/OpenDoorsShelf", () => ({
+  OpenDoorsShelf: ({ onOpen }: { onOpen: (tag: string) => void }) => (
+    <button type="button" onClick={() => onOpen("kafka")}>
+      open kafka
+    </button>
+  ),
+}));
+
 vi.mock("@/features/learning/ui/LearnersBridge", () => ({
   LearnersBridge: () => null,
 }));
@@ -146,5 +154,28 @@ describe("ExpertiseSearchView narrowing", () => {
       .getAllByRole("radio")
       .map((radio) => radio.textContent);
     expect(names).toEqual(["Anyone5", "Practised2", "Open to questions3"]);
+  });
+
+  it("openingACardAsksAboutTheAreaWithWhoOpen", async () => {
+    // given
+    renderView("eng", "?term=redis");
+
+    // when
+    await user.click(screen.getByRole("button", { name: "open kafka" }));
+
+    // then
+    expect(mockSearch).toHaveBeenLastCalledWith(
+      "eng",
+      expect.objectContaining({ term: "kafka", demonstratedOnly: false }),
+    );
+    expect(
+      screen.getByRole("radio", { name: /^Open to questions/ }),
+    ).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("searchbox", { name: /who knows/i })).toHaveValue(
+      "kafka",
+    );
+    await waitFor(() =>
+      expect(location().textContent).toBe("?term=kafka&who=open"),
+    );
   });
 });

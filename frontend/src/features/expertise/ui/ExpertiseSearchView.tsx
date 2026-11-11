@@ -5,6 +5,7 @@ import { SearchField } from "@/components/ui/SearchField";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { useExpertiseSearch } from "@/features/expertise/api/use-expertise-search";
 import { CommunityKnows } from "@/features/expertise/ui/CommunityKnows";
+import { OpenDoorsShelf } from "@/features/expertise/ui/OpenDoorsShelf";
 import { PractitionerList } from "@/features/expertise/ui/PractitionerList";
 import {
   countsByWho,
@@ -84,10 +85,10 @@ export function ExpertiseSearchView() {
   // lists as many people as the count on the tag just tapped, and clearing leaves an idle page
   // with nothing in the URL. The debounce path above drops it the same way when the box empties.
   // Editing a term that stays non-empty keeps it, so a reader mid-typing is not fought.
-  function askAbout(tag: string) {
+  function askAbout(tag: string, narrowing: Who = "anyone") {
     setInput(tag);
     setTerm(tag);
-    setWho("anyone");
+    setWho(narrowing);
   }
 
   return (
@@ -103,8 +104,13 @@ export function ExpertiseSearchView() {
             className="flex-1"
           />
         </div>
+        <OpenDoorsShelf slug={slug} onOpen={(tag) => askAbout(tag, "open")} />
         <div className="border-border border-t p-5">
-          <CommunityKnows slug={slug} onSelect={askAbout} activeTag={term} />
+          <CommunityKnows
+            slug={slug}
+            onSelect={(tag) => askAbout(tag)}
+            activeTag={term}
+          />
         </div>
       </div>
 

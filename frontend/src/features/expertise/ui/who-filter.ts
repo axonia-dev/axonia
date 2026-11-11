@@ -1,6 +1,6 @@
 import type { Practitioner } from "@/features/expertise/domain/expertise";
 
-export const WHO_OPTIONS = ["anyone", "demonstrated", "open"] as const;
+const WHO_OPTIONS = ["anyone", "demonstrated", "open"] as const;
 
 /** Whom the search lists: anyone it found, people who practised the area here, or people open to questions on it. */
 export type Who = (typeof WHO_OPTIONS)[number];

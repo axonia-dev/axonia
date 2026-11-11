@@ -158,6 +158,20 @@ export const selfViewSchema = z.object({
   declarableCommunities: z.array(declarableCommunitySchema).default([]),
 });
 
+const openPersonSchema = z.object({
+  userId: z.string(),
+  displayName: z.string().nullable(),
+  avatarUrl: z.string().nullable(),
+  declaredAt: z.string(),
+});
+
+/** An area with the people open to questions on it, newest declaration first. */
+export const openAreaSchema = z.object({
+  canonicalTag: z.string(),
+  latestDeclaredAt: z.string(),
+  people: z.array(openPersonSchema),
+});
+
 export const declaredAreaSchema = z.object({
   tag: z.string(),
   declaredAt: z.string(),
@@ -198,6 +212,8 @@ export type SelfView = z.infer<typeof selfViewSchema>;
 export type SelfDeclaration = z.infer<typeof selfDeclarationSchema>;
 export type DeclarableCommunity = z.infer<typeof declarableCommunitySchema>;
 export type DeclaredArea = z.infer<typeof declaredAreaSchema>;
+export type OpenPerson = z.infer<typeof openPersonSchema>;
+export type OpenArea = z.infer<typeof openAreaSchema>;
 export type MergeSuggestion = z.infer<typeof mergeSuggestionSchema>;
 export type AreaEvidencePage = z.infer<typeof areaEvidencePageSchema>;
 export type TagUsage = z.infer<typeof tagUsageSchema>;

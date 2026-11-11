@@ -17,6 +17,10 @@ vi.mock("@/features/expertise/ui/PractitionerList", () => ({
   PractitionerList: () => <div data-testid="practitioner-list" />,
 }));
 
+vi.mock("@/features/expertise/ui/OpenDoorsShelf", () => ({
+  OpenDoorsShelf: () => null,
+}));
+
 vi.mock("@/features/learning/ui/LearnersBridge", () => ({
   LearnersBridge: () => null,
 }));

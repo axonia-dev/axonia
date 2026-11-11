@@ -46,6 +46,10 @@ vi.mock("@/features/expertise/ui/PractitionerList", () => ({
   ),
 }));
 
+vi.mock("@/features/expertise/ui/OpenDoorsShelf", () => ({
+  OpenDoorsShelf: () => null,
+}));
+
 vi.mock("@/features/learning/ui/LearnersBridge", () => ({
   LearnersBridge: ({ slug, term }: { slug: string; term: string }) => (
     <p>
