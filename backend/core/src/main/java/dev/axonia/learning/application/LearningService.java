@@ -9,12 +9,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import dev.axonia.community.api.TagNormalizer;
+import dev.axonia.expertise.api.DeclarationMade;
 import dev.axonia.learning.api.HeldArea;
 import dev.axonia.learning.api.Learner;
 import dev.axonia.learning.api.LearningIntents;
 import dev.axonia.learning.api.LearningPage;
 import dev.axonia.learning.application.port.out.CommunityAccess;
 import dev.axonia.learning.application.port.out.CurrentUser;
+import dev.axonia.learning.application.port.out.LearnerNotices;
 import dev.axonia.learning.application.port.out.LearningIntentRepository;
 import dev.axonia.learning.application.port.out.OpenPeople;
 import dev.axonia.learning.application.port.out.OrganizationContext;
@@ -22,6 +24,7 @@ import dev.axonia.learning.application.port.out.PersonDirectory;
 import dev.axonia.learning.application.port.out.Vocabulary;
 import dev.axonia.learning.domain.LearningFold;
 import dev.axonia.learning.domain.LearningIntent;
+import dev.axonia.learning.domain.OpenDoorNotice;
 import dev.axonia.shared.api.error.ConflictException;
 import dev.axonia.shared.api.error.ForbiddenException;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +44,7 @@ public class LearningService implements LearningIntents {
     private final Vocabulary vocabulary;
     private final PersonDirectory personDirectory;
     private final OpenPeople openPeople;
+    private final LearnerNotices learnerNotices;
     private final Clock clock;
 
     /**
@@ -131,6 +135,31 @@ public class LearningService implements LearningIntents {
             var person = people.get(first.getKey());
             return new Learner(first.getKey(), person.displayName(), person.avatarUrl(), first.getValue());
         }).toList();
+    }
+
+    /**
+     * Tells every other current member holding the declared area, under any spelling the community reads as it, that
+     * the declarer is now open to questions on it. Nobody holding it means no notice at all. Runs inside the declaring
+     * request, whose organization the vocabulary reads.
+     */
+    @Transactional
+    public void notifyLearners(DeclarationMade declaration) {
+
+        var org = declaration.organizationId();
+        var communityId = declaration.communityId();
+        var declarerId = declaration.userId();
+        var learnerIds = LearningFold
+                .learners(repository.currentIn(org, communityId), vocabulary.areasOf(communityId),
+                        declaration.canonicalTag())
+                .stream().map(Map.Entry::getKey).filter(learner -> !learner.equals(declarerId)).toList();
+        if (learnerIds.isEmpty()) {
+            return;
+        }
+        var declarer = personDirectory.resolve(List.of(declarerId)).get(declarerId);
+        learnerNotices.notify(OpenDoorNotice.builder().communityId(communityId)
+                .communitySlug(declaration.communitySlug()).communityName(communityAccess.nameOf(org, communityId))
+                .declarerId(declarerId).declarerName(declarer.displayName()).area(declaration.canonicalTag())
+                .learnerIds(learnerIds).build());
     }
 
     /**

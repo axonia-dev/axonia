@@ -20,6 +20,7 @@ import org.mockito.quality.Strictness;
 
 import dev.axonia.community.api.TagNormalizer;
 import dev.axonia.expertise.api.CommunityAreas;
+import dev.axonia.expertise.api.DeclarationMade;
 import dev.axonia.learning.api.HeldArea;
 import dev.axonia.learning.api.Learner;
 import dev.axonia.learning.api.LearningPage;
@@ -27,6 +28,7 @@ import dev.axonia.learning.api.OpenFace;
 import dev.axonia.learning.api.WantedArea;
 import dev.axonia.learning.application.port.out.CommunityAccess;
 import dev.axonia.learning.application.port.out.CurrentUser;
+import dev.axonia.learning.application.port.out.LearnerNotices;
 import dev.axonia.learning.application.port.out.LearningIntentRepository;
 import dev.axonia.learning.application.port.out.OpenPeople;
 import dev.axonia.learning.application.port.out.OrganizationContext;
@@ -35,6 +37,7 @@ import dev.axonia.learning.application.port.out.Vocabulary;
 import dev.axonia.learning.domain.LearningCommunity;
 import dev.axonia.learning.domain.LearningIntent;
 import dev.axonia.learning.domain.LearningPerson;
+import dev.axonia.learning.domain.OpenDoorNotice;
 import dev.axonia.shared.api.error.ConflictException;
 import dev.axonia.shared.api.error.ForbiddenException;
 import dev.axonia.shared.api.error.ValidationException;
@@ -75,6 +78,8 @@ class LearningServiceTest {
     private PersonDirectory personDirectory;
     @Mock
     private OpenPeople openPeople;
+    @Mock
+    private LearnerNotices learnerNotices;
 
     private final Map<String, String> aliases = new HashMap<>();
 
@@ -84,7 +89,7 @@ class LearningServiceTest {
     void setUp() {
 
         sut = new LearningService(organizationContext, currentUser, communityAccess, repository, vocabulary,
-                personDirectory, openPeople, Clock.fixed(NOW, ZoneOffset.UTC));
+                personDirectory, openPeople, learnerNotices, Clock.fixed(NOW, ZoneOffset.UTC));
         when(organizationContext.organizationId()).thenReturn(ORG);
         when(currentUser.userId()).thenReturn(ALICE);
         when(communityAccess.communityForSlug(SLUG)).thenReturn(new LearningCommunity(COMMUNITY, false));
@@ -285,6 +290,40 @@ class LearningServiceTest {
         sut.page(SLUG);
 
         verify(openPeople, never()).byArea(any());
+    }
+
+    @Test
+    void notifyLearnersEnqueuesForEveryLearnerOfTheCanonicalArea() {
+
+        aliases.put("apache-kafka", "kafka");
+        when(repository.currentIn(ORG, COMMUNITY)).thenReturn(List.of(intentOf("bob", "apache-kafka", EARLY),
+                intentOf("carol", "kafka", LATE), intentOf("lea", "kafka", EARLY), intentOf("dan", "rust", EARLY)));
+        when(personDirectory.resolve(List.of("lea")))
+                .thenReturn(Map.of("lea", new LearningPerson("lea", "Lea Moser", null)));
+        when(communityAccess.nameOf(ORG, COMMUNITY)).thenReturn("Platform Guild");
+
+        sut.notifyLearners(declared("lea", "kafka"));
+
+        verify(learnerNotices).notify(OpenDoorNotice.builder().communityId(COMMUNITY).communitySlug(SLUG)
+                .communityName("Platform Guild").declarerId("lea").declarerName("Lea Moser").area("kafka")
+                .learnerIds(List.of("bob", "carol")).build());
+    }
+
+    @Test
+    void notifyLearnersSkipsWhenNoOtherLearnerHoldsTheArea() {
+
+        when(repository.currentIn(ORG, COMMUNITY))
+                .thenReturn(List.of(intentOf("lea", "kafka", EARLY), intentOf("dan", "rust", EARLY)));
+
+        sut.notifyLearners(declared("lea", "kafka"));
+
+        verify(learnerNotices, never()).notify(any());
+    }
+
+    private static DeclarationMade declared(String userId, String tag) {
+
+        return DeclarationMade.builder().organizationId(ORG).communityId(COMMUNITY).communitySlug(SLUG).userId(userId)
+                .canonicalTag(tag).declaredAt(LATE).build();
     }
 
     @Test

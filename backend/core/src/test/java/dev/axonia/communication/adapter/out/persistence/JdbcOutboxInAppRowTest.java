@@ -71,6 +71,21 @@ class JdbcOutboxInAppRowTest extends CommunicationJdbcTestSupport {
     }
 
     @Test
+    void inAppOnlyWritesNoEmailRow() {
+
+        var message = OutboundMessageMother.any().subjectRef("305").recipientUserIds(List.of("alice", "bob"))
+                .inAppOnly(true).build();
+
+        var inserted = outbox.enqueue(message);
+        var again = outbox.enqueue(message);
+
+        assertThat(inserted).isEqualTo(2);
+        assertThat(again).isZero();
+        assertThat(countByChannel("305", "IN_APP")).isEqualTo(2);
+        assertThat(countByChannel("305", "EMAIL")).isZero();
+    }
+
+    @Test
     void aMessageWithNoRecipientsWritesNoInAppRows() {
 
         outbox.enqueue(OutboundMessageMother.any().subjectRef("304").recipientUserIds(List.of()).build());

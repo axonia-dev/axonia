@@ -28,4 +28,16 @@ class CommunityAccessAdapter implements CommunityAccess {
 
         return membershipService.isMember(communityId, userId);
     }
+
+    @Override
+    public boolean isMember(String organizationId, long communityId, String userId) {
+
+        return membershipService.isMember(organizationId, communityId, userId);
+    }
+
+    @Override
+    public String nameOf(String organizationId, long communityId) {
+
+        return communityService.identityById(organizationId, communityId).name();
+    }
 }

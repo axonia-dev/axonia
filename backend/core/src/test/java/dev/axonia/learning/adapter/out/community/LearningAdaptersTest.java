@@ -90,6 +90,18 @@ class LearningAdaptersTest {
     }
 
     @Test
+    void theOrgExplicitReadsAskTheirServices() {
+
+        var sut = new CommunityAccessAdapter(communityService, membershipService);
+        when(membershipService.isMember("org-1", 7L, "alice")).thenReturn(true);
+        when(communityService.identityById("org-1", 7L))
+                .thenReturn(new dev.axonia.community.api.CommunityIdentity("platform", "Platform Guild", null));
+
+        assertThat(sut.isMember("org-1", 7L, "alice")).isTrue();
+        assertThat(sut.nameOf("org-1", 7L)).isEqualTo("Platform Guild");
+    }
+
+    @Test
     void thePersonDirectoryNamesEveryIdAndCallsTheUnresolvedADeletedMember() {
 
         var sut = new PersonDirectoryAdapter(userService);

@@ -15,7 +15,8 @@ import lombok.RequiredArgsConstructor;
  * A member's preference row and their deliveries exist only to describe that one person's relationship with the spine,
  * so both go with them outright rather than being anonymised. The message they point at does not: it is equally the
  * record of what every other recipient received, so it survives its erased recipient and is removed only once nothing
- * references it at all.
+ * references it at all. A message about the member, naming them in its {@code aboutUserId} fact, goes for every
+ * recipient: it exists only to say something about the person being erased.
  */
 @Component
 @RequiredArgsConstructor
@@ -32,6 +33,13 @@ public class CommunicationMemberDataEraser implements MemberDataEraser {
                 "DELETE FROM communication_preference WHERE organization_id = :org AND user_id = :user", params);
         deleted += jdbc.update("DELETE FROM communication_delivery WHERE organization_id = :org AND user_id = :user",
                 params);
+        deleted += jdbc.update("""
+                DELETE FROM communication_delivery d
+                 USING communication_message m
+                 WHERE m.id = d.message_id
+                   AND m.organization_id = :org
+                   AND m.facts->>'aboutUserId' = :user
+                """, params);
         deleted += jdbc.update("""
                 DELETE FROM communication_message m
                  WHERE m.organization_id = :org

@@ -8,9 +8,10 @@ import lombok.Builder;
 /**
  * What a sender hands to {@link CommunicationPort#enqueue(OutboundMessage)}: a message type, who it is about, who
  * should receive it, which template renders it, and the facts already resolved by the sender. The sender owns who cares
- * about this and what it says; it never learns whether a given recipient actually gets it.
+ * about this and what it says; it never learns whether a given recipient actually gets it. An {@code inAppOnly} message
+ * reaches the panel alone and is never mailed; left unset, it is mailed too.
  */
 @Builder
 public record OutboundMessage(MessageType type, String subjectRef, List<String> recipientUserIds, String template,
-        Map<String, Object> facts) {
+        Map<String, Object> facts, boolean inAppOnly) {
 }

@@ -15,12 +15,15 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.context.ApplicationEventPublisher;
 
+import dev.axonia.expertise.api.DeclarationMade;
 import dev.axonia.expertise.application.port.out.CommunityAccess;
 import dev.axonia.expertise.application.port.out.CurrentUser;
 import dev.axonia.expertise.application.port.out.DeclarationRepository;
 import dev.axonia.expertise.application.port.out.FakeTagAliasRepository;
 import dev.axonia.expertise.application.port.out.OrganizationContext;
+import dev.axonia.expertise.application.port.out.PreferenceRepository;
 import dev.axonia.expertise.application.port.out.VocabularyLock;
 import dev.axonia.expertise.domain.CommunityRef;
 import dev.axonia.expertise.domain.Declaration;
@@ -57,6 +60,10 @@ class ExpertiseDeclarationServiceTest {
     private DeclarationRepository declarationRepository;
     @Mock
     private VocabularyLock vocabularyLock;
+    @Mock
+    private PreferenceRepository preferenceRepository;
+    @Mock
+    private ApplicationEventPublisher events;
 
     private FakeTagAliasRepository tagAliasRepository;
 
@@ -67,13 +74,68 @@ class ExpertiseDeclarationServiceTest {
 
         tagAliasRepository = new FakeTagAliasRepository();
         sut = new ExpertiseDeclarationService(organizationContext, currentUser, communityAccess, declarationRepository,
-                tagAliasRepository, Clock.fixed(NOW, ZoneOffset.UTC), vocabularyLock);
+                tagAliasRepository, Clock.fixed(NOW, ZoneOffset.UTC), vocabularyLock, preferenceRepository, events);
+        when(preferenceRepository.hiddenTags(anyString(), anyString())).thenReturn(Set.of());
         when(organizationContext.organizationId()).thenReturn(ORG);
         when(currentUser.userId()).thenReturn(ALICE);
         when(communityAccess.communityIdForSlug(SLUG)).thenReturn(COMMUNITY);
         when(communityAccess.communityForSlug(SLUG)).thenReturn(new CommunityRef(COMMUNITY, false));
         when(communityAccess.isMember(COMMUNITY, ALICE)).thenReturn(true);
         when(declarationRepository.inCommunity(anyString(), any(Long.class), anyString())).thenReturn(List.of());
+    }
+
+    @Test
+    void newVisibleDeclarationPublishesDeclarationMade() {
+
+        tagAliasRepository.addAlias(ORG, COMMUNITY, "apache-kafka", "kafka");
+
+        sut.declare(SLUG, "Apache Kafka");
+
+        verify(events).publishEvent(DeclarationMade.builder().organizationId(ORG).communityId(COMMUNITY)
+                .communitySlug(SLUG).userId(ALICE).canonicalTag("kafka").declaredAt(NOW).build());
+    }
+
+    @Test
+    void repeatDeclarationPublishesNothing() {
+
+        when(declarationRepository.inCommunity(ORG, COMMUNITY, ALICE)).thenReturn(List
+                .of(Declaration.builder().communityId(COMMUNITY).userId(ALICE).tag("kafka").declaredAt(NOW).build()));
+
+        sut.declare(SLUG, "kafka");
+
+        verify(events, never()).publishEvent(any(Object.class));
+    }
+
+    @Test
+    void pausedDeclarerPublishesNothing() {
+
+        when(preferenceRepository.isPaused(ORG, ALICE)).thenReturn(true);
+
+        sut.declare(SLUG, "kafka");
+
+        verify(declarationRepository).insert(any(), any());
+        verify(events, never()).publishEvent(any(Object.class));
+    }
+
+    @Test
+    void optedOutDeclarerPublishesNothing() {
+
+        when(preferenceRepository.isOptedOut(ORG, ALICE)).thenReturn(true);
+
+        sut.declare(SLUG, "kafka");
+
+        verify(events, never()).publishEvent(any(Object.class));
+    }
+
+    @Test
+    void hiddenAreaPublishesNothing() {
+
+        tagAliasRepository.addAlias(ORG, COMMUNITY, "apache-kafka", "kafka");
+        when(preferenceRepository.hiddenTags(ORG, ALICE)).thenReturn(Set.of("kafka"));
+
+        sut.declare(SLUG, "apache-kafka");
+
+        verify(events, never()).publishEvent(any(Object.class));
     }
 
     @Test

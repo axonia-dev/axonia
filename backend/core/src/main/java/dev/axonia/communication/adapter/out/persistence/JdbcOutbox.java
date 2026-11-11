@@ -166,7 +166,7 @@ public class JdbcOutbox implements CommunicationPort, MessageOutcomePort, Outbox
                         .addValue("status", OutboxStatus.PENDING.name()).addValue("now", now))
                 .toArray(SqlParameterSource[]::new);
 
-        var mailRows = insertRecipientRows(batchArgs, DeliveryChannel.EMAIL);
+        var mailRows = message.inAppOnly() ? 0 : insertRecipientRows(batchArgs, DeliveryChannel.EMAIL);
         var inAppRows = insertRecipientRows(batchArgs, DeliveryChannel.IN_APP);
 
         return chatRows + mailRows + inAppRows;

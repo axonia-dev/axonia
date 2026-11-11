@@ -70,6 +70,23 @@ class CommunicationMemberDataEraserTest extends FootprintTestSupport {
         assertThat(countMessage()).as("nobody is left to hold this message").isZero();
     }
 
+    @Test
+    void erasingAPersonDeletesMessagesAboutThem() {
+
+        var about = seedMessage("open_to_questions", "7:kafka:" + TARGET, "{\"aboutUserId\": \"" + TARGET + "\"}");
+        seedDelivery(about, NEIGHBOUR);
+        seedDelivery(about, "third-user");
+        var other = seedMessage("open_to_questions", "7:kafka:" + NEIGHBOUR,
+                "{\"aboutUserId\": \"" + NEIGHBOUR + "\"}");
+        seedDelivery(other, "third-user");
+
+        eraser.erase(erasureOf(TARGET));
+
+        assertThat(countMessage()).as("only the message about the neighbour is left").isEqualTo(1);
+        assertThat(countDelivery(NEIGHBOUR)).isZero();
+        assertThat(countDelivery("third-user")).isEqualTo(1);
+    }
+
     private static MemberErasure erasureOf(String userId) {
 
         return MemberErasure.builder().organizationId(ORG).userId(userId).surrogateId("erased:test-surrogate")
@@ -86,11 +103,16 @@ class CommunicationMemberDataEraserTest extends FootprintTestSupport {
 
     private Long seedMessage(String messageType, String subjectRef) {
 
+        return seedMessage(messageType, subjectRef, "{}");
+    }
+
+    private Long seedMessage(String messageType, String subjectRef, String facts) {
+
         return jdbc.queryForObject(
                 "INSERT INTO communication_message (organization_id, message_type, subject_ref, template, facts, "
                         + "created_at, updated_at, version) VALUES (:org, :type, :subject, 'session-template', "
-                        + "'{}'::jsonb, now(), now(), 0) RETURNING id",
-                Map.of("org", ORG, "type", messageType, "subject", subjectRef), Long.class);
+                        + "CAST(:facts AS jsonb), now(), now(), 0) RETURNING id",
+                Map.of("org", ORG, "type", messageType, "subject", subjectRef, "facts", facts), Long.class);
     }
 
     private void seedDelivery(Long messageId, String userId) {
