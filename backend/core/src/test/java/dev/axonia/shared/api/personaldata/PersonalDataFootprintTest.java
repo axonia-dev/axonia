@@ -55,7 +55,8 @@ class PersonalDataFootprintTest extends FootprintTestSupport {
 
         assertThat(layers().withheldColumns()).containsExactlyInAnyOrder("identity_user.external_id",
                 "identity_user.scim_id", "identity_user.avatar_media_key", "identity_user.avatar_override_key",
-                "directory_group_member.user_scim_id", "role_binding.subject_label");
+                "directory_group_member.user_scim_id", "role_binding.subject_label",
+                "communication_message.subject_ref", "communication_expired_message.subject_ref");
     }
 
     @Test

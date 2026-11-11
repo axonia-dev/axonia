@@ -8,6 +8,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import dev.axonia.communication.api.OutboundMessage;
 import dev.axonia.shared.api.personaldata.ExportFragment;
 import dev.axonia.shared.api.personaldata.ExportQueries;
 import dev.axonia.shared.api.personaldata.ExportScope;
@@ -15,9 +16,9 @@ import dev.axonia.shared.api.personaldata.PersonalDataExporter;
 import lombok.RequiredArgsConstructor;
 
 /**
- * The member's own preferences and queued mail: which message types they turned off, and what has been sent or is
- * pending for them, including {@code communication_message.facts} - {@link CommunicationPersonalDataFootprint} explains
- * why that column is exported rather than withheld.
+ * The member's own preferences and queued mail: which message types they turned off, what has been sent or is pending
+ * for them, and what was sent to others about them, including {@code communication_message.facts} -
+ * {@link CommunicationPersonalDataFootprint} explains why that column is exported rather than withheld.
  */
 @Component
 @RequiredArgsConstructor
@@ -52,7 +53,8 @@ public class CommunicationPersonalDataExporter implements PersonalDataExporter {
 
     /**
      * The message carries no {@code user_id} of its own, so a member-scoped export reaches it through the deliveries
-     * addressed to that member: the content of every message they were sent, and nothing sent only to somebody else.
+     * addressed to that member, and through the fact naming the member a message is about: the content of every message
+     * they were sent and of every message about them, and nothing else sent only to somebody else.
      */
     private List<Map<String, Object>> messageRows(ExportScope.InOrganization scope) {
 
@@ -62,9 +64,9 @@ public class CommunicationPersonalDataExporter implements PersonalDataExporter {
                 .append(" FROM communication_message m WHERE m.organization_id = :org");
         var params = new MapSqlParameterSource("org", scope.organizationId());
         if (scope instanceof ExportScope.OneMember member) {
-            sql.append(" AND EXISTS (SELECT 1 FROM communication_delivery d"
-                    + " WHERE d.message_id = m.id AND d.user_id = :user)");
-            params.addValue("user", member.userId());
+            sql.append(" AND (EXISTS (SELECT 1 FROM communication_delivery d"
+                    + " WHERE d.message_id = m.id AND d.user_id = :user) OR m.facts->>:aboutFact = :user)");
+            params.addValue("user", member.userId()).addValue("aboutFact", OutboundMessage.ABOUT_USER_FACT);
         }
         return jdbc.queryForList(sql.toString(), params);
     }

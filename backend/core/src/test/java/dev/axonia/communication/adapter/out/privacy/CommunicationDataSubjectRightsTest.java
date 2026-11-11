@@ -10,6 +10,7 @@ import dev.axonia.FootprintTestSupport;
 import dev.axonia.shared.api.personaldata.Classification;
 import dev.axonia.shared.api.personaldata.Disposition;
 import dev.axonia.shared.api.personaldata.ExportScope;
+import dev.axonia.shared.api.personaldata.ExportTreatment;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
@@ -44,7 +45,8 @@ class CommunicationDataSubjectRightsTest extends FootprintTestSupport {
         assertThat(message.personal())
                 .extracting(column -> column.column(), column -> column.classification(),
                         column -> column.disposition())
-                .containsExactly(tuple("facts", Classification.PERSONAL_CONTENT, Disposition.EXPORT_ONLY));
+                .containsExactly(tuple("facts", Classification.PERSONAL_CONTENT, Disposition.EXPORT_ONLY),
+                        tuple("subject_ref", Classification.SUBJECT, Disposition.DELETE_ROW));
         assertThat(message.exportedColumns()).contains("facts");
         assertThat(footprint.table("communication_delivery").personal())
                 .extracting(column -> column.column(), column -> column.classification(),
@@ -78,6 +80,41 @@ class CommunicationDataSubjectRightsTest extends FootprintTestSupport {
         var fragment = exporter.export(new ExportScope.OneMember(ORG, MEMBER));
 
         assertThat(json(fragment)).contains("rights-test-presenter");
+    }
+
+    /**
+     * A subject can end with the id of the member a message is about, so it is declared a subject identifier, erased
+     * with the rows naming that member and printed in no export, on the live message and on the record retention leaves
+     * of it alike.
+     */
+    @Test
+    void declaresTheSubjectAnIdentifierErasedWithItsRowAndWithheld() {
+
+        for (var table : new String[]{"communication_message", "communication_expired_message"}) {
+            assertThat(footprint.table(table).personal()).filteredOn(column -> column.column().equals("subject_ref"))
+                    .extracting(column -> column.classification(), column -> column.disposition(),
+                            column -> column.exportTreatment())
+                    .containsExactly(tuple(Classification.SUBJECT, Disposition.DELETE_ROW, ExportTreatment.WITHHELD));
+            assertThat(footprint.table(table).exportedColumns()).doesNotContain("subject_ref");
+        }
+    }
+
+    @Test
+    void exportsWhatWasSentToOthersAboutThisMemberButNotWhoReceivedIt() {
+
+        var about = jdbc.queryForObject(
+                "INSERT INTO communication_message (organization_id, message_type, subject_ref, template, facts, "
+                        + "created_at, updated_at, version) VALUES (:org, 'open_to_questions', '7:kafka:' || :member, "
+                        + "'open-to-questions', jsonb_build_object('sessionTitle', 'Member is open to questions', "
+                        + "'aboutUserId', :member), now(), now(), 0) RETURNING id",
+                Map.of("org", ORG, "member", MEMBER), Long.class);
+        seedDelivery(about, STRANGER);
+
+        var fragment = exporter.export(new ExportScope.OneMember(ORG, MEMBER));
+
+        assertThat(rowsOf(fragment, "communication_message")).singleElement()
+                .satisfies(row -> assertThat(String.valueOf(row.get("facts"))).contains("Member is open to questions"));
+        assertThat(rowsOf(fragment, "communication_delivery")).isEmpty();
     }
 
     @Test
