@@ -45,7 +45,7 @@ export function MemberFacepile({
         <span
           key={member.id}
           data-facepile-item
-          className={cn("inline-flex", index > 0 && "-ml-2")}
+          className={cn("inline-flex", index > 0 && (open ? "-ml-1" : "-ml-2"))}
         >
           <MemberAvatar
             name={member.name}

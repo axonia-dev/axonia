@@ -20,8 +20,8 @@ export function declaringPanel(field: ReactNode, preview: LanePreview) {
     <div
       className={
         showsCard
-          ? "grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-start"
-          : "grid grid-cols-1 gap-4"
+          ? "mt-2 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-start"
+          : "mt-2 grid grid-cols-1 gap-4"
       }
     >
       <div className="flex min-w-0 flex-col gap-3">

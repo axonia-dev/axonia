@@ -47,7 +47,7 @@ function OpenFaces({ slug, area }: Readonly<{ slug: string; area: HeldArea }>) {
           src: face.avatarUrl,
         }))}
         max={MAX_FACES}
-        size="size-7 text-xs"
+        size="size-7 text-[0.625rem]"
         open
       />
     </Link>
@@ -63,26 +63,21 @@ function IntentRow({ slug, area, isRemoving, onRemove }: Readonly<RowProps>) {
       className="flex items-center justify-between gap-3 px-4 py-3"
     >
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-baseline gap-x-2">
-          <span
-            id={nameId}
-            className="text-foreground min-w-0 text-sm font-medium wrap-anywhere"
-          >
-            {area.tag}
-          </span>
-          <span className="text-muted-foreground text-xs">
-            since {declaredMonth(area.declaredAt)}
-          </span>
-        </div>
-        {openCount > 0 ? (
-          <p className="text-muted-foreground text-xs">
-            {openCount} open to questions
-          </p>
-        ) : (
-          <p className="text-muted-foreground text-xs italic">
-            Nobody open yet
-          </p>
-        )}
+        <p
+          id={nameId}
+          className="text-foreground text-sm font-medium wrap-anywhere"
+        >
+          {area.tag}
+        </p>
+        <p className="text-muted-foreground text-xs">
+          {openCount > 0 ? (
+            <span>{openCount} open to questions</span>
+          ) : (
+            <span className="italic">Nobody open yet</span>
+          )}
+          <span aria-hidden="true">{" · "}</span>
+          <span>since {declaredMonth(area.declaredAt)}</span>
+        </p>
       </div>
       <OpenFaces slug={slug} area={area} />
       <IconButton
