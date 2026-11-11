@@ -24,8 +24,8 @@ const role = (permissions: string[]): Role => ({
 });
 
 describe("roleReach", () => {
-  it("returns one level per applicable group: seven for an enterprise, five for a hub", () => {
-    expect(roleReach(role([]), ENTERPRISE)).toHaveLength(7);
+  it("returns one level per applicable group: eight for an enterprise, five for a hub", () => {
+    expect(roleReach(role([]), ENTERPRISE)).toHaveLength(8);
     expect(roleReach(role([]), HUB)).toHaveLength(5);
   });
 
@@ -58,9 +58,7 @@ describe("heldCount", () => {
   });
 
   it("ignores a code the catalog does not carry, which the matrix cannot show", () => {
-    expect(
-      heldCount(role(["member:read", "community:create"]), ENTERPRISE),
-    ).toBe(1);
+    expect(heldCount(role(["member:read", "sso:read"]), ENTERPRISE)).toBe(1);
   });
 
   it("ignores an enterprise-only code a hub role still holds", () => {
@@ -87,9 +85,9 @@ describe("isReadOnly", () => {
   });
 
   it("ignores a code the catalog does not describe", () => {
-    expect(
-      isReadOnly(role(["member:read", "community:create"]), ENTERPRISE),
-    ).toBe(true);
+    expect(isReadOnly(role(["member:read", "sso:write"]), ENTERPRISE)).toBe(
+      true,
+    );
   });
 
   it("is false for a hub role holding only an enterprise-only read, which is empty there", () => {

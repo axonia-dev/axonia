@@ -12,12 +12,13 @@ import {
 } from "@/features/admin/domain/permission-catalog";
 
 describe("permission catalog", () => {
-  it("contains the 20 open codes and none of the retired ones", () => {
+  it("contains the 21 open codes and none of the retired ones", () => {
     const byCode = (a: string, b: string) => a.localeCompare(b);
     const codes = [...PERMISSION_CATALOG.map((p) => p.code)].sort(byCode);
     expect(codes).toEqual(
       [
         "communication:write",
+        "community:create",
         "community_kind:read",
         "community_kind:write",
         "library_type:read",
@@ -76,6 +77,7 @@ describe("permission catalog", () => {
       "Members",
       "Roles & access",
       "Directory sync",
+      "Communities",
       "Catalog",
       "Data",
     ]);
@@ -88,7 +90,7 @@ describe("permission catalog", () => {
 });
 
 describe("kind-aware catalog", () => {
-  it("flags exactly the five open enterprise-only codes", () => {
+  it("flags exactly the six open enterprise-only codes", () => {
     const flagged = PERMISSION_CATALOG.filter((p) => p.enterpriseOnly).map(
       (p) => p.code,
     );
@@ -98,6 +100,7 @@ describe("kind-aware catalog", () => {
         "scim:write",
         "community_kind:read",
         "community_kind:write",
+        "community:create",
         "organization:export",
       ]),
     );
@@ -108,6 +111,7 @@ describe("kind-aware catalog", () => {
       (p) => p.code,
     );
     expect(codes).toHaveLength(15);
+    expect(codes).not.toContain("community:create");
     expect(codes).not.toContain("scim:write");
     expect(codes).not.toContain("scim:read");
     expect(codes).not.toContain("community_kind:read");
@@ -131,6 +135,7 @@ describe("kind-aware catalog", () => {
     const groups = catalogForKind(openPermissionCatalog, "HUB").groups;
     const labels = groups.map((g) => g.label);
     expect(labels).not.toContain("Directory sync");
+    expect(labels).not.toContain("Communities");
     const catalog = groups.find((g) => g.label === "Catalog");
     expect(catalog).toBeDefined();
     expect(catalog?.permissions.map((p) => p.code)).toEqual([

@@ -109,7 +109,7 @@ describe("the roles workbench", () => {
     renderAt(`${BASE}/roles/2`);
     expect(
       screen.getByRole("link", {
-        name: "Directory Admin, custom role, 1 of 20 permissions",
+        name: "Directory Admin, custom role, 1 of 21 permissions",
       }),
     ).toHaveAttribute("href", `${BASE}/roles/3`);
   });
@@ -182,20 +182,20 @@ describe("the roles workbench", () => {
           name: "Creator",
           description: null,
           system: false,
-          // community:create is enforced by the gate but deliberately absent from the
-          // matrix, so the pane draws no switch for it and must not count it either.
-          permissions: ["member:read", "community:create"],
+          // sso:write is a Cloud code this edition does not know, so the pane draws no
+          // switch for it and must not count it either.
+          permissions: ["member:read", "sso:write"],
         },
       ],
       isPending: false,
     });
     renderAt(`${BASE}/roles/7`);
-    expect(screen.getByText(/of 20 permissions/)).toHaveTextContent(
-      "1 of 20 permissions",
+    expect(screen.getByText(/of 21 permissions/)).toHaveTextContent(
+      "1 of 21 permissions",
     );
     expect(
       screen.getByRole("link", {
-        name: "Creator, custom role, 1 of 20 permissions",
+        name: "Creator, custom role, 1 of 21 permissions",
       }),
     ).toBeInTheDocument();
   });

@@ -35,9 +35,9 @@ export function roleReach(
 /**
  * True when the role grants something this organization's catalog carries and everything it
  * grants there is a read. A role holding nothing is empty rather than read-only, so it
- * answers false. A code the applicable catalog does not carry - one the matrix omits, or an
- * enterprise-only code held inside a hub - cannot make a role read-only any more than it can
- * make it writable, since the pane draws no switch for it either way.
+ * answers false. A code the applicable catalog does not carry, such as an enterprise-only
+ * code held inside a hub, cannot make a role read-only any more than it can make it
+ * writable, since the pane draws no switch for it either way.
  */
 export function isReadOnly(role: Role, catalog: PermissionCatalog): boolean {
   const held = new Set(role.permissions);
@@ -47,9 +47,9 @@ export function isReadOnly(role: Role, catalog: PermissionCatalog): boolean {
 
 /**
  * How many of the permissions that apply to this organization the role grants. A code the
- * applicable catalog does not carry - `community:create`, which the matrix deliberately
- * omits, or an enterprise-only code held inside a hub - is not one the page can show, so
- * counting it would leave the headline disagreeing with the switches under it.
+ * applicable catalog does not carry, such as an enterprise-only code held inside a hub, is
+ * not one the page can show, so counting it would leave the headline disagreeing with the
+ * switches under it.
  */
 export function heldCount(role: Role, catalog: PermissionCatalog): number {
   const held = new Set(role.permissions);

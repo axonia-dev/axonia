@@ -162,14 +162,14 @@ describe("the differences-only remainder", () => {
     await user.click(screen.getByRole("switch", { name: "Differences only" }));
 
     expect(
-      screen.getByText("The other 19 permissions are identical in both roles."),
+      screen.getByText("The other 20 permissions are identical in both roles."),
     ).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Show them" }));
 
     expect(
       screen.queryByText(
-        "The other 19 permissions are identical in both roles.",
+        "The other 20 permissions are identical in both roles.",
       ),
     ).not.toBeInTheDocument();
     expect(screen.getByText("View members")).toBeInTheDocument();

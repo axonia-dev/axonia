@@ -98,6 +98,15 @@ export const PERMISSION_CATALOG: ReadonlyArray<PermissionDef> = [
     label: "Manage directory sync",
     description: "Issue and revoke SCIM provisioning tokens.",
   },
+  // Communities
+  {
+    code: "community:create",
+    group: "Communities",
+    action: "write",
+    enterpriseOnly: true,
+    label: "Start communities",
+    description: "Start a new community in the organization.",
+  },
   // Catalog
   {
     code: "community_kind:read",
@@ -169,10 +178,6 @@ export const PERMISSION_CATALOG: ReadonlyArray<PermissionDef> = [
   },
 ];
 
-/** Codes the gate enforces that no roles matrix offers, so the ceiling still knows them.
- *  `FrontendPermissionCatalogTest` holds this to the backend's `NOT_SURFACED`. */
-export const NOT_SURFACED: ReadonlyArray<string> = ["community:create"];
-
 /** The open edition's permission groups, in the order the roles matrix draws them. A group an
  *  edition contributes names the open group it is drawn after. */
 export const OPEN_GROUP_ORDER = [
@@ -181,6 +186,7 @@ export const OPEN_GROUP_ORDER = [
   "Members",
   "Roles & access",
   "Directory sync",
+  "Communities",
   "Catalog",
   "Data",
 ] as const;

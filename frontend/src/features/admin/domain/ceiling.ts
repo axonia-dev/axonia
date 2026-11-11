@@ -1,6 +1,5 @@
 import type { Role, RoleBinding } from "@/features/admin/domain/admin-user";
 import type { PermissionCatalog } from "@/features/admin/domain/edition-permissions";
-import { NOT_SURFACED } from "@/features/admin/domain/permission-catalog";
 
 export interface BindingReach {
   outOfReach: boolean;
@@ -14,18 +13,16 @@ export interface Ceiling {
 }
 
 /** Every code this edition's server knows, mirroring `KnownPermissions`: each one its roles
- *  matrix offers, whatever the organization's kind, and each one the gate enforces but no
- *  matrix offers. */
+ *  matrix offers, whatever the organization's kind. */
 export function knownCodes(catalog: PermissionCatalog): ReadonlySet<string> {
-  return new Set([...catalog.entries.map((p) => p.code), ...NOT_SURFACED]);
+  return new Set(catalog.entries.map((p) => p.code));
 }
 
 /** Whether every one of `codes` this edition knows is a permission the caller already holds.
  *  The core both the role-shaped and the code-shaped callers share: a person's effective role
  *  carries codes without being a Role. A code the edition does not know grants nothing, so the
- *  server leaves it out of the ceiling and so does this; one the matrix omits but the gate
- *  enforces, or an enterprise-only one inside a hub, still counts. Mirrors
- *  `RoleCeiling.permissionsBeyondCaller`. */
+ *  server leaves it out of the ceiling and so does this; an enterprise-only one inside a hub
+ *  still counts. Mirrors `RoleCeiling.permissionsBeyondCaller`. */
 export function codesWithinReach(
   codes: readonly string[],
   ceiling: Ceiling,

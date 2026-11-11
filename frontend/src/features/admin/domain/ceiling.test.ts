@@ -38,15 +38,6 @@ describe("isWithinReach", () => {
     ).toBe(false);
   });
 
-  it("is false on a role blocked solely by a code the frontend catalog does not describe", () => {
-    // community:create is enforced by the gate and deliberately absent from the roles matrix,
-    // so it is the role's only unheld code. The server still knows it, so a predicate that
-    // knew only the catalog would see nothing left to measure and report this role as reachable.
-    expect(
-      isWithinReach(role(["community:create"]), holding(["member:read"])),
-    ).toBe(false);
-  });
-
   it("is true for a role granting nothing", () => {
     expect(isWithinReach(role([]), holding([]))).toBe(true);
   });
@@ -80,14 +71,6 @@ describe("codesWithinReach", () => {
         holding(["member:read", "organization:export"]),
       ),
     ).toBe(true);
-  });
-
-  it("is false on a code the frontend catalog does not describe", () => {
-    // Same guarantee, code-shaped: the server measures the ceiling over every code it knows,
-    // community:create among them, so a catalog-filtered predicate would answer true.
-    expect(
-      codesWithinReach(["community:create"], holding(["member:read"])),
-    ).toBe(false);
   });
 
   it("ignores a code this edition does not know, as the server does", () => {
@@ -214,7 +197,7 @@ describe("groupReleaseReach", () => {
 });
 
 describe("knownCodes", () => {
-  it("knows every code the edition's matrix offers, and community:create, which none offers", () => {
+  it("knows every code the edition's matrix offers", () => {
     const actual = knownCodes(openPermissionCatalog);
 
     expect([...actual]).toEqual(

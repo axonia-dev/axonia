@@ -35,44 +35,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  */
 class FrontendPermissionCatalogTest {
 
-    private static final Set<Permission> KNOWN = Set.of(Permission.MEMBER_READ, Permission.ROLE_WRITE,
-            Permission.COMMUNITY_CREATE);
+    private static final Set<Permission> KNOWN = Set.of(Permission.MEMBER_READ, Permission.ROLE_WRITE);
 
     @Test
     void theOpenRolesMatrixMirrorsEveryPermissionTheOpenEditionKnows() {
 
         FrontendPermissionCatalog.assertMirrors(FrontendPermissionCatalog.entries(), ClasspathPermissions.known(),
                 FrontendPermissionCatalog.CATALOG);
-    }
-
-    @Test
-    void theFrontendCeilingKnowsEveryPermissionNoMatrixOffers() {
-
-        // when
-        var actual = FrontendPermissionCatalog.notSurfaced();
-
-        // then - a code missing here is one the frontend ceiling would ignore while the server still refuses it
-        assertThat(actual).containsExactlyInAnyOrderElementsOf(
-                FrontendPermissionCatalog.NOT_SURFACED.stream().map(Permission::code).toList());
-    }
-
-    @Test
-    void parseNotSurfacedReadsEveryQuotedCode() {
-
-        // when
-        var actual = FrontendPermissionCatalog.parseNotSurfaced("x.ts",
-                "export const NOT_SURFACED: ReadonlyArray<string> = [\"community:create\", \"x:y\"];\n");
-
-        // then
-        assertThat(actual).containsExactlyInAnyOrder("community:create", "x:y");
-    }
-
-    @Test
-    void parseNotSurfacedFailsClearlyWhenTheDeclarationIsGone() {
-
-        // when / then
-        assertThatThrownBy(() -> FrontendPermissionCatalog.parseNotSurfaced("x.ts", "const OTHER = [];"))
-                .isInstanceOf(IllegalStateException.class).hasMessageContaining("NOT_SURFACED");
     }
 
     @Test
@@ -88,14 +57,6 @@ class FrontendPermissionCatalogTest {
         assertThatThrownBy(() -> FrontendPermissionCatalog
                 .assertMirrors(entries("member:read", "role:write", "sso:read"), KNOWN, "test.ts"))
                 .isInstanceOf(AssertionError.class).hasMessageContaining("offers 'sso:read'");
-    }
-
-    @Test
-    void failsWhenAPermissionKeptOutOfTheMatrixIsOffered() {
-
-        assertThatThrownBy(() -> FrontendPermissionCatalog
-                .assertMirrors(entries("member:read", "role:write", "community:create"), KNOWN, "test.ts"))
-                .isInstanceOf(AssertionError.class).hasMessageContaining("NOT_SURFACED");
     }
 
     @Test

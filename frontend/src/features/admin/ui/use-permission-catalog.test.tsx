@@ -39,7 +39,7 @@ describe("the edition's permission catalog", () => {
     );
   });
 
-  it("offers a Self-hosted installation the seven open groups, the mail server's after Communication, and no Cloud permission", () => {
+  it("offers a Self-hosted installation the eight open groups, the mail server's after Communication, and no Cloud permission", () => {
     const { result } = renderHook(() => usePermissionCatalog(), {
       wrapper: inEdition(selfHostedEdition),
     });
@@ -51,6 +51,7 @@ describe("the edition's permission catalog", () => {
       "Members",
       "Roles & access",
       "Directory sync",
+      "Communities",
       "Catalog",
       "Data",
     ]);
