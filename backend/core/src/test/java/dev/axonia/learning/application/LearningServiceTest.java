@@ -23,10 +23,12 @@ import dev.axonia.expertise.api.CommunityAreas;
 import dev.axonia.learning.api.HeldArea;
 import dev.axonia.learning.api.Learner;
 import dev.axonia.learning.api.LearningPage;
+import dev.axonia.learning.api.OpenFace;
 import dev.axonia.learning.api.WantedArea;
 import dev.axonia.learning.application.port.out.CommunityAccess;
 import dev.axonia.learning.application.port.out.CurrentUser;
 import dev.axonia.learning.application.port.out.LearningIntentRepository;
+import dev.axonia.learning.application.port.out.OpenPeople;
 import dev.axonia.learning.application.port.out.OrganizationContext;
 import dev.axonia.learning.application.port.out.PersonDirectory;
 import dev.axonia.learning.application.port.out.Vocabulary;
@@ -71,6 +73,8 @@ class LearningServiceTest {
     private Vocabulary vocabulary;
     @Mock
     private PersonDirectory personDirectory;
+    @Mock
+    private OpenPeople openPeople;
 
     private final Map<String, String> aliases = new HashMap<>();
 
@@ -80,7 +84,7 @@ class LearningServiceTest {
     void setUp() {
 
         sut = new LearningService(organizationContext, currentUser, communityAccess, repository, vocabulary,
-                personDirectory, Clock.fixed(NOW, ZoneOffset.UTC));
+                personDirectory, openPeople, Clock.fixed(NOW, ZoneOffset.UTC));
         when(organizationContext.organizationId()).thenReturn(ORG);
         when(currentUser.userId()).thenReturn(ALICE);
         when(communityAccess.communityForSlug(SLUG)).thenReturn(new LearningCommunity(COMMUNITY, false));
@@ -99,7 +103,7 @@ class LearningServiceTest {
 
         var stored = LearningIntent.builder().communityId(COMMUNITY).userId(ALICE).tag("apache-kafka")
                 .declaredAt(Instant.parse("2026-09-25T12:00:00.123Z")).build();
-        assertThat(actual).isEqualTo(new HeldArea("apache-kafka", stored.declaredAt()));
+        assertThat(actual).isEqualTo(new HeldArea("apache-kafka", stored.declaredAt(), List.of()));
         verify(repository).insert(ORG, stored);
     }
 
@@ -134,7 +138,7 @@ class LearningServiceTest {
         aliases.put("k8s", "kubernetes");
         when(repository.inCommunity(ORG, COMMUNITY, ALICE)).thenReturn(List.of(intent("k8s", EARLY)));
 
-        assertThat(sut.add(SLUG, "Kubernetes")).isEqualTo(new HeldArea("kubernetes", EARLY));
+        assertThat(sut.add(SLUG, "Kubernetes")).isEqualTo(new HeldArea("kubernetes", EARLY, List.of()));
         verify(repository, never()).insert(any(), any());
     }
 
@@ -155,7 +159,7 @@ class LearningServiceTest {
         when(repository.inCommunity(ORG, COMMUNITY, ALICE))
                 .thenReturn(IntStream.range(0, 10).mapToObj(i -> intent("area-" + i, EARLY)).toList());
 
-        assertThat(sut.add(SLUG, "Area 3")).isEqualTo(new HeldArea("area-3", EARLY));
+        assertThat(sut.add(SLUG, "Area 3")).isEqualTo(new HeldArea("area-3", EARLY, List.of()));
     }
 
     @Test
@@ -259,8 +263,28 @@ class LearningServiceTest {
         var page = sut.page(SLUG);
 
         assertThat(page.member()).isTrue();
-        assertThat(page.mine()).containsExactly(new HeldArea("kafka", EARLY));
+        assertThat(page.mine()).containsExactly(new HeldArea("kafka", EARLY, List.of()));
         assertThat(page.wanted()).containsExactly(new WantedArea("kafka", 1, 0));
+    }
+
+    @Test
+    void pageMineCarriesOpenFaces() {
+
+        var lea = new OpenFace("lea", "Lea Moser", null);
+        when(repository.inCommunity(ORG, COMMUNITY, ALICE)).thenReturn(List.of(intent("kafka", EARLY)));
+        when(openPeople.byArea(SLUG)).thenReturn(Map.of("kafka", List.of(new OpenFace(ALICE, "Alice", null), lea)));
+
+        assertThat(sut.page(SLUG).mine()).containsExactly(new HeldArea("kafka", EARLY, List.of(lea)));
+    }
+
+    @Test
+    void aNonMembersPageNeverReadsWhoIsOpen() {
+
+        when(communityAccess.isMember(COMMUNITY, ALICE)).thenReturn(false);
+
+        sut.page(SLUG);
+
+        verify(openPeople, never()).byArea(any());
     }
 
     @Test
@@ -272,7 +296,7 @@ class LearningServiceTest {
         var page = sut.page(SLUG);
 
         assertThat(page.archived()).isTrue();
-        assertThat(page.mine()).containsExactly(new HeldArea("kafka", EARLY));
+        assertThat(page.mine()).containsExactly(new HeldArea("kafka", EARLY, List.of()));
     }
 
     @Test

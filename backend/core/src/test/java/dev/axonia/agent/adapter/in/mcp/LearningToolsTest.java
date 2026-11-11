@@ -71,7 +71,7 @@ class LearningToolsTest {
         // given
         authenticateWithScopes("read");
         when(learning.page("platform"))
-                .thenReturn(new LearningPage(true, false, 10, List.of(new HeldArea("kafka", EARLY)),
+                .thenReturn(new LearningPage(true, false, 10, List.of(new HeldArea("kafka", EARLY, List.of())),
                         List.of(new WantedArea("kafka", 4, 1), new WantedArea("rust", 2, 0))));
 
         // when
@@ -113,7 +113,7 @@ class LearningToolsTest {
 
         // given
         authenticateWithScopes("learning:declare");
-        when(learning.add("platform", "Kafka")).thenReturn(new HeldArea("kafka", EARLY));
+        when(learning.add("platform", "Kafka")).thenReturn(new HeldArea("kafka", EARLY, List.of()));
 
         // when
         var actual = sut.add("platform", "Kafka");
@@ -204,7 +204,8 @@ class LearningToolsTest {
             case "learning.demand" ->
                 when(learning.page("platform")).thenReturn(new LearningPage(true, false, 10, List.of(), List.of()));
             case "learning.learners" -> when(learning.learners("platform", "kafka")).thenReturn(List.of());
-            case "learning.add" -> when(learning.add("platform", "kafka")).thenReturn(new HeldArea("kafka", EARLY));
+            case "learning.add" ->
+                when(learning.add("platform", "kafka")).thenReturn(new HeldArea("kafka", EARLY, List.of()));
             default -> {
             }
         }

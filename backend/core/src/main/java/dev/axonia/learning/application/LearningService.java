@@ -16,6 +16,7 @@ import dev.axonia.learning.api.LearningPage;
 import dev.axonia.learning.application.port.out.CommunityAccess;
 import dev.axonia.learning.application.port.out.CurrentUser;
 import dev.axonia.learning.application.port.out.LearningIntentRepository;
+import dev.axonia.learning.application.port.out.OpenPeople;
 import dev.axonia.learning.application.port.out.OrganizationContext;
 import dev.axonia.learning.application.port.out.PersonDirectory;
 import dev.axonia.learning.application.port.out.Vocabulary;
@@ -39,6 +40,7 @@ public class LearningService implements LearningIntents {
     private final LearningIntentRepository repository;
     private final Vocabulary vocabulary;
     private final PersonDirectory personDirectory;
+    private final OpenPeople openPeople;
     private final Clock clock;
 
     /**
@@ -60,7 +62,7 @@ public class LearningService implements LearningIntents {
         var tag = vocabulary.writableName(rawTag);
         var areas = vocabulary.areasOf(community.id());
         var area = areas.canonicalOf(tag);
-        var held = LearningFold.held(repository.inCommunity(org, community.id(), userId), areas);
+        var held = LearningFold.held(repository.inCommunity(org, community.id(), userId), areas, Map.of(), userId);
         var existing = held.stream().filter(h -> h.tag().equals(area)).findFirst();
         if (existing.isPresent()) {
             return existing.get();
@@ -72,7 +74,7 @@ public class LearningService implements LearningIntents {
         var declaredAt = clock.instant().truncatedTo(ChronoUnit.MILLIS);
         repository.insert(org, LearningIntent.builder().communityId(community.id()).userId(userId).tag(tag)
                 .declaredAt(declaredAt).build());
-        return new HeldArea(area, declaredAt);
+        return new HeldArea(area, declaredAt, List.of());
     }
 
     /**
@@ -93,7 +95,10 @@ public class LearningService implements LearningIntents {
         return area;
     }
 
-    /** The caller's areas when they are a member, and what the community's current members want, for anyone. */
+    /**
+     * The caller's areas when they are a member, each with who else is open to questions on it, and what the
+     * community's current members want, for anyone.
+     */
     @Override
     @Transactional(readOnly = true)
     public LearningPage page(String slug) {
@@ -104,7 +109,8 @@ public class LearningService implements LearningIntents {
         var areas = vocabulary.areasOf(community.id());
         var member = communityAccess.isMember(community.id(), userId);
         var mine = member
-                ? LearningFold.held(repository.inCommunity(org, community.id(), userId), areas)
+                ? LearningFold.held(repository.inCommunity(org, community.id(), userId), areas, openPeople.byArea(slug),
+                        userId)
                 : List.<HeldArea>of();
         var wanted = LearningFold.wanted(repository.currentIn(org, community.id()), areas, vocabulary.canBeAsked(slug));
         return new LearningPage(member, community.archived(), INTENT_LIMIT, mine, wanted);

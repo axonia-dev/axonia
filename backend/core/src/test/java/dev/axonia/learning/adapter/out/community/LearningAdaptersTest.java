@@ -17,12 +17,17 @@ import dev.axonia.community.api.CommunityStatus;
 import dev.axonia.community.api.Memberships;
 import dev.axonia.expertise.api.CommunityAreas;
 import dev.axonia.expertise.api.CommunityVocabulary;
+import dev.axonia.expertise.api.OpenArea;
+import dev.axonia.expertise.api.OpenDoors;
+import dev.axonia.expertise.api.OpenPerson;
 import dev.axonia.identity.api.DirectoryUser;
 import dev.axonia.identity.api.MemberProfiles;
 import dev.axonia.learning.adapter.out.expertise.ExpertiseVocabularyAdapter;
+import dev.axonia.learning.adapter.out.expertise.OpenPeopleAdapter;
 import dev.axonia.learning.adapter.out.identity.PersonDirectoryAdapter;
 import dev.axonia.learning.adapter.out.security.JwtCurrentUser;
 import dev.axonia.learning.adapter.out.security.JwtOrganizationContext;
+import dev.axonia.learning.api.OpenFace;
 import dev.axonia.learning.domain.LearningCommunity;
 import dev.axonia.learning.domain.LearningPerson;
 
@@ -42,11 +47,24 @@ class LearningAdaptersTest {
     private MemberProfiles userService;
     @Mock
     private CommunityVocabulary expertiseVocabulary;
+    @Mock
+    private OpenDoors openDoors;
 
     @AfterEach
     void clearSecurityContext() {
 
         SecurityContextHolder.clearContext();
+    }
+
+    @Test
+    void openPeopleAreTheFacesOfEachOpenAreaInTheirOrder() {
+
+        var at = java.time.Instant.parse("2026-11-10T09:00:00Z");
+        when(openDoors.openIn("platform")).thenReturn(List.of(new OpenArea("kafka", at,
+                List.of(new OpenPerson("lea", "Lea", "lea.png", at), new OpenPerson("ben", "Ben", null, at)))));
+
+        assertThat(new OpenPeopleAdapter(openDoors).byArea("platform")).containsExactly(
+                entry("kafka", List.of(new OpenFace("lea", "Lea", "lea.png"), new OpenFace("ben", "Ben", null))));
     }
 
     @Test

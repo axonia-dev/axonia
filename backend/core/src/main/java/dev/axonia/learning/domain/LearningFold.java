@@ -11,6 +11,7 @@ import java.util.function.BinaryOperator;
 
 import dev.axonia.expertise.api.CommunityAreas;
 import dev.axonia.learning.api.HeldArea;
+import dev.axonia.learning.api.OpenFace;
 import dev.axonia.learning.api.WantedArea;
 
 /** Reads intents stored as typed through the community's merges: one area per canonical, one member per area. */
@@ -21,15 +22,25 @@ public final class LearningFold {
     private LearningFold() {
     }
 
-    /** One member's areas, each at the earliest date they stated any spelling of it, earliest first. */
-    public static List<HeldArea> held(List<LearningIntent> intents, CommunityAreas areas) {
+    /**
+     * One member's areas, each at the earliest date they stated any spelling of it, earliest first, with the people
+     * open to questions on it other than the member.
+     */
+    public static List<HeldArea> held(List<LearningIntent> intents, CommunityAreas areas,
+            Map<String, List<OpenFace>> open, String memberId) {
 
         var firstByArea = new HashMap<String, Instant>();
         for (var intent : intents) {
             firstByArea.merge(areas.canonicalOf(intent.tag()), intent.declaredAt(), EARLIER);
         }
-        return firstByArea.entrySet().stream().map(e -> new HeldArea(e.getKey(), e.getValue()))
+        return firstByArea.entrySet().stream()
+                .map(e -> new HeldArea(e.getKey(), e.getValue(), othersOpenOn(open, e.getKey(), memberId)))
                 .sorted(Comparator.comparing(HeldArea::declaredAt).thenComparing(HeldArea::tag)).toList();
+    }
+
+    private static List<OpenFace> othersOpenOn(Map<String, List<OpenFace>> open, String area, String memberId) {
+
+        return open.getOrDefault(area, List.of()).stream().filter(face -> !face.userId().equals(memberId)).toList();
     }
 
     /** Every area wanted, counting each member once however many spellings they typed, most wanted first. */

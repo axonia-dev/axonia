@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import dev.axonia.expertise.api.CommunityAreas;
 import dev.axonia.learning.api.HeldArea;
+import dev.axonia.learning.api.OpenFace;
 import dev.axonia.learning.api.WantedArea;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -23,17 +24,52 @@ class LearningFoldTest {
     void heldAreasFoldSpellingsKeepingTheEarliestDateInDateOrder() {
 
         var held = LearningFold.held(List.of(intent("alice", "kafka", LATE), intent("alice", "kubernetes", LATE),
-                intent("alice", "k8s", EARLY)), areas);
+                intent("alice", "k8s", EARLY)), areas, Map.of(), "alice");
 
-        assertThat(held).containsExactly(new HeldArea("kubernetes", EARLY), new HeldArea("kafka", LATE));
+        assertThat(held).containsExactly(new HeldArea("kubernetes", EARLY, List.of()),
+                new HeldArea("kafka", LATE, List.of()));
     }
 
     @Test
     void heldAreasOfOneDateAreInNameOrder() {
 
-        var held = LearningFold.held(List.of(intent("alice", "rust", EARLY), intent("alice", "helm", EARLY)), areas);
+        var held = LearningFold.held(List.of(intent("alice", "rust", EARLY), intent("alice", "helm", EARLY)), areas,
+                Map.of(), "alice");
 
-        assertThat(held).containsExactly(new HeldArea("helm", EARLY), new HeldArea("rust", EARLY));
+        assertThat(held).containsExactly(new HeldArea("helm", EARLY, List.of()),
+                new HeldArea("rust", EARLY, List.of()));
+    }
+
+    @Test
+    void heldAreaCarriesTheOpenPeopleOfItsArea() {
+
+        var lea = new OpenFace("lea", "Lea Moser", null);
+        var ben = new OpenFace("ben", "Ben", "ben.png");
+
+        var held = LearningFold.held(List.of(intent("alice", "k8s", EARLY)), areas,
+                Map.of("kubernetes", List.of(lea, ben), "kafka", List.of(new OpenFace("kim", "Kim", null))), "alice");
+
+        assertThat(held).containsExactly(new HeldArea("kubernetes", EARLY, List.of(lea, ben)));
+    }
+
+    @Test
+    void heldAreaExcludesTheMember() {
+
+        var lea = new OpenFace("lea", "Lea Moser", null);
+
+        var held = LearningFold.held(List.of(intent("alice", "kafka", EARLY)), areas,
+                Map.of("kafka", List.of(new OpenFace("alice", "Alice", null), lea)), "alice");
+
+        assertThat(held).containsExactly(new HeldArea("kafka", EARLY, List.of(lea)));
+    }
+
+    @Test
+    void heldAreaWithNobodyOpenHasAnEmptyList() {
+
+        var held = LearningFold.held(List.of(intent("alice", "rust", EARLY)), areas,
+                Map.of("kafka", List.of(new OpenFace("lea", "Lea Moser", null))), "alice");
+
+        assertThat(held).containsExactly(new HeldArea("rust", EARLY, List.of()));
     }
 
     @Test

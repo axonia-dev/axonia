@@ -1221,11 +1221,12 @@
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
-		expertise.api.OpenArea: a read-model record with a List component (people), built once per read and
-		handed straight to Jackson or to learning. Same case as LearningPage above: exclusion, not List.copyOf.
+		expertise.api.OpenArea and learning.api.HeldArea: read-model records with a List component (people,
+		open), built once per read and handed straight to Jackson or to the next context. Same case as
+		LearningPage above: exclusion, not List.copyOf.
 	-->
 	<Match>
-		<Class name="dev.axonia.expertise.api.OpenArea"/>
+		<Class name="~dev\.axonia\.(expertise\.api\.OpenArea|learning\.api\.HeldArea)"/>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
