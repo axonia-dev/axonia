@@ -30,6 +30,9 @@ public record MessageType(@JsonValue String code) {
 
     public static final MessageType ORGANIZATION_ROUNDUP = new MessageType("organization_roundup");
 
+    /** In-app only: {@code learning} tells a learner that someone is now open to questions on an area they hold. */
+    public static final MessageType OPEN_TO_QUESTIONS = new MessageType("open_to_questions");
+
     private static final Map<String, MessageType> OPEN = open().stream()
             .collect(Collectors.toUnmodifiableMap(MessageType::code, Function.identity()));
 
@@ -43,7 +46,8 @@ public record MessageType(@JsonValue String code) {
     /** The types the open modules send, in the order a member's settings list them. */
     public static List<MessageType> open() {
 
-        return List.of(SESSION_UPCOMING, SESSION_WRAP_UP, SESSION_AWAITING_CLOSE, ORGANIZATION_ROUNDUP);
+        return List.of(SESSION_UPCOMING, SESSION_WRAP_UP, SESSION_AWAITING_CLOSE, ORGANIZATION_ROUNDUP,
+                OPEN_TO_QUESTIONS);
     }
 
     /** The type a code names: an open code's constant itself, so an open type read back keeps its identity. */

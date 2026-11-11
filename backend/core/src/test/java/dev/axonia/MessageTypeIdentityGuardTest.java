@@ -8,6 +8,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.regex.Pattern;
@@ -33,8 +34,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>
  * <strong>This is a text scan, not a proof.</strong> It matches {@code ==} or {@code !=} with an operand that names a
  * {@code MessageType} constant: one of {@link MessageType}'s own, or a {@code static final MessageType} field declared
- * in the scanned sources, qualified or statically imported. Two variables of the type compared with {@code ==} pass
- * here.
+ * in the scanned sources, qualified or statically imported. A qualified operand counts only when its qualifier is
+ * {@link MessageType} or a type declaring such a constant, so an enum constant that happens to share a name, such as
+ * {@code Tier.OPEN_TO_QUESTIONS}, is left alone. Two variables of the type compared with {@code ==} pass here.
  *
  * <p>
  * Each build unit scans its own {@code src}: this class core's, {@code CloudMessageTypeIdentityGuardTest} cloud's and
@@ -45,6 +47,8 @@ class MessageTypeIdentityGuardTest {
     private static final Path SOURCES = Path.of("src");
 
     private static final Pattern DECLARED = Pattern.compile("static\\s+final\\s+MessageType\\s+([A-Z][A-Z0-9_]*)\\b");
+
+    private static final Pattern TYPE_DECLARATION = Pattern.compile("\\b(?:class|interface|record|enum)\\s+(\\w+)");
 
     /**
      * Three comparisons as production code would write them, a statically imported one, and one on a constant a module
@@ -61,6 +65,7 @@ class MessageTypeIdentityGuardTest {
             if (MessageType.SESSION_UPCOMING.equals(type)) {
             assert MessageType.SESSION_UPCOMING.code() == null;
             if (SESSION_UPCOMING_COUNT == 3) {
+            if (tier == Tier.ORGANIZATION_ROUNDUP) {
             """;
 
     @Test
@@ -76,7 +81,7 @@ class MessageTypeIdentityGuardTest {
     void theScannerFindsEveryShapeOfTheComparisonItExistsToPrevent() {
 
         // when
-        var actual = matchesIn(THE_COMPARISONS, constantNames(List.of(THE_COMPARISONS)));
+        var actual = matchesIn(THE_COMPARISONS, Constants.in(List.of(THE_COMPARISONS)));
 
         // then
         assertThat(actual).containsExactly("MessageType.SESSION_UPCOMING ==", "MessageType.SESSION_AWAITING_CLOSE ==",
@@ -100,7 +105,7 @@ class MessageTypeIdentityGuardTest {
         for (var file : sources) {
             texts.add(Files.readString(file));
         }
-        var names = constantNames(texts);
+        var names = Constants.in(texts);
         var found = new ArrayList<String>();
         for (var i = 0; i < sources.size(); i++) {
             for (var match : matchesIn(texts.get(i), names)) {
@@ -110,13 +115,27 @@ class MessageTypeIdentityGuardTest {
         return found;
     }
 
-    private static Set<String> constantNames(List<String> sources) {
+    /** The constant names, and the types an operand may qualify them with. */
+    private record Constants(Set<String> names, Set<String> qualifiers) {
 
-        var names = Arrays.stream(MessageType.class.getDeclaredFields())
-                .filter(MessageTypeIdentityGuardTest::isConstant).map(Field::getName)
-                .collect(Collectors.toCollection(TreeSet::new));
-        sources.forEach(source -> DECLARED.matcher(source).results().forEach(result -> names.add(result.group(1))));
-        return names;
+        static Constants in(List<String> sources) {
+
+            var names = Arrays.stream(MessageType.class.getDeclaredFields())
+                    .filter(MessageTypeIdentityGuardTest::isConstant).map(Field::getName)
+                    .collect(Collectors.toCollection(TreeSet::new));
+            var qualifiers = new TreeSet<>(Set.of(MessageType.class.getSimpleName()));
+            sources.forEach(source -> DECLARED.matcher(source).results().forEach(result -> {
+                names.add(result.group(1));
+                declaringTypeOf(source, result.start()).ifPresent(qualifiers::add);
+            }));
+            return new Constants(names, qualifiers);
+        }
+
+        private static Optional<String> declaringTypeOf(String source, int at) {
+
+            return TYPE_DECLARATION.matcher(source.substring(0, at)).results().reduce((first, second) -> second)
+                    .map(result -> result.group(1));
+        }
     }
 
     private static boolean isConstant(Field field) {
@@ -124,10 +143,12 @@ class MessageTypeIdentityGuardTest {
         return Modifier.isStatic(field.getModifiers()) && field.getType() == MessageType.class;
     }
 
-    private static List<String> matchesIn(String source, Set<String> names) {
+    private static List<String> matchesIn(String source, Constants constants) {
 
-        var name = "(?:\\w+\\.)*(?:" + String.join("|", names) + ")\\b(?![.(])";
-        var comparison = Pattern.compile("\\b" + name + "\\s*[!=]=|[!=]=\\s*" + name);
+        var names = String.join("|", constants.names());
+        var name = "(?:(?:\\w+\\.)*(?:" + String.join("|", constants.qualifiers()) + ")\\.)?(?:" + names
+                + ")\\b(?![.(])";
+        var comparison = Pattern.compile("(?<![\\w.])" + name + "\\s*[!=]=|[!=]=\\s*" + name);
         return comparison.matcher(source).results().map(result -> result.group()).toList();
     }
 

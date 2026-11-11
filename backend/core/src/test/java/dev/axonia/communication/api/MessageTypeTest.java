@@ -18,7 +18,7 @@ class MessageTypeTest {
     void theOpenTypesAreTheOnesTheOpenModulesSend() {
 
         assertThat(MessageType.open()).extracting(MessageType::code).containsExactly("session_upcoming",
-                "session_wrap_up", "session_awaiting_close", "organization_roundup");
+                "session_wrap_up", "session_awaiting_close", "organization_roundup", "open_to_questions");
     }
 
     @Test

@@ -48,7 +48,8 @@ class SubjectPolicyCoverageTest {
                 List.of(policyFor(MessageType.open().toArray(MessageType[]::new)), policyFor(contributed)));
 
         assertThat(policies.types()).containsExactly(MessageType.SESSION_UPCOMING, MessageType.SESSION_WRAP_UP,
-                MessageType.SESSION_AWAITING_CLOSE, MessageType.ORGANIZATION_ROUNDUP, contributed);
+                MessageType.SESSION_AWAITING_CLOSE, MessageType.ORGANIZATION_ROUNDUP, MessageType.OPEN_TO_QUESTIONS,
+                contributed);
         assertThat(policies.declares(contributed)).isTrue();
         assertThat(policies.declares(MessageType.of("not_sent_here"))).isFalse();
         assertThat(policies.policyFor(MessageType.of("not_sent_here"))).isEmpty();

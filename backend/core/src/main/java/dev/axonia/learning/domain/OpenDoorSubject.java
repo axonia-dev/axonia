@@ -10,7 +10,7 @@ import dev.axonia.communication.api.MessageType;
 public record OpenDoorSubject(long communityId, String area, String declarerId) {
 
     /** The one message type sent about such a subject. */
-    public static final MessageType MESSAGE_TYPE = MessageType.of("open_to_questions");
+    public static final MessageType MESSAGE_TYPE = MessageType.OPEN_TO_QUESTIONS;
 
     private static final char SEPARATOR = ':';
 

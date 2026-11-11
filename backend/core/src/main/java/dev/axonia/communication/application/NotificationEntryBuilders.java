@@ -14,12 +14,14 @@ import dev.axonia.communication.api.MessageType;
 /**
  * Turns one message's frozen facts into the four strings a panel row shows. Reads exactly the keys the open senders
  * write - {@code events}' {@code SessionFacts} and {@code roundup}'s {@code RoundupFacts} - which are not linkable from
- * here, since {@code communication} depends on neither, and a contributed type's keys from its {@link InAppEntryShape}.
+ * here, since {@code communication} depends on neither, and any other type's keys from its {@link InAppEntryShape}.
  *
  * <p>
- * Every type a module sends reaches a member's panel, because the in-app channel is unconditional: an open type has its
- * shape here, a contributed type must contribute one, and the hosted edition's
- * {@code EveryMessageTypeReachesThePanelTest} holds every declared type to that.
+ * Every type a module sends reaches a member's panel, because the in-app channel is unconditional: the session and
+ * roundup types have their shape here, and every other type, open or contributed, declares one beside the policy that
+ * claims it. {@link MessageType#OPEN_TO_QUESTIONS} is open but shaped by {@code learning}, which owns its facts and
+ * ships in every edition. The hosted edition's {@code EveryMessageTypeReachesThePanelTest} holds every declared type to
+ * that.
  */
 @Component
 public class NotificationEntryBuilders {
