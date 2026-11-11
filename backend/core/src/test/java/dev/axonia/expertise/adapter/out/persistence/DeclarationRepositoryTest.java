@@ -1,6 +1,7 @@
 package dev.axonia.expertise.adapter.out.persistence;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -270,6 +271,37 @@ class DeclarationRepositoryTest extends ExpertiseJdbcTestSupport {
         preferences.setPaused(ORG, "alice", false);
 
         assertThat(repo.allVisibleIn(ORG, community)).containsExactly(declaration(community, "alice", "kafka", EARLY));
+    }
+
+    @Test
+    void isVisibleAnswersForOneMemberAndTheGivenSpellingsOnly() {
+
+        var community = seedCommunity("platform");
+        seedMember(community, "alice", true);
+        seedMember(community, "bob", true);
+        repo.insert(ORG, declaration(community, "alice", "apache-kafka", EARLY));
+
+        assertThat(repo.isVisible(ORG, community, "alice", Set.of("kafka", "apache-kafka"))).isTrue();
+        assertThat(repo.isVisible(ORG, community, "alice", Set.of("rust"))).isFalse();
+        assertThat(repo.isVisible(ORG, community, "bob", Set.of("kafka", "apache-kafka"))).isFalse();
+    }
+
+    @Test
+    void isVisibleIsFalseForAPausedOptedOutHidingInactiveOrDepartedDeclarer() {
+
+        var community = seedCommunity("platform");
+        seedMember(community, "paused", true);
+        seedMember(community, "opted-out", true);
+        seedMember(community, "hider", true);
+        seedMember(community, "inactive", false);
+        seedUser("departed", true);
+        preferences.setPaused(ORG, "paused", true);
+        preferences.setOptOut(ORG, "opted-out", true);
+        preferences.hideTag(ORG, "hider", "kafka");
+        var declarers = List.of("paused", "opted-out", "hider", "inactive", "departed");
+        declarers.forEach(userId -> repo.insert(ORG, declaration(community, userId, "kafka", EARLY)));
+
+        assertThat(declarers).noneMatch(userId -> repo.isVisible(ORG, community, userId, Set.of("kafka")));
     }
 
     @Test

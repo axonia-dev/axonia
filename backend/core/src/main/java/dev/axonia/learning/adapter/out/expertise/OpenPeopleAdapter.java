@@ -28,4 +28,10 @@ public class OpenPeopleAdapter implements OpenPeople {
         }
         return byArea;
     }
+
+    @Override
+    public boolean isOpen(String organizationId, long communityId, String area, String userId) {
+
+        return openDoors.isOpen(organizationId, communityId, area, userId);
+    }
 }

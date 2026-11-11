@@ -14,7 +14,6 @@ import dev.axonia.expertise.application.port.out.CommunityAccess;
 import dev.axonia.expertise.application.port.out.CurrentUser;
 import dev.axonia.expertise.application.port.out.DeclarationRepository;
 import dev.axonia.expertise.application.port.out.OrganizationContext;
-import dev.axonia.expertise.application.port.out.PreferenceRepository;
 import dev.axonia.expertise.application.port.out.TagAliasRepository;
 import dev.axonia.expertise.application.port.out.VocabularyLock;
 import dev.axonia.expertise.domain.AliasResolver;
@@ -42,14 +41,14 @@ public class ExpertiseDeclarationService {
     private final TagAliasRepository tagAliasRepository;
     private final Clock clock;
     private final VocabularyLock vocabularyLock;
-    private final PreferenceRepository preferenceRepository;
     private final ApplicationEventPublisher events;
 
     /**
      * Declares the caller open to questions on the tag, stored as typed. Declaring the area again, under any spelling
      * the community's aliases read as it, returns the first declaration. The cap counts areas, not spellings, and the
      * result names the area as the member's own page does. An archived community takes no new declaration. A new
-     * declaration others can see is announced as {@link DeclarationMade}.
+     * declaration is announced as {@link DeclarationMade} only when others can see it, by the rule every read of who is
+     * open uses.
      */
     @Transactional
     public Declaration declare(String slug, String rawTag) {
@@ -80,18 +79,11 @@ public class ExpertiseDeclarationService {
         var declaredAt = clock.instant();
         declarationRepository.insert(org,
                 Declaration.builder().communityId(communityId).userId(userId).tag(tag).declaredAt(declaredAt).build());
-        if (othersCanSee(org, userId, area)) {
+        if (declarationRepository.isVisible(org, communityId, userId, AliasResolver.variantsOf(area, aliases))) {
             events.publishEvent(DeclarationMade.builder().organizationId(org).communityId(communityId)
                     .communitySlug(slug).userId(userId).canonicalTag(area).declaredAt(declaredAt).build());
         }
         return declaredArea.declaredAt(declaredAt).build();
-    }
-
-    /** A declaration a pause, an opt-out or a hidden area keeps from the community announces nothing. */
-    private boolean othersCanSee(String org, String userId, String area) {
-
-        return !preferenceRepository.isOptedOut(org, userId) && !preferenceRepository.isPaused(org, userId)
-                && !preferenceRepository.hiddenTags(org, userId).contains(area);
     }
 
     /**

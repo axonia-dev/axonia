@@ -48,6 +48,13 @@ public interface DeclarationRepository {
     List<Declaration> allVisibleIn(String org, long communityId);
 
     /**
+     * Whether others may see the member's declaration of any of {@code tags} in the community, under the visibility
+     * rule of {@link #visibleIn(String, long, Set)}: the one question a declare and a delivery both ask before telling
+     * anybody the member is open.
+     */
+    boolean isVisible(String org, long communityId, String userId, Set<String> tags);
+
+    /**
      * Every tag this community's members declared, whoever they are: a name the curation page must be able to merge,
      * rename or delete is one the community produced, not one anybody is currently findable under.
      */

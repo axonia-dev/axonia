@@ -92,9 +92,6 @@ class DeclarationConcurrencyTest extends ExpertiseJdbcTestSupport {
     @Autowired
     private TagDismissalRepositoryImpl dismissals;
 
-    @Autowired
-    private PreferenceRepositoryImpl preferences;
-
     private CommunityAccess communityAccess;
     private ExpertiseDeclarationService service;
 
@@ -106,7 +103,7 @@ class DeclarationConcurrencyTest extends ExpertiseJdbcTestSupport {
         when(communityAccess.communityForSlug(SLUG)).thenReturn(new CommunityRef(COMMUNITY, false));
         when(communityAccess.isMember(COMMUNITY, DECLARER)).thenReturn(true);
         service = new ExpertiseDeclarationService(() -> ORG, () -> DECLARER, communityAccess, repo,
-                new FakeTagAliasRepository(), new TickingClock(), vocabularyLock, preferences, event -> {
+                new FakeTagAliasRepository(), new TickingClock(), vocabularyLock, event -> {
                 });
     }
 
@@ -308,7 +305,7 @@ class DeclarationConcurrencyTest extends ExpertiseJdbcTestSupport {
         var aboutToInsert = new CountDownLatch(1);
         var curationDone = new CountDownLatch(1);
         var declaring = new ExpertiseDeclarationService(() -> ORG, () -> DECLARER, communityAccess, repo, aliases,
-                new PausingClock(aboutToInsert, curationDone, COMMUNITY_LOCK), vocabularyLock, preferences, event -> {
+                new PausingClock(aboutToInsert, curationDone, COMMUNITY_LOCK), vocabularyLock, event -> {
                 });
         var transactions = new TransactionTemplate(transactionManager);
         var pool = Executors.newFixedThreadPool(2);

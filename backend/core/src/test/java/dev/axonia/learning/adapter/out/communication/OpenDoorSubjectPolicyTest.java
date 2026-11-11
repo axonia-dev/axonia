@@ -13,7 +13,9 @@ import dev.axonia.communication.api.CommunicationPort;
 import dev.axonia.communication.api.MessageType;
 import dev.axonia.communication.api.OutboundMessage;
 import dev.axonia.learning.application.port.out.CommunityAccess;
+import dev.axonia.learning.application.port.out.OpenPeople;
 import dev.axonia.learning.domain.OpenDoorNotice;
+import dev.axonia.learning.domain.OpenDoorSubject;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
@@ -27,20 +29,26 @@ class OpenDoorSubjectPolicyTest {
     @Mock
     private CommunityAccess communityAccess;
     @Mock
+    private OpenPeople openPeople;
+    @Mock
     private CommunicationPort communication;
 
     @Test
     void handlesTheOpenToQuestionsTypeAlone() {
 
-        assertThat(new OpenDoorSubjectPolicy(communityAccess).handles())
+        assertThat(new OpenDoorSubjectPolicy(communityAccess, openPeople).handles())
                 .containsExactly(MessageType.of("open_to_questions"));
     }
 
     @Test
-    void isAlwaysEnabled() {
+    void isEnabledOnlyWhileTheDeclarerIsStillOpenOnTheArea() {
 
-        assertThat(new OpenDoorSubjectPolicy(communityAccess).isEnabledFor(ORG, OpenDoorNotices.TYPE, "7:kafka:lea"))
-                .isTrue();
+        when(openPeople.isOpen(ORG, 7L, "kafka", "lea")).thenReturn(true);
+        when(openPeople.isOpen(ORG, 7L, "kafka", "ben")).thenReturn(false);
+        var sut = new OpenDoorSubjectPolicy(communityAccess, openPeople);
+
+        assertThat(sut.isEnabledFor(ORG, OpenDoorSubject.MESSAGE_TYPE, "7:kafka:lea")).isTrue();
+        assertThat(sut.isEnabledFor(ORG, OpenDoorSubject.MESSAGE_TYPE, "7:kafka:ben")).isFalse();
     }
 
     @Test
@@ -48,7 +56,7 @@ class OpenDoorSubjectPolicyTest {
 
         when(communityAccess.isMember(ORG, 7L, "bob")).thenReturn(true);
         when(communityAccess.isMember(ORG, 7L, "carol")).thenReturn(false);
-        var sut = new OpenDoorSubjectPolicy(communityAccess);
+        var sut = new OpenDoorSubjectPolicy(communityAccess, openPeople);
 
         assertThat(sut.isStillAMember(ORG, "7:kafka:lea", "bob")).isTrue();
         assertThat(sut.isStillAMember(ORG, "7:kafka:lea", "carol")).isFalse();
@@ -64,13 +72,11 @@ class OpenDoorSubjectPolicyTest {
 
         var sent = ArgumentCaptor.forClass(OutboundMessage.class);
         verify(communication).enqueue(sent.capture());
-        assertThat(sent.getValue())
-                .isEqualTo(OutboundMessage.builder().type(OpenDoorNotices.TYPE).subjectRef("7:c++:lea")
-                        .recipientUserIds(List.of("bob", "carol")).template("open-to-questions").inAppOnly(true)
-                        .facts(Map.of("sessionTitle", "Lea Moser is now open to questions on c++", "communityName",
-                                "Platform Guild", "searchUrl",
-                                "https://axonia.example/communities/platform/expertise?term=c%2B%2B&who=open",
-                                "aboutUserId", "lea"))
-                        .build());
+        assertThat(sent.getValue()).isEqualTo(OutboundMessage.builder().type(OpenDoorSubject.MESSAGE_TYPE)
+                .subjectRef("7:c++:lea").recipientUserIds(List.of("bob", "carol")).template("open-to-questions")
+                .inAppOnly(true).aboutUserId("lea")
+                .facts(Map.of("sessionTitle", "Lea Moser is open to questions", "line", "c++ · Platform Guild",
+                        "searchUrl", "https://axonia.example/communities/platform/expertise?term=c%2B%2B&who=open"))
+                .build());
     }
 }

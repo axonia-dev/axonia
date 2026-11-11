@@ -19,6 +19,7 @@ import dev.axonia.communication.application.NotificationCentreService;
 import dev.axonia.communication.application.SweepUnit;
 import dev.axonia.communication.domain.NotificationEntry;
 import dev.axonia.expertise.application.ExpertiseDeclarationService;
+import dev.axonia.expertise.application.ExpertisePreferenceService;
 import dev.axonia.shared.api.tenancy.OrganizationScope;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -29,7 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @CoreSpringBootTest
 @ActiveProfiles("DEV")
-@Sql(scripts = "/sql/cleanup.sql", executionPhase = Sql.ExecutionPhase.AFTER_TEST_CLASS)
+@Sql(scripts = "/sql/cleanup.sql", executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD)
 class OpenDoorNoticeIntegrationTest {
 
     private static final String ORG = "open-door-org";
@@ -39,6 +40,9 @@ class OpenDoorNoticeIntegrationTest {
 
     @Autowired
     private ExpertiseDeclarationService declarations;
+
+    @Autowired
+    private ExpertisePreferenceService preferences;
 
     @Autowired
     private NotificationCentreService notifications;
@@ -83,8 +87,8 @@ class OpenDoorNoticeIntegrationTest {
         // then
         var entries = panelOf(LEARNER);
         assertThat(entries).singleElement().satisfies(entry -> {
-            assertThat(entry.headline()).isEqualTo("Lea Moser is now open to questions on observability");
-            assertThat(entry.line()).isEqualTo("Platform Guild");
+            assertThat(entry.headline()).isEqualTo("Lea Moser is open to questions");
+            assertThat(entry.line()).isEqualTo("observability \u00b7 Platform Guild");
             assertThat(entry.actionUrl()).endsWith("/communities/" + SLUG + "/expertise?term=observability&who=open");
         });
         assertThat(mailRows()).isZero();
@@ -98,6 +102,36 @@ class OpenDoorNoticeIntegrationTest {
         // then
         assertThat(panelOf(LEARNER)).hasSize(1);
         assertThat(panelOf(DECLARER)).isEmpty();
+    }
+
+    @Test
+    void pausingBeforeTheDrainLeavesNoEntry() {
+
+        // given
+        signInAs(DECLARER);
+        declarations.declare(SLUG, "observability");
+
+        // when
+        preferences.setPaused(true);
+        drain();
+
+        // then
+        assertThat(panelOf(LEARNER)).isEmpty();
+    }
+
+    @Test
+    void removingBeforeTheDrainLeavesNoEntry() {
+
+        // given
+        signInAs(DECLARER);
+        declarations.declare(SLUG, "observability");
+
+        // when
+        declarations.remove(SLUG, "observability");
+        drain();
+
+        // then
+        assertThat(panelOf(LEARNER)).isEmpty();
     }
 
     private void member(long communityId, String userId, String displayName) {

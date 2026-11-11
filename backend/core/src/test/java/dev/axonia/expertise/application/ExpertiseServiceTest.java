@@ -864,6 +864,22 @@ class ExpertiseServiceTest {
                 .extracting("userId").containsExactly("dm");
     }
 
+    // -------------------------------------------------------------------------
+    // isOpen - the one rule, asked off a request
+    // -------------------------------------------------------------------------
+
+    @Test
+    void isOpenAsksTheVisibilityReadOverEverySpellingOfTheArea() {
+
+        // given
+        when(tagAliasRepository.aliasMap("org-2", 9L)).thenReturn(Map.of("apache-kafka", "kafka"));
+        when(declarationRepository.isVisible("org-2", 9L, "lea", Set.of("kafka", "apache-kafka"))).thenReturn(true);
+
+        // when / then
+        assertThat(sut.isOpen("org-2", 9L, "apache-kafka", "lea")).isTrue();
+        assertThat(sut.isOpen("org-2", 9L, "apache-kafka", "ben")).isFalse();
+    }
+
     @Test
     void openInRequiresMembershipLikeAreas() {
 

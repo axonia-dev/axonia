@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import dev.axonia.communication.api.ExpiredSubjects;
-import dev.axonia.learning.adapter.out.communication.OpenDoorNotices;
+import dev.axonia.learning.domain.OpenDoorSubject;
 import dev.axonia.shared.api.personaldata.ErasureCounts;
 import dev.axonia.shared.api.personaldata.MemberDataEraser;
 import dev.axonia.shared.api.personaldata.MemberErasure;
@@ -32,8 +32,8 @@ public class LearningMemberDataEraser implements MemberDataEraser {
 
         var deleted = jdbc.update("DELETE FROM learning_intent WHERE organization_id = :org AND user_id = :user",
                 Map.of("org", erasure.organizationId(), "user", erasure.userId()));
-        deleted += expiredSubjects.forgetEndingWith(erasure.organizationId(), OpenDoorNotices.TYPE,
-                OpenDoorNotices.aboutSuffix(erasure.userId()));
+        deleted += expiredSubjects.forgetEndingWith(erasure.organizationId(), OpenDoorSubject.MESSAGE_TYPE,
+                OpenDoorSubject.aboutSuffix(erasure.userId()));
         return new ErasureCounts(deleted, 0, 0, 0);
     }
 }

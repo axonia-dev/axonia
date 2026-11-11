@@ -68,6 +68,17 @@ class LearningAdaptersTest {
     }
 
     @Test
+    void whetherSomeoneIsOpenIsTheExpertiseContextsAnswer() {
+
+        when(openDoors.isOpen("org-1", 7L, "kafka", "lea")).thenReturn(true);
+
+        var sut = new OpenPeopleAdapter(openDoors);
+
+        assertThat(sut.isOpen("org-1", 7L, "kafka", "lea")).isTrue();
+        assertThat(sut.isOpen("org-1", 7L, "kafka", "ben")).isFalse();
+    }
+
+    @Test
     void communityForSlugSaysWhetherTheCommunityIsArchived() {
 
         var sut = new CommunityAccessAdapter(communityService, membershipService);

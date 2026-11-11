@@ -62,6 +62,9 @@ public class DeclarationRepositoryImpl implements DeclarationRepository {
 
     private static final String ALL_VISIBLE_IN_SQL = VISIBLE_SQL.replace("{tagFilter}", "");
 
+    private static final String VISIBLE_OF_USER_SQL = VISIBLE_SQL.replace("{tagFilter}",
+            "  AND d.tag IN (:tags) AND d.user_id = :userId");
+
     private static final String COUNT_IN_SQL = """
             SELECT count(DISTINCT d.user_id)
               FROM expertise_declaration d
@@ -124,6 +127,14 @@ public class DeclarationRepositoryImpl implements DeclarationRepository {
     public List<Declaration> allVisibleIn(String org, long communityId) {
 
         return declarations.query(ALL_VISIBLE_IN_SQL, scope(org, communityId));
+    }
+
+    @Override
+    public boolean isVisible(String org, long communityId, String userId, Set<String> tags) {
+
+        return !declarations
+                .query(VISIBLE_OF_USER_SQL, scope(org, communityId).addValue("tags", tags).addValue("userId", userId))
+                .isEmpty();
     }
 
     @Override

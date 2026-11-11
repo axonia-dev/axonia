@@ -7,25 +7,30 @@ import java.util.Map;
 import org.springframework.stereotype.Component;
 
 import dev.axonia.communication.api.CommunicationPort;
-import dev.axonia.communication.api.MessageType;
 import dev.axonia.communication.api.OutboundMessage;
 import dev.axonia.learning.application.port.out.LearnerNotices;
 import dev.axonia.learning.domain.OpenDoorNotice;
+import dev.axonia.learning.domain.OpenDoorSubject;
 import dev.axonia.shared.api.web.PublicUrls;
 import lombok.RequiredArgsConstructor;
 
 /**
  * One in-app message per community, area and declarer, so the outbox's once-per-subject and once-per-recipient keys are
- * what keep a removed and redeclared area from telling anybody twice. It is never mailed, so its template is a name no
+ * what keep a removed and redeclared area from telling anybody twice. The headline names the declarer alone and the
+ * line carries the area, so a narrow panel never cuts the area away. It is never mailed, so its template is a name no
  * mail is rendered from.
  */
 @Component
 @RequiredArgsConstructor
 public class OpenDoorNotices implements LearnerNotices {
 
-    public static final MessageType TYPE = MessageType.of("open_to_questions");
-
     static final String TEMPLATE = "open-to-questions";
+
+    static final String HEADLINE_FACT = "sessionTitle";
+
+    public static final String LINE_FACT = "line";
+
+    public static final String LINK_FACT = "searchUrl";
 
     private final CommunicationPort communication;
     private final PublicUrls publicUrl;
@@ -33,19 +38,13 @@ public class OpenDoorNotices implements LearnerNotices {
     @Override
     public void notify(OpenDoorNotice notice) {
 
-        communication.enqueue(OutboundMessage.builder().type(TYPE)
-                .subjectRef(notice.communityId() + ":" + notice.area() + aboutSuffix(notice.declarerId()))
+        communication.enqueue(OutboundMessage.builder().type(OpenDoorSubject.MESSAGE_TYPE)
+                .subjectRef(new OpenDoorSubject(notice.communityId(), notice.area(), notice.declarerId()).ref())
                 .recipientUserIds(notice.learnerIds()).template(TEMPLATE).inAppOnly(true)
-                .facts(Map.of("sessionTitle", notice.declarerName() + " is now open to questions on " + notice.area(),
-                        "communityName", notice.communityName(), "searchUrl", searchUrl(notice), "aboutUserId",
-                        notice.declarerId()))
+                .aboutUserId(notice.declarerId())
+                .facts(Map.of(HEADLINE_FACT, notice.declarerName() + " is open to questions", LINE_FACT,
+                        notice.area() + " · " + notice.communityName(), LINK_FACT, searchUrl(notice)))
                 .build());
-    }
-
-    /** How every notice's subject about the declarer ends, so their erasure can find them all. */
-    public static String aboutSuffix(String declarerId) {
-
-        return ":" + declarerId;
     }
 
     private String searchUrl(OpenDoorNotice notice) {

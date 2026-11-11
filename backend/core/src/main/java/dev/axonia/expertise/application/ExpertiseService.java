@@ -124,6 +124,15 @@ public class ExpertiseService implements OpenDoors {
                 .toList();
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isOpen(String organizationId, long communityId, String area, String userId) {
+
+        var aliasMap = tagAliasRepository.aliasMap(organizationId, communityId);
+        return declarationRepository.isVisible(organizationId, communityId, userId,
+                AliasResolver.variantsOf(AliasResolver.canonicalOf(area, aliasMap), aliasMap));
+    }
+
     @Transactional(readOnly = true)
     public List<Practitioner> suggestSpeakers(String slug, Collection<String> rawTags) {
 

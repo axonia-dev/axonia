@@ -23,7 +23,6 @@ import dev.axonia.expertise.application.port.out.CurrentUser;
 import dev.axonia.expertise.application.port.out.DeclarationRepository;
 import dev.axonia.expertise.application.port.out.FakeTagAliasRepository;
 import dev.axonia.expertise.application.port.out.OrganizationContext;
-import dev.axonia.expertise.application.port.out.PreferenceRepository;
 import dev.axonia.expertise.application.port.out.VocabularyLock;
 import dev.axonia.expertise.domain.CommunityRef;
 import dev.axonia.expertise.domain.Declaration;
@@ -61,8 +60,6 @@ class ExpertiseDeclarationServiceTest {
     @Mock
     private VocabularyLock vocabularyLock;
     @Mock
-    private PreferenceRepository preferenceRepository;
-    @Mock
     private ApplicationEventPublisher events;
 
     private FakeTagAliasRepository tagAliasRepository;
@@ -74,8 +71,8 @@ class ExpertiseDeclarationServiceTest {
 
         tagAliasRepository = new FakeTagAliasRepository();
         sut = new ExpertiseDeclarationService(organizationContext, currentUser, communityAccess, declarationRepository,
-                tagAliasRepository, Clock.fixed(NOW, ZoneOffset.UTC), vocabularyLock, preferenceRepository, events);
-        when(preferenceRepository.hiddenTags(anyString(), anyString())).thenReturn(Set.of());
+                tagAliasRepository, Clock.fixed(NOW, ZoneOffset.UTC), vocabularyLock, events);
+        when(declarationRepository.isVisible(anyString(), any(Long.class), anyString(), any())).thenReturn(true);
         when(organizationContext.organizationId()).thenReturn(ORG);
         when(currentUser.userId()).thenReturn(ALICE);
         when(communityAccess.communityIdForSlug(SLUG)).thenReturn(COMMUNITY);
@@ -107,34 +104,15 @@ class ExpertiseDeclarationServiceTest {
     }
 
     @Test
-    void pausedDeclarerPublishesNothing() {
+    void aDeclarationOthersCannotSeePublishesNothing() {
 
-        when(preferenceRepository.isPaused(ORG, ALICE)).thenReturn(true);
-
-        sut.declare(SLUG, "kafka");
-
-        verify(declarationRepository).insert(any(), any());
-        verify(events, never()).publishEvent(any(Object.class));
-    }
-
-    @Test
-    void optedOutDeclarerPublishesNothing() {
-
-        when(preferenceRepository.isOptedOut(ORG, ALICE)).thenReturn(true);
-
-        sut.declare(SLUG, "kafka");
-
-        verify(events, never()).publishEvent(any(Object.class));
-    }
-
-    @Test
-    void hiddenAreaPublishesNothing() {
-
+        // given - paused, opted out, hiding the area, or gone from the directory: the shared read says no
         tagAliasRepository.addAlias(ORG, COMMUNITY, "apache-kafka", "kafka");
-        when(preferenceRepository.hiddenTags(ORG, ALICE)).thenReturn(Set.of("kafka"));
+        when(declarationRepository.isVisible(ORG, COMMUNITY, ALICE, Set.of("kafka", "apache-kafka"))).thenReturn(false);
 
         sut.declare(SLUG, "apache-kafka");
 
+        verify(declarationRepository).insert(any(), any());
         verify(events, never()).publishEvent(any(Object.class));
     }
 
