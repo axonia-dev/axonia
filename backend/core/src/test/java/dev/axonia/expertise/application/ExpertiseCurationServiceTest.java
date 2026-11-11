@@ -483,7 +483,7 @@ class ExpertiseCurationServiceTest {
         when(expertiseQueryRepository.allTags(ORG, COMMUNITY_ID)).thenReturn(List.of("kubernetes", "k8s"));
         when(expertiseQueryRepository.userTagAggregates(ORG, COMMUNITY_ID))
                 .thenReturn(List.of(aggregate("bob", "k8s")));
-        when(declarationRepository.allCurableIn(ORG, COMMUNITY_ID)).thenReturn(List.of(Declaration.builder()
+        when(declarationRepository.allVisibleIn(ORG, COMMUNITY_ID)).thenReturn(List.of(Declaration.builder()
                 .communityId(COMMUNITY_ID).userId("bob").tag("kubernetes").declaredAt(Instant.EPOCH).build()));
 
         // when

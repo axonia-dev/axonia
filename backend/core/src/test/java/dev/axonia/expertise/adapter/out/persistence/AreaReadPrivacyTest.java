@@ -70,6 +70,7 @@ class AreaReadPrivacyTest extends ExpertiseJdbcTestSupport {
     private ExpertiseService search;
     private ExpertiseCurationService curation;
     private PersonDirectory personDirectory;
+    private CurationScope curationScope;
 
     @BeforeEach
     void wireTheTwoServicesOverOneCommunity() {
@@ -85,10 +86,9 @@ class AreaReadPrivacyTest extends ExpertiseJdbcTestSupport {
         when(evidenceEnricher.enrich(any(), any())).thenAnswer(call -> call.getArgument(0));
         search = new ExpertiseService(() -> ORG, () -> CURATOR, communityAccess, personDirectory, queries, aliases,
                 evidenceEnricher, declarations);
-        curation = new ExpertiseCurationService(() -> ORG,
-                new CurationScope(() -> CURATOR, communityAccess, queries, declarations, aliases, List.of()), queries,
-                aliases, dismissals, List.of(), signalWriter, declarations, new FakeNamedAreaRepository(),
-                vocabularyLock);
+        curationScope = new CurationScope(() -> CURATOR, communityAccess, queries, declarations, aliases, List.of());
+        curation = new ExpertiseCurationService(() -> ORG, curationScope, queries, aliases, dismissals, List.of(),
+                signalWriter, declarations, new FakeNamedAreaRepository(), vocabularyLock);
     }
 
     @Test
@@ -186,6 +186,28 @@ class AreaReadPrivacyTest extends ExpertiseJdbcTestSupport {
             assertThat(area.canonicalTag()).isEqualTo("kafka");
             assertThat(area.people()).extracting(OpenPerson::userId).containsExactly("area-alice");
         });
+    }
+
+    @Test
+    void aTagOnlyAPausedDeclarerCarriesIsAbsentFromCountsAndVisibleTagsButKeptAsARawName() {
+
+        // given - alice declared kafka and is paused, bob declared kafka and is not; alice alone declared argo
+        seedMemberUser("area-alice");
+        seedMemberUser("area-bob");
+        declare("area-alice", "kafka");
+        declare("area-bob", "kafka");
+        declare("area-alice", "argo");
+        preferences.setPaused(ORG, "area-alice", true);
+
+        // then - the curator's counts agree with the search: alice counts nowhere
+        assertThat(curation.vocabulary(SLUG)).extracting(ExpertiseArea::canonicalTag, ExpertiseArea::peopleCount)
+                .containsExactly(tuple("argo", 0), tuple("kafka", 1));
+        assertThat(search.areas(SLUG, null)).extracting(ExpertiseArea::canonicalTag, ExpertiseArea::peopleCount)
+                .containsExactly(tuple("kafka", 1));
+
+        // and - the member-facing tags drop argo, while the raw names a curator works on keep it
+        assertThat(curationScope.visibleTagsOf(ORG, community)).containsExactly("kafka");
+        assertThat(curationScope.rawTagsOf(ORG, community)).contains("argo", "kafka");
     }
 
     /** Dana's declaration is the only carrier of "helm", merged into "kubernetes", and she then opted out. */

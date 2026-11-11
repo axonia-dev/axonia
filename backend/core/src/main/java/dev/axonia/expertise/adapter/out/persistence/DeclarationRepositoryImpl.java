@@ -53,19 +53,14 @@ public class DeclarationRepositoryImpl implements DeclarationRepository {
               AND d.community_id    = :communityId
               AND optout.user_id    IS NULL
               AND hidden.tag        IS NULL
-            {pauseFilter}
+              AND pause.user_id     IS NULL
             {tagFilter}
             ORDER BY d.user_id, d.declared_at, d.tag
             """;
 
-    private static final String UNPAUSED_SQL = VISIBLE_SQL.replace("{pauseFilter}", "  AND pause.user_id IS NULL");
+    private static final String VISIBLE_IN_SQL = VISIBLE_SQL.replace("{tagFilter}", "  AND d.tag IN (:tags)");
 
-    private static final String VISIBLE_IN_SQL = UNPAUSED_SQL.replace("{tagFilter}", "  AND d.tag IN (:tags)");
-
-    private static final String ALL_VISIBLE_IN_SQL = UNPAUSED_SQL.replace("{tagFilter}", "");
-
-    private static final String ALL_CURABLE_IN_SQL = VISIBLE_SQL.replace("{pauseFilter}", "").replace("{tagFilter}",
-            "");
+    private static final String ALL_VISIBLE_IN_SQL = VISIBLE_SQL.replace("{tagFilter}", "");
 
     private static final String COUNT_IN_SQL = """
             SELECT count(DISTINCT d.user_id)
@@ -129,12 +124,6 @@ public class DeclarationRepositoryImpl implements DeclarationRepository {
     public List<Declaration> allVisibleIn(String org, long communityId) {
 
         return declarations.query(ALL_VISIBLE_IN_SQL, scope(org, communityId));
-    }
-
-    @Override
-    public List<Declaration> allCurableIn(String org, long communityId) {
-
-        return declarations.query(ALL_CURABLE_IN_SQL, scope(org, communityId));
     }
 
     @Override

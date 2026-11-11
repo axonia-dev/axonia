@@ -48,12 +48,6 @@ public interface DeclarationRepository {
     List<Declaration> allVisibleIn(String org, long communityId);
 
     /**
-     * {@link #allVisibleIn} with a paused declarer's declarations kept: a pause steps a member back from being asked,
-     * and must not take the names they declared away from the community's curators.
-     */
-    List<Declaration> allCurableIn(String org, long communityId);
-
-    /**
      * Every tag this community's members declared, whoever they are: a name the curation page must be able to merge,
      * rename or delete is one the community produced, not one anybody is currently findable under.
      */

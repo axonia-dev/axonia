@@ -254,7 +254,7 @@ class DeclarationRepositoryTest extends ExpertiseJdbcTestSupport {
 
         assertThat(repo.visibleIn(ORG, community, Set.of("kafka"))).isEmpty();
         assertThat(repo.allVisibleIn(ORG, community)).isEmpty();
-        assertThat(repo.allCurableIn(ORG, community)).containsExactly(kafka);
+        assertThat(repo.tagsIn(ORG, community)).containsExactly("kafka");
         assertThat(repo.inCommunity(ORG, community, "alice")).containsExactly(kafka);
         assertThat(repo.forUser(ORG, "alice")).containsExactly(kafka);
     }
@@ -270,20 +270,6 @@ class DeclarationRepositoryTest extends ExpertiseJdbcTestSupport {
         preferences.setPaused(ORG, "alice", false);
 
         assertThat(repo.allVisibleIn(ORG, community)).containsExactly(declaration(community, "alice", "kafka", EARLY));
-    }
-
-    @Test
-    void allCurableInStillExcludesAnOptedOutMemberAndAHiddenArea() {
-
-        var community = seedCommunity("platform");
-        seedMember(community, "opted-out", true);
-        seedMember(community, "hider", true);
-        preferences.setOptOut(ORG, "opted-out", true);
-        preferences.hideTag(ORG, "hider", "kafka");
-        repo.insert(ORG, declaration(community, "opted-out", "kafka", EARLY));
-        repo.insert(ORG, declaration(community, "hider", "kafka", EARLY));
-
-        assertThat(repo.allCurableIn(ORG, community)).isEmpty();
     }
 
     @Test
