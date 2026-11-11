@@ -83,6 +83,13 @@ class AgentScopeGateTest {
     }
 
     @Test
+    void require_throwsWhenLibraryRemoveMissing_evenWithContribute() {
+        actWithScopes("read", "library:contribute");
+        assertThatThrownBy(() -> sut.require(AgentScope.LIBRARY_REMOVE)).isInstanceOf(ForbiddenException.class)
+                .hasMessageContaining("library:remove");
+    }
+
+    @Test
     void require_throwsWhenTagDeleteMissing() {
         actWithScopes("read");
         assertThatThrownBy(() -> sut.require(AgentScope.TAG_DELETE)).isInstanceOf(ForbiddenException.class)

@@ -59,16 +59,17 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>
  * Assertions (each maps to a spec guarantee):
  * <ol>
- * <li>A scoped token lists exactly the 45 tools (surface allowlist + auth passes).</li>
+ * <li>A scoped token lists exactly the 46 tools (surface allowlist + auth passes).</li>
  * <li>A scoped {@code topic.propose} call succeeds, a topic is created, and an {@code OK} audit row is written.</li>
  * <li>An unscoped {@code library.contribute} call is refused (scope layer), a {@code SCOPE_DENIED} audit row is
  * written, and the org's artifact count is unchanged.</li>
  * <li>A bogus bearer on {@code /mcp} is rejected with 401 (chain gate).</li>
  * <li>The same {@code axp_} token presented to the REST chain ({@code /axonia/**}) is rejected with 401 (surface
  * isolation).</li>
- * <li>{@code tools/list} contains exactly the 45 known tool names, and exactly seven of them declare
+ * <li>{@code tools/list} contains exactly the 46 known tool names, and exactly eight of them declare
  * {@code destructiveHint}: {@code session.detachArtifact}, {@code learning.remove}, {@code session.delete},
- * {@code tag.delete}, {@code tag.rename}, {@code namedArea.delete} and {@code session.importFeedback}.</li>
+ * {@code tag.delete}, {@code tag.rename}, {@code namedArea.delete}, {@code session.importFeedback} and
+ * {@code library.remove}.</li>
  * <li>The scoped {@code topic.propose} guarantee holds identically in a second, independently seeded ENTERPRISE
  * organization: the tool code path does not depend on which organization it runs in.</li>
  * <li>The full library round trip: {@code library.contribute} then {@code session.attachArtifact} then
@@ -109,13 +110,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AgentMcpEndToEndTest {
 
     /**
-     * The complete tool catalog. Assertion 6 checks {@code tools/list} is EXACTLY this set, and that exactly seven
-     * tools declare {@code destructiveHint} - {@code session.detachArtifact}, {@code session.delete} and
-     * {@code tag.delete}, each gated behind a scope of its own; {@code learning.remove}, which drops the date an area
-     * was named and takes back only the caller's own statement; {@code tag.rename} and {@code namedArea.delete}, the
-     * two curation writes that cannot be undone, a rename onto a name already carried folding two tags into one; and
-     * {@code session.importFeedback}, which replaces a session's earlier import whole. Every other tool is additive or
-     * undoable.
+     * The complete tool catalog. Assertion 6 checks {@code tools/list} is EXACTLY this set, and that exactly eight
+     * tools declare {@code destructiveHint} - {@code session.detachArtifact}, {@code session.delete},
+     * {@code tag.delete} and {@code library.remove}, each gated behind a scope of its own; {@code learning.remove},
+     * which drops the date an area was named and takes back only the caller's own statement; {@code tag.rename} and
+     * {@code namedArea.delete}, the two curation writes that cannot be undone, a rename onto a name already carried
+     * folding two tags into one; and {@code session.importFeedback}, which replaces a session's earlier import whole.
+     * Every other tool is additive or undoable.
      */
     private static final Set<String> EXPECTED_TOOLS = Set.of("communities.list", "schedule.read", "session.get",
             "library.artifactTypes", "library.contribute", "topic.propose", "session.signup", "attendance.signal",
@@ -126,11 +127,12 @@ class AgentMcpEndToEndTest {
             "tag.list", "tag.vocabulary", "tag.suggestions", "tag.merge", "tag.split", "tag.rename",
             "tag.dismissSuggestion", "tag.undismissSuggestion", "namedArea.list", "namedArea.create",
             "namedArea.rename", "namedArea.delete", "namedArea.assignTags", "namedArea.unassignTag", "session.rename",
-            "session.importFeedback");
+            "session.importFeedback", "library.remove");
 
     /** The destructive tools on the agent surface. Assertion 6 pins this list to prevent silent growth. */
     private static final Set<String> DESTRUCTIVE_TOOLS = Set.of("session.detachArtifact", "learning.remove",
-            "session.delete", "tag.delete", "tag.rename", "namedArea.delete", "session.importFeedback");
+            "session.delete", "tag.delete", "tag.rename", "namedArea.delete", "session.importFeedback",
+            "library.remove");
 
     /** Reads a tool result's JSON text back into fields, e.g. the {@code sessionId} a create call reports. */
     private static final JsonMapper JSON = JsonMapper.builder().build();
@@ -170,6 +172,7 @@ class AgentMcpEndToEndTest {
     private static final String DELETE_ORGANIZER = "agent-ent-undo-organizer";
     private static final String DELETE_PRESENTER = "agent-ent-undo-presenter";
     private static final String DELETE_PRESENTER_NAME = "Undo Presenter";
+    private static final String REMOVE_MEMBER = "agent-ent-undo-member";
 
     // The rename loop's own community, so naming and clearing a session leaves every other loop's schedule as it was.
     private static final String RENAME_SLUG = "agent-ent-rename";
@@ -268,6 +271,8 @@ class AgentMcpEndToEndTest {
             promoteToOrganizer(ENTERPRISE_ORG, DELETE_SLUG, DELETE_ORGANIZER);
             seedActiveMember(ENTERPRISE_ORG, DELETE_PRESENTER, DELETE_PRESENTER_NAME, null);
             seedMembership(ENTERPRISE_ORG, DELETE_SLUG, DELETE_PRESENTER);
+            seedActiveMember(ENTERPRISE_ORG, REMOVE_MEMBER);
+            seedMembership(ENTERPRISE_ORG, DELETE_SLUG, REMOVE_MEMBER);
 
             seedActiveMember(ENTERPRISE_ORG, RENAME_ORGANIZER);
             seedCommunityWithKind(ENTERPRISE_ORG, RENAME_SLUG, RENAME_ORGANIZER, enterpriseKindId);
@@ -286,11 +291,11 @@ class AgentMcpEndToEndTest {
     }
 
     // -------------------------------------------------------------------------
-    // Assertion 1: a scoped token lists exactly the 45 tools.
+    // Assertion 1: a scoped token lists exactly the 46 tools.
     // -------------------------------------------------------------------------
 
     @Test
-    void scopedToken_listsExactlyTheFortyFiveTools() {
+    void scopedToken_listsExactlyTheFortySixTools() {
         var bearer = mint(ENTERPRISE_ORG, ENTERPRISE_USER, Set.of("read", "topic:propose"));
         var client = connect(bearer);
         try {
@@ -415,11 +420,11 @@ class AgentMcpEndToEndTest {
     }
 
     // -------------------------------------------------------------------------
-    // Assertion 6: tools/list is EXACTLY the 45 known names, and exactly seven declare destructiveHint.
+    // Assertion 6: tools/list is EXACTLY the 46 known names, and exactly eight declare destructiveHint.
     // -------------------------------------------------------------------------
 
     @Test
-    void toolCatalog_isExactlyTheFortyFiveKnownTools_andOnlyTheSevenIrreversibleWritesAreDestructive() {
+    void toolCatalog_isExactlyTheFortySixKnownTools_andOnlyTheEightIrreversibleWritesAreDestructive() {
         var bearer = mint(ENTERPRISE_ORG, ENTERPRISE_USER, Set.of("read"));
         var client = connect(bearer);
         try {
@@ -433,8 +438,9 @@ class AgentMcpEndToEndTest {
                     .filter(t -> Boolean.TRUE.equals(t.annotations().destructiveHint())).map(McpSchema.Tool::name)
                     .collect(Collectors.toSet());
             assertThat(destructive)
-                    .as("exactly seven destructive tools: detaching an artifact, removing an area, deleting a session, "
-                            + "deleting a tag, renaming a tag, deleting a named area and replacing a feedback import")
+                    .as("exactly eight destructive tools: detaching an artifact, removing an area, deleting a session, "
+                            + "deleting a tag, renaming a tag, deleting a named area, replacing a feedback import and "
+                            + "removing an artifact from the library")
                     .isEqualTo(DESTRUCTIVE_TOOLS);
         } finally {
             close(client);
@@ -876,6 +882,62 @@ class AgentMcpEndToEndTest {
             assertThat(whoKnows(DELETE_SLUG, "flink")).as("and from the expertise built on it").isEmpty();
         } finally {
             close(client);
+        }
+    }
+
+    @Test
+    void removeLoop_aBackfilledPointerLeavesTheLibrary_andNoSavedListBreaksOnIt() {
+        var organizer = connect(mint(ENTERPRISE_ORG, DELETE_ORGANIZER,
+                Set.of("read", "schedule:manage", "library:contribute", "session:attach", "library:remove")));
+        var member = connect(mint(ENTERPRISE_ORG, REMOVE_MEMBER, Set.of("read", "library:remove")));
+        try {
+            organizer.initialize();
+            member.initialize();
+
+            // given - a backfilled session carrying a notes page that only points back at the old wiki
+            var sessionId = callForLong(
+                    organizer, "session.create", Map.of("params", Map.of("slug", DELETE_SLUG, "title",
+                            "Backfilled with a pointer", "scheduledAt", "2025-05-06T08:00:00Z", "durationMinutes", 60)),
+                    "sessionId");
+            var contributeParams = new LinkedHashMap<String, Object>();
+            contributeParams.put("slug", DELETE_SLUG);
+            contributeParams.put("title", "Meeting notes - 06.05.2025");
+            contributeParams.put("typeId", seedArtifactType(ENTERPRISE_ORG, "E2E Remove Notes"));
+            contributeParams.put("url", "https://wiki.example.test/meeting-notes-06-05");
+            var artifactId = callForLong(organizer, "library.contribute", Map.of("params", contributeParams), "id");
+            call(organizer, "session.attachArtifact",
+                    Map.of("slug", DELETE_SLUG, "sessionId", sessionId, "artifactId", artifactId));
+            jdbc.update("INSERT INTO bookmark (id, organization_id, community_id, saveable_type, saveable_id, "
+                    + "member_user_id, created_at, updated_at, version) VALUES (nextval('bookmark_id_seq'), ?, "
+                    + "(SELECT id FROM communities WHERE organization_id = ? AND slug = ?), 'ARTIFACT', ?, ?, now(), "
+                    + "now(), 0)", ENTERPRISE_ORG, ENTERPRISE_ORG, DELETE_SLUG, artifactId, REMOVE_MEMBER);
+
+            // when - a plain member tries to remove what somebody else contributed
+            var refused = member
+                    .callTool(new McpSchema.CallToolRequest("library.remove", Map.of("artifactId", artifactId)));
+
+            // then
+            assertThat(refused.isError()).as("only the contributor or an organizer removes an artifact").isTrue();
+            assertThat(artifactIdByTitle(ENTERPRISE_ORG, "Meeting notes - 06.05.2025")).isEqualTo(artifactId);
+
+            // when - the organizer removes it
+            var removed = JSON.readTree(call(organizer, "library.remove", Map.of("artifactId", artifactId)));
+
+            // then - it is gone from the library and the session, and the member's saves still open without it
+            assertThat(removed.get("artifactId").asLong()).isEqualTo(artifactId);
+            var search = JSON.readTree(call(organizer, "library.search",
+                    Map.of("params", Map.of("slug", DELETE_SLUG, "q", "Meeting notes"))));
+            assertThat(search.valueStream().map(row -> row.get("id").asLong())).doesNotContain(artifactId);
+            assertThat(attachmentCount(ENTERPRISE_ORG, artifactId)).as("nothing may point at a removed artifact")
+                    .isZero();
+            assertThat(asUser(REMOVE_MEMBER, () -> bookmarks.mySaved()))
+                    .as("a member who had saved the artifact still opens their saved items, without it").isEmpty();
+            var again = organizer
+                    .callTool(new McpSchema.CallToolRequest("library.remove", Map.of("artifactId", artifactId)));
+            assertThat(again.isError()).as("a removed artifact cannot be removed twice").isTrue();
+        } finally {
+            close(organizer);
+            close(member);
         }
     }
 

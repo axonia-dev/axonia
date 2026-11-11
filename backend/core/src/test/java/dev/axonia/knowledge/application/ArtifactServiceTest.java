@@ -45,6 +45,7 @@ import dev.axonia.shared.api.error.ValidationException;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -731,6 +732,21 @@ class ArtifactServiceTest {
     }
 
     @Test
+    void remove_dropsEveryMembersSaveOfIt() {
+
+        // given
+        var entity = StoredArtifactMother.any().id(1L).build();
+        when(artifactStore.find("default", 1L)).thenReturn(Optional.of(entity));
+        when(currentUser.userId()).thenReturn("dev-user");
+
+        // when
+        sut.remove(1L);
+
+        // then
+        verify(savedArtifacts).forget("default", 1L);
+    }
+
+    @Test
     void remove_authorizerDenial_propagates() {
 
         // given
@@ -743,6 +759,7 @@ class ArtifactServiceTest {
         // then
         assertThatThrownBy(() -> sut.remove(1L)).isInstanceOf(ForbiddenException.class);
         verify(artifactStore, never()).delete(any());
+        verify(savedArtifacts, never()).forget(any(), anyLong());
     }
 
     @Test

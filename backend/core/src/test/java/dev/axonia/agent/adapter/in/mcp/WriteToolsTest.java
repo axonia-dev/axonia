@@ -470,6 +470,34 @@ class WriteToolsTest {
     }
 
     @Test
+    void removeArtifact_delegatesAndEchoesTheRemovedId() {
+        authenticateWithScopes("library:remove");
+
+        var result = sut.removeArtifact(9L);
+
+        assertThat(result).isEqualTo(new WriteTools.RemovedArtifactView(9L));
+        verify(artifacts).remove(9L);
+    }
+
+    @Test
+    void removeArtifact_refusedWithLibraryContributeOnly() {
+        authenticateWithScopes("read", "library:contribute");
+
+        assertThatThrownBy(() -> sut.removeArtifact(9L)).isInstanceOf(AgentToolException.class)
+                .hasMessageContaining("library:remove");
+        verifyNoInteractions(artifacts);
+    }
+
+    @Test
+    void removeArtifact_refusesAnotherMembersArtifactWithoutLeakingWhy() {
+        authenticateWithScopes("library:remove");
+        doThrow(new ForbiddenException("Not the contributor")).when(artifacts).remove(9L);
+
+        assertThatThrownBy(() -> sut.removeArtifact(9L)).isInstanceOf(AgentToolException.class)
+                .hasMessage("You are not a member of this community, or not permitted to do this.");
+    }
+
+    @Test
     void deleteSession_delegatesAndEchoesTheDeletedId() {
         authenticateWithScopes("session:delete");
 

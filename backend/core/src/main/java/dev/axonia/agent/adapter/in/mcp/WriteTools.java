@@ -45,19 +45,20 @@ import dev.axonia.shared.api.error.ValidationException;
 import lombok.RequiredArgsConstructor;
 
 /**
- * The write agent tools: contributing to a community's library, proposing a topic, raising an action item, signing up
- * to present in a session's slot, signalling attendance, joining a community, attaching or detaching a session's
- * artifacts, backfilling a community's history by creating a past session, adding a section to it, recording who
- * presented a slot, correcting a slot's presenter afterwards, and closing it as held, naming a session, importing the
- * feedback a community collected on it before axonia, and deleting a session that never took place.
+ * The write agent tools: contributing to a community's library and removing from it, proposing a topic, raising an
+ * action item, signing up to present in a session's slot, signalling attendance, joining a community, attaching or
+ * detaching a session's artifacts, backfilling a community's history by creating a past session, adding a section to
+ * it, recording who presented a slot, correcting a slot's presenter afterwards, and closing it as held, naming a
+ * session, importing the feedback a community collected on it before axonia, and deleting a session that never took
+ * place.
  *
  * <p>
  * Most calls are additive and not idempotent: calling one twice with the same arguments either creates a second record
  * or hits a domain conflict (e.g. "already going"). The exceptions: {@code session.attachArtifact} is idempotent (it
  * returns any existing matching attachment), {@code session.rename} sets a title and so lands the same way twice,
  * {@code session.importFeedback} replaces the session's import whole and so is idempotent though destructive, and the
- * two other destructive tools, {@code session.detachArtifact} and {@code session.delete}, are each gated behind a scope
- * of their own.
+ * three other destructive tools, {@code session.detachArtifact}, {@code session.delete} and {@code library.remove}, are
+ * each gated behind a scope of their own.
  *
  * <p>
  * The four tools that tag what they create also answer with a {@link TagReports tag report}, so an agent sees which of
@@ -205,6 +206,9 @@ class WriteTools {
     record DeletedSessionView(Long sessionId) {
     }
 
+    record RemovedArtifactView(Long artifactId) {
+    }
+
     record ImportedAnswerParam(
             @McpToolParam(description = "How much this person enjoyed the session, on the form's scale. Omit it when "
                     + "they skipped the question.", required = false) Integer enjoyed,
@@ -264,6 +268,19 @@ class WriteTools {
                     params.url(), params.description(), params.tags(), null, params.contributor()));
             return new ContributeResult(artifact.id(), artifact.title(), artifact.url(),
                     pending.reportOn(artifact.tags()));
+        });
+    }
+
+    @McpTool(name = "library.remove", description = "Remove an artifact from a community's library for good, for "
+            + "example one backfilled by mistake or one that only points at what a session already holds. It leaves "
+            + "every session it was attached to, members who saved it no longer see it, and it stops counting toward "
+            + "its contributor's expertise. To take it off one session only, use session.detachArtifact instead. "
+            + "Its contributor or an organizer only, and it cannot be undone.", annotations = @McpAnnotations(readOnlyHint = false, destructiveHint = true, idempotentHint = false))
+    public RemovedArtifactView removeArtifact(
+            @McpToolParam(description = "Artifact id, from library.search", required = true) Long artifactId) {
+        return support.run("library.remove", AgentScope.LIBRARY_REMOVE, () -> {
+            artifacts.remove(artifactId);
+            return new RemovedArtifactView(artifactId);
         });
     }
 

@@ -156,6 +156,7 @@ public class ArtifactService implements Artifacts {
         return artifactMapper.toArtifact(saved);
     }
 
+    @Override
     @Transactional
     public void remove(Long id) {
 
@@ -163,6 +164,7 @@ public class ArtifactService implements Artifacts {
         var entity = ArtifactLookup.findOrThrow(artifactStore, organizationId, id);
         artifactAuthorizer.requireContributorOrOrganizer(entity.communityId(), entity.contributorUserId(),
                 currentUser.userId());
+        savedArtifacts.forget(organizationId, entity.id());
         artifactStore.delete(entity);
         eventPublisher.publishEvent(new ArtifactWithdrawn(entity.id(), entity.communityId()));
     }

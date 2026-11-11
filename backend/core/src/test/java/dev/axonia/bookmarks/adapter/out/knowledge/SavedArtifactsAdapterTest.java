@@ -47,6 +47,28 @@ class SavedArtifactsAdapterTest extends CoreJdbcTestSupport {
         assertThat(sut.savedIn("default", "bob", 7L)).isEmpty();
     }
 
+    @Test
+    void forget_dropsEverySaveOfThatArtifact_andNothingElse() {
+
+        // given
+        bookmark("default", 7L, "ARTIFACT", 100L, "bob");
+        bookmark("default", 7L, "ARTIFACT", 100L, "carol");
+        bookmark("default", 7L, "ARTIFACT", 101L, "bob");
+        bookmark("default", 7L, "SESSION", 100L, "bob");
+        bookmark("other", 7L, "ARTIFACT", 100L, "bob");
+
+        // when
+        sut.forget("default", 100L);
+
+        // then
+        assertThat(sut.savedIn("default", "bob", 7L)).containsExactly(101L);
+        assertThat(sut.savedIn("default", "carol", 7L)).isEmpty();
+        assertThat(sut.savedIn("other", "bob", 7L)).as("another organization's saves are its own")
+                .containsExactly(100L);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM bookmark WHERE saveable_type = 'SESSION'",
+                new MapSqlParameterSource(), Long.class)).as("a session with the same id stays saved").isEqualTo(1L);
+    }
+
     private void bookmark(String organizationId, long communityId, String saveableType, long saveableId,
             String memberUserId) {
 

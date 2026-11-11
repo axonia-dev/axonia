@@ -40,7 +40,13 @@ public enum AgentScope {
     TAG_CURATE("tag:curate"),
 
     /** Stripping a tag from all of a community's content. Destructive, and a curator's act rather than a member's. */
-    TAG_DELETE("tag:delete");
+    TAG_DELETE("tag:delete"),
+
+    /**
+     * Removing an artifact from a community's library for good. Destructive and irreversible, so not part of
+     * {@link #LIBRARY_CONTRIBUTE}: an agent trusted to add to the library is not thereby trusted to empty it.
+     */
+    LIBRARY_REMOVE("library:remove");
 
     private final String code;
 

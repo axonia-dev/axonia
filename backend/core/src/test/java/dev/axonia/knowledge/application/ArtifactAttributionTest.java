@@ -18,6 +18,7 @@ import dev.axonia.knowledge.api.ArtifactContributed;
 import dev.axonia.knowledge.api.ArtifactMother;
 import dev.axonia.knowledge.api.CreateArtifactRequest;
 import dev.axonia.knowledge.api.ProvenanceRequest;
+import dev.axonia.knowledge.api.spi.SavedArtifacts;
 import dev.axonia.knowledge.application.port.out.ArtifactStore;
 import dev.axonia.knowledge.application.port.out.ArtifactTypeStore;
 import dev.axonia.knowledge.application.port.out.AttachmentStore;
@@ -73,6 +74,8 @@ class ArtifactAttributionTest {
     private ApplicationEventPublisher eventPublisher;
     @Mock
     private SessionAccess sessionAccess;
+    @Mock
+    private SavedArtifacts savedArtifacts;
 
     private ArtifactService sut;
 
@@ -85,8 +88,7 @@ class ArtifactAttributionTest {
         sut = new ArtifactService(artifactStore, artifactTypeStore, artifactMapper, artifactAuthorizer, communityAccess,
                 new ContributorResolver(communityAccess), currentUser, organizationContext, attachmentStore,
                 eventPublisher, sessionProvenanceGuard,
-                new ResourceAttachAuthorizer(communityAccess, sessionProvenanceGuard),
-                (org, user, community) -> Set.of());
+                new ResourceAttachAuthorizer(communityAccess, sessionProvenanceGuard), savedArtifacts);
         when(organizationContext.organizationId()).thenReturn("default");
         when(currentUser.userId()).thenReturn("alice");
         when(communityAccess.communityIdForSlug("backend-guild")).thenReturn(1L);

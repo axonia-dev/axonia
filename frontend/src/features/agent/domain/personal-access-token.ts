@@ -11,6 +11,7 @@ export const AGENT_SCOPES = [
   { code: "read", label: "Read schedule, communities, and library" },
   { code: "members:read", label: "Read community member lists and learners" },
   { code: "library:contribute", label: "Contribute library content" },
+  { code: "library:remove", label: "Remove artifacts from the library" },
   { code: "topic:propose", label: "Propose topics" },
   { code: "actionItem:raise", label: "Raise action items" },
   { code: "session:signup", label: "Sign up to present" },

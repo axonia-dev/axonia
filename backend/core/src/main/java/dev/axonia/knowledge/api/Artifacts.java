@@ -11,4 +11,7 @@ public interface Artifacts {
     Artifact get(Long id);
 
     Page<Artifact> search(String slug, ArtifactFilter filter, Pageable pageable);
+
+    /** Removes an artifact for good: the contributor's or an organizer's act, from every session it is on. */
+    void remove(Long id);
 }
