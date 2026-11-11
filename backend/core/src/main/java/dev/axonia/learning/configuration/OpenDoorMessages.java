@@ -8,8 +8,8 @@ import dev.axonia.learning.adapter.out.communication.OpenDoorNotices;
 import dev.axonia.learning.domain.OpenDoorSubject;
 
 /**
- * The panel entry of the open-to-questions notice: the area and the community on its line, the search for the area as
- * its link.
+ * The panel entry of the open-to-questions notice: the area on its line, the search for the area as its link. The
+ * community is its sender, as on every other community message.
  */
 @Configuration(proxyBeanMethods = false)
 public class OpenDoorMessages {

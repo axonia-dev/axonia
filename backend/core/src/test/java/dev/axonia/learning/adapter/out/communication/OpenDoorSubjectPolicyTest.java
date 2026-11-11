@@ -75,8 +75,9 @@ class OpenDoorSubjectPolicyTest {
         assertThat(sent.getValue()).isEqualTo(OutboundMessage.builder().type(OpenDoorSubject.MESSAGE_TYPE)
                 .subjectRef("7:c++:lea").recipientUserIds(List.of("bob", "carol")).template("open-to-questions")
                 .inAppOnly(true).aboutUserId("lea")
-                .facts(Map.of("sessionTitle", "Lea Moser is open to questions", "line", "c++ · Platform Guild",
-                        "searchUrl", "https://axonia.example/communities/platform/expertise?term=c%2B%2B&who=open"))
+                .facts(Map.of("sender", Map.of("name", "Platform Guild"), "sessionTitle",
+                        "Lea Moser is open to questions", "line", "c++", "searchUrl",
+                        "https://axonia.example/communities/platform/expertise?term=c%2B%2B&who=open"))
                 .build());
     }
 }

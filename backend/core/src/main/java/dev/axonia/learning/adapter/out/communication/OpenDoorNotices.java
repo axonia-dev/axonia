@@ -16,15 +16,17 @@ import lombok.RequiredArgsConstructor;
 
 /**
  * One in-app message per community, area and declarer, so the outbox's once-per-subject and once-per-recipient keys are
- * what keep a removed and redeclared area from telling anybody twice. The headline names the declarer alone and the
- * line carries the area, so a narrow panel never cuts the area away. It is never mailed, so its template is a name no
- * mail is rendered from.
+ * what keep a removed and redeclared area from telling anybody twice. The headline names the declarer alone, the line
+ * carries the area so a narrow panel never cuts it away, and the community is the sender, as on every other community
+ * message. It is never mailed, so its template is a name no mail is rendered from.
  */
 @Component
 @RequiredArgsConstructor
 public class OpenDoorNotices implements LearnerNotices {
 
     static final String TEMPLATE = "open-to-questions";
+
+    static final String SENDER_FACT = "sender";
 
     static final String HEADLINE_FACT = "sessionTitle";
 
@@ -42,8 +44,9 @@ public class OpenDoorNotices implements LearnerNotices {
                 .subjectRef(new OpenDoorSubject(notice.communityId(), notice.area(), notice.declarerId()).ref())
                 .recipientUserIds(notice.learnerIds()).template(TEMPLATE).inAppOnly(true)
                 .aboutUserId(notice.declarerId())
-                .facts(Map.of(HEADLINE_FACT, notice.declarerName() + " is open to questions", LINE_FACT,
-                        notice.area() + " · " + notice.communityName(), LINK_FACT, searchUrl(notice)))
+                .facts(Map.of(SENDER_FACT, Map.of("name", notice.communityName()), HEADLINE_FACT,
+                        notice.declarerName() + " is open to questions", LINE_FACT, notice.area(), LINK_FACT,
+                        searchUrl(notice)))
                 .build());
     }
 

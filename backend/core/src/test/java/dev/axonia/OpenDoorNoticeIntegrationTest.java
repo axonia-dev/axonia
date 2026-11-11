@@ -87,8 +87,9 @@ class OpenDoorNoticeIntegrationTest {
         // then
         var entries = panelOf(LEARNER);
         assertThat(entries).singleElement().satisfies(entry -> {
+            assertThat(entry.sender()).isEqualTo("Platform Guild");
             assertThat(entry.headline()).isEqualTo("Lea Moser is open to questions");
-            assertThat(entry.line()).isEqualTo("observability \u00b7 Platform Guild");
+            assertThat(entry.line()).isEqualTo("observability");
             assertThat(entry.actionUrl()).endsWith("/communities/" + SLUG + "/expertise?term=observability&who=open");
         });
         assertThat(mailRows()).isZero();

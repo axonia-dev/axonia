@@ -10,7 +10,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class OpenDoorMessagesTest {
 
     @Test
-    void thePanelEntryReadsTheAreaAndCommunityLineAndTheSearch() {
+    void thePanelEntryReadsTheAreaLineAndTheSearch() {
 
         assertThat(new OpenDoorMessages().openToQuestionsEntry())
                 .isEqualTo(new InAppEntryShape(OpenDoorSubject.MESSAGE_TYPE, "line", "searchUrl"));
