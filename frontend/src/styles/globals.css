@@ -790,3 +790,15 @@ html {
     transform: translateY(10px);
   }
 }
+
+/* ── The open ring, turning slowly around a face open to questions ── */
+@keyframes open-ring-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .animate-open-ring {
+    animation: open-ring-turn 24s linear infinite;
+  }
+}

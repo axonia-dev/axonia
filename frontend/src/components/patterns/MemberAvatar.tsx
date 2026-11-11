@@ -4,6 +4,8 @@ import { Avatar } from "@/components/ui/Avatar";
 import { useEdition } from "@/edition-context";
 import { cn } from "@/lib/cn";
 
+import { OpenRing } from "./OpenRing";
+
 type Shape = "square" | "circle";
 
 interface MemberAvatarProps {
@@ -21,6 +23,10 @@ interface MemberAvatarProps {
   className?: string;
   /** Reaches the outermost element drawn, decoration box included. */
   ref?: Ref<HTMLElement>;
+  /** Draws the open ring: this person is open to questions on what the surface shows. */
+  open?: boolean;
+  /** The speech dot beside the ring, dropped at sizes under about 32 px. */
+  openDot?: boolean;
 }
 
 /** The positioned box a decoration fills, following the avatar's corners. */
@@ -33,6 +39,20 @@ export function decoratedAvatarClass(shape: Shape): string {
 
 /** The avatar every surface that renders a person draws, decorated by the running edition. */
 export function MemberAvatar({
+  open = false,
+  openDot = true,
+  ref,
+  ...face
+}: Readonly<MemberAvatarProps>) {
+  if (!open) return <DecoratedAvatar {...face} {...(ref ? { ref } : {})} />;
+  return (
+    <OpenRing ref={ref} dot={openDot}>
+      <DecoratedAvatar {...face} />
+    </OpenRing>
+  );
+}
+
+function DecoratedAvatar({
   name,
   hue,
   subject,
@@ -40,7 +60,7 @@ export function MemberAvatar({
   shape = "circle",
   className = "",
   ref,
-}: Readonly<MemberAvatarProps>) {
+}: Readonly<Omit<MemberAvatarProps, "open" | "openDot">>) {
   const { AvatarDecoration } = useEdition();
   const decorated = AvatarDecoration !== null && subject !== null;
   const avatar = (

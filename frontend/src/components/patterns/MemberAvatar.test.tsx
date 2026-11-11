@@ -142,4 +142,78 @@ describe("MemberAvatar", () => {
       screen.getByRole("img", { name: "Marta Ruiz" }),
     );
   });
+  it("drawsNoRingByDefault", () => {
+    // when
+    const { container } = render(
+      <MemberAvatar
+        name="Marta Ruiz"
+        hue="#6e3ceb"
+        subject="marta"
+        src={null}
+      />,
+    );
+
+    // then
+    expect(container.querySelector("[data-open]")).toBeNull();
+    expect(container.querySelector("svg")).toBeNull();
+  });
+
+  it("drawsTheRingWhenOpen", () => {
+    // when
+    const { container } = render(
+      <MemberAvatar
+        name="Marta Ruiz"
+        hue="#6e3ceb"
+        subject="marta"
+        src="/m.png"
+        open
+      />,
+    );
+
+    // then
+    const wrapper = container.firstElementChild;
+    expect(wrapper).toHaveAttribute("data-open", "true");
+    const circles = container.querySelectorAll("svg circle");
+    expect(circles).toHaveLength(1);
+    expect(circles[0]).toHaveAttribute("stroke-dasharray", "4 3.2");
+    expect(screen.getByRole("img", { name: "Marta Ruiz" })).toBeInTheDocument();
+    expect(screen.getByTestId("open-dot")).toBeInTheDocument();
+  });
+
+  it("dropsTheDotWhenAsked", () => {
+    // when
+    render(
+      <MemberAvatar
+        name="Marta Ruiz"
+        hue="#6e3ceb"
+        subject="marta"
+        src={null}
+        open
+        openDot={false}
+      />,
+    );
+
+    // then
+    expect(screen.queryByTestId("open-dot")).not.toBeInTheDocument();
+  });
+
+  it("keepsTheEditionDecorationInsideTheRing", () => {
+    // when
+    const { container } = render(
+      <EditionProvider edition={decorating}>
+        <MemberAvatar
+          name="Marta Ruiz"
+          hue="#6e3ceb"
+          subject="marta"
+          src={null}
+          open
+        />
+      </EditionProvider>,
+    );
+
+    // then
+    const ring = container.querySelector("[data-open='true']");
+    expect(ring).toBe(container.firstElementChild);
+    expect(ring).toContainElement(screen.getByTestId("decoration"));
+  });
 });
