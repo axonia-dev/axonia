@@ -99,6 +99,7 @@ describe("useAddIntent", () => {
     gateway.add.mockResolvedValue({
       tag: "kafka",
       declaredAt: "2026-09-25T12:00:00Z",
+      open: [],
     });
     const invalidate = vi.spyOn(client, "invalidateQueries");
     const { result } = renderHook(() => useAddIntent("platform"), { wrapper });

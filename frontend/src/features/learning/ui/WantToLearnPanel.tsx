@@ -1,6 +1,9 @@
 import { X } from "lucide-react";
+import { useId } from "react";
+import { Link } from "react-router-dom";
 
 import { useIsDelegated } from "@/auth/delegated-session";
+import { MemberFacepile } from "@/components/patterns/MemberFacepile";
 import { IconButton } from "@/components/ui/IconButton";
 import { useRemoveIntent } from "@/features/learning/api/use-learning";
 import type {
@@ -10,28 +13,78 @@ import type {
 import { OWN_SIGN_IN_REFUSAL } from "@/features/learning/learning-errors";
 import { AddIntentField } from "@/features/learning/ui/AddIntentField";
 import { declaredMonth } from "@/lib/declared-on";
+import { userHue } from "@/lib/user-hue";
 
 interface Props {
   slug: string;
   page: LearningPage;
 }
 
-interface ChipProps {
+interface RowProps {
+  slug: string;
   area: HeldArea;
   isRemoving: boolean;
   /** Absent where the session may not change areas to learn. */
   onRemove?: ((tag: string) => void) | undefined;
 }
 
-function IntentChip({ area, isRemoving, onRemove }: Readonly<ChipProps>) {
+const MAX_FACES = 4;
+
+function OpenFaces({ slug, area }: Readonly<{ slug: string; area: HeldArea }>) {
+  if (area.open.length === 0) return null;
+  const search = new URLSearchParams({ term: area.tag, who: "open" });
   return (
-    <li className="border-secondary/35 bg-secondary/5 inline-flex max-w-full items-center gap-2 rounded-full border py-0.5 pr-0.5 pl-3 text-sm">
-      <span className="text-foreground min-w-0 font-medium wrap-anywhere">
-        {area.tag}
-      </span>
-      <span className="text-muted-foreground shrink-0 text-xs">
-        since {declaredMonth(area.declaredAt)}
-      </span>
+    <Link
+      to={`/communities/${slug}/expertise?${search.toString()}`}
+      aria-label={`See who is open to questions on ${area.tag}`}
+      className="focus-visible:ring-focus-ring shrink-0 rounded-full outline-none focus-visible:ring-2"
+    >
+      <MemberFacepile
+        members={area.open.map((face) => ({
+          id: face.userId,
+          name: face.displayName ?? face.userId,
+          hue: userHue(face.userId),
+          src: face.avatarUrl,
+        }))}
+        max={MAX_FACES}
+        size="size-7 text-xs"
+        open
+      />
+    </Link>
+  );
+}
+
+function IntentRow({ slug, area, isRemoving, onRemove }: Readonly<RowProps>) {
+  const nameId = useId();
+  const openCount = area.open.length;
+  return (
+    <li
+      aria-labelledby={nameId}
+      className="flex items-center justify-between gap-3 px-4 py-3"
+    >
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-baseline gap-x-2">
+          <span
+            id={nameId}
+            className="text-foreground min-w-0 text-sm font-medium wrap-anywhere"
+          >
+            {area.tag}
+          </span>
+          <span className="text-muted-foreground text-xs">
+            since {declaredMonth(area.declaredAt)}
+          </span>
+        </div>
+        {openCount > 0 ? (
+          <p className="text-muted-foreground text-xs">
+            {openCount} open to questions
+          </p>
+        ) : (
+          <p className="text-muted-foreground text-xs italic">
+            Nobody open yet
+          </p>
+        )}
+      </div>
+      <OpenFaces slug={slug} area={area} />
       <IconButton
         label={`Remove ${area.tag}`}
         tone="danger"
@@ -63,10 +116,11 @@ export function WantToLearnPanel({ slug, page }: Readonly<Props>) {
         </span>
       </header>
       {page.mine.length > 0 && (
-        <ul className="flex flex-wrap gap-2">
+        <ul className="border-border divide-border divide-y rounded-md border">
           {page.mine.map((area) => (
-            <IntentChip
+            <IntentRow
               key={area.tag}
+              slug={slug}
               area={area}
               isRemoving={remove.isRemoving(area.tag)}
               onRemove={writable ? (tag) => remove.mutate(tag) : undefined}

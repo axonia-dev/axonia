@@ -26,6 +26,7 @@ function tenAreas(): HeldArea[] {
   return Array.from({ length: 10 }, (_, at) => ({
     tag: `area-${at}`,
     declaredAt: "2026-03-02T09:00:00Z",
+    open: [],
   }));
 }
 
@@ -39,7 +40,9 @@ describe("LearningPage", () => {
     // given
     page({
       member: true,
-      mine: [{ tag: "kubernetes", declaredAt: "2026-03-02T09:00:00Z" }],
+      mine: [
+        { tag: "kubernetes", declaredAt: "2026-03-02T09:00:00Z", open: [] },
+      ],
     });
 
     // when
@@ -84,7 +87,7 @@ describe("LearningPage", () => {
     page({
       member: true,
       archived: true,
-      mine: [{ tag: "kafka", declaredAt: "2026-03-02T09:00:00Z" }],
+      mine: [{ tag: "kafka", declaredAt: "2026-03-02T09:00:00Z", open: [] }],
     });
 
     // when
@@ -102,7 +105,7 @@ describe("LearningPage", () => {
     delegated(true);
     page({
       member: true,
-      mine: [{ tag: "kafka", declaredAt: "2026-03-02T09:00:00Z" }],
+      mine: [{ tag: "kafka", declaredAt: "2026-03-02T09:00:00Z", open: [] }],
     });
 
     // when

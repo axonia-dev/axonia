@@ -1,5 +1,7 @@
-import { render, screen } from "@testing-library/react";
+import { render as renderInDom, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ReactElement } from "react";
+import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useIsDelegated } from "@/auth/delegated-session";
@@ -26,13 +28,24 @@ const PAGE: LearningPage = {
   archived: false,
   limit: 10,
   mine: [
-    { tag: "kafka", declaredAt: "2026-03-02T09:00:00Z" },
-    { tag: "rust", declaredAt: "2026-09-12T09:00:00Z" },
+    {
+      tag: "kafka",
+      declaredAt: "2026-03-02T09:00:00Z",
+      open: [
+        { userId: "lea", displayName: "Lea Moser", avatarUrl: null },
+        { userId: "tom", displayName: null, avatarUrl: "/tom.png" },
+      ],
+    },
+    { tag: "rust", declaredAt: "2026-09-12T09:00:00Z", open: [] },
   ],
   wanted: [],
 };
 
 let mutate: ReturnType<typeof vi.fn>;
+
+function render(ui: ReactElement) {
+  return renderInDom(<MemoryRouter>{ui}</MemoryRouter>);
+}
 
 function removing(...tags: string[]) {
   vi.mocked(useRemoveIntent).mockReturnValue({
@@ -49,7 +62,7 @@ beforeEach(() => {
 });
 
 describe("WantToLearnPanel", () => {
-  it("removes the area whose button is pressed", async () => {
+  it("removeStillWorks", async () => {
     // given
     render(<WantToLearnPanel slug="platform" page={PAGE} />);
 
@@ -113,5 +126,42 @@ describe("WantToLearnPanel", () => {
     expect(
       screen.getByText("add field for platform holding []"),
     ).toBeInTheDocument();
+  });
+
+  it("rowShowsOpenFacesAndCount", () => {
+    // when
+    render(<WantToLearnPanel slug="platform" page={PAGE} />);
+
+    // then
+    const row = screen.getByRole("listitem", { name: "kafka" });
+    expect(within(row).getByText("2 open to questions")).toBeInTheDocument();
+    expect(within(row).getByText("since Mar 2026")).toBeInTheDocument();
+    expect(row.querySelectorAll("[data-open='true']")).toHaveLength(2);
+    expect(within(row).queryByTestId("open-dot")).not.toBeInTheDocument();
+  });
+
+  it("rowWithNobodyOpenSaysSo", () => {
+    // when
+    render(<WantToLearnPanel slug="platform" page={PAGE} />);
+
+    // then
+    const row = screen.getByRole("listitem", { name: "rust" });
+    expect(within(row).getByText("Nobody open yet")).toHaveClass("italic");
+    expect(within(row).queryByRole("link")).not.toBeInTheDocument();
+  });
+
+  it("facesLinkToTheOpenSearch", () => {
+    // when
+    render(<WantToLearnPanel slug="platform" page={PAGE} />);
+
+    // then
+    expect(
+      screen.getByRole("link", {
+        name: "See who is open to questions on kafka",
+      }),
+    ).toHaveAttribute(
+      "href",
+      "/communities/platform/expertise?term=kafka&who=open",
+    );
   });
 });

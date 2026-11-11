@@ -40,4 +40,15 @@ describe("MemberFacepile", () => {
 
     expect(container).toBeEmptyDOMElement();
   });
+
+  it("ringsEveryFaceWithoutTheDotWhenOpen", () => {
+    // when
+    const { container } = render(
+      <MemberFacepile members={members.slice(0, 3)} open />,
+    );
+
+    // then
+    expect(container.querySelectorAll("[data-open='true']")).toHaveLength(3);
+    expect(screen.queryByTestId("open-dot")).not.toBeInTheDocument();
+  });
 });

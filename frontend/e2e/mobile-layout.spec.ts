@@ -152,7 +152,15 @@ test("the learning page fits a phone, however long an area's name", async ({
       archived: false,
       limit: 10,
       mine: [
-        { tag: LONG_AREA, declaredAt: "2026-03-02T09:00:00Z" },
+        {
+          tag: LONG_AREA,
+          declaredAt: "2026-03-02T09:00:00Z",
+          open: ["lea", "tom", "ana", "bo", "cy"].map((userId) => ({
+            userId,
+            displayName: userId,
+            avatarUrl: null,
+          })),
+        },
         { tag: "observability", declaredAt: "2026-09-12T09:00:00Z" },
       ],
       wanted: [

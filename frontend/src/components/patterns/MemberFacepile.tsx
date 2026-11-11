@@ -16,6 +16,8 @@ interface MemberFacepileProps {
    *  optionally more classes alongside it, e.g. an entrance animation for a freshly
    *  joined member. */
   size?: string;
+  /** Rings every face as open to questions, without the speech dot a face this small drops. */
+  open?: boolean;
 }
 
 const DEFAULT_MAX = 5;
@@ -31,6 +33,7 @@ export function MemberFacepile({
   members,
   max = DEFAULT_MAX,
   size = "size-7 text-[0.625rem]",
+  open = false,
 }: Readonly<MemberFacepileProps>) {
   if (members.length === 0) {
     return null;
@@ -50,7 +53,9 @@ export function MemberFacepile({
             subject={member.id}
             src={member.src}
             shape="circle"
-            className={cn("border-surface border-2", size)}
+            className={cn(!open && "border-surface border-2", size)}
+            open={open}
+            openDot={false}
           />
         </span>
       ))}

@@ -1,6 +1,6 @@
 import { Button } from "react-aria-components";
 
-import { MemberAvatar } from "@/components/patterns/MemberAvatar";
+import { MemberFacepile } from "@/components/patterns/MemberFacepile";
 import type { OpenArea } from "@/features/expertise/domain/expertise";
 import { userHue } from "@/lib/user-hue";
 
@@ -37,21 +37,17 @@ export function OpenDoorCard({
           </span>
         )}
       </span>
-      <span className="flex">
-        {area.people.slice(0, MAX_FACES).map((person) => (
-          <span key={person.userId} className="-ml-2 inline-flex first:ml-0">
-            <MemberAvatar
-              name={person.displayName ?? person.userId}
-              hue={userHue(person.userId)}
-              subject={person.userId}
-              src={person.avatarUrl}
-              className="size-7 text-xs"
-              open
-              openDot={false}
-            />
-          </span>
-        ))}
-      </span>
+      <MemberFacepile
+        members={area.people.map((person) => ({
+          id: person.userId,
+          name: person.displayName ?? person.userId,
+          hue: userHue(person.userId),
+          src: person.avatarUrl,
+        }))}
+        max={MAX_FACES}
+        size="size-7 text-xs"
+        open
+      />
       <span className="text-muted-foreground text-xs">{count}</span>
     </Button>
   );

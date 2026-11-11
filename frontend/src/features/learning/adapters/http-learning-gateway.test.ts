@@ -19,7 +19,15 @@ describe("httpLearningGateway", () => {
         member: true,
         archived: false,
         limit: 10,
-        mine: [{ tag: "kafka", declaredAt: "2026-09-25T12:00:00Z" }],
+        mine: [
+          {
+            tag: "kafka",
+            declaredAt: "2026-09-25T12:00:00Z",
+            open: [
+              { userId: "lea", displayName: "Lea Moser", avatarUrl: null },
+            ],
+          },
+        ],
         wanted: [{ tag: "kafka", learners: 3, canBeAsked: 2 }],
       };
       const fetchSpy = stubFetchJson(page);
@@ -92,6 +100,7 @@ describe("httpLearningGateway", () => {
       expect(actual).toEqual({
         tag: "kafka",
         declaredAt: "2026-09-25T12:00:00Z",
+        open: [],
       });
     });
   });
