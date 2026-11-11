@@ -8,6 +8,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import dev.axonia.ControllerTestSupport;
 import dev.axonia.CoreWebMvcTest;
+import dev.axonia.expertise.api.OpenArea;
+import dev.axonia.expertise.api.OpenPerson;
 import dev.axonia.expertise.application.ExpertiseMapService;
 import dev.axonia.expertise.application.ExpertiseService;
 import dev.axonia.expertise.application.MapContribution;
@@ -26,6 +28,7 @@ import dev.axonia.expertise.domain.TopicMap;
 import dev.axonia.expertise.domain.TopicNode;
 import tools.jackson.core.JacksonException;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -70,6 +73,25 @@ class ExpertiseControllerTest extends ControllerTestSupport {
         // then
         actual.assertThat().hasStatus2xxSuccessful();
         verify(expertiseService).whoKnows("eng", "kafka", false);
+    }
+
+    @Test
+    void openReturnsAreas() {
+
+        // given
+        var declaredAt = Instant.parse("2026-11-10T09:00:00Z");
+        when(expertiseService.openIn("eng")).thenReturn(List.of(new OpenArea("observability", declaredAt,
+                List.of(new OpenPerson("u1", "Lea Moser", null, declaredAt)))));
+
+        // when
+        var actual = mvc.get().uri("/axonia/communities/{slug}/expertise/open", "eng").exchange();
+
+        // then
+        assertThat(actual).hasStatusOk().bodyJson().isEqualTo("""
+                [{"canonicalTag":"observability","latestDeclaredAt":"2026-11-10T09:00:00Z",
+                  "people":[{"userId":"u1","displayName":"Lea Moser","avatarUrl":null,
+                             "declaredAt":"2026-11-10T09:00:00Z"}]}]
+                """);
     }
 
     @Test

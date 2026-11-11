@@ -1221,6 +1221,14 @@
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
+		expertise.api.OpenArea: a read-model record with a List component (people), built once per read and
+		handed straight to Jackson or to learning. Same case as LearningPage above: exclusion, not List.copyOf.
+	-->
+	<Match>
+		<Class name="dev.axonia.expertise.api.OpenArea"/>
+		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+	</Match>
+	<!--
 		Read-model and value records that became public in the hexagonal move, each built once per read
 		and handed on unmutated: expertise's TopicMap sibling UserSignals, knowledge's StoredArtifact (the
 		port's view of an artifact row, tags a Set of strings), privacy's ExportSubjectNaming (built once

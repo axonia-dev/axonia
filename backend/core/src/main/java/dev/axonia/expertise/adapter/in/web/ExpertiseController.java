@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import dev.axonia.expertise.api.OpenArea;
 import dev.axonia.expertise.application.ExpertiseMapService;
 import dev.axonia.expertise.application.ExpertiseService;
 import dev.axonia.expertise.application.MapContributions;
@@ -35,6 +36,12 @@ class ExpertiseController {
     List<ExpertiseArea> areas(@PathVariable String slug, @RequestParam(required = false) String search) {
 
         return expertiseService.areas(slug, search);
+    }
+
+    @GetMapping("/communities/{slug}/expertise/open")
+    List<OpenArea> open(@PathVariable String slug) {
+
+        return expertiseService.openIn(slug);
     }
 
     @GetMapping("/communities/{slug}/expertise/suggestions")

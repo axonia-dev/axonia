@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
+import dev.axonia.expertise.api.OpenPerson;
 import dev.axonia.expertise.application.CurationScope;
 import dev.axonia.expertise.application.EvidenceEnricher;
 import dev.axonia.expertise.application.ExpertiseCurationService;
@@ -68,6 +69,7 @@ class AreaReadPrivacyTest extends ExpertiseJdbcTestSupport {
     private long community;
     private ExpertiseService search;
     private ExpertiseCurationService curation;
+    private PersonDirectory personDirectory;
 
     @BeforeEach
     void wireTheTwoServicesOverOneCommunity() {
@@ -77,7 +79,7 @@ class AreaReadPrivacyTest extends ExpertiseJdbcTestSupport {
         var communityAccess = mock(CommunityAccess.class);
         when(communityAccess.communityIdForSlug(SLUG)).thenReturn(community);
         when(communityAccess.canCurateTags(community, CURATOR)).thenReturn(true);
-        var personDirectory = mock(PersonDirectory.class);
+        personDirectory = mock(PersonDirectory.class);
         when(personDirectory.resolve(any())).thenReturn(Map.of());
         var evidenceEnricher = mock(EvidenceEnricher.class);
         when(evidenceEnricher.enrich(any(), any())).thenAnswer(call -> call.getArgument(0));
@@ -157,6 +159,33 @@ class AreaReadPrivacyTest extends ExpertiseJdbcTestSupport {
         assertThatCode(() -> curation.rename(SLUG, "kubernetes", "orchestration")).doesNotThrowAnyException();
         assertThatCode(() -> curation.delete(SLUG, "orchestration")).doesNotThrowAnyException();
         assertThat(curation.vocabulary(SLUG)).extracting(ExpertiseArea::canonicalTag).containsExactly("helm");
+    }
+
+    @Test
+    void openInExcludesPausedOptedOutAndHidden() {
+
+        // given - four declarers of kafka, three of whom a reader must not find
+        for (var userId : List.of("area-alice", "area-bob", "area-carol", "area-dana")) {
+            seedMemberUser(userId);
+            declare(userId, "kafka");
+        }
+        preferences.setPaused(ORG, "area-bob", true);
+        preferences.setOptOut(ORG, "area-carol", true);
+        preferences.hideTag(ORG, "area-dana", "kafka");
+        when(personDirectory.resolve(any())).thenAnswer(call -> {
+            java.util.Collection<String> ids = call.getArgument(0);
+            return ids.stream().collect(java.util.stream.Collectors.toMap(id -> id,
+                    id -> new dev.axonia.expertise.domain.Person(id, id, null, null)));
+        });
+
+        // when
+        var open = search.openIn(SLUG);
+
+        // then
+        assertThat(open).singleElement().satisfies(area -> {
+            assertThat(area.canonicalTag()).isEqualTo("kafka");
+            assertThat(area.people()).extracting(OpenPerson::userId).containsExactly("area-alice");
+        });
     }
 
     /** Dana's declaration is the only carrier of "helm", merged into "kubernetes", and she then opted out. */

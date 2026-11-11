@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -17,6 +18,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import dev.axonia.community.api.TagNormalizer;
+import dev.axonia.expertise.api.OpenArea;
+import dev.axonia.expertise.api.OpenDoors;
+import dev.axonia.expertise.api.OpenPerson;
 import dev.axonia.expertise.application.port.out.CommunityAccess;
 import dev.axonia.expertise.application.port.out.CurrentUser;
 import dev.axonia.expertise.application.port.out.DeclarationRepository;
@@ -39,7 +43,7 @@ import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
-public class ExpertiseService {
+public class ExpertiseService implements OpenDoors {
 
     private static final Evidence NO_EVIDENCE = Evidence.builder().presentedCount(0).contributedCount(0).offeredCount(0)
             .recent(List.of()).build();
@@ -90,6 +94,34 @@ public class ExpertiseService {
         fold.carrySignals(expertiseQueryRepository.userTagAggregates(org, community));
         fold.carryDeclarations(declarationRepository.allVisibleIn(org, community));
         return fold.folded(search);
+    }
+
+    /**
+     * The areas people are open to questions on, read under the same visibility rule as {@link #areas} and folded onto
+     * the same canonical names, so a card here is the one the areas list and the search show.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<OpenArea> openIn(String slug) {
+
+        var org = organizationContext.organizationId();
+        var community = communityAccess.communityIdForSlug(slug);
+        var aliasMap = tagAliasRepository.aliasMap(org, community);
+
+        var declarersByArea = new LinkedHashMap<String, Map<String, Instant>>();
+        for (var declaration : declarationRepository.allVisibleIn(org, community)) {
+            declarersByArea
+                    .computeIfAbsent(AliasResolver.canonicalOf(declaration.tag(), aliasMap), k -> new HashMap<>())
+                    .merge(declaration.userId(), declaration.declaredAt(),
+                            BinaryOperator.minBy(Comparator.naturalOrder()));
+        }
+        var people = personDirectory
+                .resolve(declarersByArea.values().stream().flatMap(declarers -> declarers.keySet().stream()).toList());
+        return declarersByArea.entrySet().stream().map(area -> openArea(area.getKey(), area.getValue(), people))
+                .filter(area -> !area.people().isEmpty())
+                .sorted(Comparator.comparing(OpenArea::latestDeclaredAt, Comparator.reverseOrder())
+                        .thenComparing(OpenArea::canonicalTag))
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -164,6 +196,28 @@ public class ExpertiseService {
             });
         }
         return result;
+    }
+
+    private static OpenArea openArea(String canonicalTag, Map<String, Instant> declarers, Map<String, Person> people) {
+
+        var open = declarers.entrySet().stream()
+                .map(declarer -> new Declarer(
+                        people.getOrDefault(declarer.getKey(), Person.unresolved(declarer.getKey())),
+                        declarer.getValue()))
+                .filter(declarer -> !declarer.person().isUnresolved()).map(Declarer::open)
+                .sorted(Comparator.comparing(OpenPerson::declaredAt, Comparator.reverseOrder())
+                        .thenComparing(OpenPerson::displayName, String.CASE_INSENSITIVE_ORDER))
+                .toList();
+        var latest = open.stream().map(OpenPerson::declaredAt).max(Comparator.naturalOrder()).orElse(Instant.EPOCH);
+        return new OpenArea(canonicalTag, latest, open);
+    }
+
+    private record Declarer(Person person, Instant declaredAt) {
+
+        OpenPerson open() {
+
+            return new OpenPerson(person.userId(), person.displayName(), person.avatarUrl(), declaredAt);
+        }
     }
 
     private record Candidate(String userId, Tier tier, Evidence evidence, Instant declaredAt) {

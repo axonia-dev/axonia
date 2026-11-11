@@ -5,12 +5,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
+import dev.axonia.expertise.api.OpenArea;
+import dev.axonia.expertise.api.OpenPerson;
 import dev.axonia.expertise.application.port.out.CommunityAccess;
 import dev.axonia.expertise.application.port.out.CurrentUser;
 import dev.axonia.expertise.application.port.out.DeclarationRepository;
@@ -30,6 +33,7 @@ import dev.axonia.shared.api.error.ForbiddenException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
@@ -755,6 +759,116 @@ class ExpertiseServiceTest {
 
         // then - the size on the card is the length of the list the card opens
         assertThat(area.peopleCount()).isEqualTo(sut.whoKnows("eng", area.canonicalTag(), false).size()).isEqualTo(3);
+    }
+
+    // -------------------------------------------------------------------------
+    // openIn - the people open to questions, per area
+    // -------------------------------------------------------------------------
+
+    @Test
+    void openInFoldsVariantsOntoTheCanonical() {
+
+        // given
+        when(tagAliasRepository.aliasMap("org-1", 1L)).thenReturn(Map.of("apache-kafka", "kafka"));
+        givenDeclarationsInCommunity(declared("ann", "apache-kafka", EARLY), declared("ben", "kafka", LATE));
+        when(personDirectory.resolve(any())).thenReturn(
+                Map.of("ann", new Person("ann", "Ann", "ann.png", null), "ben", new Person("ben", "Ben", null, null)));
+
+        // when
+        var result = sut.openIn("eng");
+
+        // then
+        assertThat(result).containsExactly(new OpenArea("kafka", LATE,
+                List.of(new OpenPerson("ben", "Ben", null, LATE), new OpenPerson("ann", "Ann", "ann.png", EARLY))));
+    }
+
+    @Test
+    void openInOrdersAreasByLatestDeclaration() {
+
+        // given
+        var kafkaAt = Instant.parse("2026-11-01T09:00:00Z");
+        var observabilityAt = Instant.parse("2026-11-10T09:00:00Z");
+        givenDeclarationsInCommunity(declared("ann", "kafka", kafkaAt),
+                declared("ben", "observability", observabilityAt), declared("cat", "kafka", EARLY));
+        givenPeople("ann", "ben", "cat");
+
+        // when
+        var result = sut.openIn("eng");
+
+        // then
+        assertThat(result).extracting(OpenArea::canonicalTag, OpenArea::latestDeclaredAt)
+                .containsExactly(tuple("observability", observabilityAt), tuple("kafka", kafkaAt));
+    }
+
+    @Test
+    void openInCountsAPersonOncePerArea() {
+
+        // given
+        when(tagAliasRepository.aliasMap("org-1", 1L)).thenReturn(Map.of("apache-kafka", "kafka"));
+        givenDeclarationsInCommunity(declared("ann", "kafka", LATE), declared("ann", "apache-kafka", EARLY));
+        givenPeople("ann");
+
+        // when
+        var result = sut.openIn("eng");
+
+        // then
+        assertThat(result).singleElement().satisfies(area -> {
+            assertThat(area.latestDeclaredAt()).isEqualTo(EARLY);
+            assertThat(area.people()).extracting(OpenPerson::userId, OpenPerson::declaredAt)
+                    .containsExactly(tuple("ann", EARLY));
+        });
+    }
+
+    @Test
+    void openInOrdersPeopleDeclaredTheSameDayByName() {
+
+        // given
+        givenDeclarationsInCommunity(declared("zed", "kafka", LATE), declared("amy", "kafka", LATE));
+        when(personDirectory.resolve(any())).thenReturn(
+                Map.of("zed", new Person("zed", "Zed", null, null), "amy", new Person("amy", "amy", null, null)));
+
+        // when
+        var result = sut.openIn("eng");
+
+        // then
+        assertThat(result).singleElement().extracting(OpenArea::people).asInstanceOf(InstanceOfAssertFactories.LIST)
+                .extracting("userId").containsExactly("amy", "zed");
+    }
+
+    @Test
+    void openInDropsAPersonTheDirectoryCannotName() {
+
+        // given
+        givenDeclarationsInCommunity(declared("ghost", "kafka", LATE), declared("ann", "observability", EARLY));
+        when(personDirectory.resolve(any()))
+                .thenReturn(Map.of("ghost", Person.unresolved("ghost"), "ann", new Person("ann", "Ann", null, null)));
+
+        // when
+        var result = sut.openIn("eng");
+
+        // then
+        assertThat(result).extracting(OpenArea::canonicalTag).containsExactly("observability");
+    }
+
+    @Test
+    void openInRequiresMembershipLikeAreas() {
+
+        // given
+        when(communityAccess.communityIdForSlug("hidden")).thenThrow(new ForbiddenException("Not a member"));
+
+        // when / then
+        assertThatThrownBy(() -> sut.openIn("hidden")).isInstanceOf(ForbiddenException.class);
+        assertThatThrownBy(() -> sut.areas("hidden", null)).isInstanceOf(ForbiddenException.class);
+        verify(declarationRepository, never()).allVisibleIn(any(), anyLong());
+    }
+
+    private void givenPeople(String... userIds) {
+
+        var people = new java.util.HashMap<String, Person>();
+        for (var userId : userIds) {
+            people.put(userId, new Person(userId, userId, null, null));
+        }
+        when(personDirectory.resolve(any())).thenReturn(people);
     }
 
     private static Declaration declared(String userId, String tag, Instant at) {

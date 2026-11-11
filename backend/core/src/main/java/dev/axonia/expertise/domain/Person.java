@@ -9,4 +9,9 @@ public record Person(String userId, String displayName, String avatarUrl, String
 
         return new Person(userId, UNRESOLVED_DISPLAY_NAME, null, null);
     }
+
+    public boolean isUnresolved() {
+
+        return equals(unresolved(userId));
+    }
 }
