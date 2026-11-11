@@ -469,28 +469,33 @@ class SessionFeedbackServiceTest {
     }
 
     @Test
-    void give_refusesAPresenter() {
+    void give_storesAPresentersAnswer() {
 
         // given
         held(presentedBy(ALICE));
+        var saved = ArgumentCaptor.forClass(FeedbackRecord.class);
 
-        // when / then
-        assertThatThrownBy(() -> sut.give(SESSION, new FeedbackAnswer(9, 7))).isInstanceOfSatisfying(
-                ForbiddenException.class, ex -> assertThat(ex.getCode()).isEqualTo("FEEDBACK_NOT_ELIGIBLE"));
-        verify(sessionFeedbackStore, never()).save(any());
+        // when
+        sut.give(SESSION, new FeedbackAnswer(9, 7));
+
+        // then
+        verify(sessionFeedbackStore).save(saved.capture());
+        assertThat(saved.getValue()).usingRecursiveComparison().isEqualTo(FeedbackRecord.builder().organizationId(ORG)
+                .sessionId(SESSION).userId(ALICE).enjoyed(9).learned(7).build());
     }
 
     @Test
-    void give_refusesANonMemberPresenter() {
+    void give_storesANonMemberPresentersAnswer() {
 
         // given
         held(presentedBy(ALICE));
         lenient().when(communityAccess.isMember(COMMUNITY, ALICE)).thenReturn(false);
 
-        // when / then
-        assertThatThrownBy(() -> sut.give(SESSION, new FeedbackAnswer(9, 7))).isInstanceOfSatisfying(
-                ForbiddenException.class, ex -> assertThat(ex.getCode()).isEqualTo("FEEDBACK_NOT_ELIGIBLE"));
-        verify(sessionFeedbackStore, never()).save(any());
+        // when
+        sut.give(SESSION, new FeedbackAnswer(9, 7));
+
+        // then
+        verify(sessionFeedbackStore).save(any());
     }
 
     @Test

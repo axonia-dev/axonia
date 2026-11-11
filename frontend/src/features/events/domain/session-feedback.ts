@@ -27,22 +27,20 @@ export const sessionFeedbackSchema = z.object({
 
 export type SessionFeedback = z.infer<typeof sessionFeedbackSchema>;
 
-/** An attendee is asked while the window is open, and keeps the receipt of an answer once it closes. */
-export function asksAttendee(feedback: SessionFeedback): boolean {
-  if (feedback.role !== "ATTENDEE") return false;
+/**
+ * Anyone who may answer, a member or a presenter of the session, is asked while the window is open,
+ * and keeps the receipt of an answer once it closes.
+ */
+function asksForFeedback(feedback: SessionFeedback): boolean {
+  if (feedback.role === "OTHER") return false;
   return feedback.window === "OPEN" || feedback.mine !== null;
-}
-
-export function tellsPresenter(feedback: SessionFeedback): boolean {
-  return feedback.role === "PRESENTER" && feedback.window === "OPEN";
 }
 
 /** Whether the session's feedback section has anything for this reader. */
 export function feedbackSectionShows(
   feedback: SessionFeedback | undefined,
 ): boolean {
-  if (!feedback) return false;
-  return asksAttendee(feedback) || tellsPresenter(feedback);
+  return feedback !== undefined && asksForFeedback(feedback);
 }
 
 /** How the session landed, once there is something to show: never while it is still pending. */

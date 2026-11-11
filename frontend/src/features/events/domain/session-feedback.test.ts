@@ -97,9 +97,18 @@ describe("feedbackSectionShows", () => {
       true,
     ],
     ["an attendee who never answered", feedback({ window: "CLOSED" }), false],
-    ["a presenter while open", feedback({ role: "PRESENTER" }), true],
+    ["a presenter asked while open", feedback({ role: "PRESENTER" }), true],
     [
-      "a presenter once closed",
+      "a presenter holding a receipt once closed",
+      feedback({
+        role: "PRESENTER",
+        window: "CLOSED",
+        mine: { enjoyed: 8, learned: 6 },
+      }),
+      true,
+    ],
+    [
+      "a presenter who never answered",
       feedback({ role: "PRESENTER", window: "CLOSED" }),
       false,
     ],

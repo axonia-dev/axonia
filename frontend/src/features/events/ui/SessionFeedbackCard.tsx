@@ -1,5 +1,5 @@
 import { Check } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/Button";
 import { notifyError } from "@/components/ui/toast";
@@ -29,7 +29,7 @@ interface Props {
   feedback: SessionFeedback;
 }
 
-const FOLD_DELAY_MS = 220;
+const SAVE_DELAY_MS = 600;
 const BARS = Array.from({ length: FEEDBACK_SCALE }, (_, index) => index + 1);
 
 const CARD_CLASS =
@@ -68,13 +68,11 @@ function SentLine({
   closesAt,
   open,
   onChange,
-  animate,
 }: Readonly<{
   mine: FeedbackAnswer;
   closesAt: string | null;
   open: boolean;
   onChange: () => void;
-  animate: boolean;
 }>) {
   const until = closesAt ? closesOn(closesAt) : null;
   let note = "Anonymous";
@@ -83,16 +81,13 @@ function SentLine({
       ? `Anonymous · open until ${until}`
       : `Anonymous · closed ${until}`;
   return (
-    <div
-      ref={animate ? settleIn : undefined}
-      className="relative flex flex-wrap items-center gap-x-3.5 gap-y-2.5"
-    >
+    <div className="relative flex flex-wrap items-center gap-x-3.5 gap-y-2.5">
       <span className="text-data-1 grid size-[34px] flex-none place-items-center rounded-full bg-[color-mix(in_srgb,var(--primary)_16%,var(--surface))]">
         <Check size={18} strokeWidth={2.4} aria-hidden="true" />
       </span>
       <div className="min-w-[150px]">
         <strong className="font-display text-foreground block text-[15px]">
-          Feedback sent
+          Feedback saved
         </strong>
         <small className="text-muted-foreground text-xs">{note}</small>
       </div>
@@ -109,9 +104,41 @@ function SentLine({
   );
 }
 
+type SaveState = "incomplete" | "saving" | "saved" | "failed";
+
+function SaveStatus({ state }: Readonly<{ state: SaveState }>) {
+  return (
+    <p
+      role="status"
+      className="text-muted-foreground flex min-h-5 items-center gap-1.5 text-xs"
+    >
+      {state === "saved" && (
+        <span ref={settleIn} className="text-data-1 inline-flex">
+          <Check size={14} strokeWidth={2.6} aria-hidden="true" />
+        </span>
+      )}
+      {saveWords(state)}
+    </p>
+  );
+}
+
+function saveWords(state: SaveState): string {
+  switch (state) {
+    case "incomplete":
+      return "Anonymous · saves once both are set";
+    case "saving":
+      return "Saving…";
+    case "saved":
+      return "Saved · anonymous";
+    case "failed":
+      return "Not saved · a tap tries again";
+  }
+}
+
 /**
- * The ask on a held session's page: two rows of bars, one Send, then a one line receipt that
- * folds the rows away and stays changeable while the window is open.
+ * The ask on a held session's page: two rows of bars that save on their own once both hold an
+ * answer, so a tap is the whole gesture. A later visit finds a one line receipt that stays
+ * changeable while the window is open.
  */
 export function SessionFeedbackCard({
   slug,
@@ -122,42 +149,81 @@ export function SessionFeedbackCard({
   const give = useGiveSessionFeedback(slug, sessionId);
   const open = feedback.window === "OPEN";
   const [asking, setAsking] = useState(open && feedback.mine === null);
-  const [folded, setFolded] = useState(false);
   const [enjoyed, setEnjoyed] = useState<number | null>(null);
   const [learned, setLearned] = useState<number | null>(null);
+  const [state, setState] = useState<SaveState>("incomplete");
   const cardRef = useRef<HTMLDivElement | null>(null);
-  const sendRef = useRef<HTMLSpanElement | null>(null);
+  const statusRef = useRef<HTMLDivElement | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const pending = useRef<FeedbackAnswer | null>(null);
+  const queued = useRef<FeedbackAnswer | null>(null);
+  const inFlight = useRef(false);
+  const celebrated = useRef(false);
+  const saveRef = useRef<(answer: FeedbackAnswer) => void>(() => undefined);
 
   const until = feedback.closesAt ? closesOn(feedback.closesAt) : null;
 
-  function send() {
-    if (enjoyed === null || learned === null) return;
-    give.mutate(
-      { enjoyed, learned },
-      {
-        onSuccess: () => {
-          if (!reduced) {
-            moteFrom(sendRef.current, cardRef.current);
-            squeeze(cardRef.current);
-          }
-          globalThis.setTimeout(
-            () => {
-              setFolded(true);
-              setAsking(false);
-            },
-            reduced ? 0 : FOLD_DELAY_MS,
-          );
-        },
-        onError: () => {
-          notifyError("Feedback not sent");
-        },
+  function save(answer: FeedbackAnswer) {
+    if (inFlight.current) {
+      queued.current = answer;
+      return;
+    }
+    inFlight.current = true;
+    give.mutate(answer, {
+      onSuccess: () => {
+        if (queued.current || pending.current) return;
+        setState("saved");
+        if (!celebrated.current && !reduced) {
+          moteFrom(statusRef.current, cardRef.current);
+          squeeze(cardRef.current);
+        }
+        celebrated.current = true;
       },
-    );
+      onError: () => {
+        if (queued.current || pending.current) return;
+        setState("failed");
+        notifyError("Feedback not saved");
+      },
+      onSettled: () => {
+        inFlight.current = false;
+        const next = queued.current;
+        queued.current = null;
+        if (next) save(next);
+      },
+    });
+  }
+  saveRef.current = save;
+
+  useEffect(
+    () => () => {
+      clearTimeout(timer.current);
+      const last = pending.current ?? queued.current;
+      if (!last) return;
+      inFlight.current = false;
+      saveRef.current(last);
+    },
+    [],
+  );
+
+  function answer(next: { enjoyed: number | null; learned: number | null }) {
+    setEnjoyed(next.enjoyed);
+    setLearned(next.learned);
+    if (next.enjoyed === null || next.learned === null) return;
+    const pair = { enjoyed: next.enjoyed, learned: next.learned };
+    setState("saving");
+    clearTimeout(timer.current);
+    pending.current = pair;
+    timer.current = setTimeout(() => {
+      pending.current = null;
+      saveRef.current(pair);
+    }, SAVE_DELAY_MS);
   }
 
   function change() {
     setEnjoyed(feedback.mine?.enjoyed ?? null);
     setLearned(feedback.mine?.learned ?? null);
+    setState("saved");
+    celebrated.current = true;
     setAsking(true);
   }
 
@@ -181,30 +247,20 @@ export function SessionFeedbackCard({
               label="Enjoyed it"
               ends={["Not really", "Loved it"]}
               value={enjoyed}
-              onChange={setEnjoyed}
+              onChange={(value) => answer({ enjoyed: value, learned })}
             />
           </div>
-          <div className="mb-4">
+          <div className="mb-3">
             <FeedbackRow
               question="learned"
               label="Learned something"
               ends={["Nothing new", "A lot"]}
               value={learned}
-              onChange={setLearned}
+              onChange={(value) => answer({ enjoyed, learned: value })}
             />
           </div>
-          <div className="flex items-center gap-3">
-            <span ref={sendRef} className="inline-flex">
-              <Button
-                isDisabled={enjoyed === null || learned === null}
-                isPending={give.isPending}
-                onPress={send}
-                className={cn(!reduced && "hover:-translate-y-px")}
-              >
-                Send
-              </Button>
-            </span>
-            <span className="text-muted-foreground text-xs">Anonymous</span>
+          <div ref={statusRef} className="inline-flex">
+            <SaveStatus state={state} />
           </div>
         </div>
       ) : (
@@ -213,7 +269,6 @@ export function SessionFeedbackCard({
           closesAt={feedback.closesAt}
           open={open}
           onChange={change}
-          animate={folded && !reduced}
         />
       )}
     </div>

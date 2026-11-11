@@ -72,8 +72,8 @@ public class SessionFeedbackService {
         if (currentUser.delegated()) {
             throw new OwnSignInRequiredException();
         }
-        if (role(session, userId) != Role.ATTENDEE) {
-            throw new ForbiddenException("FEEDBACK_NOT_ELIGIBLE", "Only an attendee may give feedback");
+        if (role(session, userId) == Role.OTHER) {
+            throw new ForbiddenException("FEEDBACK_NOT_ELIGIBLE", "Only a member or a presenter may give feedback");
         }
         if (feedbackImportStore.find(organizationId, session.getId()).isPresent()) {
             throw new ConflictException("FEEDBACK_IMPORTED", "This session holds imported feedback");

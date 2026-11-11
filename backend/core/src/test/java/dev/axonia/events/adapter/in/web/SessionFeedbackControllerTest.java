@@ -100,8 +100,8 @@ class SessionFeedbackControllerTest extends ControllerTestSupport {
     void give_notEligibleIs403WithCode() {
 
         // given
-        when(sessionFeedbackService.give(9L, new FeedbackAnswer(9, 7)))
-                .thenThrow(new ForbiddenException("FEEDBACK_NOT_ELIGIBLE", "Only an attendee may give feedback"));
+        when(sessionFeedbackService.give(9L, new FeedbackAnswer(9, 7))).thenThrow(
+                new ForbiddenException("FEEDBACK_NOT_ELIGIBLE", "Only a member or a presenter may give feedback"));
 
         // when
         var actual = mvc.put().uri("/axonia/sessions/{id}/feedback/me", 9L).contentType(MediaType.APPLICATION_JSON)

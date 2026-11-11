@@ -85,14 +85,13 @@ async function renderFeedback(state: Feedback, delegated = false) {
   return view;
 }
 
-type Shown = "card" | "receipt" | "line" | "result";
+type Shown = "card" | "receipt" | "result";
 
 function shown(): Shown[] {
   const found: Shown[] = [];
   if (screen.queryByRole("heading", { name: "How was it?" }))
     found.push("card");
-  if (screen.queryByText("Feedback sent")) found.push("receipt");
-  if (screen.queryByText(/Attendees are sharing/)) found.push("line");
+  if (screen.queryByText("Feedback saved")) found.push("receipt");
   if (screen.queryByRole("heading", { name: /How it landed/ }))
     found.push("result");
   return found;
@@ -132,8 +131,17 @@ describe("SessionFeedback", () => {
       { window: "NONE", closesAt: null },
       [],
     ],
-    ["a presenter while the window is open", { role: "PRESENTER" }, ["line"]],
-    ["a presenter once it closed", { role: "PRESENTER", window: "CLOSED" }, []],
+    ["a presenter while the window is open", { role: "PRESENTER" }, ["card"]],
+    [
+      "a presenter who answered once it closed",
+      { role: "PRESENTER", window: "CLOSED", mine: { enjoyed: 8, learned: 6 } },
+      ["receipt"],
+    ],
+    [
+      "a presenter who never answered once it closed",
+      { role: "PRESENTER", window: "CLOSED" },
+      [],
+    ],
     ["anyone else while it is open", { role: "OTHER" }, []],
     ["an organizer while it is open", { role: "OTHER", result: PENDING }, []],
     [
@@ -154,12 +162,12 @@ describe("SessionFeedback", () => {
     [
       "a presenter who organizes, while it is open",
       { role: "PRESENTER", result: PENDING },
-      ["line"],
+      ["card"],
     ],
     [
       "a presenter who organizes, with a result to show",
       { role: "PRESENTER", result: REVEALED },
-      ["line", "result"],
+      ["card", "result"],
     ],
     [
       "a presenter who organizes, once it closed",
@@ -193,13 +201,10 @@ describe("SessionFeedback", () => {
     await renderFeedback(feedback({ role: "PRESENTER", result: REVEALED }));
 
     // when
-    const line = await screen.findByText(/Attendees are sharing/);
+    const card = await screen.findByRole("heading", { name: "How was it?" });
 
     // then
-    expect(line).toHaveTextContent(
-      "Attendees are sharing how it went until 13 Nov.",
-    );
-    expect(feedbackSection()).toContainElement(line);
+    expect(feedbackSection()).toContainElement(card);
     expect(feedbackSection()).not.toContainElement(
       screen.getByRole("heading", { name: /How it landed/ }),
     );
