@@ -243,6 +243,50 @@ class DeclarationRepositoryTest extends ExpertiseJdbcTestSupport {
     }
 
     @Test
+    void pausedDeclarerIsAbsentFromVisibleReads() {
+
+        var community = seedCommunity("platform");
+        seedMember(community, "alice", true);
+        var kafka = declaration(community, "alice", "kafka", EARLY);
+        repo.insert(ORG, kafka);
+
+        preferences.setPaused(ORG, "alice", true);
+
+        assertThat(repo.visibleIn(ORG, community, Set.of("kafka"))).isEmpty();
+        assertThat(repo.allVisibleIn(ORG, community)).isEmpty();
+        assertThat(repo.allCurableIn(ORG, community)).containsExactly(kafka);
+        assertThat(repo.inCommunity(ORG, community, "alice")).containsExactly(kafka);
+        assertThat(repo.forUser(ORG, "alice")).containsExactly(kafka);
+    }
+
+    @Test
+    void unpausedDeclarerReturnsUnchanged() {
+
+        var community = seedCommunity("platform");
+        seedMember(community, "alice", true);
+        repo.insert(ORG, declaration(community, "alice", "kafka", EARLY));
+
+        preferences.setPaused(ORG, "alice", true);
+        preferences.setPaused(ORG, "alice", false);
+
+        assertThat(repo.allVisibleIn(ORG, community)).containsExactly(declaration(community, "alice", "kafka", EARLY));
+    }
+
+    @Test
+    void allCurableInStillExcludesAnOptedOutMemberAndAHiddenArea() {
+
+        var community = seedCommunity("platform");
+        seedMember(community, "opted-out", true);
+        seedMember(community, "hider", true);
+        preferences.setOptOut(ORG, "opted-out", true);
+        preferences.hideTag(ORG, "hider", "kafka");
+        repo.insert(ORG, declaration(community, "opted-out", "kafka", EARLY));
+        repo.insert(ORG, declaration(community, "hider", "kafka", EARLY));
+
+        assertThat(repo.allCurableIn(ORG, community)).isEmpty();
+    }
+
+    @Test
     void tagsInReturnsEachDeclaredTagOnceForThisCommunityOnly() {
 
         var platform = seedCommunity("platform");

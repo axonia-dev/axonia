@@ -13,7 +13,7 @@ import lombok.RequiredArgsConstructor;
 
 /**
  * Every signal, curation and declaration table keys on {@code user_id} and exists only to describe that one member's
- * expertise graph, so all five rows go with them. The vocabulary tables ({@code expertise_tag_alias},
+ * expertise graph, so all six rows go with them. The vocabulary tables ({@code expertise_tag_alias},
  * {@code expertise_tag_dismissal}) hold no personal column and are untouched.
  */
 @Component
@@ -37,6 +37,7 @@ public class ExpertiseMemberDataEraser implements MemberDataEraser {
                 "DELETE FROM expertise_dismissed_signal WHERE organization_id = :org AND user_id = :user", params);
         deleted += jdbc.update("DELETE FROM expertise_declaration WHERE organization_id = :org AND user_id = :user",
                 params);
+        deleted += jdbc.update("DELETE FROM expertise_pause WHERE organization_id = :org AND user_id = :user", params);
         return new ErasureCounts(deleted, 0, 0, 0);
     }
 }

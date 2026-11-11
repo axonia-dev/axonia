@@ -59,7 +59,7 @@ public class CurationScope {
     public List<String> visibleTagsOf(String org, long communityId) {
 
         var fromWriters = tagWriters.stream().flatMap(writer -> writer.tagsIn(communityId).stream());
-        var declared = declarationRepository.allVisibleIn(org, communityId).stream().map(Declaration::tag);
+        var declared = declarationRepository.allCurableIn(org, communityId).stream().map(Declaration::tag);
         return Stream.concat(fromWriters, declared).distinct().toList();
     }
 

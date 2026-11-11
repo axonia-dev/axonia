@@ -25,6 +25,17 @@ public interface PreferenceRepository {
     void setOptOut(String org, String userId, boolean optedOut);
 
     // ------------------------------------------------------------------
+    // Pause
+    // ------------------------------------------------------------------
+
+    boolean isPaused(String org, String userId);
+
+    /**
+     * Inserts (paused=true, keeping the first pause date) or deletes (paused=false) the pause row. Idempotent.
+     */
+    void setPaused(String org, String userId, boolean paused);
+
+    // ------------------------------------------------------------------
     // Hidden tags
     // ------------------------------------------------------------------
 

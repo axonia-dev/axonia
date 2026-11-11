@@ -68,7 +68,7 @@ public class ExpertiseCurationService {
         var fold = new AreaFold(tagAliasRepository.aliasMap(org, communityId));
         fold.carryNames(curationScope.rawTagsOf(org, communityId));
         fold.carrySignals(expertiseQueryRepository.userTagAggregates(org, communityId));
-        fold.carryDeclarations(declarationRepository.allVisibleIn(org, communityId));
+        fold.carryDeclarations(declarationRepository.allCurableIn(org, communityId));
         return fold.folded(null);
     }
 

@@ -16,7 +16,7 @@ import lombok.RequiredArgsConstructor;
 
 /**
  * Every signal, curation and declaration table keys on {@code user_id} and exists only to describe that one member's
- * expertise graph, so all five are theirs to export. The vocabulary tables carry no personal column and are not part of
+ * expertise graph, so all six are theirs to export. The vocabulary tables carry no personal column and are not part of
  * this fragment.
  *
  * <p>
@@ -62,7 +62,8 @@ public class ExpertisePersonalDataExporter implements PersonalDataExporter {
 
         Map<String, Object> payload = Map.of("expertise_signal", signals(scope), "expertise_hidden_tag",
                 rowsOf("expertise_hidden_tag", scope), "expertise_opt_out", rowsOf("expertise_opt_out", scope),
-                "expertise_dismissed_signal", dismissedSignals(scope), "expertise_declaration", declarations(scope));
+                "expertise_dismissed_signal", dismissedSignals(scope), "expertise_declaration", declarations(scope),
+                "expertise_pause", rowsOf("expertise_pause", scope));
         return new ExportFragment("expertise.json", payload, List.of());
     }
 

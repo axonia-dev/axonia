@@ -48,6 +48,13 @@ class ExpertisePreferenceController {
         expertisePreferenceService.optOut(request.optedOut());
     }
 
+    @PutMapping("/expertise/me/paused")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void setPaused(@Valid @RequestBody PausedRequest request) {
+
+        expertisePreferenceService.setPaused(request.paused());
+    }
+
     @PutMapping("/expertise/me/hidden/{tag}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void hideTag(@PathVariable String tag) {
@@ -84,6 +91,9 @@ class ExpertisePreferenceController {
     }
 
     record OptOutRequest(boolean optedOut) {
+    }
+
+    record PausedRequest(boolean paused) {
     }
 
     record DismissRequest(@NotNull SourceType sourceType, @NotNull Long sourceId, @NotBlank String tag) {

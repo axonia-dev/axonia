@@ -35,8 +35,8 @@ public interface DeclarationRepository {
 
     /**
      * The declarations "who knows X?" may show: raw tag in {@code tags}, the declarer active in the directory and a
-     * current member of the community, not opted out, and not hiding the area the community's aliases read the tag as.
-     * Tags are expanded by the caller, exactly as for {@link ExpertiseQueryRepository#findPractitioners}.
+     * current member of the community, not opted out, not paused, and not hiding the area the community's aliases read
+     * the tag as. Tags are expanded by the caller, exactly as for {@link ExpertiseQueryRepository#findPractitioners}.
      */
     List<Declaration> visibleIn(String org, long communityId, Set<String> tags);
 
@@ -46,6 +46,12 @@ public interface DeclarationRepository {
      * one per area.
      */
     List<Declaration> allVisibleIn(String org, long communityId);
+
+    /**
+     * {@link #allVisibleIn} with a paused declarer's declarations kept: a pause steps a member back from being asked,
+     * and must not take the names they declared away from the community's curators.
+     */
+    List<Declaration> allCurableIn(String org, long communityId);
 
     /**
      * Every tag this community's members declared, whoever they are: a name the curation page must be able to merge,

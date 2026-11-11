@@ -73,6 +73,20 @@ class PreferenceRepositoryTest extends ExpertiseJdbcTestSupport {
         assertThat(repo.isOptedOut(ORG, "ghost-user-never-inserted")).isFalse();
     }
 
+    @Test
+    void pauseRoundTrips() {
+
+        assertThat(repo.isPaused(ORG, USER)).isFalse();
+
+        repo.setPaused(ORG, USER, true);
+        repo.setPaused(ORG, USER, true);
+        assertThat(repo.isPaused(ORG, USER)).isTrue();
+        assertThat(repo.isPaused("other-org", USER)).isFalse();
+
+        repo.setPaused(ORG, USER, false);
+        assertThat(repo.isPaused(ORG, USER)).isFalse();
+    }
+
     // ------------------------------------------------------------------
     // hiddenTags / hideTag / unhideTag
     // ------------------------------------------------------------------

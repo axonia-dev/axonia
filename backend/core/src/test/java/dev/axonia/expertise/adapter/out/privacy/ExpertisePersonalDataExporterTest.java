@@ -26,7 +26,7 @@ class ExpertisePersonalDataExporterTest extends FootprintTestSupport {
     private ExpertisePersonalDataExporter exporter;
 
     @Test
-    void memberScopedExportCarriesTheMembersOwnGraphAcrossAllFiveTables() {
+    void memberScopedExportCarriesTheMembersOwnGraphAcrossAllSixTables() {
 
         var communityId = seedCommunity("Target Community");
         seedExpertiseGraph(TARGET, "target-tag", communityId);
@@ -49,6 +49,8 @@ class ExpertisePersonalDataExporterTest extends FootprintTestSupport {
         assertThat(rowsOf(fragment, "expertise_declaration")).singleElement()
                 .satisfies(row -> assertThat(row).containsOnlyKeys("user_id", "tag", "declared_at", "community")
                         .containsEntry("tag", "target-tag").containsEntry("community", "Target Community"));
+        assertThat(rowsOf(fragment, "expertise_pause")).singleElement().satisfies(
+                row -> assertThat(row).containsOnlyKeys("user_id", "paused_at").containsEntry("user_id", TARGET));
     }
 
     @Test
@@ -66,6 +68,7 @@ class ExpertisePersonalDataExporterTest extends FootprintTestSupport {
         assertThat(rowsOf(fragment, "expertise_opt_out")).hasSize(2);
         assertThat(rowsOf(fragment, "expertise_dismissed_signal")).hasSize(2);
         assertThat(rowsOf(fragment, "expertise_declaration")).hasSize(2);
+        assertThat(rowsOf(fragment, "expertise_pause")).hasSize(2);
     }
 
     /**
@@ -148,6 +151,8 @@ class ExpertisePersonalDataExporterTest extends FootprintTestSupport {
         seedOptOut(userId);
         seedDismissedSignal(userId, tag, "ARTIFACT", 1L);
         seedDeclaration(userId, tag, communityId);
+        jdbc.update("INSERT INTO expertise_pause (organization_id, user_id, paused_at) VALUES (:org, :user, now())",
+                Map.of("org", ORG, "user", userId));
     }
 
     private void seedSignal(String userId, String tag, String sourceType, Long sourceId, Long communityId) {

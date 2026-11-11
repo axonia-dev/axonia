@@ -106,6 +106,15 @@ public class ExpertisePreferenceService {
         preferenceRepository.setOptOut(organizationContext.organizationId(), currentUser.userId(), optedOut);
     }
 
+    /**
+     * Pauses or resumes taking questions across every community of the organization. A paused member's declarations are
+     * kept and read as absent everywhere but their own pages.
+     */
+    public void setPaused(boolean paused) {
+
+        preferenceRepository.setPaused(organizationContext.organizationId(), currentUser.userId(), paused);
+    }
+
     /** Hides a tag from the current user's public expertise profile. The input is normalised. */
     public void hideTag(String canonicalTag) {
 
@@ -159,8 +168,9 @@ public class ExpertisePreferenceService {
         var context = new SelfContext(tagAliasRepository.aliasMaps(org, communityIds),
                 communityAccess.summaryById(communityIds), preferenceRepository.hiddenTags(org, userId));
         var optedOut = preferenceRepository.isOptedOut(org, userId);
+        var paused = preferenceRepository.isPaused(org, userId);
 
-        return new SelfView(optedOut, buildSelfAreas(recorded.signals(), recorded.visibleSignals(), context),
+        return new SelfView(optedOut, paused, buildSelfAreas(recorded.signals(), recorded.visibleSignals(), context),
                 buildSelfDeclarations(recorded.declarations(), context), recorded.declarable());
     }
 

@@ -13,8 +13,8 @@ import dev.axonia.shared.api.personaldata.PersonalDataFootprint;
 import dev.axonia.shared.api.personaldata.TableFootprint;
 
 /**
- * The signal tables ({@code expertise_signal} and everything a member does to their own graph - hide, opt out, dismiss
- * a suggestion, declare an area) each key on {@code user_id}, and the row exists only to describe that person's
+ * The signal tables ({@code expertise_signal} and everything a member does to their own graph - hide, opt out, pause,
+ * dismiss a suggestion, declare an area) each key on {@code user_id}, and the row exists only to describe that person's
  * expertise, so the whole row goes with them for erasure. The vocabulary tables, {@code expertise_tag_alias} and
  * {@code expertise_tag_dismissal}, hold a community's curated tag spellings and merge verdicts, and the named-area
  * tables ({@code expertise_named_area} and {@code expertise_named_area_tag}) hold the groupings a leader named - facts
@@ -33,9 +33,9 @@ public class ExpertisePersonalDataFootprint implements PersonalDataFootprint {
     @Override
     public List<TableFootprint> tables() {
 
-        return List.of(expertiseSignal(), expertiseHiddenTag(), expertiseOptOut(), expertiseDismissedSignal(),
-                expertiseDeclaration(), expertiseTagAlias(), expertiseTagDismissal(), expertiseNamedArea(),
-                expertiseNamedAreaTag());
+        return List.of(expertiseSignal(), expertiseHiddenTag(), expertiseOptOut(), expertisePause(),
+                expertiseDismissedSignal(), expertiseDeclaration(), expertiseTagAlias(), expertiseTagDismissal(),
+                expertiseNamedArea(), expertiseNamedAreaTag());
     }
 
     private TableFootprint expertiseSignal() {
@@ -60,6 +60,13 @@ public class ExpertisePersonalDataFootprint implements PersonalDataFootprint {
         return TableFootprint.builder().table("expertise_opt_out").category(DataCategory.WHAT_YOU_KNOW)
                 .personal(List.of(new ColumnFootprint("user_id", Classification.SUBJECT, Disposition.DELETE_ROW)))
                 .notPersonal(Set.of("organization_id")).exportedContext(Set.of()).build();
+    }
+
+    private TableFootprint expertisePause() {
+
+        return TableFootprint.builder().table("expertise_pause").category(DataCategory.WHAT_YOU_KNOW)
+                .personal(List.of(new ColumnFootprint("user_id", Classification.SUBJECT, Disposition.DELETE_ROW)))
+                .notPersonal(Set.of("organization_id", "paused_at")).exportedContext(Set.of("paused_at")).build();
     }
 
     private TableFootprint expertiseDismissedSignal() {

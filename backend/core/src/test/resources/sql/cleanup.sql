@@ -63,6 +63,7 @@ TRUNCATE TABLE
     expertise_named_area,
     expertise_named_area_tag,
     expertise_opt_out,
+    expertise_pause,
     expertise_signal,
     expertise_tag_alias,
     expertise_tag_dismissal,

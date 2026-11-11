@@ -24,7 +24,7 @@ class ExpertiseDataPurgerTest extends PurgerTestSupport {
     @Test
     void purgeEmptiesEveryExpertiseTableForTheOrganization() {
 
-        // given - one row in each of the nine expertise tables, all for org "default"
+        // given - one row in each of the ten expertise tables, all for org "default"
         seedExpertiseTables();
 
         // when
@@ -40,6 +40,7 @@ class ExpertiseDataPurgerTest extends PurgerTestSupport {
         assertThat(count("expertise_declaration")).isZero();
         assertThat(count("expertise_named_area")).isZero();
         assertThat(count("expertise_named_area_tag")).isZero();
+        assertThat(count("expertise_pause")).isZero();
     }
 
     @Test
@@ -58,7 +59,7 @@ class ExpertiseDataPurgerTest extends PurgerTestSupport {
     }
 
     /**
-     * Seeds one row in each of the nine expertise tables for org "default".
+     * Seeds one row in each of the ten expertise tables for org "default".
      */
     private void seedExpertiseTables() {
 
@@ -83,6 +84,8 @@ class ExpertiseDataPurgerTest extends PurgerTestSupport {
                 "INSERT INTO expertise_named_area_tag (organization_id, community_id, named_area_id, canonical_tag) "
                         + "VALUES (:org, 1, :namedArea, 'kafka')",
                 Map.of("org", ORG, "namedArea", namedArea));
+        jdbc.update("INSERT INTO expertise_pause (organization_id, user_id, paused_at) "
+                + "VALUES (:org, 'purger-test-user', now())", Map.of("org", ORG));
     }
 
     private long count(String table) {
@@ -105,6 +108,9 @@ class ExpertiseDataPurgerTest extends PurgerTestSupport {
                         Map.of("org", ORG), Long.class);
             case "expertise_tag_dismissal" ->
                 jdbc.queryForObject("SELECT count(*) FROM expertise_tag_dismissal WHERE organization_id = :org",
+                        Map.of("org", ORG), Long.class);
+            case "expertise_pause" ->
+                jdbc.queryForObject("SELECT count(*) FROM expertise_pause WHERE organization_id = :org",
                         Map.of("org", ORG), Long.class);
             case "expertise_declaration" ->
                 jdbc.queryForObject("SELECT count(*) FROM expertise_declaration WHERE organization_id = :org",

@@ -108,7 +108,7 @@ class ExpertiseVocabularyTest {
         writer.carry(7L, "kafka");
         writer.carry(7L, "k8s");
         aliases.addAlias("org-1", 7L, "k8s", "kubernetes");
-        when(declarationRepository.allVisibleIn("org-1", 7L)).thenReturn(List.of(
+        when(declarationRepository.allCurableIn("org-1", 7L)).thenReturn(List.of(
                 new Declaration(7L, "u-1", "helm", Instant.EPOCH), new Declaration(7L, "u-2", "kafka", Instant.EPOCH)));
         when(expertiseQueryRepository.allTags("org-1", 7L)).thenReturn(List.of("hidden-signal"));
         when(declarationRepository.tagsIn("org-1", 7L)).thenReturn(List.of("hidden-declaration"));

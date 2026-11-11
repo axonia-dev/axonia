@@ -39,7 +39,7 @@ class ExpertisePreferenceControllerTest extends ControllerTestSupport {
     void selfView_returnsSelfView() throws JacksonException {
 
         // given
-        var selfView = new SelfView(false, List.of(), List.of(), List.of());
+        var selfView = new SelfView(false, false, List.of(), List.of(), List.of());
         when(expertisePreferenceService.selfView()).thenReturn(selfView);
 
         // when
@@ -57,7 +57,7 @@ class ExpertisePreferenceControllerTest extends ControllerTestSupport {
                 .label("Scaling Kafka").communitySlug("eng").occurredAt(Instant.parse("2026-01-01T00:00:00Z")).build();
         var evidence = Evidence.builder().presentedCount(1).contributedCount(0).offeredCount(0).recent(List.of(item))
                 .build();
-        var selfView = new SelfView(false,
+        var selfView = new SelfView(false, false,
                 List.of(new SelfArea("kafka", Tier.PRACTITIONER, false,
                         List.of(new AreaCommunity(1L, "eng", "Engineering")), evidence,
                         List.of(new CommunityTier(1L, Tier.PRACTITIONER)))),
@@ -83,7 +83,7 @@ class ExpertisePreferenceControllerTest extends ControllerTestSupport {
         var declaration = SelfDeclaration.builder().tag("kafka").communityId(7L).communityName("Platform")
                 .communitySlug("platform").hidden(false).declaredAt(Instant.parse("2026-09-12T12:00:00Z")).build();
         when(expertisePreferenceService.selfView())
-                .thenReturn(new SelfView(false, List.of(), List.of(declaration), List.of()));
+                .thenReturn(new SelfView(false, false, List.of(), List.of(declaration), List.of()));
 
         // when
         var actual = mvc.get().uri("/axonia/expertise/me").exchange();
@@ -97,7 +97,7 @@ class ExpertisePreferenceControllerTest extends ControllerTestSupport {
     void selfView_serializesDeclarableCommunities() {
 
         // given
-        when(expertisePreferenceService.selfView()).thenReturn(new SelfView(false, List.of(), List.of(),
+        when(expertisePreferenceService.selfView()).thenReturn(new SelfView(false, false, List.of(), List.of(),
                 List.of(new DeclarableCommunity(7L, "platform", "Platform"))));
 
         // when
@@ -119,6 +119,32 @@ class ExpertisePreferenceControllerTest extends ControllerTestSupport {
         // then
         actual.assertThat().hasStatus(204);
         verify(expertisePreferenceService).optOut(true);
+    }
+
+    @Test
+    void putPausedReturns204() {
+
+        // when
+        var actual = mvc.put().uri("/axonia/expertise/me/paused").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"paused\":true}").exchange();
+
+        // then
+        assertThat(actual).hasStatus(204);
+        verify(expertisePreferenceService).setPaused(true);
+    }
+
+    @Test
+    void selfViewJsonHasPaused() {
+
+        // given
+        when(expertisePreferenceService.selfView())
+                .thenReturn(new SelfView(false, true, List.of(), List.of(), List.of()));
+
+        // when
+        var actual = mvc.get().uri("/axonia/expertise/me").exchange();
+
+        // then
+        assertThat(actual).bodyJson().extractingPath("$.paused").isEqualTo(true);
     }
 
     @Test
@@ -189,7 +215,7 @@ class ExpertisePreferenceControllerTest extends ControllerTestSupport {
     void selfViewIn_returnsTheCommunitysSelfView() throws JacksonException {
 
         // given
-        var selfView = new SelfView(false, List.of(), List.of(),
+        var selfView = new SelfView(false, false, List.of(), List.of(),
                 List.of(new DeclarableCommunity(7L, "platform", "Platform")));
         when(expertisePreferenceService.selfViewIn("platform")).thenReturn(selfView);
 

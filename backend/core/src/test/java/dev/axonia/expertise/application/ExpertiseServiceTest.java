@@ -206,6 +206,25 @@ class ExpertiseServiceTest {
     }
 
     @Test
+    void pausedPractitionerKeepsTierButIsNotOpen() {
+
+        // given - alice declared kafka but is paused, so the visible read returns no declaration of hers
+        var signal = ExpertiseSignalMother.any().userId("alice").signalType(SignalType.PRESENTED).tag("kafka").build();
+        when(expertiseQueryRepository.findPractitioners(eq("org-1"), eq(1L), any()))
+                .thenReturn(List.of(new UserSignals("alice", List.of(signal))));
+        when(declarationRepository.visibleIn(eq("org-1"), eq(1L), any())).thenReturn(List.of());
+
+        // when
+        var result = sut.whoKnows("eng", "kafka", false);
+
+        // then
+        assertThat(result).singleElement().satisfies(p -> {
+            assertThat(p.tier()).isEqualTo(Tier.PRACTITIONER);
+            assertThat(p.openToQuestions()).isFalse();
+        });
+    }
+
+    @Test
     void whoKnows_openToQuestionsRanksBelowInterested() {
 
         // given

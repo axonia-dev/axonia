@@ -245,6 +245,9 @@ public final class OpenSeed {
                 + "'layer3-tag')", Map.of("org", ORG));
         jdbc.update("INSERT INTO expertise_opt_out (organization_id, user_id) VALUES (:org, 'layer3-user')",
                 Map.of("org", ORG));
+        jdbc.update(
+                "INSERT INTO expertise_pause (organization_id, user_id, paused_at) VALUES (:org, 'layer3-user', now())",
+                Map.of("org", ORG));
         jdbc.update("INSERT INTO expertise_dismissed_signal (organization_id, user_id, source_type, source_id, tag) "
                 + "VALUES (:org, 'layer3-user', 'ARTIFACT', 1, 'layer3-tag')", Map.of("org", ORG));
         jdbc.update("INSERT INTO expertise_declaration (organization_id, community_id, user_id, tag, declared_at) "

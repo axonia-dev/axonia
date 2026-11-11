@@ -266,6 +266,23 @@ class ExpertisePreferenceServiceTest {
         verify(preferenceRepository).setOptOut(ORG, USER, false);
     }
 
+    @Test
+    void selfViewCarriesPaused() {
+
+        when(preferenceRepository.isPaused(ORG, USER)).thenReturn(true);
+        when(expertiseQueryRepository.findForUser(ORG, USER)).thenReturn(List.of());
+
+        assertThat(sut.selfView().paused()).isTrue();
+    }
+
+    @Test
+    void setPausedWritesForCurrentUser() {
+
+        sut.setPaused(true);
+
+        verify(preferenceRepository).setPaused(ORG, USER, true);
+    }
+
     // ------------------------------------------------------------------
     // hideTag / unhideTag - normalize the input, resolve no alias
     // ------------------------------------------------------------------
@@ -631,7 +648,7 @@ class ExpertisePreferenceServiceTest {
 
         // then
         assertThat(actual).usingRecursiveComparison()
-                .isEqualTo(new SelfView(false,
+                .isEqualTo(new SelfView(false, false,
                         List.of(new SelfArea("kafka", Tier.PRACTITIONER, false,
                                 List.of(new AreaCommunity(COMMUNITY_ONE, "platform", "Platform")),
                                 TierPolicy.evidenceOf(List.of(dismissedTalk, artifact), 5),

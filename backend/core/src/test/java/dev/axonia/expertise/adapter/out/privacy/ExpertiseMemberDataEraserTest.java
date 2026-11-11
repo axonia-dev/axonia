@@ -26,7 +26,7 @@ class ExpertiseMemberDataEraserTest extends FootprintTestSupport {
     private ExpertiseMemberDataEraser eraser;
 
     @Test
-    void deletesTheTargetsRowsAcrossAllFiveTablesAndSparesTheNeighbour() {
+    void deletesTheTargetsRowsAcrossAllSixTablesAndSparesTheNeighbour() {
 
         seedExpertiseGraph(TARGET);
         seedExpertiseGraph(NEIGHBOUR);
@@ -34,17 +34,19 @@ class ExpertiseMemberDataEraserTest extends FootprintTestSupport {
         var counts = eraser.erase(MemberErasure.builder().organizationId(ORG).userId(TARGET)
                 .surrogateId("erased:test-surrogate").erasedAt(Instant.parse("2026-07-27T10:00:00Z")).build());
 
-        assertThat(counts.deleted()).isEqualTo(5);
+        assertThat(counts.deleted()).isEqualTo(6);
         assertThat(count("expertise_signal", TARGET)).isZero();
         assertThat(count("expertise_hidden_tag", TARGET)).isZero();
         assertThat(count("expertise_opt_out", TARGET)).isZero();
         assertThat(count("expertise_dismissed_signal", TARGET)).isZero();
         assertThat(count("expertise_declaration", TARGET)).isZero();
+        assertThat(count("expertise_pause", TARGET)).isZero();
         assertThat(count("expertise_signal", NEIGHBOUR)).isEqualTo(1);
         assertThat(count("expertise_hidden_tag", NEIGHBOUR)).isEqualTo(1);
         assertThat(count("expertise_opt_out", NEIGHBOUR)).isEqualTo(1);
         assertThat(count("expertise_dismissed_signal", NEIGHBOUR)).isEqualTo(1);
         assertThat(count("expertise_declaration", NEIGHBOUR)).isEqualTo(1);
+        assertThat(count("expertise_pause", NEIGHBOUR)).isEqualTo(1);
     }
 
     @Test
@@ -74,6 +76,8 @@ class ExpertiseMemberDataEraserTest extends FootprintTestSupport {
                 + "VALUES (:org, :user, 'ARTIFACT', 1, 'java')", Map.of("org", ORG, "user", userId));
         jdbc.update("INSERT INTO expertise_declaration (organization_id, community_id, user_id, tag, declared_at) "
                 + "VALUES (:org, 1, :user, 'java', now())", Map.of("org", ORG, "user", userId));
+        jdbc.update("INSERT INTO expertise_pause (organization_id, user_id, paused_at) VALUES (:org, :user, now())",
+                Map.of("org", ORG, "user", userId));
     }
 
     private long count(String table, String userId) {
@@ -93,6 +97,9 @@ class ExpertiseMemberDataEraserTest extends FootprintTestSupport {
                         + "AND user_id = :user", Map.of("org", ORG, "user", userId), Long.class);
             case "expertise_declaration" -> jdbc.queryForObject(
                     "SELECT count(*) FROM expertise_declaration WHERE organization_id = :org AND user_id = :user",
+                    Map.of("org", ORG, "user", userId), Long.class);
+            case "expertise_pause" -> jdbc.queryForObject(
+                    "SELECT count(*) FROM expertise_pause WHERE organization_id = :org AND user_id = :user",
                     Map.of("org", ORG, "user", userId), Long.class);
             default -> throw new IllegalArgumentException("Unexpected expertise table: " + table);
         };

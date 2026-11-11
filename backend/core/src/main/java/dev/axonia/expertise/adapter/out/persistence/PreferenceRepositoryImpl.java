@@ -1,5 +1,7 @@
 package dev.axonia.expertise.adapter.out.persistence;
 
+import java.sql.Timestamp;
+import java.time.Clock;
 import java.util.Set;
 
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -15,7 +17,7 @@ import lombok.RequiredArgsConstructor;
  * JDBC implementation of {@link PreferenceRepository}.
  *
  * <p>
- * All five preference tables ({@code expertise_opt_out}, {@code expertise_hidden_tag},
+ * The preference tables ({@code expertise_opt_out}, {@code expertise_pause}, {@code expertise_hidden_tag},
  * {@code expertise_dismissed_signal}) are covered. Each operation passes {@code organization_id} explicitly for
  * defence-in-depth even though RLS already enforces it.
  */
@@ -24,6 +26,7 @@ import lombok.RequiredArgsConstructor;
 public class PreferenceRepositoryImpl implements PreferenceRepository {
 
     private final NamedParameterJdbcTemplate jdbc;
+    private final Clock clock;
 
     // ------------------------------------------------------------------
     // Opt-out
@@ -56,6 +59,44 @@ public class PreferenceRepositoryImpl implements PreferenceRepository {
         } else {
             var sql = """
                     DELETE FROM expertise_opt_out
+                     WHERE organization_id = :org
+                       AND user_id         = :userId
+                    """;
+            jdbc.update(sql, params(org, userId));
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Pause
+    // ------------------------------------------------------------------
+
+    @Override
+    public boolean isPaused(String org, String userId) {
+
+        var sql = """
+                SELECT COUNT(1)
+                  FROM expertise_pause
+                 WHERE organization_id = :org
+                   AND user_id         = :userId
+                """;
+        var count = jdbc.queryForObject(sql, params(org, userId), Integer.class);
+        return count != null && count > 0;
+    }
+
+    @Override
+    @Transactional
+    public void setPaused(String org, String userId, boolean paused) {
+
+        if (paused) {
+            var sql = """
+                    INSERT INTO expertise_pause (organization_id, user_id, paused_at)
+                    VALUES (:org, :userId, :pausedAt)
+                    ON CONFLICT DO NOTHING
+                    """;
+            jdbc.update(sql, params(org, userId).addValue("pausedAt", Timestamp.from(clock.instant())));
+        } else {
+            var sql = """
+                    DELETE FROM expertise_pause
                      WHERE organization_id = :org
                        AND user_id         = :userId
                     """;

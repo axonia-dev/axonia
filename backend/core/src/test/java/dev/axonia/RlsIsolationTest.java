@@ -238,6 +238,31 @@ class RlsIsolationTest {
     }
 
     @Test
+    @IsolationProbe("expertise_pause")
+    void expertisePauseIsOrganizationIsolated() throws Exception {
+        try (var c = asApp(); var s = c.createStatement()) {
+            // given a pause taken under 'default'
+            s.execute("SET app.current_org = 'default'");
+            s.execute("INSERT INTO expertise_pause (organization_id, user_id, paused_at)"
+                    + " VALUES ('default', 'rls-pauser', now())");
+            s.execute("SET app.current_org = 'acme'");
+
+            // when
+            try (var rs = s.executeQuery("SELECT count(*) FROM expertise_pause WHERE user_id = 'rls-pauser'")) {
+                rs.next();
+
+                // then
+                assertThat(rs.getInt(1)).isZero(); // acme cannot see default's pause
+            }
+            // and acme cannot delete default's pause
+            assertThat(s.executeUpdate("DELETE FROM expertise_pause WHERE user_id = 'rls-pauser'")).isZero();
+            // and acme cannot insert one under default's name (WITH CHECK denies it)
+            assertThatThrownBy(() -> s.execute("INSERT INTO expertise_pause (organization_id, user_id, paused_at)"
+                    + " VALUES ('default', 'rls-sneaky', now())")).hasMessageContaining("row-level security");
+        }
+    }
+
+    @Test
     @IsolationProbe("learning_intent")
     void learningIntentIsOrganizationIsolated() throws Exception {
         try (var c = asApp(); var s = c.createStatement()) {

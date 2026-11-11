@@ -26,6 +26,7 @@ public class ExpertiseDataPurger implements OrganizationDataPurger {
         jdbc.update("DELETE FROM expertise_signal WHERE organization_id = :org", params);
         jdbc.update("DELETE FROM expertise_tag_alias WHERE organization_id = :org", params);
         jdbc.update("DELETE FROM expertise_opt_out WHERE organization_id = :org", params);
+        jdbc.update("DELETE FROM expertise_pause WHERE organization_id = :org", params);
         jdbc.update("DELETE FROM expertise_hidden_tag WHERE organization_id = :org", params);
         jdbc.update("DELETE FROM expertise_dismissed_signal WHERE organization_id = :org", params);
         jdbc.update("DELETE FROM expertise_declaration WHERE organization_id = :org", params);
