@@ -1,5 +1,5 @@
 import { Check } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/Button";
 import { notifyError } from "@/components/ui/toast";
@@ -192,7 +192,9 @@ export function SessionFeedbackCard({
       },
     });
   }
-  saveRef.current = save;
+  useLayoutEffect(() => {
+    saveRef.current = save;
+  });
 
   useEffect(
     () => () => {
