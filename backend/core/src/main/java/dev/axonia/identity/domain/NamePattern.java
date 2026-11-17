@@ -7,9 +7,9 @@ import java.util.regex.Pattern;
 import dev.axonia.shared.api.error.ValidationException;
 
 /**
- * A name format an Organization declares, such as {@code {family}, {given}-NORTHWIND}: literal text around exactly
- * one {@code {given}} and one {@code {family}}. It reads a received name only when it matches the whole name, so a name
- * it does not fit is never half-parsed.
+ * A name format an Organization declares, such as {@code {family}, {given}-NORTHWIND}: literal text around exactly one
+ * {@code {given}} and one {@code {family}}. It reads a received name only when it matches the whole name, so a name it
+ * does not fit is never half-parsed.
  */
 public final class NamePattern {
 

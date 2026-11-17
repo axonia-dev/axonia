@@ -16,8 +16,7 @@ class NamePatternTest {
     @Test
     void readsTheGivenAndFamilyNameOutOfAHouseFormat() {
 
-        assertThat(HOUSE_FORMAT.read("Rochat, Aurélia-NORTHWIND"))
-                .contains(new ReadName("Aurélia Rochat", "Aurélia"));
+        assertThat(HOUSE_FORMAT.read("Rochat, Aurélia-NORTHWIND")).contains(new ReadName("Aurélia Rochat", "Aurélia"));
     }
 
     @Test

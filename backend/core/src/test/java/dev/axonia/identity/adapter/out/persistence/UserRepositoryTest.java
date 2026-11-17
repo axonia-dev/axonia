@@ -77,8 +77,7 @@ class UserRepositoryTest extends CoreJdbcTestSupport {
         var entity = UserEntityMother.any().build();
 
         // when
-        userRepository.upsert(namedUpsertOf(entity, "Rochat, Aurélia-NORTHWIND", "Aurélia Rochat", "Aurélia"),
-                SEEN_AT);
+        userRepository.upsert(namedUpsertOf(entity, "Rochat, Aurélia-NORTHWIND", "Aurélia Rochat", "Aurélia"), SEEN_AT);
 
         // then
         var actual = userRepository.findByOrganizationIdAndUserId(entity.getOrganizationId(), entity.getUserId())
@@ -93,8 +92,7 @@ class UserRepositoryTest extends CoreJdbcTestSupport {
 
         // given
         var entity = UserEntityMother.any().build();
-        userRepository.upsert(namedUpsertOf(entity, "Rochat, Aurélia-NORTHWIND", "Aurélia Rochat", "Aurélia"),
-                SEEN_AT);
+        userRepository.upsert(namedUpsertOf(entity, "Rochat, Aurélia-NORTHWIND", "Aurélia Rochat", "Aurélia"), SEEN_AT);
 
         // when
         userRepository.upsert(namedUpsertOf(entity, "octocat", "octocat", null), SEEN_AT);
@@ -112,8 +110,7 @@ class UserRepositoryTest extends CoreJdbcTestSupport {
 
         // given
         var entity = UserEntityMother.any().build();
-        userRepository.upsert(namedUpsertOf(entity, "Rochat, Aurélia-NORTHWIND", "Aurélia Rochat", "Aurélia"),
-                SEEN_AT);
+        userRepository.upsert(namedUpsertOf(entity, "Rochat, Aurélia-NORTHWIND", "Aurélia Rochat", "Aurélia"), SEEN_AT);
 
         // when
         var byReceived = userRepository.findPeopleNamedExactly("default", "rochat, aurélia-northwind");

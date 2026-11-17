@@ -112,8 +112,8 @@ class MemberNameSettingsTest extends CoreJdbcTestSupport {
         var rows = sut.preview(List.of("{given} {family}"));
 
         // then
-        assertThat(rows).first().isEqualTo(
-                new PreviewRow("Jacquat, Jonathan-NORTHWIND", "Jacquat, Jonathan-NORTHWIND", "Jacquat,", 0));
+        assertThat(rows).first()
+                .isEqualTo(new PreviewRow("Jacquat, Jonathan-NORTHWIND", "Jacquat, Jonathan-NORTHWIND", "Jacquat,", 0));
         assertThat(rows).contains(new PreviewRow("Mary Ann Smith", "Mary Ann Smith", "Mary", 0));
         assertThat(rows).last().isEqualTo(new PreviewRow("octocat", "octocat", null, null));
         assertThat(sut.save(List.of("{given} {family}"))).isEqualTo(3);

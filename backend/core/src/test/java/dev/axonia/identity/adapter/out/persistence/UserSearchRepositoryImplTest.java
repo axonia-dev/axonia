@@ -239,8 +239,8 @@ class UserSearchRepositoryImplTest extends CoreJdbcTestSupport {
         // when
         var byReceived = searchOrganization("rochat, aur", 10, 0);
         var byShown = searchOrganization("aurélia ro", 10, 0);
-        var bySuffix = userRepository.search(UserSearch.builder().organizationId("default").query("northwind")
-                .limit(10).offset(0).nameOnly(true).build());
+        var bySuffix = userRepository.search(UserSearch.builder().organizationId("default").query("northwind").limit(10)
+                .offset(0).nameOnly(true).build());
 
         // then
         assertThat(byReceived).extracting(UserEntity::getUserId).containsExactly("user-e-aurelia");
