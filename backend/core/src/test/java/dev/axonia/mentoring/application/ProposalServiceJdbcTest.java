@@ -88,7 +88,7 @@ class ProposalServiceJdbcTest extends CoreJdbcTestSupport {
         when(vocabulary.areasOf(COMMUNITY)).thenReturn(new CommunityAreas(Map.of()));
         when(vocabulary.areasIn("platform")).thenReturn(Set.of("kafka"));
         when(vocabulary.normalized(anyString())).thenAnswer(inv -> inv.<String>getArgument(0).toLowerCase());
-        when(personDirectory.resolve(any())).thenReturn(Map.of("max", new MentoringPerson("max", "Max", null)));
+        when(personDirectory.resolve(any())).thenReturn(Map.of("max", new MentoringPerson("max", "Max", null, null)));
     }
 
     private static MemberClocks utc() {
@@ -165,7 +165,7 @@ class ProposalServiceJdbcTest extends CoreJdbcTestSupport {
                         .proposedBy(Role.MENTOR).topics(List.of("Kafka")).message("Hi").status(ProposalStatus.OPEN)
                         .createdAt(NOW.minusSeconds(60)).build());
         when(personDirectory.resolve(any())).thenAnswer(inv -> inv.<Collection<String>>getArgument(0).stream()
-                .collect(Collectors.toMap(id -> id, id -> new MentoringPerson(id, id, null))));
+                .collect(Collectors.toMap(id -> id, id -> new MentoringPerson(id, id, null, null))));
         return new long[]{declined, back};
     }
 

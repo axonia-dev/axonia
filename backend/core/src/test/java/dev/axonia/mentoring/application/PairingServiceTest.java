@@ -113,7 +113,8 @@ class PairingServiceTest {
         when(personDirectory.displayName(eq(ORG), any())).thenAnswer(inv -> name(inv.getArgument(1)));
         when(personDirectory.resolve(anyCollection())).thenAnswer(inv -> {
             Collection<String> ids = inv.getArgument(0);
-            return ids.stream().collect(Collectors.toMap(id -> id, id -> new MentoringPerson(id, name(id), null)));
+            return ids.stream()
+                    .collect(Collectors.toMap(id -> id, id -> new MentoringPerson(id, name(id), null, null)));
         });
         service = new PairingService(organizationContext, currentUser, communityAccess, pairings, proposals, journal,
                 availabilities, personDirectory, notices, memberClocks, Clock.fixed(NOW, ZoneOffset.UTC));

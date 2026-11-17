@@ -111,8 +111,9 @@ class MentoringConcurrencyTest extends CoreJdbcTestSupport {
         when(communityAccess.isMember(anyLong(), anyString())).thenReturn(true);
         when(communityAccess.communityIdsOf(ORG, MENTOR)).thenReturn(List.of(COMMUNITY));
         when(personDirectory.isPresent(anyString(), anyString())).thenReturn(true);
-        when(personDirectory.resolve(anyCollection())).thenReturn(Map.of(MENTOR,
-                new MentoringPerson(MENTOR, "Mia", null), MENTEE, new MentoringPerson(MENTEE, "Max", null)));
+        when(personDirectory.resolve(anyCollection()))
+                .thenReturn(Map.of(MENTOR, new MentoringPerson(MENTOR, "Mia", null, null), MENTEE,
+                        new MentoringPerson(MENTEE, "Max", null, null)));
         when(availabilities.findListed(ORG, COMMUNITY, MENTOR)).thenReturn(Optional.of(Availability.builder()
                 .communityId(COMMUNITY).userId(MENTOR).takingMentees(true).updatedAt(NOW).build()));
         when(availabilities.find(any(), anyLong(), any())).thenReturn(Optional.empty());

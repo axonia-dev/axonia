@@ -63,7 +63,8 @@ final class MentoringViews {
         var myRole = me.equals(pairing.mentorUserId()) ? Role.MENTOR : Role.MENTEE;
         return PairingSummary.builder().id(pairing.id()).communitySlug(community.slug()).communityName(community.name())
                 .myRole(myRole.name()).partnerId(partner.userId()).partnerName(partner.displayName())
-                .partnerAvatarUrl(partner.avatarUrl()).startedAt(pairing.startedAt()).endedAt(pairing.endedAt());
+                .partnerGivenName(partner.givenName()).partnerAvatarUrl(partner.avatarUrl())
+                .startedAt(pairing.startedAt()).endedAt(pairing.endedAt());
     }
 
     /** What a glance at the pairing tells: its stops, the topic in progress, the next meeting and the notes counted. */

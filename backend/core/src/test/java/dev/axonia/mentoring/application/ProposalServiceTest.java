@@ -139,7 +139,8 @@ class ProposalServiceTest {
         when(vocabulary.normalized(anyString())).thenAnswer(inv -> inv.<String>getArgument(0).toLowerCase());
         when(personDirectory.resolve(anyCollection())).thenAnswer(inv -> {
             Collection<String> ids = inv.getArgument(0);
-            return ids.stream().collect(Collectors.toMap(id -> id, id -> new MentoringPerson(id, name(id), null)));
+            return ids.stream()
+                    .collect(Collectors.toMap(id -> id, id -> new MentoringPerson(id, name(id), null, null)));
         });
         when(memberClocks.zoneOf(anyString(), anyString())).thenReturn(ZoneOffset.UTC);
         service = service(NOW);

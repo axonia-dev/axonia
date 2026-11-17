@@ -46,12 +46,31 @@ class MentoringViewsTest {
 
     private static ProposalView view(Proposal proposal, CallerTime at) {
 
-        return MentoringViews.proposal(proposal, GUILD, new MentoringPerson("noah", "Noah", null), at);
+        return MentoringViews.proposal(proposal, GUILD, new MentoringPerson("noah", "Noah", null, null), at);
     }
 
     private static Pairing.PairingBuilder pairing() {
 
         return Pairing.builder().id(90L).communityId(7L).mentorUserId("mia").menteeUserId("noah").startedAt(SENT);
+    }
+
+    @Test
+    void aPartnersGivenNameTravelsWithThePairing() {
+
+        var partner = new MentoringPerson("noah", "Aurélia Rochat", "Aurélia", null);
+
+        assertThat(MentoringViews.pairing(pairing().build(), GUILD, "mia", partner).build().partnerGivenName())
+                .isEqualTo("Aurélia");
+    }
+
+    @Test
+    void aPartnerWithNoGivenNameAndADeletedPartnerCarryNone() {
+
+        var unread = new MentoringPerson("noah", "Rochat, Aurélia-NORTHWIND", null, null);
+
+        assertThat(MentoringViews.pairing(pairing().build(), GUILD, "mia", unread).build().partnerGivenName()).isNull();
+        assertThat(MentoringViews.pairing(pairing().build(), GUILD, "mia", MentoringPerson.deleted("noah")).build()
+                .partnerGivenName()).isNull();
     }
 
     private static Topic topic(String label, TopicState state) {

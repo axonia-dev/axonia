@@ -24,8 +24,8 @@ class PersonDirectoryAdapter implements PersonDirectory {
     @Override
     public Map<String, MentoringPerson> resolve(Collection<String> userIds) {
 
-        var found = memberProfiles.resolve(userIds).stream().collect(
-                Collectors.toMap(u -> u.id(), u -> new MentoringPerson(u.id(), u.displayName(), u.avatarUrl())));
+        var found = memberProfiles.resolve(userIds).stream().collect(Collectors.toMap(u -> u.id(),
+                u -> new MentoringPerson(u.id(), u.displayName(), u.givenName(), u.avatarUrl())));
         return userIds.stream().distinct().collect(
                 Collectors.toMap(Function.identity(), id -> found.getOrDefault(id, MentoringPerson.deleted(id))));
     }

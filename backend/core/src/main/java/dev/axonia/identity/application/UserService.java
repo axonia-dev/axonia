@@ -294,7 +294,8 @@ public class UserService implements MemberProfiles {
     DirectoryUser toDirectoryUser(UserAccount entity) {
 
         return DirectoryUser.builder().id(entity.userId()).displayName(entity.displayName())
-                .avatarUrl(resolveAvatarUrl(entity)).department(entity.department()).businessUnit(entity.businessUnit())
-                .team(entity.team()).memberStatus(UserDirectory.statusOf(entity.active())).build();
+                .givenName(entity.givenName()).avatarUrl(resolveAvatarUrl(entity)).department(entity.department())
+                .businessUnit(entity.businessUnit()).team(entity.team())
+                .memberStatus(UserDirectory.statusOf(entity.active())).build();
     }
 }

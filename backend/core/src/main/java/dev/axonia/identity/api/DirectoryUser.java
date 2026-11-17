@@ -10,8 +10,9 @@ import lombok.Builder;
  * {@code memberStatus} makes this projection total rather than partial: an id that resolves to no row is a departed
  * member, not an absent one, so it still comes back - with {@link UserDirectory.MemberStatus#ERASED} and the neutral
  * {@link UserDirectory.DirectoryUser#DELETED_MEMBER_LABEL} - rather than being silently dropped from the batch.
+ * {@code givenName} is what the Organization's name pattern read, for a greeting; null when none matched or erased.
  */
 @Builder
-public record DirectoryUser(String id, String displayName, String avatarUrl, String department, String businessUnit,
-        String team, UserDirectory.MemberStatus memberStatus) {
+public record DirectoryUser(String id, String displayName, String givenName, String avatarUrl, String department,
+        String businessUnit, String team, UserDirectory.MemberStatus memberStatus) {
 }

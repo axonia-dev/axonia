@@ -56,9 +56,10 @@ class MyMentoringControllerTest extends ControllerTestSupport {
     void acceptingAnswersThePairingTheFrontendParses() {
 
         // given
-        when(proposalService.accept(40L)).thenReturn(PairingSummary.builder().id(90L).communitySlug("platform")
-                .communityName("Platform").myRole("MENTOR").partnerId("u2").partnerName("Noah")
-                .startedAt(Instant.parse("2026-11-16T10:00:00Z")).stops(List.of("TODO")).build());
+        when(proposalService.accept(40L))
+                .thenReturn(PairingSummary.builder().id(90L).communitySlug("platform").communityName("Platform")
+                        .myRole("MENTOR").partnerId("u2").partnerName("Noah Keller").partnerGivenName("Noah")
+                        .startedAt(Instant.parse("2026-11-16T10:00:00Z")).stops(List.of("TODO")).build());
 
         // when
         var actual = mvc.post().uri("/axonia/mentoring/proposals/{id}/accept", 40).exchange();
@@ -66,7 +67,7 @@ class MyMentoringControllerTest extends ControllerTestSupport {
         // then
         actual.assertThat().hasStatusOk().bodyJson().isStrictlyEqualTo("""
                 {"id": 90, "communitySlug": "platform", "communityName": "Platform", "myRole": "MENTOR",
-                 "partnerId": "u2", "partnerName": "Noah", "partnerAvatarUrl": null,
+                 "partnerId": "u2", "partnerName": "Noah Keller", "partnerGivenName": "Noah", "partnerAvatarUrl": null,
                  "startedAt": "2026-11-16T10:00:00Z", "endedAt": null, "stops": ["TODO"], "nowTopic": null,
                  "nextMeeting": null, "meetings": 0, "notes": 0, "lastMetOn": null}
                 """);
@@ -166,7 +167,8 @@ class MyMentoringControllerTest extends ControllerTestSupport {
                                "lapsesOn": "2026-12-16"}],
                  "sent": [],
                  "ongoing": [{"id": 90, "communitySlug": "platform", "communityName": "Platform", "myRole": "MENTEE",
-                              "partnerId": null, "partnerName": "Deleted member", "partnerAvatarUrl": null,
+                              "partnerId": null, "partnerName": "Deleted member", "partnerGivenName": null,
+                              "partnerAvatarUrl": null,
                               "startedAt": "2026-11-16T10:00:00Z", "endedAt": null,
                               "stops": ["DONE", "IN_PROGRESS", "TODO"], "nowTopic": "Kafka",
                               "nextMeeting": {"on": "2026-11-19", "passed": false}, "meetings": 2, "notes": 3,
@@ -230,25 +232,26 @@ class MyMentoringControllerTest extends ControllerTestSupport {
         var actual = mvc.get().uri("/axonia/mentoring/pairings/{id}", 90).exchange();
 
         // then
-        actual.assertThat().hasStatusOk().bodyJson().isStrictlyEqualTo("""
-                {"pairing": {"id": 90, "communitySlug": "platform", "communityName": "Platform", "myRole": "MENTEE",
-                             "partnerId": "u2", "partnerName": "Léa", "partnerAvatarUrl": null,
-                             "startedAt": "2026-11-11T10:00:00Z", "endedAt": null, "stops": ["IN_PROGRESS"],
-                             "nowTopic": null, "nextMeeting": null, "meetings": 0, "notes": 0, "lastMetOn": null},
-                 "today": "2026-11-16", "startedOn": "2026-11-11", "writable": true,
-                 "topics": [{"id": 1, "label": "Kafka", "area": "kafka", "state": "IN_PROGRESS",
-                             "position": 2, "pointers": [
-                     {"id": 5, "kind": "ARTIFACT", "title": "Schema registry notes",
-                      "href": "/communities/data/library?focus=70", "available": true},
-                     {"id": 6, "kind": "SESSION", "title": null, "href": null, "available": false}]}],
-                 "notes": [{"id": 2, "authorId": "u2", "authorName": "Léa", "authorAvatarUrl": null, "mine": false,
-                            "body": "Covered unit tests", "meetingOn": "2026-11-11", "topicIds": [1],
-                            "writtenAt": "2026-11-11T18:00:00Z", "editedAt": null,
-                            "pointers": [{"id": 7, "kind": "LINK", "title": null, "href": "https://example.com",
-                                          "available": true}]}],
-                 "nextMeeting": {"on": "2026-11-19", "setById": "u2", "setByName": "Léa", "passed": false},
-                 "wordsWritten": true, "canWriteWords": true, "myWords": null}
-                """);
+        actual.assertThat().hasStatusOk().bodyJson().isStrictlyEqualTo(
+                """
+                        {"pairing": {"id": 90, "communitySlug": "platform", "communityName": "Platform", "myRole": "MENTEE",
+                                     "partnerId": "u2", "partnerName": "Léa", "partnerGivenName": null,
+                                     "partnerAvatarUrl": null, "startedAt": "2026-11-11T10:00:00Z", "endedAt": null, "stops": ["IN_PROGRESS"],
+                                     "nowTopic": null, "nextMeeting": null, "meetings": 0, "notes": 0, "lastMetOn": null},
+                         "today": "2026-11-16", "startedOn": "2026-11-11", "writable": true,
+                         "topics": [{"id": 1, "label": "Kafka", "area": "kafka", "state": "IN_PROGRESS",
+                                     "position": 2, "pointers": [
+                             {"id": 5, "kind": "ARTIFACT", "title": "Schema registry notes",
+                              "href": "/communities/data/library?focus=70", "available": true},
+                             {"id": 6, "kind": "SESSION", "title": null, "href": null, "available": false}]}],
+                         "notes": [{"id": 2, "authorId": "u2", "authorName": "Léa", "authorAvatarUrl": null, "mine": false,
+                                    "body": "Covered unit tests", "meetingOn": "2026-11-11", "topicIds": [1],
+                                    "writtenAt": "2026-11-11T18:00:00Z", "editedAt": null,
+                                    "pointers": [{"id": 7, "kind": "LINK", "title": null, "href": "https://example.com",
+                                                  "available": true}]}],
+                         "nextMeeting": {"on": "2026-11-19", "setById": "u2", "setByName": "Léa", "passed": false},
+                         "wordsWritten": true, "canWriteWords": true, "myWords": null}
+                        """);
     }
 
     @Test

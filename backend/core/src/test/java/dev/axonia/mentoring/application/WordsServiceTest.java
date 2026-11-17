@@ -87,8 +87,8 @@ class WordsServiceTest {
                 .thenReturn(new MentoringCommunity(COMMUNITY, "platform", "Platform", false, true));
         when(personDirectory.resolve(anyCollection())).thenAnswer(inv -> {
             Collection<String> ids = inv.getArgument(0);
-            return ids.stream().collect(Collectors.toMap(id -> id,
-                    id -> new MentoringPerson(id, id.substring(0, 1).toUpperCase() + id.substring(1), "/a/" + id)));
+            return ids.stream().collect(Collectors.toMap(id -> id, id -> new MentoringPerson(id,
+                    id.substring(0, 1).toUpperCase() + id.substring(1), null, "/a/" + id)));
         });
         service = new WordsService(organizationContext, currentUser, communityAccess, pairings, words, personDirectory,
                 notices, Clock.fixed(NOW, ZoneOffset.UTC));

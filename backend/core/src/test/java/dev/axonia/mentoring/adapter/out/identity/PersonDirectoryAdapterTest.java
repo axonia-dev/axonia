@@ -30,15 +30,16 @@ class PersonDirectoryAdapterTest {
 
         // given
         var sut = new PersonDirectoryAdapter(memberProfiles, userDirectory);
-        when(memberProfiles.resolve(List.of("alice", "ghost", "alice"))).thenReturn(
-                List.of(DirectoryUser.builder().id("alice").displayName("Alice").avatarUrl("https://x/a.png").build()));
+        when(memberProfiles.resolve(List.of("alice", "ghost", "alice"))).thenReturn(List.of(DirectoryUser.builder()
+                .id("alice").displayName("Alice Rochat").givenName("Alice").avatarUrl("https://x/a.png").build()));
 
         // when
         var actual = sut.resolve(List.of("alice", "ghost", "alice"));
 
         // then
-        assertThat(actual).containsOnly(entry("alice", new MentoringPerson("alice", "Alice", "https://x/a.png")),
-                entry("ghost", new MentoringPerson("ghost", "Deleted member", null)));
+        assertThat(actual).containsOnly(
+                entry("alice", new MentoringPerson("alice", "Alice Rochat", "Alice", "https://x/a.png")),
+                entry("ghost", new MentoringPerson("ghost", "Deleted member", null, null)));
     }
 
     @Test

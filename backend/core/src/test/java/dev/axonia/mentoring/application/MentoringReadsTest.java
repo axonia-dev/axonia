@@ -102,7 +102,7 @@ class MentoringReadsTest {
         when(personDirectory.resolve(anyCollection())).thenAnswer(inv -> {
             Collection<String> ids = inv.getArgument(0);
             return ids.stream()
-                    .collect(Collectors.toMap(id -> id, id -> new MentoringPerson(id, name(id), "avatar/" + id)));
+                    .collect(Collectors.toMap(id -> id, id -> new MentoringPerson(id, name(id), null, "avatar/" + id)));
         });
         reads = new MentoringReads(organizationContext, currentUser, communityAccess, availabilities, pairings,
                 proposals, mentorAreas, menteeAreas, personDirectory, memberClocks, Clock.fixed(NOW, ZoneOffset.UTC));
@@ -302,7 +302,7 @@ class MentoringReadsTest {
         // given
         when(personDirectory.resolve(anyCollection())).thenAnswer(inv -> {
             Collection<String> ids = inv.getArgument(0);
-            return ids.stream().collect(Collectors.toMap(id -> id, id -> new MentoringPerson(id, "Same", null)));
+            return ids.stream().collect(Collectors.toMap(id -> id, id -> new MentoringPerson(id, "Same", null, null)));
         });
         when(availabilities.listedIn(ORG, COMMUNITY)).thenReturn(List.of(offer("b", null), offer("a", null)));
 

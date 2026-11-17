@@ -455,6 +455,22 @@ class UserServiceTest {
     }
 
     @Test
+    void resolve_carriesTheGivenNameAPatternRead() {
+
+        // given
+        var entity = UserAccountMother.any().displayName("Aurélia Rochat").givenName("Aurélia").build();
+        when(claimsReader.read()).thenReturn(CLAIMS);
+        when(userStore.findByOrganizationIdAndUserIdIn("default", List.of(entity.userId(), "erased")))
+                .thenReturn(List.of(entity));
+
+        // when
+        var actual = sut.resolve(List.of(entity.userId(), "erased"));
+
+        // then
+        assertThat(actual).extracting(DirectoryUser::givenName).containsExactly("Aurélia", null);
+    }
+
+    @Test
     void resolve_exposesOrgAttributesAndAvatar() {
 
         var entity = UserAccount.builder().userId("u1").displayName("Alex").email("a@x.com")
@@ -488,7 +504,8 @@ class UserServiceTest {
         // then - the directory projection carries no email field at all
         assertThat(actual).first().satisfies(u -> {
             assertThat(u.id()).isEqualTo("alice");
-            assertThat(u).hasNoNullFieldsOrPropertiesExcept("avatarUrl", "department", "businessUnit", "team");
+            assertThat(u).hasNoNullFieldsOrPropertiesExcept("givenName", "avatarUrl", "department", "businessUnit",
+                    "team");
         });
     }
 
