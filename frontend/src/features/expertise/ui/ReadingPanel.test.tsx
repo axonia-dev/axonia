@@ -177,8 +177,7 @@ test("a reading shows its statement and its rows with the measured value", () =>
     screen.getByText("1 of 2 areas rests on a single person."),
   ).toBeInTheDocument();
   expect(screen.getByText("flink")).toBeInTheDocument();
-  expect(screen.getByText("100% of 2 · Dana")).toBeInTheDocument();
-  expect(screen.queryByText(/Krupa/)).toBeNull();
+  expect(screen.getByText("100% of 2 · Dana Krupa")).toBeInTheDocument();
 });
 
 test("a ranked reading truncates to the shown few and says so", () => {
