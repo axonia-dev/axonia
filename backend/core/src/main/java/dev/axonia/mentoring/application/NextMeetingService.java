@@ -48,7 +48,7 @@ public class NextMeetingService {
         if (partner != null) {
             notices.meetingSet(
                     pairing.toBuilder().nextMeetingOn(day).nextMeetingSetBy(party.me()).nextMeetingSetAt(at).build(),
-                    communityAccess.nameOf(party.org(), pairing.communityId()),
+                    communityAccess.guildOf(party.org(), pairing.communityId()),
                     personDirectory.displayName(party.org(), party.me()), partner);
         }
     }

@@ -61,7 +61,7 @@ public class MeetingReminders {
     private void remind(String org, Pairing pairing, String recipientId) {
 
         notices.meetingReminder(MeetingReminder.builder().organizationId(org).pairing(pairing)
-                .communityName(communityAccess.nameOf(org, pairing.communityId()))
+                .guild(communityAccess.guildOf(org, pairing.communityId()))
                 .partnerName(personDirectory.displayName(org, MentoringViews.partnerOf(pairing, recipientId)))
                 .recipientId(recipientId).build());
     }

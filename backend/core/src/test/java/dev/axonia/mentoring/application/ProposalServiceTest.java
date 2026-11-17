@@ -44,6 +44,7 @@ import dev.axonia.mentoring.application.port.out.ProposalRepository;
 import dev.axonia.mentoring.application.port.out.Vocabulary;
 import dev.axonia.mentoring.domain.Availability;
 import dev.axonia.mentoring.domain.MentoringCommunity;
+import dev.axonia.mentoring.domain.MentoringGuild;
 import dev.axonia.mentoring.domain.MentoringPerson;
 import dev.axonia.mentoring.domain.MentoringWindows;
 import dev.axonia.mentoring.domain.Pairing;
@@ -203,7 +204,8 @@ class ProposalServiceTest {
                 .proposedBy(Role.MENTEE).topics(List.of("Kafka", "Giving feedback")).message("Hello")
                 .status(ProposalStatus.OPEN).createdAt(TODAY);
         assertThat(stored.getValue()).isEqualTo(expected.build());
-        verify(notices, times(1)).proposed(ORG, expected.id(PROPOSAL).build(), "Platform", "Max");
+        verify(notices, times(1)).proposed(ORG, expected.id(PROPOSAL).build(),
+                new MentoringGuild("platform", "Platform"), "Max");
         assertThat(actual).isEqualTo(ProposalView.builder().id(PROPOSAL).communitySlug(SLUG).communityName("Platform")
                 .proposedBy("MENTEE").partnerId(MENTOR).partnerName("Mia").topics(List.of("Kafka", "Giving feedback"))
                 .message("Hello").status("OPEN").createdAt(TODAY).lapsesOn(LocalDate.parse("2026-12-16")).build());
@@ -230,7 +232,8 @@ class ProposalServiceTest {
 
         // then
         var stored = ArgumentCaptor.forClass(Proposal.class);
-        verify(notices, times(1)).proposed(eq(ORG), stored.capture(), eq("Platform"), eq("Max"));
+        verify(notices, times(1)).proposed(eq(ORG), stored.capture(), eq(new MentoringGuild("platform", "Platform")),
+                eq("Max"));
         assertThat(stored.getValue()).satisfies(p -> {
             assertThat(p.id()).isEqualTo(PROPOSAL);
             assertThat(p.mentorUserId()).isEqualTo(ME);
@@ -789,7 +792,7 @@ class ProposalServiceTest {
         // given
         var proposal = proposal(ME, MENTEE, Role.MENTEE).build();
         receive(proposal);
-        when(communityAccess.nameOf(ORG, COMMUNITY)).thenReturn("Platform");
+        when(communityAccess.guildOf(ORG, COMMUNITY)).thenReturn(new MentoringGuild("platform", "Platform"));
         when(personDirectory.displayName(ORG, ME)).thenReturn("Max");
 
         // when
@@ -798,7 +801,7 @@ class ProposalServiceTest {
         // then
         verify(proposals).answer(ORG, PROPOSAL, ProposalStatus.DECLINED, TODAY);
         verify(notices).declined(proposal.toBuilder().status(ProposalStatus.DECLINED).answeredAt(TODAY).build(),
-                "Platform", "Max");
+                new MentoringGuild("platform", "Platform"), "Max");
         verifyNoMoreInteractions(notices);
     }
 
@@ -873,8 +876,8 @@ class ProposalServiceTest {
         // then
         verify(notices).withdrawDeclined(declined);
         verify(notices).reopened(
-                declined.toBuilder().status(ProposalStatus.OPEN).answeredAt(null).reopenedAt(TODAY).build(), "Platform",
-                "Max");
+                declined.toBuilder().status(ProposalStatus.OPEN).answeredAt(null).reopenedAt(TODAY).build(),
+                new MentoringGuild("platform", "Platform"), "Max");
         verifyNoMoreInteractions(notices);
     }
 
@@ -907,7 +910,7 @@ class ProposalServiceTest {
 
         // then
         assertRefused(() -> service.reopen(PROPOSAL), "MENTORING_PROPOSAL_CLOSED");
-        verify(notices, times(1)).reopened(any(), anyString(), anyString());
+        verify(notices, times(1)).reopened(any(), any(), anyString());
     }
 
     @Test

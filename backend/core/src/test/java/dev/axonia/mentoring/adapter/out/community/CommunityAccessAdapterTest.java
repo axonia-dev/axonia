@@ -14,6 +14,7 @@ import dev.axonia.community.api.CommunityStatus;
 import dev.axonia.community.api.Memberships;
 import dev.axonia.community.api.MentoringMemberships;
 import dev.axonia.mentoring.domain.MentoringCommunity;
+import dev.axonia.mentoring.domain.MentoringGuild;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
@@ -61,7 +62,7 @@ class CommunityAccessAdapterTest {
     }
 
     @Test
-    void aGuildNameIsReadForTheGivenOrganization() {
+    void aGuildIsReadForTheGivenOrganization() {
 
         // given
         var sut = new CommunityAccessAdapter(communityService, membershipService, mentoringMemberships);
@@ -69,10 +70,10 @@ class CommunityAccessAdapterTest {
                 .thenReturn(new CommunityIdentity("platform", "Platform", null));
 
         // when
-        var actual = sut.nameOf("org-1", 7L);
+        var actual = sut.guildOf("org-1", 7L);
 
         // then
-        assertThat(actual).isEqualTo("Platform");
+        assertThat(actual).isEqualTo(new MentoringGuild("platform", "Platform"));
     }
 
     @Test

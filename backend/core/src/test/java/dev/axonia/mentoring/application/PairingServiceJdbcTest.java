@@ -26,6 +26,7 @@ import dev.axonia.mentoring.application.port.out.PersonDirectory;
 import dev.axonia.mentoring.application.port.out.ProposalRepository;
 import dev.axonia.mentoring.domain.Availability;
 import dev.axonia.mentoring.domain.EndReason;
+import dev.axonia.mentoring.domain.MentoringGuild;
 import dev.axonia.mentoring.domain.Pairing;
 import dev.axonia.mentoring.domain.Proposal;
 import dev.axonia.mentoring.domain.ProposalStatus;
@@ -61,8 +62,8 @@ class PairingServiceJdbcTest extends CoreJdbcTestSupport {
     void setUp() {
 
         OrganizationContext organizationContext = () -> ORG;
-        when(communityAccess.nameOf(ORG, PLATFORM)).thenReturn("Platform");
-        when(communityAccess.nameOf(ORG, DATA)).thenReturn("Data");
+        when(communityAccess.guildOf(ORG, PLATFORM)).thenReturn(new MentoringGuild("platform", "Platform"));
+        when(communityAccess.guildOf(ORG, DATA)).thenReturn(new MentoringGuild("data", "Data"));
         when(personDirectory.displayName(ORG, "leo")).thenReturn("Leo");
         service = new PairingService(organizationContext, currentUser, communityAccess, pairings, proposals,
                 mock(JournalRepository.class), availabilities, personDirectory, mock(MentoringNotices.class),

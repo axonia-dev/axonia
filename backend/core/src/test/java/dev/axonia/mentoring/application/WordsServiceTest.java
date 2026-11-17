@@ -28,6 +28,7 @@ import dev.axonia.mentoring.application.port.out.PersonDirectory;
 import dev.axonia.mentoring.application.port.out.WordsRepository;
 import dev.axonia.mentoring.domain.EndReason;
 import dev.axonia.mentoring.domain.MentoringCommunity;
+import dev.axonia.mentoring.domain.MentoringGuild;
 import dev.axonia.mentoring.domain.MentoringPerson;
 import dev.axonia.mentoring.domain.Pairing;
 import dev.axonia.mentoring.domain.Words;
@@ -236,7 +237,8 @@ class WordsServiceTest {
         service.write(PAIRING, "changed");
 
         // then
-        verify(notices, org.mockito.Mockito.times(1)).wordsReceived(any(), eq("Platform"), eq("Max"));
+        verify(notices, org.mockito.Mockito.times(1)).wordsReceived(any(),
+                eq(new MentoringGuild("platform", "Platform")), eq("Max"));
     }
 
     @Test

@@ -14,6 +14,7 @@ import dev.axonia.community.api.Memberships;
 import dev.axonia.community.api.MentoringMemberships;
 import dev.axonia.mentoring.application.port.out.CommunityAccess;
 import dev.axonia.mentoring.domain.MentoringCommunity;
+import dev.axonia.mentoring.domain.MentoringGuild;
 import lombok.RequiredArgsConstructor;
 
 @Component("mentoringCommunityAccessAdapter")
@@ -37,9 +38,10 @@ class CommunityAccessAdapter implements CommunityAccess {
     }
 
     @Override
-    public String nameOf(String org, long communityId) {
+    public MentoringGuild guildOf(String org, long communityId) {
 
-        return communityService.identityById(org, communityId).name();
+        var identity = communityService.identityById(org, communityId);
+        return new MentoringGuild(identity.slug(), identity.name());
     }
 
     @Override

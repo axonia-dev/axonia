@@ -36,6 +36,7 @@ import dev.axonia.mentoring.application.port.out.PersonDirectory;
 import dev.axonia.mentoring.application.port.out.ProposalRepository;
 import dev.axonia.mentoring.domain.EndReason;
 import dev.axonia.mentoring.domain.MentoringCommunity;
+import dev.axonia.mentoring.domain.MentoringGuild;
 import dev.axonia.mentoring.domain.MentoringPerson;
 import dev.axonia.mentoring.domain.NoteTally;
 import dev.axonia.mentoring.domain.Pairing;
@@ -104,8 +105,8 @@ class PairingServiceTest {
         when(communityAccess.communityById(PLATFORM))
                 .thenReturn(new MentoringCommunity(PLATFORM, "platform", "Platform", false, true));
         when(communityAccess.communityById(DATA)).thenReturn(new MentoringCommunity(DATA, "data", "Data", true, false));
-        when(communityAccess.nameOf(ORG, PLATFORM)).thenReturn("Platform");
-        when(communityAccess.nameOf(ORG, DATA)).thenReturn("Data");
+        when(communityAccess.guildOf(ORG, PLATFORM)).thenReturn(new MentoringGuild("platform", "Platform"));
+        when(communityAccess.guildOf(ORG, DATA)).thenReturn(new MentoringGuild("data", "Data"));
         when(personDirectory.isPresent(ORG, ME)).thenReturn(true);
         when(memberClocks.zoneOf(ORG, ME)).thenReturn(ZoneOffset.UTC);
         when(pairings.end(eq(ORG), anyLong(), any(), any())).thenReturn(true);
@@ -150,8 +151,8 @@ class PairingServiceTest {
         // then
         verify(pairings).end(ORG, 90L, EndReason.MENTEE, TODAY);
         verify(pairings).end(ORG, 91L, EndReason.MENTOR, TODAY);
-        verify(notices).ended(asMentee, "Platform", "Max", MIA);
-        verify(notices).ended(asMentor, "Platform", "Max", MIA);
+        verify(notices).ended(asMentee, new MentoringGuild("platform", "Platform"), "Max", MIA);
+        verify(notices).ended(asMentor, new MentoringGuild("platform", "Platform"), "Max", MIA);
     }
 
     @Test
@@ -206,7 +207,7 @@ class PairingServiceTest {
 
         // then
         verify(notices, never()).ended(eq(endedMeanwhile), any(), any(), any());
-        verify(notices).ended(ongoing, "Platform", "Leo", "noah");
+        verify(notices).ended(ongoing, new MentoringGuild("platform", "Platform"), "Leo", "noah");
     }
 
     @Test
@@ -242,7 +243,7 @@ class PairingServiceTest {
 
         // then
         verify(pairings).end(ORG, 90L, EndReason.MENTEE, TODAY);
-        verify(notices).ended(switchedOff, "Data", "Max", MIA);
+        verify(notices).ended(switchedOff, new MentoringGuild("data", "Data"), "Max", MIA);
     }
 
     @Test
@@ -276,8 +277,8 @@ class PairingServiceTest {
         order.verify(pairings).ongoingInvolving(ORG, PLATFORM, "leo");
         verify(pairings).end(ORG, 90L, EndReason.LEFT, TODAY);
         verify(pairings).end(ORG, 91L, EndReason.LEFT, TODAY);
-        verify(notices).ended(asMentee, "Platform", "Leo", MIA);
-        verify(notices).ended(asMentor, "Platform", "Leo", "noah");
+        verify(notices).ended(asMentee, new MentoringGuild("platform", "Platform"), "Leo", MIA);
+        verify(notices).ended(asMentor, new MentoringGuild("platform", "Platform"), "Leo", "noah");
         verify(proposals).withdrawOpenInvolving(ORG, PLATFORM, "leo", TODAY);
         verify(availabilities).deleteIn(ORG, PLATFORM, "leo");
         verify(pairings, never()).ongoingInvolving(ORG, DATA, "leo");
@@ -302,8 +303,8 @@ class PairingServiceTest {
         order.verify(pairings).ongoingInvolving(ORG, null, "leo");
         verify(pairings).end(ORG, 90L, EndReason.DEACTIVATED, TODAY);
         verify(pairings).end(ORG, 91L, EndReason.DEACTIVATED, TODAY);
-        verify(notices).ended(platform, "Platform", "Leo", MIA);
-        verify(notices).ended(data, "Data", "Leo", "noah");
+        verify(notices).ended(platform, new MentoringGuild("platform", "Platform"), "Leo", MIA);
+        verify(notices).ended(data, new MentoringGuild("data", "Data"), "Leo", "noah");
         verify(proposals).withdrawOpenInvolving(ORG, null, "leo", TODAY);
     }
 

@@ -22,6 +22,7 @@ import dev.axonia.mentoring.application.port.out.MentoringNotices;
 import dev.axonia.mentoring.application.port.out.MentoringNotices.MeetingReminder;
 import dev.axonia.mentoring.application.port.out.PairingRepository;
 import dev.axonia.mentoring.application.port.out.PersonDirectory;
+import dev.axonia.mentoring.domain.MentoringGuild;
 import dev.axonia.mentoring.domain.Pairing;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -57,7 +58,7 @@ class MeetingRemindersTest {
     @BeforeEach
     void setUp() {
 
-        when(communityAccess.nameOf(ORG, 7L)).thenReturn("Platform");
+        when(communityAccess.guildOf(ORG, 7L)).thenReturn(new MentoringGuild("platform", "Platform"));
         when(personDirectory.displayName(ORG, MIA)).thenReturn("Mia");
         when(personDirectory.displayName(ORG, NOAH)).thenReturn("Noah");
         zones(ZoneId.of("UTC"), ZoneId.of("UTC"));
@@ -83,8 +84,9 @@ class MeetingRemindersTest {
 
     private static MeetingReminder reminder(Pairing pairing, String partnerName, String recipientId) {
 
-        return MeetingReminder.builder().organizationId(ORG).pairing(pairing).communityName("Platform")
-                .partnerName(partnerName).recipientId(recipientId).build();
+        return MeetingReminder.builder().organizationId(ORG).pairing(pairing)
+                .guild(new MentoringGuild("platform", "Platform")).partnerName(partnerName).recipientId(recipientId)
+                .build();
     }
 
     private void meeting(Pairing pairing) {

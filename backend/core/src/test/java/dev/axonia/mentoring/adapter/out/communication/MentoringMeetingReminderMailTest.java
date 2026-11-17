@@ -13,6 +13,7 @@ import dev.axonia.communication.application.MailRenderer;
 import dev.axonia.communication.application.RenderedMail;
 import dev.axonia.communication.configuration.MailTemplateConfig;
 import dev.axonia.mentoring.application.port.out.MentoringNotices.MeetingReminder;
+import dev.axonia.mentoring.domain.MentoringGuild;
 import dev.axonia.mentoring.domain.Pairing;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -30,7 +31,7 @@ class MentoringMeetingReminderMailTest {
                 .pairing(Pairing.builder().id(90L).communityId(7L).mentorUserId("mia").menteeUserId("noah")
                         .startedAt(Instant.parse("2026-11-01T09:00:00Z")).nextMeetingOn(LocalDate.parse("2026-11-19"))
                         .nextMeetingSetBy("noah").nextMeetingSetAt(Instant.parse("2026-11-16T10:00:00Z")).build())
-                .communityName("Platform").partnerName("Noah").recipientId("mia").build());
+                .guild(new MentoringGuild("platform", "Platform")).partnerName("Noah").recipientId("mia").build());
         var message = ArgumentCaptor.forClass(OutboundMessage.class);
         verify(communication).enqueue(message.capture());
         var facts = new HashMap<>(message.getValue().facts());
@@ -58,7 +59,7 @@ class MentoringMeetingReminderMailTest {
         // then
         assertThat(actual.html()).contains("Mentoring with Noah tomorrow")
                 .contains("The next meeting with Noah is tomorrow, Thursday 19 November.").contains("Open the journal")
-                .contains("href=\"https://axonia.example/me/mentoring/90?org=acme\"")
+                .contains("href=\"https://axonia.example/communities/platform/me/mentoring/90?org=acme\"")
                 .contains("Mentoring through Platform.").contains("https://axonia.example/unsubscribe/t");
     }
 
@@ -74,7 +75,7 @@ class MentoringMeetingReminderMailTest {
 
                 The next meeting with Noah is tomorrow, Thursday 19 November.
 
-                Open the journal: https://axonia.example/me/mentoring/90?org=acme
+                Open the journal: https://axonia.example/communities/platform/me/mentoring/90?org=acme
 
                 Mentoring through Platform.
 

@@ -23,6 +23,7 @@ import dev.axonia.mentoring.application.port.out.OrganizationContext;
 import dev.axonia.mentoring.application.port.out.PairingRepository;
 import dev.axonia.mentoring.application.port.out.PersonDirectory;
 import dev.axonia.mentoring.domain.EndReason;
+import dev.axonia.mentoring.domain.MentoringGuild;
 import dev.axonia.mentoring.domain.NextMeeting;
 import dev.axonia.mentoring.domain.Pairing;
 import dev.axonia.shared.api.error.ConflictException;
@@ -75,7 +76,7 @@ class NextMeetingServiceTest {
         when(organizationContext.organizationId()).thenReturn(ORG);
         when(currentUser.userId()).thenReturn(NOAH);
         when(memberClocks.zoneOf(anyString(), anyString())).thenReturn(ZoneId.of("UTC"));
-        when(communityAccess.nameOf(ORG, COMMUNITY)).thenReturn("Platform");
+        when(communityAccess.guildOf(ORG, COMMUNITY)).thenReturn(new MentoringGuild("platform", "Platform"));
         when(personDirectory.displayName(ORG, NOAH)).thenReturn("Noah");
         when(personDirectory.displayName(ORG, MIA)).thenReturn("Mia");
         service = new NextMeetingService(new PairingParties(organizationContext, currentUser, pairings), pairings,
@@ -105,8 +106,8 @@ class NextMeetingServiceTest {
         // then
         verify(pairings).setNextMeeting(ORG, PAIRING, new NextMeeting(THURSDAY, NOAH, AT));
         verify(notices).meetingSet(
-                pairing().nextMeetingOn(THURSDAY).nextMeetingSetBy(NOAH).nextMeetingSetAt(AT).build(), "Platform",
-                "Noah", MIA);
+                pairing().nextMeetingOn(THURSDAY).nextMeetingSetBy(NOAH).nextMeetingSetAt(AT).build(),
+                new MentoringGuild("platform", "Platform"), "Noah", MIA);
     }
 
     @Test
@@ -121,7 +122,7 @@ class NextMeetingServiceTest {
 
         // then
         verify(notices).meetingSet(pairing().nextMeetingOn(THURSDAY).nextMeetingSetBy(MIA).nextMeetingSetAt(AT).build(),
-                "Platform", "Mia", NOAH);
+                new MentoringGuild("platform", "Platform"), "Mia", NOAH);
     }
 
     @Test
@@ -151,7 +152,7 @@ class NextMeetingServiceTest {
         // then
         verify(pairings).setNextMeeting(ORG, PAIRING, new NextMeeting(friday, NOAH, AT));
         verify(notices).meetingSet(pairing().nextMeetingOn(friday).nextMeetingSetBy(NOAH).nextMeetingSetAt(AT).build(),
-                "Platform", "Noah", MIA);
+                new MentoringGuild("platform", "Platform"), "Noah", MIA);
     }
 
     @Test

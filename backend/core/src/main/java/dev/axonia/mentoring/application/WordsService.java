@@ -20,6 +20,7 @@ import dev.axonia.mentoring.application.port.out.PersonDirectory;
 import dev.axonia.mentoring.application.port.out.WordsRepository;
 import dev.axonia.mentoring.domain.JournalRules;
 import dev.axonia.mentoring.domain.MentoringCommunity;
+import dev.axonia.mentoring.domain.MentoringGuild;
 import dev.axonia.mentoring.domain.MentoringPerson;
 import dev.axonia.mentoring.domain.MentoringWindows;
 import dev.axonia.mentoring.domain.Pairing;
@@ -62,7 +63,7 @@ public class WordsService {
         var created = words.upsert(org, Words.builder().pairingId(pairingId).body(text).writtenAt(now).build());
         if (created) {
             var me = currentUser.userId();
-            notices.wordsReceived(pairing, communityAccess.communityById(pairing.communityId()).name(),
+            notices.wordsReceived(pairing, MentoringGuild.of(communityAccess.communityById(pairing.communityId())),
                     personDirectory.resolve(List.of(me)).get(me).displayName());
         }
     }

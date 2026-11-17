@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 import dev.axonia.mentoring.domain.MentoringCommunity;
+import dev.axonia.mentoring.domain.MentoringGuild;
 
 public interface CommunityAccess {
 
@@ -13,7 +14,7 @@ public interface CommunityAccess {
     MentoringCommunity communityById(long communityId);
 
     /** Org-explicit, for callers that run off any request. */
-    String nameOf(String org, long communityId);
+    MentoringGuild guildOf(String org, long communityId);
 
     /** Whether the person belongs to a community that is taking mentoring proposals, in one query. */
     boolean inAMentoringGuild(String org, String userId);

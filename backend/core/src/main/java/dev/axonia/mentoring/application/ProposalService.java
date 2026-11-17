@@ -21,6 +21,7 @@ import dev.axonia.mentoring.application.port.out.OrganizationContext;
 import dev.axonia.mentoring.application.port.out.PairingRepository;
 import dev.axonia.mentoring.application.port.out.PersonDirectory;
 import dev.axonia.mentoring.application.port.out.ProposalRepository;
+import dev.axonia.mentoring.domain.MentoringGuild;
 import dev.axonia.mentoring.domain.MentoringWindows;
 import dev.axonia.mentoring.domain.NoteTally;
 import dev.axonia.mentoring.domain.PairHold;
@@ -86,7 +87,7 @@ public class ProposalService {
         var unsaved = draft.build();
         var proposal = draft.id(proposals.insert(org, unsaved)).build();
         var people = personDirectory.resolve(List.of(me, to));
-        notices.proposed(org, proposal, community.name(), people.get(me).displayName());
+        notices.proposed(org, proposal, MentoringGuild.of(community), people.get(me).displayName());
         return MentoringViews.proposal(proposal, community, people.get(to),
                 new CallerTime(now, memberClocks.zoneOf(org, me)));
     }
@@ -131,7 +132,7 @@ public class ProposalService {
 
         var proposal = close(proposalId, true, ProposalStatus.DECLINED);
         var org = organizationContext.organizationId();
-        notices.declined(proposal, communityAccess.nameOf(org, proposal.communityId()),
+        notices.declined(proposal, communityAccess.guildOf(org, proposal.communityId()),
                 personDirectory.displayName(org, proposal.receiverId()));
     }
 
@@ -170,7 +171,7 @@ public class ProposalService {
         }
         if (!notices.withdrawDeclined(proposal)) {
             notices.reopened(proposal.toBuilder().status(ProposalStatus.OPEN).answeredAt(null).reopenedAt(now).build(),
-                    community.name(), personDirectory.displayName(org, me));
+                    MentoringGuild.of(community), personDirectory.displayName(org, me));
         }
     }
 

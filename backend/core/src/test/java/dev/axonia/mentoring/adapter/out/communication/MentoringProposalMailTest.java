@@ -12,6 +12,7 @@ import dev.axonia.communication.api.OutboundMessage;
 import dev.axonia.communication.application.MailRenderer;
 import dev.axonia.communication.application.RenderedMail;
 import dev.axonia.communication.configuration.MailTemplateConfig;
+import dev.axonia.mentoring.domain.MentoringGuild;
 import dev.axonia.mentoring.domain.Proposal;
 import dev.axonia.mentoring.domain.ProposalStatus;
 import dev.axonia.mentoring.domain.Role;
@@ -32,7 +33,7 @@ class MentoringProposalMailTest {
                 Proposal.builder().id(40L).communityId(7L).mentorUserId("mia").menteeUserId("noah")
                         .proposedBy(Role.MENTEE).topics(List.of("Kafka", "Giving feedback")).message(MESSAGE)
                         .status(ProposalStatus.OPEN).createdAt(Instant.parse("2026-11-16T10:00:00Z")).build(),
-                "Platform", "Noah");
+                new MentoringGuild("platform", "Platform"), "Noah");
         var message = ArgumentCaptor.forClass(OutboundMessage.class);
         verify(communication).enqueue(message.capture());
         var facts = new HashMap<>(message.getValue().facts());
@@ -59,7 +60,8 @@ class MentoringProposalMailTest {
 
         // then
         assertThat(actual.html()).contains("Noah proposes mentoring").contains("Platform").contains("Kafka")
-                .contains("Giving feedback").contains("href=\"https://axonia.example/me/mentoring?org=acme\"")
+                .contains("Giving feedback")
+                .contains("href=\"https://axonia.example/communities/platform/me/mentoring?org=acme\"")
                 .contains("Proposed through Platform.").contains("https://axonia.example/unsubscribe/t")
                 .doesNotContain(MESSAGE);
     }
@@ -80,7 +82,7 @@ class MentoringProposalMailTest {
                   Kafka
                   Giving feedback
 
-                Open My mentoring: https://axonia.example/me/mentoring?org=acme
+                Open My mentoring: https://axonia.example/communities/platform/me/mentoring?org=acme
 
                 Proposed through Platform.
 

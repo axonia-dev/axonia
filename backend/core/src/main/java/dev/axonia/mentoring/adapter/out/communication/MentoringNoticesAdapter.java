@@ -12,6 +12,7 @@ import dev.axonia.communication.api.CommunicationPort;
 import dev.axonia.communication.api.MessageType;
 import dev.axonia.communication.api.OutboundMessage;
 import dev.axonia.mentoring.application.port.out.MentoringNotices;
+import dev.axonia.mentoring.domain.MentoringGuild;
 import dev.axonia.mentoring.domain.MentoringSubject;
 import dev.axonia.mentoring.domain.Pairing;
 import dev.axonia.mentoring.domain.Proposal;
@@ -24,9 +25,11 @@ import lombok.RequiredArgsConstructor;
  * The mentoring notices. The guild is the sender, as on every other community message, and the headline names the other
  * person. A proposal and a meeting reminder are mailed as well; the others reach the panel alone, so their template is
  * a name no mail is rendered from. A proposal's line is its topics and a decline's its first topic, since the panel
- * already shows the guild as the entry's community. No notice carries a proposal's message or a mentee's words: only
- * the two people read those, where they wrote them. A decline and a reopening carry their moment in the subject, so a
- * proposal declined, reopened and declined again is told each time, and a decline still waiting is withdrawn alone.
+ * already shows the guild as the entry's community. Every link opens My mentoring or the journal inside that guild,
+ * where the notice came from, rather than the cross-community page. No notice carries a proposal's message or a
+ * mentee's words: only the two people read those, where they wrote them. A decline and a reopening carry their moment
+ * in the subject, so a proposal declined, reopened and declined again is told each time, and a decline still waiting is
+ * withdrawn alone.
  */
 @Component("mentoringNoticesAdapter")
 @RequiredArgsConstructor
@@ -61,10 +64,10 @@ public class MentoringNoticesAdapter implements MentoringNotices {
     private final PublicUrls publicUrls;
 
     @Override
-    public void proposed(String organizationId, Proposal proposal, String communityName, String proposerName) {
+    public void proposed(String organizationId, Proposal proposal, MentoringGuild guild, String proposerName) {
 
-        var facts = facts(communityName, proposerName + " proposes mentoring", String.join(", ", proposal.topics()),
-                OrganizationLinks.withOrganization(myMentoringUrl(), organizationId));
+        var facts = facts(guild, proposerName + " proposes mentoring", String.join(", ", proposal.topics()),
+                OrganizationLinks.withOrganization(myMentoringUrl(guild), organizationId));
         facts.put(TOPICS_FACT, List.copyOf(proposal.topics()));
         communication.enqueue(OutboundMessage.builder().type(MessageType.MENTORING_PROPOSAL)
                 .subjectRef(MentoringSubject.proposal(proposal.id(), proposal.senderId()).ref())
@@ -73,10 +76,10 @@ public class MentoringNoticesAdapter implements MentoringNotices {
     }
 
     @Override
-    public void declined(Proposal proposal, String communityName, String declinerName) {
+    public void declined(Proposal proposal, MentoringGuild guild, String declinerName) {
 
-        inApp(MessageType.MENTORING_DECLINED, theDecline(proposal), proposal.senderId(), facts(communityName,
-                declinerName + " answered: not this time", proposal.topics().getFirst(), myMentoringUrl()));
+        inApp(MessageType.MENTORING_DECLINED, theDecline(proposal), proposal.senderId(), facts(guild,
+                declinerName + " answered: not this time", proposal.topics().getFirst(), myMentoringUrl(guild)));
     }
 
     @Override
@@ -93,41 +96,41 @@ public class MentoringNoticesAdapter implements MentoringNotices {
     }
 
     @Override
-    public void reopened(Proposal proposal, String communityName, String reopenerName) {
+    public void reopened(Proposal proposal, MentoringGuild guild, String reopenerName) {
 
         var occasion = String.valueOf(proposal.reopenedAt().toEpochMilli());
         inApp(MessageType.MENTORING_PROPOSAL_REOPENED,
                 MentoringSubject.proposal(proposal.id(), occasion, proposal.receiverId()), proposal.senderId(),
-                facts(communityName, reopenerName + " reopened a proposal", proposal.topics().getFirst(),
-                        myMentoringUrl()));
+                facts(guild, reopenerName + " reopened a proposal", proposal.topics().getFirst(),
+                        myMentoringUrl(guild)));
     }
 
     @Override
-    public void ended(Pairing pairing, String communityName, String endedByName, String recipientId) {
+    public void ended(Pairing pairing, MentoringGuild guild, String endedByName, String recipientId) {
 
         var toMentor = recipientId.equals(pairing.mentorUserId());
         var endedBy = toMentor ? pairing.menteeUserId() : pairing.mentorUserId();
         var line = toMentor ? "The journal stays readable" : "A postcard to " + endedByName + " waits in the journal";
         inApp(MessageType.MENTORING_ENDED, MentoringSubject.pairing(pairing.id(), endedBy), recipientId,
-                facts(communityName, "Mentoring with " + endedByName + " ended", line, journalUrl(pairing)));
+                facts(guild, "Mentoring with " + endedByName + " ended", line, journalUrl(guild, pairing)));
     }
 
     @Override
-    public void wordsReceived(Pairing pairing, String communityName, String menteeName) {
+    public void wordsReceived(Pairing pairing, MentoringGuild guild, String menteeName) {
 
         inApp(MessageType.MENTORING_WORDS_RECEIVED, MentoringSubject.pairing(pairing.id(), pairing.menteeUserId()),
                 pairing.mentorUserId(),
-                facts(communityName, "Words from " + menteeName, "Nobody else sees them", journalUrl(pairing)));
+                facts(guild, "Words from " + menteeName, "Nobody else sees them", journalUrl(guild, pairing)));
     }
 
     @Override
-    public void meetingSet(Pairing pairing, String communityName, String setByName, String recipientId) {
+    public void meetingSet(Pairing pairing, MentoringGuild guild, String setByName, String recipientId) {
 
         var occasion = String.valueOf(pairing.nextMeetingSetAt().toEpochMilli());
         inApp(MessageType.MENTORING_MEETING_SET,
                 MentoringSubject.pairing(pairing.id(), occasion, pairing.nextMeetingSetBy()), recipientId,
-                facts(communityName, setByName + " set the next meeting", DAY.format(pairing.nextMeetingOn()),
-                        journalUrl(pairing)));
+                facts(guild, setByName + " set the next meeting", DAY.format(pairing.nextMeetingOn()),
+                        journalUrl(guild, pairing)));
     }
 
     @Override
@@ -137,9 +140,9 @@ public class MentoringNoticesAdapter implements MentoringNotices {
         var recipientId = reminder.recipientId();
         var partnerId = recipientId.equals(pairing.mentorUserId()) ? pairing.menteeUserId() : pairing.mentorUserId();
         var subject = MentoringSubject.pairing(pairing.id(), pairing.nextMeetingOn().toString(), partnerId);
-        var facts = facts(reminder.communityName(), "Mentoring with " + reminder.partnerName() + " tomorrow",
+        var facts = facts(reminder.guild(), "Mentoring with " + reminder.partnerName() + " tomorrow",
                 DAY.format(pairing.nextMeetingOn()),
-                OrganizationLinks.withOrganization(journalUrl(pairing), reminder.organizationId()));
+                OrganizationLinks.withOrganization(journalUrl(reminder.guild(), pairing), reminder.organizationId()));
         facts.put(PARTNER_FACT, reminder.partnerName());
         communication.enqueue(OutboundMessage.builder().type(MessageType.MENTORING_MEETING_REMINDER)
                 .subjectRef(subject.ref()).recipientUserIds(List.of(recipientId)).template(REMINDER_TEMPLATE)
@@ -156,20 +159,20 @@ public class MentoringNoticesAdapter implements MentoringNotices {
                 .aboutUserId(subject.aboutUserId()).facts(Map.copyOf(facts)).build());
     }
 
-    private String myMentoringUrl() {
+    private String myMentoringUrl(MentoringGuild guild) {
 
-        return publicUrls.publicBaseUrl() + "/me/mentoring";
+        return publicUrls.publicBaseUrl() + "/communities/" + guild.slug() + "/me/mentoring";
     }
 
-    private String journalUrl(Pairing pairing) {
+    private String journalUrl(MentoringGuild guild, Pairing pairing) {
 
-        return publicUrls.publicBaseUrl() + "/me/mentoring/" + pairing.id();
+        return myMentoringUrl(guild) + "/" + pairing.id();
     }
 
-    private static Map<String, Object> facts(String communityName, String headline, String line, String url) {
+    private static Map<String, Object> facts(MentoringGuild guild, String headline, String line, String url) {
 
         var facts = new LinkedHashMap<String, Object>();
-        facts.put(SENDER_FACT, Map.of("name", communityName, "initials", Initials.of(communityName), "tintBackground",
+        facts.put(SENDER_FACT, Map.of("name", guild.name(), "initials", Initials.of(guild.name()), "tintBackground",
                 TINT_BACKGROUND, "tintForeground", TINT_FOREGROUND));
         facts.put(HEADLINE_FACT, headline);
         facts.put(LINE_FACT, line);
