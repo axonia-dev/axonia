@@ -226,6 +226,23 @@ class ProposalServiceTest {
     }
 
     @Test
+    void aProposalNamesItsSenderInFullSinceTheReceiverMayNotKnowThem() {
+
+        // given
+        when(personDirectory.resolve(anyCollection())).thenAnswer(inv -> {
+            Collection<String> ids = inv.getArgument(0);
+            return ids.stream().collect(
+                    Collectors.toMap(id -> id, id -> new MentoringPerson(id, name(id) + " Muster", name(id), null)));
+        });
+
+        // when
+        service.propose(SLUG, request(MENTEE, Role.MENTOR));
+
+        // then
+        verify(notices).proposed(eq(ORG), any(), any(), eq("Max Muster"));
+    }
+
+    @Test
     void aMentorProposesToAMenteeLookingForOne() {
 
         // when

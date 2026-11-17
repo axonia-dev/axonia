@@ -6,6 +6,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -239,6 +240,23 @@ class WordsServiceTest {
         // then
         verify(notices, org.mockito.Mockito.times(1)).wordsReceived(any(),
                 eq(new MentoringGuild("platform", "Platform")), eq("Max"));
+    }
+
+    @Test
+    void theMentorIsToldTheMenteesGivenName() {
+
+        // given
+        signedInAs(MAX);
+        pairing(endedDaysAgo(1));
+        when(words.upsert(eq(ORG), any())).thenReturn(true);
+        when(personDirectory.resolve(anyCollection()))
+                .thenReturn(Map.of(MAX, new MentoringPerson(MAX, "Max Muster", "Max", null)));
+
+        // when
+        service.write(PAIRING, "first");
+
+        // then
+        verify(notices).wordsReceived(any(), any(), eq("Max"));
     }
 
     @Test
