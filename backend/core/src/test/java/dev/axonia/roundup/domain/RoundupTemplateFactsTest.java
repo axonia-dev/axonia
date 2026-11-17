@@ -3,6 +3,7 @@ package dev.axonia.roundup.domain;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
@@ -45,9 +46,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  * shell interpolates raw is unchecked here; {@code sender} is covered only incidentally, because the {@code .txt} half
  * happens to read it directly too. Guarding the shell means guarding it for every message that includes it, which
  * belongs to {@code communication} rather than to this module.</li>
- * <li><b>It guards root names only.</b> {@code ${community.summaryParts}} and {@code ${session.dateLabel}} both reduce
- * to the root {@code communities}; the nested accessors are keys {@link RoundupFacts} constructs by hand inside a card
- * and its session rows, and renaming one there would still reach an inbox. The per-row keys are pinned by
+ * <li><b>It guards root names only.</b> {@code ${community.sessionCountLabel}} and {@code ${session.dateLabel}} both
+ * reduce to the root {@code communities}; the nested accessors are keys {@link RoundupFacts} constructs by hand inside
+ * a card and its session rows, and renaming one there would still reach an inbox. The per-row keys are pinned by
  * {@code RoundupFactsTest}'s own assertions instead.</li>
  * <li><b>Locals are subtracted per file, never across both.</b> That is what stops a {@code th:with} binding in the
  * {@code .txt} from masking a same-named real fact read by the {@code .html} - the reason the two files are scanned
@@ -144,9 +145,10 @@ class RoundupTemplateFactsTest {
     private static QuarterActivity aRealisticQuarter() {
 
         return QuarterActivity.builder().organizationName("Acme Corp").quarter(new Quarter(2026, 2))
-                .communities(List.of(new NamedCommunity(7L, "Backend Guild", null, null)))
+                .communities(
+                        List.of(new NamedCommunity(7L, "Backend Guild", null, null, "backend-guild", null, null, null)))
                 .held(List.of(HeldSession.builder().sessionId(1L).communityId(7L).title("Hexagons in anger")
-                        .heldAt(Instant.parse("2026-05-12T17:00:00Z")).talkCount(2).talkTitles(List.of())
+                        .heldAt(Instant.parse("2026-05-12T17:00:00Z")).talkCount(2).talks(List.of())
                         .presenterNames(List.of("Alice Dubois")).build()))
                 .upcoming(List.of(new UpcomingSession(7L, "Signals in React", Instant.parse("2026-07-14T17:00:00Z"))))
                 .firstTimePresenterCount(3)
@@ -156,6 +158,7 @@ class RoundupTemplateFactsTest {
                         .toList())
                 .topics(List.of(new TagCount("hexagonal", 4), new TagCount("testing", 1))).openTalkCount(2)
                 .communityCap(8).sessionsPerCommunityCap(4).topicCap(12)
-                .communitiesUrl("https://axonia.example/communities").build();
+                .communitiesUrl("https://axonia.example/communities").organizationId("acme")
+                .publicBaseUrl("https://axonia.example").thumbnailUrls(Map.of()).build();
     }
 }

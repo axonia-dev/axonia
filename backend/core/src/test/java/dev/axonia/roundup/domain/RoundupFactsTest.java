@@ -2,22 +2,29 @@ package dev.axonia.roundup.domain;
 
 import java.time.Instant;
 import java.time.temporal.TemporalAccessor;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import dev.axonia.identity.api.UserDirectory.DirectoryUser;
 import dev.axonia.roundup.api.spi.ArtifactActivity.CapturedArtifact;
 import dev.axonia.roundup.api.spi.SessionActivity.HeldSession;
+import dev.axonia.roundup.api.spi.SessionActivity.HeldTalk;
 import dev.axonia.roundup.api.spi.SessionActivity.UpcomingSession;
 import dev.axonia.roundup.api.spi.TopicActivity.TagCount;
 import dev.axonia.roundup.domain.QuarterActivity.NamedCommunity;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.LIST;
+import static org.assertj.core.api.InstanceOfAssertFactories.MAP;
 
 class RoundupFactsTest {
 
@@ -39,21 +46,24 @@ class RoundupFactsTest {
     @Test
     void theLetterIsBuiltFromTheseNamesAndNoOthers() {
 
-        var facts = RoundupFacts.of(aQuarter()
-                .captured(List.of(new CapturedArtifact(41L, "Recording", "https://recording", "Recording"))).build());
+        var facts = RoundupFacts
+                .of(aQuarter().captured(List.of(new CapturedArtifact(41L, "Deck", "https://deck", "Slides"))).build());
 
         var card = communityCards(facts).getFirst();
-        assertThat(facts).containsOnlyKeys("sender", "sessionTitle", "periodLabel", "sessionCount", "talkCount",
-                "presenterCount", "resourceCount", "firstTimeContributorCount", "topics", "communities",
-                "moreCommunitiesCount", "openTalkCount", "communitiesUrl");
+        assertThat(facts).containsOnlyKeys("sender", "sessionTitle", "periodLabel", "quarterLabel", "yearLabel",
+                "sessionCount", "talkCount", "presenterCount", "resourceCount", "firstTimeContributorCount", "topics",
+                "communities", "moreCommunitiesCount", "openTalkCount", "communitiesUrl");
         assertThat(sender(facts)).containsOnlyKeys("name", "initials", "tintBackground", "tintForeground");
         assertThat(topicsOf(facts).getFirst()).containsOnlyKeys("label", "weight");
-        assertThat(card).containsOnlyKeys("name", "initials", "badgeUrl", "accentColor", "summaryParts", "presenters",
-                "morePresenterCount", "sessions", "moreSessionCount", "nextTitle", "nextLabel", "moreUpcomingCount");
+        assertThat(card).containsOnlyKeys("name", "initials", "badgeUrl", "tints", "presenters", "morePresenterCount",
+                "sessionCountLabel", "sessions", "moreSessionsLabel", "nextTitle", "nextLabel", "nextMonth", "nextDay");
         assertThat(presentersOf(card).getFirst()).containsOnlyKeys("name", "initials", "tint");
-        assertThat(sessionsOf(card).getFirst()).containsOnlyKeys("dateLabel", "title", "talkTitles", "resources");
-        assertThat(resourcesOf(sessionsOf(card).getFirst()))
-                .allSatisfy(resource -> assertThat(resource).containsOnlyKeys("title", "url"));
+        assertThat(sessionsOf(card).getFirst()).containsOnlyKeys("dateLabel", "title", "durationLabel", "recordingUrl",
+                "sessionUrl", "thumbnailUrl", "talks", "moreTalkCount", "goingCount", "resourceGroups");
+        assertThat(talksOf(sessionsOf(card).getLast()).getFirst()).containsOnlyKeys("title", "presenter",
+                "morePresenterCount", "tag");
+        assertThat(groupsOf(sessionsOf(card).getLast())).isNotEmpty()
+                .allSatisfy(group -> assertThat(group).containsOnlyKeys("label", "count"));
     }
 
     @Test
@@ -86,7 +96,8 @@ class RoundupFactsTest {
 
         var card = communityCards(facts).getFirst();
         assertThat(sessionsOf(card)).hasSize(1);
-        assertThat(card).containsEntry("moreSessionCount", 1);
+        assertThat(card).containsEntry("sessionCountLabel", "2 sessions").containsEntry("moreSessionsLabel",
+                "+ Hexagons in anger \u00b7 13 May");
     }
 
     @Test
@@ -338,36 +349,28 @@ class RoundupFactsTest {
         assertThat(facts).containsEntry("sessionTitle", "Q2 2026").containsEntry("periodLabel", "April to June 2026");
     }
 
-    /**
-     * The card's own meta line, and the only place a community's figures are stated. Every part is singular-aware and a
-     * part with nothing to say is left out rather than printed as a zero.
-     */
     @Test
-    void aCardSaysWhatItsCommunityDidWithoutEverPrintingAZero() {
+    void aCardCountsItsSessionsWithASingularArm() {
 
-        var facts = RoundupFacts
-                .of(aQuarter().captured(List.of(new CapturedArtifact(41L, "Slides", "https://s", "Slides"))).build());
+        var facts = RoundupFacts.of(aQuarter().build());
 
-        assertThat(communityCards(facts).getFirst().get("summaryParts")).asInstanceOf(LIST)
-                .containsExactly("2 sessions", "3 talks", "1 resource");
-        assertThat(communityCards(facts).getLast().get("summaryParts"))
-                .as("nothing captured, so no resource part at all").asInstanceOf(LIST)
-                .containsExactly("1 session", "1 talk");
+        assertThat(communityCards(facts).getFirst()).containsEntry("sessionCountLabel", "2 sessions");
+        assertThat(communityCards(facts).getLast()).containsEntry("sessionCountLabel", "1 session");
     }
 
     @Test
     void aCardCarriesItsCommunitysOwnMarkAndPassesAMissingOneThrough() {
 
-        var facts = RoundupFacts
-                .of(aQuarter()
-                        .communities(List.of(new NamedCommunity(1L, "Backend Guild",
-                                "https://cdn.axonia.example/badges/1.png", "#1f9d63"), summary(2, "Alpha Guild")))
-                        .build());
+        var facts = RoundupFacts.of(aQuarter()
+                .communities(List.of(new NamedCommunity(1L, "Backend Guild", "https://cdn.axonia.example/badges/1.png",
+                        "#1f9d63", null, null, null, null), summary(2, "Alpha Guild")))
+                .build());
 
         assertThat(communityCards(facts).getFirst()).containsEntry("name", "Backend Guild")
                 .containsEntry("initials", "BG").containsEntry("badgeUrl", "https://cdn.axonia.example/badges/1.png")
-                .containsEntry("accentColor", "#1f9d63");
-        assertThat(communityCards(facts).getLast()).containsEntry("badgeUrl", null).containsEntry("accentColor", null);
+                .containsEntry("tints", GuildTints.of("#1f9d63"));
+        assertThat(communityCards(facts).getLast()).containsEntry("badgeUrl", null).containsEntry("tints",
+                GuildTints.of(null));
     }
 
     @Test
@@ -377,53 +380,189 @@ class RoundupFactsTest {
                 new UpcomingSession(1L, "Tracing in prod", SEPTEMBER))).build());
 
         assertThat(communityCards(facts).getFirst()).containsEntry("nextTitle", "Signals in React")
-                .containsEntry("nextLabel", "Sunday 2 August").containsEntry("moreUpcomingCount", 1);
+                .containsEntry("nextLabel", "Sunday 2 August").containsEntry("nextMonth", "AUG")
+                .containsEntry("nextDay", "2");
         assertThat(facts).as("the flat chronological list is gone, not moved").doesNotContainKey("upcoming");
     }
 
-    /** The remainder guard the per-community fold inherited: nothing coming is zero, never a negative number. */
     @Test
-    void aCommunityWithNothingComingCarriesNoNextSessionAndNoNegativeRemainder() {
+    void aCommunityWithNothingComingCarriesNoNextSession() {
 
         var facts = RoundupFacts.of(aQuarter().build());
 
         assertThat(communityCards(facts).getFirst()).containsEntry("nextTitle", null).containsEntry("nextLabel", null)
-                .containsEntry("moreUpcomingCount", 0);
+                .containsEntry("nextMonth", null).containsEntry("nextDay", null)
+                .containsEntry("moreSessionsLabel", null);
     }
 
-    /**
-     * Two resources, and they stay in the order the port answered in. {@code ArtifactActivity} orders by session and
-     * then by title, so a row that re-sorted them here would be quietly disagreeing with the library page the same
-     * links point at - and with one resource on the row nothing would ever say so.
-     */
     @Test
-    void aSessionRowIsADatedTitleItsTalksAndWhatWasCapturedOnItInThePortsOwnOrder() {
+    void aPosterIsADatedTitleItsTalksAndLinksToItsRecordingAndItsPage() {
 
-        var facts = RoundupFacts.of(
-                aQuarter().captured(List.of(new CapturedArtifact(41L, "Recording", "https://recording", "Recording"),
-                        new CapturedArtifact(41L, "Deck", "https://deck", "Slides"))).build());
+        var facts = RoundupFacts.of(aQuarter().thumbnailUrls(Map.of(41L, "https://cdn.axonia.test/thumb.jpg"))
+                .held(List.of(HeldSession.builder().sessionId(41L).communityId(1L).title("Hexagons in anger")
+                        .heldAt(MAY).durationMinutes(72).recordingUrl("https://video.test/41").goingCount(31)
+                        .talkCount(2)
+                        .talks(List.of(new HeldTalk("Ports first", List.of("Alice Dubois", "Bob Martin"), "hexagonal"),
+                                new HeldTalk("Signals in React", List.of(), null)))
+                        .presenterNames(List.of("Alice Dubois", "Bob Martin")).build()))
+                .build());
 
-        var rows = sessionsOf(communityCards(facts).getFirst());
-        assertThat(rows.getFirst()).containsEntry("dateLabel", "13 May").containsEntry("title", "Hexagons in anger");
-        assertThat(rows.getFirst().get("talkTitles")).as("titles stay a list, so each rendering joins them its own way")
-                .asInstanceOf(LIST).containsExactly("Ports first, adapters after", "Signals in React");
-        assertThat(rows.getFirst().get("resources")).asInstanceOf(LIST).containsExactly(
-                Map.of("title", "Recording", "url", "https://recording"),
-                Map.of("title", "Deck", "url", "https://deck"));
+        var poster = sessionsOf(communityCards(facts).getFirst()).getFirst();
+        assertThat(poster).containsEntry("dateLabel", "13 May").containsEntry("title", "Hexagons in anger")
+                .containsEntry("durationLabel", "1h 12").containsEntry("recordingUrl", "https://video.test/41")
+                .containsEntry("sessionUrl", "https://axonia.test/communities/backend-guild/sessions/41?org=acme")
+                .containsEntry("thumbnailUrl", "https://cdn.axonia.test/thumb.jpg").containsEntry("goingCount", 31)
+                .containsEntry("moreTalkCount", 0);
+        assertThat(talksOf(poster).getFirst()).containsEntry("title", "Ports first").containsEntry("tag", "hexagonal")
+                .containsEntry("morePresenterCount", 1)
+                .containsEntry("presenter", Map.of("name", "Alice Dubois", "initials", "AD", "tint",
+                        presentersOf(communityCards(facts).getFirst()).getFirst().get("tint")));
+        assertThat(talksOf(poster).getLast()).containsEntry("presenter", null).containsEntry("morePresenterCount", 0)
+                .containsEntry("tag", null);
     }
 
-    /**
-     * {@code talkTitles} is deliberately shorter than {@code talkCount} - a slot nobody named is counted and not named
-     * - so a session whose agenda titled nothing has no talk line at all rather than a row of placeholders.
-     */
     @Test
-    void aSessionWhoseAgendaTitledNothingCarriesNoTalkTitles() {
+    void aSessionWithoutARecordingOrAThumbnailCarriesNullsRatherThanEmptyStrings() {
 
         var facts = RoundupFacts.of(aQuarter().build());
 
-        var row = sessionsOf(communityCards(facts).getFirst()).getLast();
-        assertThat(row).containsEntry("title", "Tracing in prod");
-        assertThat(row.get("talkTitles")).asInstanceOf(LIST).isEmpty();
+        assertThat(sessionsOf(communityCards(facts).getFirst()).getFirst()).containsEntry("recordingUrl", null)
+                .containsEntry("thumbnailUrl", null).containsEntry("durationLabel", null)
+                .containsEntry("goingCount", 0);
+    }
+
+    @ParameterizedTest
+    @CsvSource(value = {"45, 45 min", "60, 1h", "72, 1h 12", "125, 2h 05", "0, NULL",
+            "NULL, NULL"}, nullValues = "NULL")
+    void aDurationReadsAsMinutesOrAsHoursAndMinutes(Integer minutes, String label) {
+
+        var facts = RoundupFacts.of(aQuarter().held(List.of(HeldSession.builder().sessionId(41L).communityId(1L)
+                .title("Hexagons in anger").heldAt(MAY).durationMinutes(minutes).build())).build());
+
+        assertThat(sessionsOf(communityCards(facts).getFirst()).getFirst()).containsEntry("durationLabel", label);
+    }
+
+    @Test
+    void anUntitledSlotIsCountedButNeverListedAndTheListStopsAtThree() {
+
+        var talks = IntStream.rangeClosed(1, 8).mapToObj(index -> new HeldTalk("Talk " + index, List.of(), null))
+                .collect(Collectors.toCollection(ArrayList::new));
+        talks.add(new HeldTalk(null, List.of(), null));
+        talks.add(new HeldTalk(" ", List.of(), null));
+        var facts = RoundupFacts.of(aQuarter().held(List.of(HeldSession.builder().sessionId(41L).communityId(1L)
+                .title("Lightning").heldAt(MAY).talkCount(talks.size()).talks(talks).build())).build());
+
+        var poster = sessionsOf(communityCards(facts).getFirst()).getFirst();
+        assertThat(talksOf(poster)).extracting(talk -> talk.get("title")).containsExactly("Talk 1", "Talk 2", "Talk 3");
+        assertThat(poster).containsEntry("moreTalkCount", 5);
+        assertThat(facts).containsEntry("talkCount", 10);
+    }
+
+    @Test
+    void anErasedCoPresenterIsNeitherTheAvatarNorCounted() {
+
+        var facts = RoundupFacts
+                .of(aQuarter()
+                        .held(List.of(HeldSession.builder().sessionId(41L).communityId(1L).title("Hexagons").heldAt(MAY)
+                                .talkCount(1)
+                                .talks(List.of(new HeldTalk("Ports",
+                                        List.of(DirectoryUser.DELETED_MEMBER_LABEL, "Bob Martin"), null)))
+                                .build()))
+                        .build());
+
+        var talk = talksOf(sessionsOf(communityCards(facts).getFirst()).getFirst()).getFirst();
+        assertThat(talk).containsEntry("morePresenterCount", 0);
+        assertThat(talk.get("presenter")).asInstanceOf(MAP).containsEntry("name", "Bob Martin");
+    }
+
+    @Test
+    void resourcesAreCountedByKindBusiestFirstAndAnUntypedOneIsALink() {
+
+        var facts = RoundupFacts
+                .of(aQuarter().captured(List.of(new CapturedArtifact(41L, "Deck", "https://a", "Slides"),
+                        new CapturedArtifact(41L, "Repo", "https://b", "Repo"),
+                        new CapturedArtifact(41L, "Other repo", "https://c", "Repo"),
+                        new CapturedArtifact(41L, "Bare", "https://d", null),
+                        new CapturedArtifact(41L, "Postmortem", "https://e", "Postmortem"))).build());
+
+        assertThat(groupsOf(sessionsOf(communityCards(facts).getFirst()).getLast())).containsExactly(
+                Map.of("label", "Repo", "count", 2), Map.of("label", "Link", "count", 1),
+                Map.of("label", "Postmortem", "count", 1), Map.of("label", "Slides", "count", 1));
+    }
+
+    /** A recording saved with a stray blank or trailing slash is still the recording the band plays. */
+    @ParameterizedTest
+    @ValueSource(strings = {"https://video.test/41/", " https://video.test/41 "})
+    void aRecordingSavedWithAStrayBlankOrSlashIsStillTheRecording(String savedAs) {
+
+        var facts = RoundupFacts.of(aQuarter()
+                .held(List.of(HeldSession.builder().sessionId(41L).communityId(1L).title("Hexagons in anger")
+                        .heldAt(MAY).talkCount(0).recordingUrl("https://video.test/41").build()))
+                .captured(List.of(new CapturedArtifact(41L, "Recording", savedAs, "Recording"))).build());
+
+        assertThat(facts).containsEntry("resourceCount", 0);
+        assertThat(groupsOf(sessionsOf(communityCards(facts).getFirst()).getFirst())).isEmpty();
+    }
+
+    /** A builder that never names the thumbnails gets none, rather than a poster that cannot be built. */
+    @Test
+    void aQuarterBuiltWithoutThumbnailsGivesEveryPosterNone() {
+
+        var facts = RoundupFacts.of(aQuarter().thumbnailUrls(null).build());
+
+        assertThat(sessionsOf(communityCards(facts).getFirst()))
+                .allSatisfy(poster -> assertThat(poster).containsEntry("thumbnailUrl", null));
+    }
+
+    /** The band plays the recording, so the artifact that IS the recording is neither grouped nor counted again. */
+    @Test
+    void theSessionsOwnRecordingIsNeverCountedAsAResource() {
+
+        var facts = RoundupFacts.of(aQuarter()
+                .held(List.of(HeldSession.builder().sessionId(41L).communityId(1L).title("Hexagons").heldAt(MAY)
+                        .recordingUrl("https://video.test/41").build()))
+                .captured(List.of(new CapturedArtifact(41L, "Recording", "https://video.test/41", "Recording"),
+                        new CapturedArtifact(41L, "Deck", "https://deck", "Slides")))
+                .build());
+
+        assertThat(groupsOf(sessionsOf(communityCards(facts).getFirst()).getFirst()))
+                .containsExactly(Map.of("label", "Slides", "count", 1));
+        assertThat(facts).containsEntry("resourceCount", 1);
+    }
+
+    @Test
+    void theFirstSessionTheCapLeftOutIsNamedAndTheRestAreACount() {
+
+        var sessions = IntStream.rangeClosed(1, 5)
+                .mapToObj(index -> HeldSession.builder().sessionId(40L + index).communityId(1L)
+                        .title(index == 3 ? null : "S26E0" + index).heldAt(MAY.plusSeconds(index * 86_400L)).build())
+                .toList();
+
+        var none = RoundupFacts.of(aQuarter().held(sessions).sessionsPerCommunityCap(5).build());
+        var one = RoundupFacts.of(aQuarter().held(sessions).sessionsPerCommunityCap(4).build());
+        var three = RoundupFacts.of(aQuarter().held(sessions).sessionsPerCommunityCap(2).build());
+
+        assertThat(communityCards(none).getFirst()).containsEntry("moreSessionsLabel", null);
+        assertThat(communityCards(one).getFirst()).containsEntry("moreSessionsLabel", "+ S26E01 \u00b7 14 May");
+        assertThat(communityCards(three).getFirst()).containsEntry("moreSessionsLabel", "+ 16 May and 2 more");
+    }
+
+    /** Newest first, so the cap keeps what a reader most wants to watch; the port answers oldest first. */
+    @Test
+    void aCommunitysPostersRunNewestFirst() {
+
+        var facts = RoundupFacts.of(aQuarter().build());
+
+        assertThat(sessionsOf(communityCards(facts).getFirst())).extracting(poster -> poster.get("dateLabel"))
+                .containsExactly("9 June", "13 May");
+    }
+
+    @Test
+    void theQuarterIsSplitForItsDisplayType() {
+
+        var facts = RoundupFacts.of(aQuarter().build());
+
+        assertThat(facts).containsEntry("quarterLabel", "Q2").containsEntry("yearLabel", "2026");
     }
 
     /**
@@ -441,6 +580,7 @@ class RoundupFactsTest {
                 .captured(List.of(new CapturedArtifact(41L, "Recording", "https://recording", "Recording"))).build());
 
         assertThat(temporalsIn(facts)).isEmpty();
+        assertThat(facts.toString()).doesNotContain("2026-05-13T");
     }
 
     private static List<Object> temporalsIn(Object value) {
@@ -498,7 +638,8 @@ class RoundupFactsTest {
                 .upcoming(List.of()).captured(List.of()).firstTimePresenterCount(0)
                 .topics(List.of(new TagCount("kafka", 9), new TagCount("spring", 5), new TagCount("testing", 1)))
                 .openTalkCount(0).communityCap(COMMUNITY_CAP).sessionsPerCommunityCap(4).topicCap(12)
-                .communitiesUrl("https://axonia.test/communities");
+                .communitiesUrl("https://axonia.test/communities").organizationId("acme")
+                .publicBaseUrl("https://axonia.test").thumbnailUrls(Map.of());
     }
 
     private static QuarterActivity.QuarterActivityBuilder twelveActiveCommunities() {
@@ -519,14 +660,17 @@ class RoundupFactsTest {
 
     private static NamedCommunity summary(long id, String name) {
 
-        return new NamedCommunity(id, name, null, null);
+        return new NamedCommunity(id, name, null, null, name.toLowerCase(Locale.ROOT).replace(' ', '-'), null, null,
+                null);
     }
 
     private static HeldSession session(long sessionId, long communityId, String title, Instant heldAt, int talkCount,
             List<String> talkTitles, List<String> presenters) {
 
         return HeldSession.builder().sessionId(sessionId).communityId(communityId).title(title).heldAt(heldAt)
-                .talkCount(talkCount).talkTitles(talkTitles).presenterNames(presenters).build();
+                .talkCount(talkCount)
+                .talks(talkTitles.stream().map(talk -> new HeldTalk(talk, List.of(), null)).toList())
+                .presenterNames(presenters).build();
     }
 
     @SuppressWarnings("unchecked")
@@ -554,9 +698,15 @@ class RoundupFactsTest {
     }
 
     @SuppressWarnings("unchecked")
-    private static List<Map<String, String>> resourcesOf(Map<String, Object> sessionRow) {
+    private static List<Map<String, Object>> talksOf(Map<String, Object> poster) {
 
-        return (List<Map<String, String>>) sessionRow.get("resources");
+        return (List<Map<String, Object>>) poster.get("talks");
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Map<String, Object>> groupsOf(Map<String, Object> poster) {
+
+        return (List<Map<String, Object>>) poster.get("resourceGroups");
     }
 
     @SuppressWarnings("unchecked")

@@ -17,7 +17,7 @@ public class MediaKeys {
     private static final String FILE = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.(png|jpg|webp)";
     private static final String OWNER = "[A-Za-z0-9_~-][A-Za-z0-9._~-]*";
     private static final Pattern SERVABLE = Pattern
-            .compile("(avatars|reactions)/" + OWNER + "/" + FILE + "|communities/[0-9]+/(badge|hero)/" + FILE);
+            .compile("(avatars|reactions)/" + OWNER + "/" + FILE + "|communities/[0-9]+/(badge|hero|roundup)/" + FILE);
 
     public String avatar(String organizationId, String contentType) {
 
@@ -32,6 +32,11 @@ public class MediaKeys {
     public String communityAsset(long communityId, String segment, String contentType) {
 
         return mint("communities/" + communityId + "/" + segment, contentType);
+    }
+
+    public String roundupThumbnail(long communityId) {
+
+        return communityAsset(communityId, "roundup", "image/jpeg");
     }
 
     public boolean isServable(String key) {

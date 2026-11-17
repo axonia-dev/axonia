@@ -1051,7 +1051,7 @@
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
-		SessionActivity$HeldSession$HeldSessionBuilder trips EI_EXPOSE_REP2 on the talkTitles
+		SessionActivity$HeldSession$HeldSessionBuilder trips EI_EXPOSE_REP2 on the talks
 		and presenterNames (List&lt;String&gt;) setters: the Lombok @Builder-generated setter
 		stores the list reference before the record's canonical constructor takes over. The
 		builder itself is transient, built once by SessionActivityAdapter and never shared.

@@ -171,10 +171,12 @@ function AuthenticatedRouteTable({
   routes,
 }: Readonly<{ routes: RouteObject[] }>) {
   const edition = useEdition();
-  return useRoutes([
+  const { LinkedOrganizationGate } = edition;
+  const table = useRoutes([
     ...createRoutesFromChildren(openRoutes(edition)),
     ...routes,
   ]);
+  return <LinkedOrganizationGate>{table}</LinkedOrganizationGate>;
 }
 
 function openRoutes(edition: EditionSlots): ReactNode {

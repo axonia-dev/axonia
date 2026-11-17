@@ -9,7 +9,7 @@
 <div style="display:none; max-height:0; overflow:hidden; mso-hide:all;">
 <div th:replace="~{_shell.html :: preheader(fallback='Here is what happened, whether you were in the room or not.')}">Preheader</div>
 </div>
-<div th:replace="~{_shell.html :: page(body=~{::content}, when='Held', reason='You are a member of')}">
+<div th:replace="~{_shell.html :: page(body=~{::content}, when='Held', reason='Sent to members of')}">
 <th:block th:fragment="content">
 <tr th:replace="~{_shell.html :: statStrip}">Stats</tr>
 <th:block th:if="${feedbackClosesAt} != null" th:with="feedbackZone=${readerTimeZone} ?: (${timeZone} ?: 'UTC'), feedbackClosesOn=${#temporals.format(feedbackClosesAt, 'd MMM', feedbackZone)}">

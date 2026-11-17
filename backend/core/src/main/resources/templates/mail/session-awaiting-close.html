@@ -9,7 +9,7 @@
 <div style="display:none; max-height:0; overflow:hidden; mso-hide:all;">
 <div th:replace="~{_shell.html :: preheader(fallback='Nobody has closed this session out yet.')}">Preheader</div>
 </div>
-<div th:replace="~{_shell.html :: page(body=~{::content}, when='Was on for', reason='You look after sessions in')}">
+<div th:replace="~{_shell.html :: page(body=~{::content}, when='Was on for', reason='Sent to session hosts in')}">
 <!-- Both derived values are resolved up front in th:with, and neither the row below them carries a condition of its
      own. A th:if written on the same tag as a th:replace NEVER RUNS: fragment inclusion is order 1 in Thymeleaf's own
      attribute precedence and conditional evaluation is order 3, and th:replace replaces the host tag and stops

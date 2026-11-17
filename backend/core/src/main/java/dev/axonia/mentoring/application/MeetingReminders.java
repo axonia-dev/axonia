@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import dev.axonia.mentoring.application.port.out.CommunityAccess;
 import dev.axonia.mentoring.application.port.out.MemberClocks;
 import dev.axonia.mentoring.application.port.out.MentoringNotices;
+import dev.axonia.mentoring.application.port.out.MentoringNotices.MeetingReminder;
 import dev.axonia.mentoring.application.port.out.PairingRepository;
 import dev.axonia.mentoring.application.port.out.PersonDirectory;
 import dev.axonia.mentoring.domain.MeetingDays;
@@ -59,7 +60,9 @@ public class MeetingReminders {
 
     private void remind(String org, Pairing pairing, String recipientId) {
 
-        notices.meetingReminder(pairing, communityAccess.nameOf(org, pairing.communityId()),
-                personDirectory.displayName(org, MentoringViews.partnerOf(pairing, recipientId)), recipientId);
+        notices.meetingReminder(MeetingReminder.builder().organizationId(org).pairing(pairing)
+                .communityName(communityAccess.nameOf(org, pairing.communityId()))
+                .partnerName(personDirectory.displayName(org, MentoringViews.partnerOf(pairing, recipientId)))
+                .recipientId(recipientId).build());
     }
 }

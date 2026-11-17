@@ -91,8 +91,8 @@ class CommunityActivityAdapterTest extends CoreJdbcTestSupport {
         var actual = sut.activeCommunities(ORG);
 
         // then
-        assertThat(actual).singleElement()
-                .isEqualTo(new CommunitySummary(id, "Platform Guild", "badges/pg.png", "#6e3ceb"));
+        assertThat(actual).singleElement().isEqualTo(new CommunitySummary(id, "Platform Guild", "platform-guild",
+                "badges/pg.png", null, null, null, "#6e3ceb"));
     }
 
     @Test
@@ -105,7 +105,24 @@ class CommunityActivityAdapterTest extends CoreJdbcTestSupport {
         var actual = sut.activeCommunities(ORG);
 
         // then
-        assertThat(actual).singleElement().isEqualTo(new CommunitySummary(id, "Voice Test Guild", null, null));
+        assertThat(actual).singleElement().isEqualTo(
+                new CommunitySummary(id, "Voice Test Guild", "voice-test-guild", null, null, null, null, null));
+    }
+
+    @Test
+    void aCommunitySummaryCarriesItsHeroImageAndFocusPoint() {
+
+        // given
+        var id = communityRepository.save(CommunityEntityMother.any().kindId(kindId).slug("hero-guild")
+                .name("Hero Guild").organizationId(ORG).heroKey("heroes/h.png").heroFocusX(30).heroFocusY(70).build())
+                .getId();
+
+        // when
+        var actual = sut.activeCommunities(ORG);
+
+        // then
+        assertThat(actual).singleElement()
+                .isEqualTo(new CommunitySummary(id, "Hero Guild", "hero-guild", null, "heroes/h.png", 30, 70, null));
     }
 
     private long community(String slug, String name, String organizationId, CommunityStatus status, String badgeKey,

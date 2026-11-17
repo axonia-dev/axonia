@@ -26,7 +26,9 @@ class CommunityActivityAdapter implements CommunityActivity {
     public List<CommunitySummary> activeCommunities(String organizationId) {
 
         return communityRepository.findByOrganizationIdAndStatusOrderByNameAsc(organizationId, CommunityStatus.ACTIVE)
-                .stream().map(entity -> new CommunitySummary(entity.getId(), entity.getName(), entity.getBadgeKey(),
+                .stream()
+                .map(entity -> new CommunitySummary(entity.getId(), entity.getName(), entity.getSlug(),
+                        entity.getBadgeKey(), entity.getHeroKey(), entity.getHeroFocusX(), entity.getHeroFocusY(),
                         entity.getAccentColor()))
                 .toList();
     }

@@ -33,6 +33,9 @@ const ACTIVE_ORG_STORAGE_KEY = "axonia.active-organization";
  */
 const AUTO_ENTER_STORAGE_KEY = "axonia.auto-enter-attempted";
 
+/** Where a flag lives when sessionStorage is blocked: it then holds for this page load only. */
+const flagsOfThisPage = new Set<string>();
+
 /** A session-scoped one-shot flag: survives an authorize round-trip, resets with the tab. */
 function sessionFlag(key: string) {
   return {
@@ -40,17 +43,18 @@ function sessionFlag(key: string) {
       try {
         return window.sessionStorage.getItem(key) !== null;
       } catch {
-        return false;
+        return flagsOfThisPage.has(key);
       }
     },
     set(): void {
       try {
         window.sessionStorage.setItem(key, "1");
       } catch {
-        // A blocked sessionStorage only weakens the loop guard; it still holds per page load.
+        flagsOfThisPage.add(key);
       }
     },
     clear(): void {
+      flagsOfThisPage.delete(key);
       try {
         window.sessionStorage.removeItem(key);
       } catch {
@@ -58,6 +62,17 @@ function sessionFlag(key: string) {
       }
     },
   };
+}
+
+/** Whether a session flag outlives a redirect, which is what a loop guard across one needs. */
+function sessionFlagsPersist(): boolean {
+  try {
+    window.sessionStorage.setItem("axonia.session-probe", "1");
+    window.sessionStorage.removeItem("axonia.session-probe");
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 const autoEnterFlag = sessionFlag(AUTO_ENTER_STORAGE_KEY);
@@ -152,6 +167,27 @@ export function markAutoEnterAttempted(): void {
 /** Spend the guard when the session it belongs to ends, so the next member auto-enters too. */
 export function clearAutoEnterFlag(): void {
   autoEnterFlag.clear();
+}
+
+/**
+ * Whether entering the organization a link names was already tried in this tab (loop guard). A
+ * guard that cannot outlive the redirect cannot stop a loop, so without one it counts as tried.
+ */
+export function linkedEntryAttempted(organizationId: string): boolean {
+  return !sessionFlagsPersist() || linkedEntryFlag(organizationId).isSet();
+}
+
+export function markLinkedEntryAttempted(organizationId: string): void {
+  linkedEntryFlag(organizationId).set();
+}
+
+/** Spends the guard once the tab is in that organization, so a later link to it may enter again. */
+export function clearLinkedEntryAttempted(organizationId: string): void {
+  linkedEntryFlag(organizationId).clear();
+}
+
+function linkedEntryFlag(organizationId: string) {
+  return sessionFlag(`axonia.linked-entry-attempted:${organizationId}`);
 }
 
 let lastSeenToken: string | undefined;

@@ -169,7 +169,7 @@ public class LearningService implements LearningIntents {
             return;
         }
         var declarer = personDirectory.resolve(List.of(declarerId)).get(declarerId);
-        learnerNotices.notify(OpenDoorNotice.builder().communityId(communityId)
+        learnerNotices.notify(OpenDoorNotice.builder().organizationId(org).communityId(communityId)
                 .communitySlug(declaration.communitySlug()).communityName(communityAccess.nameOf(org, communityId))
                 .declarerId(declarerId).declarerName(declarer.displayName()).area(declaration.canonicalTag())
                 .learnerIds(learnerIds).build());

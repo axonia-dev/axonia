@@ -2,6 +2,7 @@ package dev.axonia.roundup.configuration;
 
 import java.time.Duration;
 
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 
 import org.hibernate.validator.constraints.time.DurationMax;
@@ -34,7 +35,8 @@ import dev.axonia.roundup.application.RoundupLimits;
  * <p>
  * {@code communityCap} is how many communities the roundup names individually before it says how many more were active.
  * A fifteen-guild tenant's roundup has to stay readable, and a list nobody finishes reading is a list that names
- * nobody.
+ * nobody. Together with {@code sessionsPerCommunityCap} it bounds the letter's size: every shown session is a poster,
+ * and Gmail clips a message past about 102 KB of HTML.
  *
  * <p>
  * {@code sessionsPerCommunityCap} is how many of a community's sessions the card lists before it says how many more it
@@ -44,10 +46,15 @@ import dev.axonia.roundup.application.RoundupLimits;
  * <p>
  * {@code topicCap} bounds the tag cloud. A cloud is a picture rather than a list, and past a dozen words it stops being
  * one - the long tail is all rendered at the smallest size, where it adds length and no information.
+ *
+ * <p>
+ * Each cap's ceiling is its default: {@code MailRendererTest} renders the busiest letter the ceilings allow against
+ * Gmail's clip, so raising one means rerunning that measurement first.
  */
 @Validated
 @ConfigurationProperties(prefix = "axonia.roundup")
 public record RoundupProperties(@DefaultValue("2d") @DurationMin(days = 0) @DurationMax(days = 30) Duration settleLag,
-        @DefaultValue("8") @Min(1) int communityCap, @DefaultValue("4") @Min(1) int sessionsPerCommunityCap,
-        @DefaultValue("12") @Min(1) int topicCap) implements RoundupLimits {
+        @DefaultValue("5") @Min(1) @Max(5) int communityCap,
+        @DefaultValue("2") @Min(1) @Max(2) int sessionsPerCommunityCap,
+        @DefaultValue("12") @Min(1) @Max(12) int topicCap) implements RoundupLimits {
 }

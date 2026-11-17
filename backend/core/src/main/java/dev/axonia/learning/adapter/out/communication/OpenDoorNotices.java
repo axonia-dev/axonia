@@ -11,6 +11,7 @@ import dev.axonia.communication.api.OutboundMessage;
 import dev.axonia.learning.application.port.out.LearnerNotices;
 import dev.axonia.learning.domain.OpenDoorNotice;
 import dev.axonia.learning.domain.OpenDoorSubject;
+import dev.axonia.shared.api.web.OrganizationLinks;
 import dev.axonia.shared.api.web.PublicUrls;
 import lombok.RequiredArgsConstructor;
 
@@ -52,7 +53,9 @@ public class OpenDoorNotices implements LearnerNotices {
 
     private String searchUrl(OpenDoorNotice notice) {
 
-        return publicUrl.publicBaseUrl() + "/communities/" + notice.communitySlug() + "/expertise?term="
-                + URLEncoder.encode(notice.area(), StandardCharsets.UTF_8) + "&who=open";
+        return OrganizationLinks.withOrganization(
+                publicUrl.publicBaseUrl() + "/communities/" + notice.communitySlug() + "/expertise?term="
+                        + URLEncoder.encode(notice.area(), StandardCharsets.UTF_8) + "&who=open",
+                notice.organizationId());
     }
 }

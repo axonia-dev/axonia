@@ -39,6 +39,6 @@ A note from the organizer:
 Coming up next: [(${nextSession})][/][# th:if="not ${#strings.isEmpty(sessionUrl)}"]
 
 View this session on axonia: [(${sessionUrl})][/][# th:if="${sender} != null"]
-You are a member of [(${sender.name})].[/][# th:if="not ${#strings.isEmpty(unsubscribePageUrl)}"]
+Sent to members of [(${sender.name})].[/][# th:if="not ${#strings.isEmpty(unsubscribePageUrl)}"]
 
 Unsubscribe: [(${unsubscribePageUrl})][/]

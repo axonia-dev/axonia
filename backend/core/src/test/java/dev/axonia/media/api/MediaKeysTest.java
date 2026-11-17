@@ -19,19 +19,21 @@ class MediaKeysTest {
         var reaction = MediaKeys.reaction("acme-corp", "image/webp");
         var badge = MediaKeys.communityAsset(42L, "badge", "image/jpeg");
         var hero = MediaKeys.communityAsset(42L, "hero", "image/png");
+        var thumbnail = MediaKeys.roundupThumbnail(42L);
 
         // then
         assertThat(avatar).startsWith("avatars/01j9z3k8q2w4e6r8t0y2u4i6o8/").endsWith(".png");
         assertThat(reaction).startsWith("reactions/acme-corp/").endsWith(".webp");
         assertThat(badge).startsWith("communities/42/badge/").endsWith(".jpg");
         assertThat(hero).startsWith("communities/42/hero/").endsWith(".png");
-        assertThat(new String[]{avatar, reaction, badge, hero}).allMatch(MediaKeys::isServable);
+        assertThat(thumbnail).startsWith("communities/42/roundup/").endsWith(".jpg");
+        assertThat(new String[]{avatar, reaction, badge, hero, thumbnail}).allMatch(MediaKeys::isServable);
     }
 
     @ParameterizedTest
     @ValueSource(strings = {"avatars/acme/" + FILE + ".png", "avatars/acme.example_1~x/" + FILE + ".jpg",
             "reactions/default/" + FILE + ".webp", "communities/7/badge/" + FILE + ".png",
-            "communities/7/hero/" + FILE + ".jpg"})
+            "communities/7/hero/" + FILE + ".jpg", "communities/7/roundup/" + FILE + ".jpg"})
     void aKeyInAShapeTheBackendWritesIsServable(String key) {
 
         assertThat(MediaKeys.isServable(key)).isTrue();
@@ -45,7 +47,8 @@ class MediaKeysTest {
             "avatars/ac me/" + FILE + ".png", "avatars/acme%2F..%2Fx/" + FILE + ".png",
             "/avatars/acme/" + FILE + ".png", "avatars/acme/" + FILE + ".png/", "exports/acme/" + FILE + ".png",
             "communities/abc/badge/" + FILE + ".png", "communities/7/logo/" + FILE + ".png",
-            "communities/7/" + FILE + ".png", "communities/-7/badge/" + FILE + ".png", "Avatars/acme/" + FILE + ".png",
+            "communities/1/other/" + FILE + ".jpg", "communities/7/roundup/7-0.jpg", "communities/7/" + FILE + ".png",
+            "communities/-7/badge/" + FILE + ".png", "Avatars/acme/" + FILE + ".png",
             "avatars/acme/" + FILE + ".png\n"})
     void anyOtherKeyIsNotServable(String key) {
 

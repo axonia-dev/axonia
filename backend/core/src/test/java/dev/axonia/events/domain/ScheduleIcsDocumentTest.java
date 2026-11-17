@@ -19,7 +19,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class ScheduleIcsDocumentTest {
 
     private static final Instant STAMP = Instant.parse("2026-08-15T10:15:00Z");
-    private static final String COMMUNITY_URL = "https://axonia.example/communities/dojo";
 
     private static ScheduleEntry ghost() {
 
@@ -44,7 +43,8 @@ class ScheduleIcsDocumentTest {
     private static String render(String calendarName, List<ScheduleEntry> entries) {
 
         return ScheduleIcsDocument.render(IcsDocumentRequest.builder().calendarName(calendarName).host("axonia.example")
-                .communityUrl(COMMUNITY_URL).stamp(STAMP).entries(entries).build());
+                .publicBaseUrl("https://axonia.example").slug("dojo").organizationId("acme").stamp(STAMP)
+                .entries(entries).build());
     }
 
     /** RFC 5545 unfolding, which is what every consumer does before reading a property back. */
@@ -241,7 +241,7 @@ class ScheduleIcsDocumentTest {
         assertThat(ics).doesNotContain("391 2244");
         assertThat(ics).doesNotContain("passcode");
         assertThat(ics).contains("DESCRIPTION:Join: https://teams.microsoft.com/l/abc\\n\\n"
-                + "Joining details on the session page\\n\\nhttps://axonia.example/communities/dojo/sessions/1182\r\n");
+                + "Joining details on the session page\\n\\nhttps://axonia.example/communities/dojo/sessions/1182?org=acme\r\n");
     }
 
     /**
@@ -260,7 +260,7 @@ class ScheduleIcsDocumentTest {
 
         assertThat(ics).contains("LOCATION:Remote\r\n");
         assertThat(ics).contains("DESCRIPTION:Join: https://teams.microsoft.com/l/abc\\n\\n"
-                + "https://axonia.example/communities/dojo/sessions/5\r\n");
+                + "https://axonia.example/communities/dojo/sessions/5?org=acme\r\n");
     }
 
     @Test
@@ -275,7 +275,7 @@ class ScheduleIcsDocumentTest {
         var ics = unfolded(render(entry));
 
         assertThat(ics).contains("DESCRIPTION:Agenda\\n- Virtual threads in practice\\n- Lightning: jOOQ\\n\\n"
-                + "https://axonia.example/communities/dojo/sessions/5\r\n");
+                + "https://axonia.example/communities/dojo/sessions/5?org=acme\r\n");
     }
 
     @Test
@@ -284,8 +284,8 @@ class ScheduleIcsDocumentTest {
 
         var ics = unfolded(render(entryBuilder().sessionId(77L).place(MeetingPlace.NONE).build()));
 
-        assertThat(ics).contains("URL:https://axonia.example/communities/dojo/sessions/77\r\n");
-        assertThat(ics).contains("DESCRIPTION:https://axonia.example/communities/dojo/sessions/77\r\n");
+        assertThat(ics).contains("URL:https://axonia.example/communities/dojo/sessions/77?org=acme\r\n");
+        assertThat(ics).contains("DESCRIPTION:https://axonia.example/communities/dojo/sessions/77?org=acme\r\n");
     }
 
     /**
@@ -305,9 +305,9 @@ class ScheduleIcsDocumentTest {
         var ics = unfolded(render(entry));
 
         assertThat(ics).doesNotContain("sessions/null").doesNotContain("passcode");
-        assertThat(ics).contains("URL:https://axonia.example/communities/dojo\r\n");
+        assertThat(ics).contains("URL:https://axonia.example/communities/dojo?org=acme\r\n");
         assertThat(ics).contains("DESCRIPTION:Join: https://teams.microsoft.com/l/abc\\n\\n"
-                + "Joining details on the community page\\n\\nhttps://axonia.example/communities/dojo\r\n");
+                + "Joining details on the community page\\n\\nhttps://axonia.example/communities/dojo?org=acme\r\n");
     }
 
     @Test
@@ -322,7 +322,7 @@ class ScheduleIcsDocumentTest {
         assertThat(ics).doesNotContain("LOCATION");
         assertThat(ics).doesNotContain("CONFERENCE");
         assertThat(unfolded(ics)).contains("DESCRIPTION:Joining details on the session page\\n\\n"
-                + "https://axonia.example/communities/dojo/sessions/77\r\n");
+                + "https://axonia.example/communities/dojo/sessions/77?org=acme\r\n");
     }
 
     @Test
@@ -468,12 +468,12 @@ class ScheduleIcsDocumentTest {
                 STATUS:CONFIRMED\r
                 SEQUENCE:3\r
                 LAST-MODIFIED:20260814T090012Z\r
-                URL:https://axonia.example/communities/dojo\r
+                URL:https://axonia.example/communities/dojo?org=acme\r
                 LOCATION:https://meet.example/dojo\r
                 CONFERENCE;VALUE=URI;FEATURE=VIDEO,AUDIO;LABEL=Join:https://meet.example/do\r
                  jo\r
                 DESCRIPTION:Join: https://meet.example/dojo\\n\\nhttps://axonia.example/commu\r
-                 nities/dojo\r
+                 nities/dojo?org=acme\r
                 END:VEVENT\r
                 END:VCALENDAR\r
                 """);

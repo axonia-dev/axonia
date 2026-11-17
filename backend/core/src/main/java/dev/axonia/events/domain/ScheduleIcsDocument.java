@@ -105,7 +105,7 @@ public class ScheduleIcsDocument {
         if (entry.updatedAt() != null) {
             out.append(IcsWriter.line("LAST-MODIFIED", IcsWriter.utc(entry.updatedAt())));
         }
-        var page = pageOf(entry, request.communityUrl());
+        var page = pageOf(entry, request);
         out.append(IcsWriter.line("URL", page));
         var place = entry.place() == null ? MeetingPlace.NONE : entry.place();
         appendPlace(out, place);
@@ -196,9 +196,12 @@ public class ScheduleIcsDocument {
     }
 
     /** A ghost has no row and so no session page yet; its community's page is where the projection is shown. */
-    private String pageOf(ScheduleEntry entry, String communityUrl) {
+    private String pageOf(ScheduleEntry entry, IcsDocumentRequest request) {
 
-        return entry.sessionId() != null ? SessionUrls.sessionUrl(communityUrl, entry.sessionId()) : communityUrl;
+        return entry.sessionId() != null
+                ? SessionUrls.sessionUrl(request.publicBaseUrl(), request.slug(), entry.sessionId(),
+                        request.organizationId())
+                : SessionUrls.communityUrl(request.publicBaseUrl(), request.slug(), request.organizationId());
     }
 
     /**

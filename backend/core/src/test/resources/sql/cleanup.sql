@@ -88,6 +88,7 @@ TRUNCATE TABLE
     role_binding,
     role_permission,
     roundup_settings,
+    roundup_thumbnail,
     scim_token,
     session_attendance,
     session_feedback,

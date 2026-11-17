@@ -90,7 +90,8 @@ class OpenDoorNoticeIntegrationTest {
             assertThat(entry.sender()).isEqualTo("Platform Guild");
             assertThat(entry.headline()).isEqualTo("Lea Moser is open to questions");
             assertThat(entry.line()).isEqualTo("observability");
-            assertThat(entry.actionUrl()).endsWith("/communities/" + SLUG + "/expertise?term=observability&who=open");
+            assertThat(entry.actionUrl())
+                    .contains("/communities/" + SLUG + "/expertise?term=observability&who=open&org=");
         });
         assertThat(mailRows()).isZero();
 

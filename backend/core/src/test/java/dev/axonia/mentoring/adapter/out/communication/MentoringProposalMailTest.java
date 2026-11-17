@@ -28,7 +28,7 @@ class MentoringProposalMailTest {
     private RenderedMail render() {
 
         var communication = mock(CommunicationPort.class);
-        new MentoringNoticesAdapter(communication, () -> "https://axonia.example").proposed(
+        new MentoringNoticesAdapter(communication, () -> "https://axonia.example").proposed("acme",
                 Proposal.builder().id(40L).communityId(7L).mentorUserId("mia").menteeUserId("noah")
                         .proposedBy(Role.MENTEE).topics(List.of("Kafka", "Giving feedback")).message(MESSAGE)
                         .status(ProposalStatus.OPEN).createdAt(Instant.parse("2026-11-16T10:00:00Z")).build(),
@@ -59,7 +59,7 @@ class MentoringProposalMailTest {
 
         // then
         assertThat(actual.html()).contains("Noah proposes mentoring").contains("Platform").contains("Kafka")
-                .contains("Giving feedback").contains("href=\"https://axonia.example/me/mentoring\"")
+                .contains("Giving feedback").contains("href=\"https://axonia.example/me/mentoring?org=acme\"")
                 .contains("Proposed through Platform.").contains("https://axonia.example/unsubscribe/t")
                 .doesNotContain(MESSAGE);
     }
@@ -80,7 +80,7 @@ class MentoringProposalMailTest {
                   Kafka
                   Giving feedback
 
-                Open My mentoring: https://axonia.example/me/mentoring
+                Open My mentoring: https://axonia.example/me/mentoring?org=acme
 
                 Proposed through Platform.
 

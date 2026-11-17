@@ -3,6 +3,7 @@ package dev.axonia.roundup.adapter.out.communication;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.IntStream;
 
@@ -66,7 +67,7 @@ class RoundupProducerTest {
     private static final int TOPIC_CAP = 12;
     private static final Quarter QUARTER = new Quarter(2026, 2);
     private static final HeldSession HELD = HeldSession.builder().sessionId(1L).communityId(7L)
-            .title("Hexagons in anger").heldAt(Instant.parse("2026-05-12T17:00:00Z")).talkCount(1).talkTitles(List.of())
+            .title("Hexagons in anger").heldAt(Instant.parse("2026-05-12T17:00:00Z")).talkCount(1).talks(List.of())
             .presenterNames(List.of("Alice Dubois")).build();
 
     @Mock
@@ -412,10 +413,12 @@ class RoundupProducerTest {
     private static QuarterActivity.QuarterActivityBuilder activity() {
 
         return QuarterActivity.builder().organizationName(ORG_NAME).quarter(QUARTER)
-                .communities(List.of(new NamedCommunity(7L, "Backend Guild", null, null))).held(List.of())
-                .upcoming(List.of()).firstTimePresenterCount(0).captured(List.of()).topics(List.of()).openTalkCount(0)
-                .communityCap(COMMUNITY_CAP).sessionsPerCommunityCap(SESSIONS_PER_COMMUNITY_CAP).topicCap(TOPIC_CAP)
-                .communitiesUrl("https://axonia.example/communities");
+                .communities(
+                        List.of(new NamedCommunity(7L, "Backend Guild", null, null, "backend-guild", null, null, null)))
+                .held(List.of()).upcoming(List.of()).firstTimePresenterCount(0).captured(List.of()).topics(List.of())
+                .openTalkCount(0).communityCap(COMMUNITY_CAP).sessionsPerCommunityCap(SESSIONS_PER_COMMUNITY_CAP)
+                .topicCap(TOPIC_CAP).communitiesUrl("https://axonia.example/communities").organizationId(ORG)
+                .publicBaseUrl("https://axonia.example").thumbnailUrls(Map.of());
     }
 
     private static List<CapturedArtifact> capturedArtifacts(int count) {

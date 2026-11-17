@@ -93,17 +93,33 @@ public interface SessionActivity {
      * headline states both, so deriving either from the other would print the same figure twice under two labels.
      *
      * <p>
-     * {@code talkTitles} names the titled slots in agenda order and is deliberately NOT the same length as
-     * {@code talkCount}: a slot with no title of its own is counted and not named, because a row reading "Untitled
-     * talk" tells a reader less than the session's own heading already did. Neither may be derived from the other.
+     * {@code talks} names the titled slots in agenda order and is deliberately NOT the same length as
+     * {@code talkCount}: a slot with no title of its own is counted and not named. Neither may be derived from the
+     * other.
+     *
+     * <p>
+     * {@code recordingUrl} is null when the session has none, {@code goingCount} is how many members are going.
      *
      * <p>
      * {@code sessionId} is here so activity read in other modules - the artifacts attached to this session, the tags
      * its talks carry - can be joined back to it. It never reaches a template.
      */
     @Builder
-    record HeldSession(long sessionId, long communityId, String title, Instant heldAt, int talkCount,
-            List<String> talkTitles, List<String> presenterNames) {
+    record HeldSession(long sessionId, long communityId, String title, Instant heldAt, Integer durationMinutes,
+            String recordingUrl, int goingCount, int talkCount, List<HeldTalk> talks, List<String> presenterNames) {
+
+        public HeldSession {
+            talks = talks == null ? List.of() : List.copyOf(talks);
+            presenterNames = presenterNames == null ? List.of() : List.copyOf(presenterNames);
+        }
+    }
+
+    /** A titled talk of a held session; {@code tag} is its alphabetically first tag, or null. */
+    record HeldTalk(String title, List<String> presenterNames, String tag) {
+
+        public HeldTalk {
+            presenterNames = presenterNames == null ? List.of() : List.copyOf(presenterNames);
+        }
     }
 
     /**

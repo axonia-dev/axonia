@@ -67,8 +67,9 @@ class OpenDoorSubjectPolicyTest {
 
         var sut = new OpenDoorNotices(communication, () -> "https://axonia.example");
 
-        sut.notify(OpenDoorNotice.builder().communityId(7L).communitySlug("platform").communityName("Platform Guild")
-                .declarerId("lea").declarerName("Lea Moser").area("c++").learnerIds(List.of("bob", "carol")).build());
+        sut.notify(OpenDoorNotice.builder().organizationId("acme").communityId(7L).communitySlug("platform")
+                .communityName("Platform Guild").declarerId("lea").declarerName("Lea Moser").area("c++")
+                .learnerIds(List.of("bob", "carol")).build());
 
         var sent = ArgumentCaptor.forClass(OutboundMessage.class);
         verify(communication).enqueue(sent.capture());
@@ -77,7 +78,7 @@ class OpenDoorSubjectPolicyTest {
                 .inAppOnly(true).aboutUserId("lea")
                 .facts(Map.of("sender", Map.of("name", "Platform Guild"), "sessionTitle",
                         "Lea Moser is open to questions", "line", "c++", "searchUrl",
-                        "https://axonia.example/communities/platform/expertise?term=c%2B%2B&who=open"))
+                        "https://axonia.example/communities/platform/expertise?term=c%2B%2B&who=open&org=acme"))
                 .build());
     }
 }

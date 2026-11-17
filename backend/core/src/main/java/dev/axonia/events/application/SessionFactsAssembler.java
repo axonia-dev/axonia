@@ -35,6 +35,7 @@ import dev.axonia.events.domain.SessionFacts;
 import dev.axonia.events.domain.SessionFactsContext;
 import dev.axonia.events.domain.SessionRecord;
 import dev.axonia.events.domain.SessionUrls;
+import dev.axonia.shared.api.web.OrganizationLinks;
 import dev.axonia.shared.api.web.PublicUrls;
 import lombok.Builder;
 import lombok.RequiredArgsConstructor;
@@ -178,14 +179,17 @@ public class SessionFactsAssembler {
         var community = communityAccess.communityIdentity(request.organizationId(), request.entity().getCommunityId());
         var resources = sessionResourceAccess.resourcesForSession(request.organizationId(), request.entity().getId(),
                 request.entity().getCommunityId());
-        var context = SessionFactsContext.builder().sessionUrl(sessionUrl(community, request.entity()))
+        var context = SessionFactsContext.builder()
+                .sessionUrl(sessionUrl(request.organizationId(), community, request.entity()))
                 .displayNamesByUserId(displayNames(request.organizationId(), session, request.actionPointEntities(),
                         request.checkedItems()))
                 .seriesTitle(seriesTitle(request.series())).nextSession(request.nextSession())
                 .resourcesBySlotId(resources.bySlot()).sessionResources(resources.sessionLevel())
                 .actionPoints(actionPoints(request.actionPointEntities())).checkedItems(request.checkedItems())
                 .community(community).communityId(request.entity().getCommunityId()).nudgeArm(request.nudgeArm())
-                .backlogUrl(BACKLOG_URL_TEMPLATE.formatted(publicUrlProperties.publicBaseUrl(), community.slug()))
+                .backlogUrl(OrganizationLinks.withOrganization(
+                        BACKLOG_URL_TEMPLATE.formatted(publicUrlProperties.publicBaseUrl(), community.slug()),
+                        request.organizationId()))
                 .feedbackClosesAt(request.feedbackClosesAt()).build();
         return SessionFacts.of(session, context);
     }
@@ -201,9 +205,10 @@ public class SessionFactsAssembler {
                 entity.getOutcome());
     }
 
-    private String sessionUrl(CommunityIdentity community, SessionRecord entity) {
+    private String sessionUrl(String organizationId, CommunityIdentity community, SessionRecord entity) {
 
-        return SessionUrls.sessionBaseUrl(publicUrlProperties.publicBaseUrl(), community.slug()) + entity.getId();
+        return SessionUrls.sessionUrl(publicUrlProperties.publicBaseUrl(), community.slug(), entity.getId(),
+                organizationId);
     }
 
     /**

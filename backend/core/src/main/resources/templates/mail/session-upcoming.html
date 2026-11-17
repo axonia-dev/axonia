@@ -9,7 +9,7 @@
 <div style="display:none; max-height:0; overflow:hidden; mso-hide:all;">
 <div th:replace="~{_shell.html :: preheader(fallback='Nothing on the agenda yet. This one is wide open.')}">Preheader</div>
 </div>
-<div th:replace="~{_shell.html :: page(body=~{::content}, when='Happening', reason='You are a member of')}">
+<div th:replace="~{_shell.html :: page(body=~{::content}, when='Happening', reason='Sent to members of')}">
 <th:block th:fragment="content"
     th:with="hasTalks=${talks} != null and not ${talks.isEmpty()},
              hasOpenSlots=${openSlotCount} != null and ${openSlotCount} > 0,

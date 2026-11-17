@@ -4,6 +4,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.IntStream;
 
@@ -13,6 +14,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoSettings;
 
+import dev.axonia.communication.api.EnqueuedRender;
 import dev.axonia.communication.api.MessageRenderPort;
 import dev.axonia.communication.api.MessageType;
 import dev.axonia.communication.api.RenderRequest;
@@ -63,8 +65,7 @@ class RoundupPreviewerTest {
     void showsTheFrozenMessageWhenTheQuarterHasAlreadyBeenEnqueued() {
 
         var frozen = new RenderedMessage("April to June 2026 across your communities", "<p>frozen</p>");
-        given(renderPort.renderEnqueued(ORG, VIEWER, MessageType.ORGANIZATION_ROUNDUP, QUARTER_KEY))
-                .willReturn(Optional.of(frozen));
+        given(renderPort.renderEnqueued(any(EnqueuedRender.class))).willReturn(Optional.of(frozen));
 
         var actual = sut.preview(ORG, ORG_NAME, VIEWER);
 
@@ -77,8 +78,7 @@ class RoundupPreviewerTest {
     void rendersTheQuarterLiveWhenNothingIsEnqueuedForItYet() {
 
         var activity = anActiveQuarter();
-        given(renderPort.renderEnqueued(ORG, VIEWER, MessageType.ORGANIZATION_ROUNDUP, QUARTER_KEY))
-                .willReturn(Optional.empty());
+        given(renderPort.renderEnqueued(any(EnqueuedRender.class))).willReturn(Optional.empty());
         given(assembler.read(ORG, ORG_NAME, new Quarter(2026, 2))).willReturn(activity);
         given(renderPort.render(any())).willReturn(new RenderedMessage("subject", "<p>live</p>"));
 
@@ -101,8 +101,7 @@ class RoundupPreviewerTest {
     void theLiveFallbackRendersTheSameFactsTheProducerWouldHaveEnqueued() {
 
         var activity = anActiveQuarter();
-        given(renderPort.renderEnqueued(ORG, VIEWER, MessageType.ORGANIZATION_ROUNDUP, QUARTER_KEY))
-                .willReturn(Optional.empty());
+        given(renderPort.renderEnqueued(any(EnqueuedRender.class))).willReturn(Optional.empty());
         given(assembler.read(ORG, ORG_NAME, new Quarter(2026, 2))).willReturn(activity);
         given(renderPort.render(any())).willReturn(new RenderedMessage("subject", "<p>live</p>"));
 
@@ -125,8 +124,7 @@ class RoundupPreviewerTest {
     void rendersAQuarterBelowTheProducersActivityFloor() {
 
         var deadQuarter = quarterActivity().held(List.of()).captured(List.of()).build();
-        given(renderPort.renderEnqueued(ORG, VIEWER, MessageType.ORGANIZATION_ROUNDUP, QUARTER_KEY))
-                .willReturn(Optional.empty());
+        given(renderPort.renderEnqueued(any(EnqueuedRender.class))).willReturn(Optional.empty());
         given(assembler.read(ORG, ORG_NAME, new Quarter(2026, 2))).willReturn(deadQuarter);
         given(renderPort.render(any())).willReturn(new RenderedMessage("subject", "<p>nothing happened</p>"));
 
@@ -142,12 +140,36 @@ class RoundupPreviewerTest {
     @Test
     void previewsTheMostRecentlyClosedQuarter() {
 
-        given(renderPort.renderEnqueued(ORG, VIEWER, MessageType.ORGANIZATION_ROUNDUP, QUARTER_KEY))
+        given(renderPort.renderEnqueued(any(EnqueuedRender.class)))
                 .willReturn(Optional.of(new RenderedMessage("s", "h")));
 
         sut.preview(ORG, ORG_NAME, VIEWER);
 
-        then(renderPort).should().renderEnqueued(ORG, VIEWER, MessageType.ORGANIZATION_ROUNDUP, QUARTER_KEY);
+        var request = ArgumentCaptor.forClass(EnqueuedRender.class);
+        then(renderPort).should().renderEnqueued(request.capture());
+        assertThat(request.getValue())
+                .extracting(EnqueuedRender::organizationId, EnqueuedRender::previewingUserId, EnqueuedRender::type,
+                        EnqueuedRender::subjectRef)
+                .containsExactly(ORG, VIEWER, MessageType.ORGANIZATION_ROUNDUP, QUARTER_KEY);
+    }
+
+    /**
+     * A row enqueued before the posters carries no {@code quarterLabel}. It still delivers through the template's
+     * fallbacks, but the preview declines it and renders the quarter live, so it shows the letter sends now look like.
+     */
+    @Test
+    void aRowFrozenBeforeThePostersIsDeclinedSoTheQuarterRendersLive() {
+
+        given(renderPort.renderEnqueued(any(EnqueuedRender.class)))
+                .willReturn(Optional.of(new RenderedMessage("s", "h")));
+
+        sut.preview(ORG, ORG_NAME, VIEWER);
+
+        var request = ArgumentCaptor.forClass(EnqueuedRender.class);
+        then(renderPort).should().renderEnqueued(request.capture());
+        var stillCurrent = request.getValue().stillCurrent();
+        assertThat(stillCurrent.test(Map.of("sessionTitle", "Q2 2026", "periodLabel", "April to June 2026"))).isFalse();
+        assertThat(stillCurrent.test(RoundupFacts.of(anActiveQuarter()))).isTrue();
     }
 
     private static QuarterActivity anActiveQuarter() {
@@ -158,9 +180,10 @@ class RoundupPreviewerTest {
     private static QuarterActivity.QuarterActivityBuilder quarterActivity() {
 
         return QuarterActivity.builder().organizationName(ORG_NAME).quarter(new Quarter(2026, 2))
-                .communities(List.of(new NamedCommunity(7L, "Backend Guild", null, null)))
+                .communities(
+                        List.of(new NamedCommunity(7L, "Backend Guild", null, null, "backend-guild", null, null, null)))
                 .held(List.of(HeldSession.builder().sessionId(1L).communityId(7L).title("Hexagons in anger")
-                        .heldAt(Instant.parse("2026-05-12T17:00:00Z")).talkCount(2).talkTitles(List.of())
+                        .heldAt(Instant.parse("2026-05-12T17:00:00Z")).talkCount(2).talks(List.of())
                         .presenterNames(List.of("Alice Dubois")).build()))
                 .upcoming(List.of()).firstTimePresenterCount(1)
                 .captured(IntStream.range(0, 4)
@@ -168,6 +191,7 @@ class RoundupPreviewerTest {
                                 "Recording"))
                         .toList())
                 .topics(List.of(new TagCount("hexagonal", 2))).openTalkCount(1).communityCap(8)
-                .sessionsPerCommunityCap(4).topicCap(12).communitiesUrl("https://axonia.example/communities");
+                .sessionsPerCommunityCap(4).topicCap(12).communitiesUrl("https://axonia.example/communities")
+                .organizationId(ORG).publicBaseUrl("https://axonia.example").thumbnailUrls(Map.of());
     }
 }

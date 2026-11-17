@@ -203,7 +203,7 @@ class ProposalServiceTest {
                 .proposedBy(Role.MENTEE).topics(List.of("Kafka", "Giving feedback")).message("Hello")
                 .status(ProposalStatus.OPEN).createdAt(TODAY);
         assertThat(stored.getValue()).isEqualTo(expected.build());
-        verify(notices, times(1)).proposed(expected.id(PROPOSAL).build(), "Platform", "Max");
+        verify(notices, times(1)).proposed(ORG, expected.id(PROPOSAL).build(), "Platform", "Max");
         assertThat(actual).isEqualTo(ProposalView.builder().id(PROPOSAL).communitySlug(SLUG).communityName("Platform")
                 .proposedBy("MENTEE").partnerId(MENTOR).partnerName("Mia").topics(List.of("Kafka", "Giving feedback"))
                 .message("Hello").status("OPEN").createdAt(TODAY).lapsesOn(LocalDate.parse("2026-12-16")).build());
@@ -230,7 +230,7 @@ class ProposalServiceTest {
 
         // then
         var stored = ArgumentCaptor.forClass(Proposal.class);
-        verify(notices, times(1)).proposed(stored.capture(), eq("Platform"), eq("Max"));
+        verify(notices, times(1)).proposed(eq(ORG), stored.capture(), eq("Platform"), eq("Max"));
         assertThat(stored.getValue()).satisfies(p -> {
             assertThat(p.id()).isEqualTo(PROPOSAL);
             assertThat(p.mentorUserId()).isEqualTo(ME);

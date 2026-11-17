@@ -1,10 +1,14 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   activeOrganizationId,
   autoEnterAttempted,
+  clearAutoEnterFlag,
+  clearLinkedEntryAttempted,
   clearStoredActiveOrganizationId,
+  linkedEntryAttempted,
   markAutoEnterAttempted,
+  markLinkedEntryAttempted,
   organizationlessScope,
   organizationScope,
   rearmAutoEnterOnOrganizationToken,
@@ -224,5 +228,57 @@ describe("rearmAutoEnterOnOrganizationToken", () => {
 
     // then
     expect(autoEnterAttempted()).toBe(true);
+  });
+});
+
+describe("the one-shot entry guards", () => {
+  function blockSessionStorage() {
+    const blocked = () => {
+      throw new DOMException("blocked", "SecurityError");
+    };
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(blocked);
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(blocked);
+    vi.spyOn(Storage.prototype, "removeItem").mockImplementation(blocked);
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    clearAutoEnterFlag();
+    sessionStorage.clear();
+  });
+
+  it("keys the linked entry guard by organization and spends it on arrival", () => {
+    // given
+    markLinkedEntryAttempted("globex");
+
+    // when
+    const before = [
+      linkedEntryAttempted("globex"),
+      linkedEntryAttempted("acme"),
+    ];
+    clearLinkedEntryAttempted("globex");
+
+    // then
+    expect(before).toEqual([true, false]);
+    expect(linkedEntryAttempted("globex")).toBe(false);
+  });
+
+  it("holds the auto-enter guard for the page when sessionStorage is blocked", () => {
+    // given
+    blockSessionStorage();
+
+    // when
+    markAutoEnterAttempted();
+
+    // then
+    expect(autoEnterAttempted()).toBe(true);
+  });
+
+  it("counts a linked entry as tried when no guard could outlive the redirect", () => {
+    // when
+    blockSessionStorage();
+
+    // then - every return from Keycloak is a fresh page, so entering would loop
+    expect(linkedEntryAttempted("globex")).toBe(true);
   });
 });

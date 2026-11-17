@@ -7,6 +7,6 @@ This session was scheduled for [(${scheduledAtLabel})], and its status has not b
 [# th:with="communityName=${sender} != null ? ${sender.name} : 'the community'"]Did it happen? Say so, and [(${communityName})] gets the wrap-up. Say it did not, and nobody hears about it again.[/]
 [# th:if="not ${#strings.isEmpty(sessionUrl)}"]
 Close out this session: [(${sessionUrl})][/][# th:if="${sender} != null"]
-You look after sessions in [(${sender.name})].[/][# th:if="not ${#strings.isEmpty(unsubscribePageUrl)}"]
+Sent to session hosts in [(${sender.name})].[/][# th:if="not ${#strings.isEmpty(unsubscribePageUrl)}"]
 
 Unsubscribe: [(${unsubscribePageUrl})][/]

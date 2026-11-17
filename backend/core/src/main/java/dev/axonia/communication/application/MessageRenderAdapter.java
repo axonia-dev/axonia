@@ -7,6 +7,7 @@ import java.util.Optional;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import dev.axonia.communication.api.EnqueuedRender;
 import dev.axonia.communication.api.MessageRenderPort;
 import dev.axonia.communication.api.MessageType;
 import dev.axonia.communication.api.RenderRequest;
@@ -66,18 +67,29 @@ public class MessageRenderAdapter implements MessageRenderPort {
     public Optional<RenderedMessage> renderEnqueued(String organizationId, String previewingUserId, MessageType type,
             String subjectRef) {
 
-        return outbox.findMessageForSubject(type, subjectRef)
-                .map(message -> renderStoredRow(message, organizationId, previewingUserId, type));
+        return renderEnqueued(EnqueuedRender.builder().organizationId(organizationId).previewingUserId(previewingUserId)
+                .type(type).subjectRef(subjectRef).build());
     }
 
-    private RenderedMessage renderStoredRow(OutboxMessage message, String organizationId, String previewingUserId,
-            MessageType type) {
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<RenderedMessage> renderEnqueued(EnqueuedRender request) {
+
+        return outbox.findMessageForSubject(request.type(), request.subjectRef())
+                .flatMap(message -> renderStoredRow(message, request));
+    }
+
+    private Optional<RenderedMessage> renderStoredRow(OutboxMessage message, EnqueuedRender request) {
 
         var facts = FactRehydration.parse(jsonMapper, message.getFacts());
-        facts.put(UnsubscribeLinks.FACT_KEY, unsubscribePageUrl(organizationId, previewingUserId, type));
-        facts.put(MomentLine.READER_ZONE_FACT, timeZoneOf(organizationId, previewingUserId));
+        if (!request.stillCurrent().test(facts)) {
+            return Optional.empty();
+        }
+        facts.put(UnsubscribeLinks.FACT_KEY,
+                unsubscribePageUrl(request.organizationId(), request.previewingUserId(), request.type()));
+        facts.put(MomentLine.READER_ZONE_FACT, timeZoneOf(request.organizationId(), request.previewingUserId()));
         var rendered = renderer.render(message.getTemplate(), facts);
-        return new RenderedMessage(rendered.subject(), rendered.html());
+        return Optional.of(new RenderedMessage(rendered.subject(), rendered.html()));
     }
 
     /**

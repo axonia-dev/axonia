@@ -86,7 +86,7 @@ public class ProposalService {
         var unsaved = draft.build();
         var proposal = draft.id(proposals.insert(org, unsaved)).build();
         var people = personDirectory.resolve(List.of(me, to));
-        notices.proposed(proposal, community.name(), people.get(me).displayName());
+        notices.proposed(org, proposal, community.name(), people.get(me).displayName());
         return MentoringViews.proposal(proposal, community, people.get(to),
                 new CallerTime(now, memberClocks.zoneOf(org, me)));
     }

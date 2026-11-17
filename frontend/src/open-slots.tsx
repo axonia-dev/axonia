@@ -18,6 +18,7 @@ export const openSlots: EditionSlots = {
   AvatarDecoration: null,
   RootRedirect: CommunitiesRedirect,
   ShellGate: PassThrough,
+  LinkedOrganizationGate: PassThrough,
   HelpEntry: null,
   OrganizationPicker: null,
   CommunityInvite: null,

@@ -1,10 +1,15 @@
 package dev.axonia.roundup.application;
 
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import dev.axonia.media.api.AbsoluteMediaLinks;
 import dev.axonia.roundup.api.spi.ArtifactActivity;
@@ -13,10 +18,13 @@ import dev.axonia.roundup.api.spi.CommunityActivity.CommunitySummary;
 import dev.axonia.roundup.api.spi.SessionActivity;
 import dev.axonia.roundup.api.spi.SessionActivity.HeldSession;
 import dev.axonia.roundup.api.spi.TopicActivity;
+import dev.axonia.roundup.application.port.out.SessionThumbnails;
 import dev.axonia.roundup.domain.Quarter;
 import dev.axonia.roundup.domain.QuarterActivity;
 import dev.axonia.roundup.domain.QuarterActivity.NamedCommunity;
 import dev.axonia.roundup.domain.RoundupFacts;
+import dev.axonia.roundup.domain.ThumbnailRequest;
+import dev.axonia.shared.api.web.OrganizationLinks;
 import dev.axonia.shared.api.web.PublicUrls;
 import lombok.RequiredArgsConstructor;
 
@@ -66,7 +74,9 @@ public class RoundupFactsAssembler {
     private final RoundupLimits properties;
     private final PublicUrls publicUrlProperties;
     private final AbsoluteMediaLinks absoluteMediaLinks;
+    private final SessionThumbnails sessionThumbnails;
 
+    @Transactional
     public QuarterActivity read(String organizationId, String organizationName, Quarter quarter) {
 
         var lookaheadEnd = quarter.next().endExclusive();
@@ -85,8 +95,49 @@ public class RoundupFactsAssembler {
                 .topics(topicActivity.tagsForSessions(organizationId, sessionIds))
                 .openTalkCount(sessionActivity.openTalkCount(organizationId, quarter.endExclusive(), lookaheadEnd))
                 .communityCap(properties.communityCap()).sessionsPerCommunityCap(properties.sessionsPerCommunityCap())
-                .topicCap(properties.topicCap()).communitiesUrl(publicUrlProperties.publicBaseUrl() + COMMUNITIES_PATH)
-                .build();
+                .topicCap(properties.topicCap())
+                .communitiesUrl(OrganizationLinks
+                        .withOrganization(publicUrlProperties.publicBaseUrl() + COMMUNITIES_PATH, organizationId))
+                .organizationId(organizationId).publicBaseUrl(publicUrlProperties.publicBaseUrl())
+                .thumbnailUrls(thumbnailUrls(organizationId, named, communities)).build();
+    }
+
+    /**
+     * One composed thumbnail per session a card shows, keyed by session id; only the communities the letter shows, in
+     * its card order. The n-th session of a community takes the n-th slice of its hero, so two posters of one community
+     * never show the same picture.
+     */
+    private Map<Long, String> thumbnailUrls(String organizationId, List<HeldSession> named,
+            List<CommunitySummary> communities) {
+
+        var heldCounts = named.stream().collect(Collectors.groupingBy(HeldSession::communityId, Collectors.counting()));
+        var urls = new HashMap<Long, String>();
+        communities.stream().filter(community -> heldCounts.containsKey(community.id()))
+                .sorted(Comparator.comparingLong((CommunitySummary community) -> heldCounts.get(community.id()))
+                        .reversed().thenComparing(CommunitySummary::name))
+                .limit(properties.communityCap()).filter(community -> community.heroKey() != null)
+                .forEach(community -> urls.putAll(communityThumbnails(organizationId, community, named)));
+        return Map.copyOf(urls);
+    }
+
+    private Map<Long, String> communityThumbnails(String organizationId, CommunitySummary community,
+            List<HeldSession> named) {
+
+        var shown = named.stream().filter(session -> session.communityId() == community.id())
+                .sorted(RoundupFacts.NEWEST_FIRST).limit(properties.sessionsPerCommunityCap()).toList();
+        var urls = new HashMap<Long, String>();
+        IntStream.range(0, shown.size())
+                .forEach(slice -> sessionThumbnails.urlFor(thumbnailRequest(organizationId, community, slice))
+                        .ifPresent(url -> urls.put(shown.get(slice).sessionId(), url)));
+        return urls;
+    }
+
+    private static ThumbnailRequest thumbnailRequest(String organizationId, CommunitySummary community, int slice) {
+
+        return ThumbnailRequest.builder().organizationId(organizationId).communityId(community.id())
+                .heroKey(community.heroKey()).heroFocusX(ThumbnailRequest.focusOrCentre(community.heroFocusX()))
+                .heroFocusY(ThumbnailRequest.focusOrCentre(community.heroFocusY())).sliceIndex(slice)
+                .accentHex(ThumbnailRequest.accentHexOf(community.accentColor())).build();
     }
 
     /**
@@ -106,9 +157,10 @@ public class RoundupFactsAssembler {
      */
     private NamedCommunity named(CommunitySummary summary) {
 
-        return new NamedCommunity(summary.id(), summary.name(),
-                Optional.ofNullable(summary.badgeKey()).map(absoluteMediaLinks::urlFor).orElse(null),
-                summary.accentColor());
+        return NamedCommunity.builder().id(summary.id()).name(summary.name())
+                .badgeUrl(Optional.ofNullable(summary.badgeKey()).map(absoluteMediaLinks::urlFor).orElse(null))
+                .accentColor(summary.accentColor()).slug(summary.slug()).heroKey(summary.heroKey())
+                .heroFocusX(summary.heroFocusX()).heroFocusY(summary.heroFocusY()).build();
     }
 
     /**

@@ -234,7 +234,8 @@ class UpcomingSessionProducerTest {
         var captor = ArgumentCaptor.forClass(OutboundMessage.class);
         verify(port).enqueue(captor.capture());
         var facts = captor.getValue().facts();
-        assertThat(facts).containsEntry("sessionUrl", "https://axonia.example/communities/frontend-guild/sessions/42");
+        assertThat(facts).containsEntry("sessionUrl",
+                "https://axonia.example/communities/frontend-guild/sessions/42?org=acme");
         var talks = (List<?>) facts.get("talks");
         assertThat(talks).singleElement()
                 .satisfies(talk -> assertThat(talk).hasFieldOrPropertyWithValue("presenter", "Ada Lovelace"));

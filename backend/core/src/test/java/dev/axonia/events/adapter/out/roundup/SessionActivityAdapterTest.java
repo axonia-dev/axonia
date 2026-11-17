@@ -19,6 +19,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import dev.axonia.CoreJdbcTestSupport;
 import dev.axonia.events.application.port.out.UserProfileAccess;
 import dev.axonia.roundup.api.spi.SessionActivity.HeldSession;
+import dev.axonia.roundup.api.spi.SessionActivity.HeldTalk;
 import dev.axonia.roundup.api.spi.SessionActivity.UpcomingSession;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -213,8 +214,92 @@ class SessionActivityAdapterTest extends CoreJdbcTestSupport {
         // then
         assertThat(actual).singleElement().satisfies(held -> {
             assertThat(held.sessionId()).isEqualTo(sessionId);
-            assertThat(held.talkTitles()).containsExactly("Kafka", "Spring @AutoMvc");
+            assertThat(held.talks().stream().map(HeldTalk::title).toList()).containsExactly("Kafka", "Spring @AutoMvc");
             assertThat(held.talkCount()).isEqualTo(2);
+        });
+    }
+
+    @Test
+    void aHeldSessionCarriesItsRecordingDurationAndAttendance() {
+
+        // given
+        var guild = community("backend-guild", ORG);
+        var recorded = session(guild, "HELD", THIS_QUARTER);
+        jdbc.update("UPDATE community_session SET recording_url = 'https://rec.example/1', duration_minutes = 75 "
+                + "WHERE id = :id", new MapSqlParameterSource("id", recorded));
+        attendance(recorded, "alice");
+        attendance(recorded, "bob");
+        var bare = session(guild, "HELD", ALSO_THIS_QUARTER);
+        jdbc.update("UPDATE community_session SET recording_url = '   ' WHERE id = :id",
+                new MapSqlParameterSource("id", bare));
+
+        // when
+        var actual = sut.heldInPeriod(ORG, QUARTER_START, QUARTER_END);
+
+        // then
+        assertThat(actual).satisfiesExactly(first -> {
+            assertThat(first.recordingUrl()).isEqualTo("https://rec.example/1");
+            assertThat(first.durationMinutes()).isEqualTo(75);
+            assertThat(first.goingCount()).isEqualTo(2);
+        }, second -> {
+            assertThat(second.recordingUrl()).isNull();
+            assertThat(second.durationMinutes()).isNull();
+            assertThat(second.goingCount()).isZero();
+        });
+    }
+
+    @Test
+    void theFirstTagIsChosenByByteOrderWhateverTheDatabaseCollation() {
+
+        // given
+        var guild = community("backend-guild", ORG);
+        var talk = slot(section(session(guild, "HELD", THIS_QUARTER)), "Kafka");
+        tag(talk, "kafka-streams");
+        tag(talk, "Kafka");
+        tag(talk, "kafka");
+
+        // when / then
+        assertThat(sut.heldInPeriod(ORG, QUARTER_START, QUARTER_END)).singleElement()
+                .extracting(held -> held.talks().getFirst().tag()).isEqualTo("Kafka");
+    }
+
+    @Test
+    void aRecordingThatIsNotAWebLinkIsDropped() {
+
+        // given
+        var guild = community("backend-guild", ORG);
+        var unsafe = session(guild, "HELD", THIS_QUARTER);
+        jdbc.update("UPDATE community_session SET recording_url = 'javascript:alert(1)' WHERE id = :id",
+                new MapSqlParameterSource("id", unsafe));
+
+        // when / then
+        assertThat(sut.heldInPeriod(ORG, QUARTER_START, QUARTER_END)).singleElement()
+                .extracting(HeldSession::recordingUrl).isNull();
+    }
+
+    @Test
+    void aTalkCarriesItsPresentersSortedByIdWithinTheSlotAndItsAlphabeticallyFirstTag() {
+
+        // given
+        var guild = community("backend-guild", ORG);
+        var sectionId = section(session(guild, "HELD", THIS_QUARTER));
+        var tagged = slot(sectionId, "Kafka");
+        presenter(tagged, "bob");
+        presenter(tagged, "alice");
+        tag(tagged, "observability");
+        tag(tagged, "logging");
+        slot(sectionId, "Plain talk");
+        presenter(slot(sectionId, null), "carol");
+
+        // when
+        var actual = sut.heldInPeriod(ORG, QUARTER_START, QUARTER_END);
+
+        // then
+        assertThat(actual).singleElement().satisfies(held -> {
+            assertThat(held.talks()).containsExactly(new HeldTalk("Kafka", List.of("Alice", "Bob"), "logging"),
+                    new HeldTalk("Plain talk", List.of(), null));
+            assertThat(held.talkCount()).isEqualTo(3);
+            assertThat(held.presenterNames()).containsExactly("Alice", "Bob", "Carol");
         });
     }
 
@@ -231,7 +316,7 @@ class SessionActivityAdapterTest extends CoreJdbcTestSupport {
 
         // when / then
         assertThat(sut.heldInPeriod(ORG, QUARTER_START, QUARTER_END)).singleElement().satisfies(held -> {
-            assertThat(held.talkTitles()).containsExactly("Kafka");
+            assertThat(held.talks().stream().map(HeldTalk::title).toList()).containsExactly("Kafka");
             assertThat(held.talkCount()).isEqualTo(3);
         });
     }
@@ -252,7 +337,7 @@ class SessionActivityAdapterTest extends CoreJdbcTestSupport {
 
         // when / then
         assertThat(sut.heldInPeriod(ORG, QUARTER_START, QUARTER_END)).singleElement().satisfies(held -> {
-            assertThat(held.talkTitles()).isEmpty();
+            assertThat(held.talks().stream().map(HeldTalk::title).toList()).isEmpty();
             assertThat(held.talkCount()).isEqualTo(2);
         });
     }
@@ -280,8 +365,8 @@ class SessionActivityAdapterTest extends CoreJdbcTestSupport {
 
         // then
         assertThat(actual).singleElement().satisfies(held -> {
-            assertThat(held.talkTitles()).containsExactly("Keynote: hexagons", "Deep dive: ports",
-                    "Lightning: pgvector");
+            assertThat(held.talks().stream().map(HeldTalk::title).toList()).containsExactly("Keynote: hexagons",
+                    "Deep dive: ports", "Lightning: pgvector");
             assertThat(held.title()).isEqualTo("Keynote: hexagons");
         });
     }
@@ -741,5 +826,20 @@ class SessionActivityAdapterTest extends CoreJdbcTestSupport {
 
         jdbc.update("INSERT INTO event_slot_presenter (slot_id, user_id) VALUES (:slotId, :userId)",
                 new MapSqlParameterSource().addValue("slotId", slotId).addValue("userId", userId));
+    }
+
+    private void attendance(long sessionId, String userId) {
+
+        jdbc.update("""
+                INSERT INTO session_attendance (organization_id, session_id, user_id, created_at, updated_at, version)
+                VALUES (:org, :sessionId, :userId, now(), now(), 0)
+                """, new MapSqlParameterSource().addValue("org", ORG).addValue("sessionId", sessionId)
+                .addValue("userId", userId));
+    }
+
+    private void tag(long slotId, String tag) {
+
+        jdbc.update("INSERT INTO event_slot_tag (slot_id, tag) VALUES (:slotId, :tag)",
+                new MapSqlParameterSource().addValue("slotId", slotId).addValue("tag", tag));
     }
 }

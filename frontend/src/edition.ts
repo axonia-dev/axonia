@@ -39,6 +39,8 @@ export type Edition = {
   AvatarDecoration: ComponentType<{ subject: string }> | null;
   RootRedirect: ComponentType;
   ShellGate: ComponentType<PropsWithChildren>;
+  /** Wraps every signed-in page, so a link that names another organization can enter it first. */
+  LinkedOrganizationGate: ComponentType<PropsWithChildren>;
   HelpEntry: ComponentType<HelpEntryProps> | null;
   OrganizationPicker: ComponentType<OrganizationPickerProps> | null;
   CommunityInvite: ComponentType<CommunityDialogProps> | null;

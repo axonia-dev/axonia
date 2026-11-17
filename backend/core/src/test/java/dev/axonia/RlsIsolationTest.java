@@ -859,7 +859,7 @@ class RlsIsolationTest {
     @Test
     @IsolationProbe("mentoring_availability")
     void mentoringAvailabilityIsOrganizationIsolated() throws Exception {
-        assertMentoringRowIsolated("mentoring_availability", "user_id = 'rls-mentor'",
+        assertRowIsolated("mentoring_availability", "user_id = 'rls-mentor'",
                 "INSERT INTO mentoring_availability (organization_id, community_id, user_id, taking_mentees,"
                         + " looking_for_mentor, updated_at) VALUES ('default', 1, 'rls-mentor', true, false, now())",
                 "INSERT INTO mentoring_availability (organization_id, community_id, user_id, taking_mentees,"
@@ -869,7 +869,7 @@ class RlsIsolationTest {
     @Test
     @IsolationProbe("mentoring_proposal")
     void mentoringProposalIsOrganizationIsolated() throws Exception {
-        assertMentoringRowIsolated("mentoring_proposal", "mentor_user_id = 'rls-mentor'",
+        assertRowIsolated("mentoring_proposal", "mentor_user_id = 'rls-mentor'",
                 "INSERT INTO mentoring_proposal (organization_id, community_id, mentor_user_id, mentee_user_id,"
                         + " proposed_by, topics, message, status, created_at)"
                         + " VALUES ('default', 1, 'rls-mentor', 'rls-mentee', 'MENTOR', '{}', 'hi', 'OPEN', now())",
@@ -881,7 +881,7 @@ class RlsIsolationTest {
     @Test
     @IsolationProbe("mentoring_pairing")
     void mentoringPairingIsOrganizationIsolated() throws Exception {
-        assertMentoringRowIsolated("mentoring_pairing", "mentor_user_id = 'rls-mentor'",
+        assertRowIsolated("mentoring_pairing", "mentor_user_id = 'rls-mentor'",
                 "INSERT INTO mentoring_pairing (organization_id, community_id, mentor_user_id, mentee_user_id,"
                         + " started_at) VALUES ('default', 1, 'rls-mentor', 'rls-mentee', now())",
                 "INSERT INTO mentoring_pairing (organization_id, community_id, mentor_user_id, mentee_user_id,"
@@ -891,7 +891,7 @@ class RlsIsolationTest {
     @Test
     @IsolationProbe("mentoring_topic")
     void mentoringTopicIsOrganizationIsolated() throws Exception {
-        assertMentoringRowIsolated("mentoring_topic", "label = 'rls-topic'",
+        assertRowIsolated("mentoring_topic", "label = 'rls-topic'",
                 mentoringPairing(91001) + "INSERT INTO mentoring_topic (organization_id, pairing_id, label, state,"
                         + " \"position\", created_at) VALUES ('default', 91001, 'rls-topic', 'TODO', 0, now())",
                 "INSERT INTO mentoring_topic (organization_id, pairing_id, label, state, \"position\", created_at)"
@@ -901,7 +901,7 @@ class RlsIsolationTest {
     @Test
     @IsolationProbe("mentoring_note")
     void mentoringNoteIsOrganizationIsolated() throws Exception {
-        assertMentoringRowIsolated("mentoring_note", "body = 'rls-note'",
+        assertRowIsolated("mentoring_note", "body = 'rls-note'",
                 mentoringPairing(91011) + "INSERT INTO mentoring_note (organization_id, pairing_id, author_user_id,"
                         + " body, meeting_on, written_at) VALUES ('default', 91011, 'rls-mentor', 'rls-note',"
                         + " '2026-11-16', now())",
@@ -915,7 +915,7 @@ class RlsIsolationTest {
         var fixture = mentoringPairing(91021) + "INSERT INTO mentoring_topic (id, organization_id, pairing_id,"
                 + " label, state, \"position\", created_at)"
                 + " VALUES (91002, 'default', 91021, 'rls-pointed', 'TODO', 0, now());";
-        assertMentoringRowIsolated("mentoring_pointer", "url = 'https://rls.example/ok'",
+        assertRowIsolated("mentoring_pointer", "url = 'https://rls.example/ok'",
                 fixture + "INSERT INTO mentoring_pointer (organization_id, pairing_id, topic_id, kind, url,"
                         + " created_at) VALUES ('default', 91021, 91002, 'LINK', 'https://rls.example/ok', now())",
                 "INSERT INTO mentoring_pointer (organization_id, pairing_id, topic_id, kind, url, created_at)"
@@ -930,7 +930,7 @@ class RlsIsolationTest {
                 + " now());INSERT INTO mentoring_note (id, organization_id, pairing_id, author_user_id, body,"
                 + " meeting_on, written_at) VALUES (91003, 'default', 91041, 'rls-mentor', 'rls-naming', '2026-11-16',"
                 + " now());";
-        assertMentoringRowIsolated("mentoring_note_topic", "note_id = 91003",
+        assertRowIsolated("mentoring_note_topic", "note_id = 91003",
                 fixture + "INSERT INTO mentoring_note_topic (organization_id, note_id, topic_id)"
                         + " VALUES ('default', 91003, 91004)",
                 "INSERT INTO mentoring_note_topic (organization_id, note_id, topic_id)"
@@ -940,11 +940,23 @@ class RlsIsolationTest {
     @Test
     @IsolationProbe("mentoring_words")
     void mentoringWordsIsOrganizationIsolated() throws Exception {
-        assertMentoringRowIsolated("mentoring_words", "body = 'rls-words'",
+        assertRowIsolated("mentoring_words", "body = 'rls-words'",
                 mentoringPairing(91031) + "INSERT INTO mentoring_words (pairing_id, organization_id, body,"
                         + " written_at) VALUES (91031, 'default', 'rls-words', now())",
                 "INSERT INTO mentoring_words (pairing_id, organization_id, body, written_at)"
                         + " VALUES (91031, 'default', 'rls-sneaky', now())");
+    }
+
+    @Test
+    @IsolationProbe("roundup_thumbnail")
+    void roundupThumbnailIsOrganizationIsolated() throws Exception {
+        assertRowIsolated("roundup_thumbnail", "media_key = 'rls-thumbnail.jpg'",
+                "INSERT INTO roundup_thumbnail (organization_id, community_id, hero_key, slice_index, accent_hex,"
+                        + " media_key, created_at) VALUES ('default', 1, 'rls-hero.png', 0, '#786a7e',"
+                        + " 'rls-thumbnail.jpg', now())",
+                "INSERT INTO roundup_thumbnail (organization_id, community_id, hero_key, slice_index, accent_hex,"
+                        + " media_key, created_at) VALUES ('default', 1, 'rls-hero.png', 1, '#786a7e',"
+                        + " 'rls-sneaky.jpg', now())");
     }
 
     private static String mentoringPairing(int id) {
@@ -953,7 +965,7 @@ class RlsIsolationTest {
     }
 
     /** The fixture and row are written under 'default'; 'acme' must not see, delete or insert beside them. */
-    private void assertMentoringRowIsolated(String table, String rowFilter, String defaultInserts, String sneakyInsert)
+    private void assertRowIsolated(String table, String rowFilter, String defaultInserts, String sneakyInsert)
             throws Exception {
         try (var c = asApp(); var s = c.createStatement()) {
             // given a row written under 'default'

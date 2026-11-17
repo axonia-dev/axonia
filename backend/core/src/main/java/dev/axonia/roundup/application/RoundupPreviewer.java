@@ -1,10 +1,12 @@
 package dev.axonia.roundup.application;
 
 import java.time.Clock;
+import java.util.Map;
 
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import dev.axonia.communication.api.EnqueuedRender;
 import dev.axonia.communication.api.MessageRenderPort;
 import dev.axonia.communication.api.MessageType;
 import dev.axonia.communication.api.RenderRequest;
@@ -18,7 +20,8 @@ import lombok.RequiredArgsConstructor;
  * {@code SessionMessagePreviewer} already established: once a quarter's message has been enqueued, its facts are frozen
  * in the outbox at that instant, and from then on THAT row is the message in every sense that matters to a recipient,
  * sent or not. So {@link MessageRenderPort#renderEnqueued} comes first, and the live-facts fallback runs only where
- * there is nothing frozen yet to be faithful to.
+ * there is nothing frozen yet to be faithful to, or where the frozen row predates the session posters: such a row still
+ * delivers through the template's fallbacks, but previewing it would show a letter no future send resembles.
  *
  * <p>
  * The fallback assembles through the same {@link RoundupFactsAssembler} and the same {@link RoundupFacts#of} call
@@ -40,13 +43,14 @@ import lombok.RequiredArgsConstructor;
  * which is unaffected. Pinned by {@code RoundupPreviewerTest.rendersAQuarterBelowTheProducersActivityFloor}.
  *
  * <p>
- * {@code @Transactional} even though nothing here writes, for the reason {@code SessionReleaseService#preview}'s
- * javadoc gives in full: {@link MessageRenderPort#renderEnqueued} decides whether a row exists by reading through a
- * connection scoped by the {@code app.current_org} GUC rather than by the {@code organizationId} it is handed, and an
- * unscoped read there answers "no row" instead of failing - which would silently route every preview into the
- * live-facts fallback, the one path that can differ from what recipients were actually sent. One transaction around the
- * whole method means that lookup and the reads around it share the exact connection the request scoped when it was
- * opened.
+ * {@code @Transactional}, and never {@code readOnly}: a live preview composes the posters' thumbnails, which stores
+ * images and inserts {@code roundup_thumbnail} rows the send then reuses. It also needs the transaction for the reason
+ * {@code SessionReleaseService#preview}'s javadoc gives in full: {@link MessageRenderPort#renderEnqueued} decides
+ * whether a row exists by reading through a connection scoped by the {@code app.current_org} GUC rather than by the
+ * {@code organizationId} it is handed, and an unscoped read there answers "no row" instead of failing - which would
+ * silently route every preview into the live-facts fallback, the one path that can differ from what recipients were
+ * actually sent. One transaction around the whole method means that lookup and the reads around it share the exact
+ * connection the request scoped when it was opened.
  */
 @Component
 @RequiredArgsConstructor
@@ -62,8 +66,17 @@ public class RoundupPreviewer {
     public RenderedMessage preview(String organizationId, String organizationName, String viewingUserId) {
 
         var quarter = Quarter.mostRecentlyClosed(clock.instant());
-        return renderPort.renderEnqueued(organizationId, viewingUserId, MessageType.ORGANIZATION_ROUNDUP, quarter.key())
+        return renderPort
+                .renderEnqueued(EnqueuedRender.builder().organizationId(organizationId).previewingUserId(viewingUserId)
+                        .type(MessageType.ORGANIZATION_ROUNDUP).subjectRef(quarter.key())
+                        .stillCurrent(RoundupPreviewer::hasPosters).build())
                 .orElseGet(() -> renderLive(organizationId, organizationName, viewingUserId, quarter));
+    }
+
+    /** Rows enqueued before the posters still deliver through the template's fallbacks, but preview live. */
+    private static boolean hasPosters(Map<String, Object> storedFacts) {
+
+        return storedFacts.get("quarterLabel") != null;
     }
 
     private RenderedMessage renderLive(String organizationId, String organizationName, String viewingUserId,

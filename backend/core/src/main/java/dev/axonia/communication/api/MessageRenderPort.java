@@ -48,4 +48,10 @@ public interface MessageRenderPort {
      */
     Optional<RenderedMessage> renderEnqueued(String organizationId, String previewingUserId, MessageType type,
             String subjectRef);
+
+    /**
+     * {@link #renderEnqueued(String, String, MessageType, String)}, except that a row whose stored facts fail
+     * {@link EnqueuedRender#stillCurrent} answers empty, sending the caller to its live fallback.
+     */
+    Optional<RenderedMessage> renderEnqueued(EnqueuedRender request);
 }

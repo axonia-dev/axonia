@@ -1,6 +1,7 @@
 package dev.axonia.roundup.domain;
 
 import java.util.List;
+import java.util.Map;
 
 import dev.axonia.roundup.api.spi.ArtifactActivity.CapturedArtifact;
 import dev.axonia.roundup.api.spi.SessionActivity.HeldSession;
@@ -22,7 +23,12 @@ import lombok.Builder;
 public record QuarterActivity(String organizationName, Quarter quarter, List<NamedCommunity> communities,
         List<HeldSession> held, List<UpcomingSession> upcoming, int firstTimePresenterCount,
         List<CapturedArtifact> captured, List<TagCount> topics, int openTalkCount, int communityCap,
-        int sessionsPerCommunityCap, int topicCap, String communitiesUrl) {
+        int sessionsPerCommunityCap, int topicCap, String communitiesUrl, String organizationId, String publicBaseUrl,
+        Map<Long, String> thumbnailUrls) {
+
+    public QuarterActivity {
+        thumbnailUrls = thumbnailUrls == null ? Map.of() : Map.copyOf(thumbnailUrls);
+    }
 
     /**
      * A community as the LETTER needs it, which is not the same shape {@code CommunityActivity} answers.
@@ -36,11 +42,10 @@ public record QuarterActivity(String organizationName, Quarter quarter, List<Nam
      * monogram, which the shell already knows how to draw.
      *
      * <p>
-     * A {@code slug} is carried by neither this record nor {@code CommunitySummary} any more, for the same reason: the
-     * letter deliberately does not link a community (a roundup carries ONE call to action), so a slug at either layer
-     * would be a value nothing can read and the next person would wire it into an href without noticing why it was
-     * never used.
+     * {@code slug} and the hero fields carry what a session poster needs to link and picture the community.
      */
-    public record NamedCommunity(long id, String name, String badgeUrl, String accentColor) {
+    @Builder
+    public record NamedCommunity(long id, String name, String badgeUrl, String accentColor, String slug, String heroKey,
+            Integer heroFocusX, Integer heroFocusY) {
     }
 }

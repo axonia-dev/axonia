@@ -304,9 +304,9 @@ class LearningServiceTest {
 
         sut.notifyLearners(declared("lea", "kafka"));
 
-        verify(learnerNotices).notify(OpenDoorNotice.builder().communityId(COMMUNITY).communitySlug(SLUG)
-                .communityName("Platform Guild").declarerId("lea").declarerName("Lea Moser").area("kafka")
-                .learnerIds(List.of("bob", "carol")).build());
+        verify(learnerNotices).notify(OpenDoorNotice.builder().organizationId(ORG).communityId(COMMUNITY)
+                .communitySlug(SLUG).communityName("Platform Guild").declarerId("lea").declarerName("Lea Moser")
+                .area("kafka").learnerIds(List.of("bob", "carol")).build());
     }
 
     @Test

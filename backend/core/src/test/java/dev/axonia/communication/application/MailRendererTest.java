@@ -1,25 +1,44 @@
 package dev.axonia.communication.application;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.regex.MatchResult;
+import java.util.regex.Pattern;
+import java.util.stream.IntStream;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.boot.context.properties.bind.Bindable;
+import org.springframework.boot.context.properties.bind.Binder;
+import org.springframework.boot.context.properties.source.MapConfigurationPropertySource;
 import org.thymeleaf.exceptions.TemplateInputException;
 
 import dev.axonia.communication.configuration.MailTemplateConfig;
+import dev.axonia.roundup.configuration.RoundupProperties;
+import dev.axonia.roundup.domain.RoundupFacts;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class MailRendererTest {
+
+    /** The roundup's caps as bound with nothing configured, which their {@code @Max} ceilings hold them to. */
+    private static final RoundupProperties ROUNDUP_CAPS = new Binder(
+            new MapConfigurationPropertySource(Map.of("axonia.roundup.settle-lag", "2d")))
+            .bind("axonia.roundup", Bindable.of(RoundupProperties.class)).get();
+    private static final int ROUNDUP_COMMUNITY_CAP = ROUNDUP_CAPS.communityCap();
+    private static final int ROUNDUP_SESSIONS_PER_COMMUNITY_CAP = ROUNDUP_CAPS.sessionsPerCommunityCap();
+    private static final int ROUNDUP_TOPIC_CAP = ROUNDUP_CAPS.topicCap();
+    private static final int ROUNDUP_TALK_CAP = RoundupFacts.TALK_CAP;
 
     private MailRenderer renderer;
 
@@ -985,9 +1004,9 @@ class MailRendererTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"session-upcoming,You are a member of Backend Guild.",
-            "session-wrap-up,You are a member of Backend Guild.",
-            "session-awaiting-close,You look after sessions in Backend Guild."})
+    @CsvSource({"session-upcoming,Sent to members of Backend Guild.",
+            "session-wrap-up,Sent to members of Backend Guild.",
+            "session-awaiting-close,Sent to session hosts in Backend Guild."})
     void theFooterSaysWhyThisPersonIsReceivingThis(String template, String expectedReason) {
 
         var rendered = renderer.render(template,
@@ -1113,6 +1132,14 @@ class MailRendererTest {
         assertThat(withNone.text()).doesNotContain("talks");
     }
 
+    private static final String RECORDING = "https://video.example/41";
+    private static final String DOJO_RECORDING = "https://video.example/50";
+    private static final String HEXAGONS_URL = "https://axonia.example/communities/backend-guild/sessions/41?org=acme";
+    private static final String NAMELESS_URL = "https://axonia.example/communities/backend-guild/sessions/42?org=acme";
+    private static final String TOKENS_URL = "https://axonia.example/communities/frontend-dojo/sessions/50?org=acme";
+    private static final String THUMBNAIL = "https://cdn.axonia.example/communities/7/roundup/0b5e.jpg";
+    private static final String PLAY_GLYPH = "&#9654;";
+
     private static Map<String, Object> anOrganization() {
 
         return Map.of("name", "Acme Corp", "initials", "AC", "tintBackground", "#f6f0ec", "tintForeground", "#211a26");
@@ -1123,74 +1150,129 @@ class MailRendererTest {
         return Map.of("name", name, "initials", initials, "tint", tint);
     }
 
-    private static Map<String, Object> aResource(String title, String url) {
+    /** {@code GuildTints.of("#1f9d63")}, written out: this class knows templates and fact keys only. */
+    private static Map<String, Object> greenTints() {
 
-        var resource = new HashMap<String, Object>();
-        resource.put("title", title);
-        resource.put("url", url);
-        return resource;
+        return Map.of("accent", "#1f9d63", "blockBackground", "#eff8f4", "blockBorder", "#dbefe6", "bandDark",
+                "#16382d", "chipBackground", "#ebf6f1", "chipText", "#207651", "linkText", "#1f8357");
     }
 
-    private static Map<String, Object> aSessionRow(String dateLabel, String title, List<String> talkTitles,
-            List<Map<String, Object>> resources) {
+    /** {@code GuildTints.of(null)}: the neutral grey a community without an accent is dressed in. */
+    private static Map<String, Object> neutralTints() {
 
-        var row = new HashMap<String, Object>();
-        row.put("dateLabel", dateLabel);
-        row.put("title", title);
-        row.put("talkTitles", talkTitles);
-        row.put("resources", resources);
-        return row;
+        return Map.of("accent", "#786a7e", "blockBackground", "#f6f5f6", "blockBorder", "#e9e7ea", "bandDark",
+                "#312835", "chipBackground", "#f3f2f3", "chipText", "#5e5264", "linkText", "#675a6c");
     }
 
-    /**
-     * The busy card: three presenters, two sessions - one of them a series occurrence nobody named and nobody put an
-     * agenda on - and a future of its own. Mutable, so a test can cap it or empty it without rebuilding the letter.
-     */
+    private static Map<String, Object> aTalk(String title, Map<String, Object> presenter, int morePresenterCount,
+            String tag) {
+
+        var talk = new HashMap<String, Object>();
+        talk.put("title", title);
+        talk.put("presenter", presenter);
+        talk.put("morePresenterCount", morePresenterCount);
+        talk.put("tag", tag);
+        return talk;
+    }
+
+    /** The busy poster: a recording, a thumbnail, a co-presented talk, people going and things kept. */
+    private static Map<String, Object> aHexagonsPoster() {
+
+        var poster = new HashMap<String, Object>();
+        poster.put("dateLabel", "13 May");
+        poster.put("title", "Hexagons in anger");
+        poster.put("durationLabel", "1h 12");
+        poster.put("recordingUrl", RECORDING);
+        poster.put("sessionUrl", HEXAGONS_URL);
+        poster.put("thumbnailUrl", THUMBNAIL);
+        poster.put("talks",
+                List.of(aTalk("Ports and adapters", aPresenter("Alice Dubois", "AD", "#de3b78"), 1, "hexagonal"),
+                        aTalk("Testing the seam", aPresenter("Bob Martin", "BM", "#6e3ceb"), 0, null)));
+        poster.put("moreTalkCount", 0);
+        poster.put("goingCount", 31);
+        poster.put("resourceGroups",
+                List.of(Map.of("label", "Repo", "count", 3), Map.of("label", "Postmortem", "count", 2)));
+        return poster;
+    }
+
+    /** The bare poster: a series occurrence nobody named, with no recording, no agenda and nothing kept. */
+    private static Map<String, Object> aNamelessPoster() {
+
+        var poster = new HashMap<String, Object>();
+        poster.put("dateLabel", "2 June");
+        poster.put("title", null);
+        poster.put("durationLabel", null);
+        poster.put("recordingUrl", null);
+        poster.put("sessionUrl", NAMELESS_URL);
+        poster.put("thumbnailUrl", null);
+        poster.put("talks", List.of());
+        poster.put("moreTalkCount", 0);
+        poster.put("goingCount", 0);
+        poster.put("resourceGroups", List.of());
+        return poster;
+    }
+
+    private static Map<String, Object> aTokensPoster() {
+
+        var poster = new HashMap<String, Object>();
+        poster.put("dateLabel", "9 April");
+        poster.put("title", "Design tokens");
+        poster.put("durationLabel", "58 min");
+        poster.put("recordingUrl", DOJO_RECORDING);
+        poster.put("sessionUrl", TOKENS_URL);
+        poster.put("thumbnailUrl", null);
+        poster.put("talks", List.of(aTalk("Tokens in anger", aPresenter("Dana Rue", "DR", "#6e3ceb"), 0, "design")));
+        poster.put("moreTalkCount", 0);
+        poster.put("goingCount", 12);
+        poster.put("resourceGroups", List.of());
+        return poster;
+    }
+
+    /** The busy card: a hero thumbnail, three presenters, a session the cap left out and a future of its own. */
     private static Map<String, Object> aBackendGuildCard() {
 
         var card = new HashMap<String, Object>();
         card.put("name", "Backend Guild");
         card.put("initials", "BG");
         card.put("badgeUrl", null);
-        card.put("accentColor", "#1f9d63");
-        card.put("summaryParts", List.of("7 sessions", "20 talks", "30 resources"));
+        card.put("tints", greenTints());
         card.put("presenters", List.of(aPresenter("Alice Dubois", "AD", "#de3b78"),
                 aPresenter("Bob Martin", "BM", "#6e3ceb"), aPresenter("Carol Ng", "CN", "#1f9d63")));
         card.put("morePresenterCount", 0);
-        card.put("sessions",
-                List.of(aSessionRow("13 May", "Hexagons in anger", List.of("Ports and adapters", "Testing the seam"),
-                        List.of(aResource("Recording", "https://axonia.example/a/1"))),
-                        aSessionRow("2 June", null, List.of(), List.of())));
-        card.put("moreSessionCount", 0);
+        card.put("sessionCountLabel", "3 sessions");
+        card.put("sessions", List.of(aHexagonsPoster(), aNamelessPoster()));
+        card.put("moreSessionsLabel", "+ S26E07 · 15 July");
         card.put("nextTitle", "Signals in React");
         card.put("nextLabel", "Tuesday 14 July");
-        card.put("moreUpcomingCount", 0);
+        card.put("nextMonth", "JUL");
+        card.put("nextDay", "14");
         return card;
     }
 
-    /** The quiet card, and the one with NOTHING coming - so "Next up" must appear exactly once across the two. */
+    /** The quiet card: no accent, no hero, and nothing coming. */
     private static Map<String, Object> aFrontendDojoCard() {
 
         var card = new HashMap<String, Object>();
         card.put("name", "Frontend Dojo");
         card.put("initials", "FD");
         card.put("badgeUrl", null);
-        card.put("accentColor", null);
-        card.put("summaryParts", List.of("1 session", "1 talk"));
+        card.put("tints", neutralTints());
         card.put("presenters", List.of(aPresenter("Dana Rue", "DR", "#6e3ceb")));
         card.put("morePresenterCount", 0);
-        card.put("sessions", List.of(aSessionRow("9 April", "Design tokens", List.of("Tokens in anger"), List.of())));
-        card.put("moreSessionCount", 0);
+        card.put("sessionCountLabel", "1 session");
+        card.put("sessions", List.of(aTokensPoster()));
+        card.put("moreSessionsLabel", null);
         card.put("nextTitle", null);
         card.put("nextLabel", null);
-        card.put("moreUpcomingCount", 0);
+        card.put("nextMonth", null);
+        card.put("nextDay", null);
         return card;
     }
 
     /**
      * A realistic quarter, mirroring the shape {@code roundup.domain.RoundupFacts} produces. Hand-written rather than
-     * built by calling that class: it is package-private to another module, and this test class is deliberately the one
-     * place that knows only about templates and fact keys.
+     * built by calling that class: this test class is deliberately the one place that knows only about templates and
+     * fact keys.
      */
     private static Map<String, Object> aRoundup() {
 
@@ -1198,6 +1280,8 @@ class MailRendererTest {
         facts.put("sender", anOrganization());
         facts.put("sessionTitle", "Q2 2026");
         facts.put("periodLabel", "April to June 2026");
+        facts.put("quarterLabel", "Q2");
+        facts.put("yearLabel", "2026");
         facts.put("sessionCount", 12);
         facts.put("talkCount", 34);
         facts.put("presenterCount", 3);
@@ -1208,7 +1292,7 @@ class MailRendererTest {
         facts.put("communities", List.of(aBackendGuildCard(), aFrontendDojoCard()));
         facts.put("moreCommunitiesCount", 3);
         facts.put("openTalkCount", 1);
-        facts.put("communitiesUrl", "https://axonia.example/communities");
+        facts.put("communitiesUrl", "https://axonia.example/communities?org=acme");
         return facts;
     }
 
@@ -1219,61 +1303,101 @@ class MailRendererTest {
         return facts;
     }
 
+    private static Map<String, Object> aCardOf(Map<String, Object> poster) {
+
+        var card = aBackendGuildCard();
+        card.put("sessions", List.of(poster));
+        return card;
+    }
+
+    /** What a reader sees of the HTML: tags dropped, entities a template emits decoded, whitespace collapsed. */
+    private static String visibleText(String html) {
+
+        return html.substring(html.indexOf("<body")).replaceAll("(?s)<!--.*?-->", "").replaceAll("<[^>]+>", "")
+                .replace("&middot;", "·").replace("&amp;", "&").replace("&#39;", "'").replaceAll("\\s+", " ");
+    }
+
+    private static List<String> linksIn(String rendered, String prefix) {
+
+        return Pattern.compile(Pattern.quote(prefix) + "[^\\s\"'<)]*").matcher(rendered.replace("&amp;", "&")).results()
+                .map(MatchResult::group).distinct().sorted().toList();
+    }
+
     @Test
-    void aRoundupComesFromTheOrganizationAndSaysWhichQuarterItCovers() {
+    void aRoundupComesFromTheOrganizationAndShowsTheQuarterAsDisplayType() {
 
         var rendered = renderer.render("organization-roundup", aRoundup());
 
-        assertThat(rendered.subject()).isEqualTo("April to June 2026 across your communities");
-        assertThat(rendered.html()).contains("Acme Corp").contains(">AC<").contains("#f6f0ec").contains("#211a26")
-                .contains(">Q2 2026</h1>").contains("Covering April to June 2026");
-        // The headline echoed in the .txt half too, the shape all three session-*.txt files already follow.
+        assertThat(rendered.subject()).isEqualTo("April to June 2026 across the communities");
+        assertThat(rendered.html()).contains("Acme Corp").contains(">AC<")
+                .contains(">Q2<span style=\"color:#de3b78;\">.</span>2026</h1>").doesNotContain(">Q2 2026</h1>")
+                .doesNotContain("Covering April to June 2026").contains("April to June 2026: 12 sessions");
         assertThat(rendered.text()).contains("Acme Corp").contains("Q2 2026").contains("Covering April to June 2026.")
                 .doesNotContain("<");
     }
 
-    /**
-     * The quarter's scale as a band of four figures rather than as the run-on sentence it replaces. The HTML asserts
-     * the figures and their labels separately, because the band is the one place a figure and its noun are not in the
-     * same string; the .txt has no columns to line up and states the same four as one sentence.
-     */
     @Test
-    void theScaleOfTheQuarterIsABandOfSessionsTalksPresentersAndResources() {
+    void theLetterOpensWithOneSentenceOfHighlightedFigures() {
 
         var rendered = renderer.render("organization-roundup", aRoundup());
 
-        assertThat(rendered.html()).contains(">12</p>").contains(">Sessions</p>").contains(">34</p>")
-                .contains(">Talks</p>").contains(">3</p>").contains(">Presenters</p>").contains(">47</p>")
-                .contains(">Resources</p>").doesNotContain("No sessions were held over the quarter.");
-        assertThat(rendered.text()).contains("12 sessions, 34 talks, 3 presenters, 47 resources.")
-                .doesNotContain("No sessions were held over the quarter.");
+        var sentence = "34 talks by 3 people over 12 sessions, and 47 things worth keeping.";
+        assertThat(visibleText(rendered.html())).contains(sentence);
+        assertThat(rendered.html()).contains("#ffd0e1 62%);\">34 talks</span>")
+                .contains("#ffd0e1 62%);\">47 things</span>");
+        assertThat(rendered.text()).contains(sentence).doesNotContain("No sessions were held over the quarter.");
     }
 
     /**
-     * A figure inside the band prints its zero, unlike a card's own summary line, which drops a part that is zero. The
-     * two are not inconsistent: the band's four columns are the letter's spine and a gap in it reads as a rendering
-     * fault, while a summary line is a sentence and "0 resources" is the most discouraging way available of saying a
-     * community captured nothing.
+     * A tenant's first roundup is routinely one of each. Every plural arm is asserted absent too, because both arms of
+     * a singular/plural branch rendering at once is a failure this codebase has already shipped.
      */
     @Test
-    void aFigureOfZeroInsideTheBandIsPrintedRatherThanDroppedTheWayASummaryLineDropsIt() {
+    void aQuarterOfOneOfEachReadsAsEnglishRatherThanAsDatabaseOutput() {
 
         var facts = aRoundup();
-        facts.put("talkCount", 0);
+        facts.put("sessionCount", 1);
+        facts.put("talkCount", 1);
+        facts.put("presenterCount", 1);
+        facts.put("resourceCount", 1);
+        facts.put("firstTimeContributorCount", 1);
+        facts.put("moreCommunitiesCount", 1);
+        facts.put("openTalkCount", 1);
 
         var rendered = renderer.render("organization-roundup", facts);
 
-        assertThat(rendered.html()).contains(">0</p>").contains(">Talks</p>");
-        assertThat(rendered.text()).contains("12 sessions, 0 talks, 3 presenters, 47 resources.");
+        var sentence = "1 talk by 1 person over 1 session, and 1 thing worth keeping.";
+        for (var copy : List.of(visibleText(rendered.html()), rendered.text())) {
+            assertThat(copy).contains(sentence).contains("1 first time presenter").contains("1 talk still wanted")
+                    .contains("and 1 more community was active.").doesNotContain("first time presenters")
+                    .doesNotContain("talks still wanted").doesNotContain("more communities were active");
+        }
     }
 
-    /**
-     * A quarter the letter can name no session in prints a sentence instead of a band of zeroes. The band must be
-     * asserted ABSENT rather than only the sentence present: a {@code contains} assertion cannot catch an over-render,
-     * and this codebase has already shipped a template that rendered both arms of a condition past nine reviews.
-     */
     @Test
-    void aQuarterThatHeldNothingSaysSoInWordsRatherThanAsABandOfZeroes() {
+    void aFigureWithNothingToSayDropsItsClauseRatherThanPrintingAZero() {
+
+        var nothingKept = aRoundup();
+        nothingKept.put("resourceCount", 0);
+        var discussionsOnly = aRoundup();
+        discussionsOnly.put("talkCount", 0);
+        discussionsOnly.put("presenterCount", 0);
+
+        var kept = renderer.render("organization-roundup", nothingKept);
+        var discussed = renderer.render("organization-roundup", discussionsOnly);
+
+        for (var copy : List.of(visibleText(kept.html()), kept.text())) {
+            assertThat(copy).contains("34 talks by 3 people over 12 sessions.").doesNotContain("worth keeping");
+        }
+        for (var copy : List.of(visibleText(discussed.html()), discussed.text())) {
+            assertThat(copy).contains("12 sessions, and 47 things worth keeping.").doesNotContain("0 talks")
+                    .doesNotContain("0 people");
+        }
+    }
+
+    /** A quarter the letter can name no session in says so in words, and the first-timer count goes with it. */
+    @Test
+    void aQuarterThatHeldNothingSaysSoAndDropsTheFirstTimerPill() {
 
         var facts = aRoundup();
         facts.put("sessionCount", 0);
@@ -1283,62 +1407,60 @@ class MailRendererTest {
         facts.put("topics", List.of());
         facts.put("communities", List.of());
         facts.put("moreCommunitiesCount", 0);
+        facts.put("firstTimeContributorCount", 3);
 
         var rendered = renderer.render("organization-roundup", facts);
 
-        assertThat(rendered.html()).contains("No sessions were held over the quarter.").doesNotContain(">Sessions</p>")
-                .doesNotContain(">Talks</p>").doesNotContain(">Presenters</p>").doesNotContain(">Resources</p>")
-                .doesNotContain("null");
-        assertThat(rendered.text()).contains("No sessions were held over the quarter.").doesNotContain("0 sessions")
-                .doesNotContain("0 talks").doesNotContain("0 presenters").doesNotContain("0 resources")
-                .doesNotContain("null");
+        for (var copy : List.of(visibleText(rendered.html()), rendered.text())) {
+            assertThat(copy).contains("No sessions were held over the quarter.").doesNotContain("0 sessions")
+                    .doesNotContain("first time presenter").doesNotContain("null");
+        }
     }
 
-    /**
-     * The line with the strictest rule, and the one place the two renderings deliberately differ. The HTML shows
-     * involvement as initialled badges and names NOBODY - per-talk presenter lines were tried and rejected, since one
-     * member presenting five of seven talks made the letter read as a wall of the same name. The .txt has no avatars,
-     * so it names everybody in full, which is where the earlier "presenters are named" decision survives intact.
-     *
-     * <p>
-     * Asserted in both directions in both halves. Nothing in the gate compares the two files, so an assertion on
-     * {@code rendered.text()} is the only thing standing between these two renderings and silent drift.
-     */
+    @Test
+    void firstTimePresentersAreACountInAPillAndNeverNames() {
+
+        var rendered = renderer.render("organization-roundup", aRoundup());
+
+        assertThat(rendered.html()).contains("color:#c32c66;\">4 first time presenters</span>");
+        assertThat(rendered.text()).contains("4 first time presenters");
+    }
+
+    /** The cloud stays; its "What we talked about" heading goes, in both halves. */
+    @Test
+    void theTopicCloudSizesEachWordByItsWeightAndCarriesNoHeading() {
+
+        var untagged = aRoundup();
+        untagged.put("topics", List.of());
+
+        var rendered = renderer.render("organization-roundup", aRoundup());
+        var flat = renderer.render("organization-roundup", untagged);
+
+        assertThat(rendered.html()).contains("font-size:26px; color:#de3b78;\">hexagonal</span>")
+                .contains("font-size:18px; color:#211a26;\">testing</span>")
+                .contains("font-size:13px; color:#786a7e;\">kafka</span>").doesNotContain("What we talked about")
+                .doesNotContain("What happened");
+        assertThat(rendered.text()).contains("Topics: hexagonal, testing, kafka")
+                .doesNotContain("What we talked about");
+        assertThat(flat.html()).doesNotContain("font-size:26px; color:#de3b78;");
+        assertThat(flat.text()).doesNotContain("Topics:");
+    }
+
+    /** Badges carry involvement in the HTML; the plain text names everybody in full. */
     @Test
     void involvementIsBadgesInTheHtmlAndNamesInFullInThePlainText() {
 
         var rendered = renderer.render("organization-roundup", aRoundup());
 
         assertThat(rendered.html()).contains(">AD</div>").contains(">BM</div>").contains(">CN</div>")
-                .contains(">DR</div>").doesNotContain("Alice Dubois").doesNotContain("Bob Martin")
-                .doesNotContain("Carol Ng").doesNotContain("Dana Rue");
+                .contains(">DR</div>").doesNotContain("Alice Dubois").doesNotContain("Carol Ng")
+                .doesNotContain("Dana Rue");
         assertThat(rendered.text()).contains("Presented by Alice Dubois, Bob Martin, Carol Ng.")
                 .contains("Presented by Dana Rue.").doesNotContain("<");
     }
 
-    /**
-     * A community whose sessions had nobody on any slot - a quarter of discussion-format meetings, which is ordinary
-     * rather than defensive - hands this card an EMPTY presenter list. The avatar cell is omitted and the rest of the
-     * card is unchanged; nothing may render as the literal word "null", in either half.
-     */
     @Test
-    void aCommunityThatHeldOnlyDiscussionsRendersACardWithNoAvatarRowAtAll() {
-
-        var card = aBackendGuildCard();
-        card.put("presenters", List.of());
-        card.put("morePresenterCount", 0);
-
-        var rendered = renderer.render("organization-roundup", aRoundupOf(card));
-
-        assertThat(rendered.html()).contains("Backend Guild").contains("Hexagons in anger").doesNotContain("null")
-                .doesNotContain(">AD</div>");
-        assertThat(rendered.text()).contains("Backend Guild").contains("Hexagons in anger").doesNotContain("null")
-                .doesNotContain("Presented by").doesNotContain("<");
-    }
-
-    /** A community with more presenters than the avatar row holds states the remainder rather than swallowing it. */
-    @Test
-    void aCommunityWithMorePresentersThanFitStatesTheRemainderAndSaysNothingWhenEverybodyFit() {
+    void aCommunityWithMorePresentersThanFitStatesTheRemainder() {
 
         var card = aBackendGuildCard();
         card.put("morePresenterCount", 2);
@@ -1348,51 +1470,35 @@ class MailRendererTest {
 
         assertThat(capped.html()).contains(">+2</div");
         assertThat(capped.text()).contains("Presented by Alice Dubois, Bob Martin, Carol Ng, and 2 more.");
-        assertThat(whole.html()).doesNotContain(">+0</div").doesNotContain("+2");
-        assertThat(whole.text()).doesNotContain(" more.").contains("Presented by Alice Dubois, Bob Martin, Carol Ng.");
+        assertThat(whole.html()).doesNotContain(">+0</div").doesNotContain(">+2</div");
     }
 
-    /**
-     * The whole point of the redesign: the past gets NOUNS. The letter used to print six figures about what happened
-     * and give a title only to what had not happened yet, and every one of the strings below is something it could not
-     * previously say at all.
-     */
     @Test
-    void aCommunityCardCarriesItsNameItsSummaryLineAndTheTitlesOfWhatItHeld() {
+    void aCommunityThatHeldOnlyDiscussionsRendersABlockWithNoAvatarRow() {
+
+        var card = aBackendGuildCard();
+        card.put("presenters", List.of());
+
+        var rendered = renderer.render("organization-roundup", aRoundupOf(card));
+
+        assertThat(rendered.html()).contains("Backend Guild").doesNotContain(">CN</div>").doesNotContain("null");
+        assertThat(rendered.text()).contains("Backend Guild").doesNotContain("Presented by").doesNotContain("null");
+    }
+
+    @Test
+    void aCommunityBlockIsDressedInItsOwnTints() {
 
         var rendered = renderer.render("organization-roundup", aRoundup());
 
-        assertThat(rendered.html()).contains("Backend Guild").contains(">BG</div>")
-                .contains("7 sessions \u00b7 20 talks \u00b7 30 resources").contains("13 May")
-                .contains("Hexagons in anger").contains("Ports and adapters \u00b7 Testing the seam")
-                .contains("https://axonia.example/a/1").contains(">Recording</a>").doesNotContain("null");
-        assertThat(rendered.text()).contains("Backend Guild").contains("7 sessions, 20 talks, 30 resources")
-                .contains("13 May: Hexagons in anger").contains("Talks: Ports and adapters, Testing the seam")
-                .contains("Recording: https://axonia.example/a/1").doesNotContain("\u00b7").doesNotContain("null")
-                .doesNotContain("<");
+        assertThat(rendered.html()).contains("bgcolor=\"#eff8f4\"").contains("border:1px solid #dbefe6")
+                .contains("bgcolor=\"#f6f5f6\"").contains("border:1px solid #e9e7ea")
+                .contains("background-color:#ebf6f1;color:#207651;\">hexagonal</span>")
+                .contains("color:#675a6c;\">FD</div>").contains("color:#1f8357;\">BG</div>").doesNotContain("color-mix")
+                .doesNotContain("<svg");
     }
 
-    /**
-     * A community's own accent tints its monogram, and a community that never chose one falls back to body ink rather
-     * than to a hex the facts had to invent. Frontend Dojo carries a null accent for exactly this.
-     */
     @Test
-    void aCommunityWithoutAnAccentFallsBackToBodyInkRatherThanToAnInventedHex() {
-
-        var rendered = renderer.render("organization-roundup", aRoundup());
-
-        assertThat(rendered.html()).contains("text-align:center;color:#1f9d63;\">BG</div>")
-                .contains("text-align:center;color:#211a26;\">FD</div>").doesNotContain("color:null");
-    }
-
-    /**
-     * A badge is only ever an image when the fact carries a fetchable http(s) URL, and a monogram otherwise. The
-     * resolution itself happens in {@code RoundupFactsAssembler}, which turns the community's storage key into a public
-     * URL; this is defence in depth against anything unresolved reaching the template, since an {@code <img
-     * src>} built from a bare object key is a broken image in every inbox.
-     */
-    @Test
-    void aBadgeIsAnImageOnlyWhenTheFactCarriesAFetchableUrlAndAMonogramOtherwise() {
+    void aBadgeIsAnImageOnlyWhenTheFactCarriesAFetchableUrl() {
 
         var key = aBackendGuildCard();
         key.put("badgeUrl", "communities/7/badge.png");
@@ -1408,9 +1514,186 @@ class MailRendererTest {
                 .doesNotContain(">BG</div>");
     }
 
-    /** Two communities are two cards, and the remainder line states what the cap left out, or says nothing. */
+    /** A recorded session's whole band opens its recording, behind a play disc drawn in text, never an image. */
+    /**
+     * A roundup enqueued before the posters is frozen in the old shape: no tints, no quarterLabel, session rows with
+     * talkTitles and resources. Delivery still renders it, so the template must fall back rather than throw.
+     */
     @Test
-    void aQuarterOfTwoCommunitiesIsTwoCardsAndSaysHowManyMoreWereActive() {
+    void aRoundupFrozenBeforeThePostersStillRenders() {
+
+        var presenter = Map.<String, Object>of("name", "Alice Dubois", "initials", "AD", "tint", "#7c5cff");
+        var session = new HashMap<String, Object>();
+        session.put("dateLabel", "13 May");
+        session.put("title", "Hexagons in anger");
+        session.put("talkTitles", List.of("Ports and adapters"));
+        session.put("resources", List.of(Map.of("title", "Slides", "url", "https://example.test/slides")));
+        var card = new HashMap<String, Object>();
+        card.put("name", "Backend Guild");
+        card.put("initials", "BG");
+        card.put("badgeUrl", null);
+        card.put("accentColor", "#1f9d63");
+        card.put("summaryParts", List.of("2 sessions", "1 resource"));
+        card.put("presenters", List.of(presenter));
+        card.put("morePresenterCount", 0);
+        card.put("sessions", List.of(session));
+        card.put("moreSessionCount", 1);
+        card.put("nextTitle", "Event sourcing");
+        card.put("nextLabel", "Wednesday 14 October");
+        card.put("moreUpcomingCount", 0);
+        var facts = aRoundup();
+        facts.remove("quarterLabel");
+        facts.remove("yearLabel");
+        facts.put("communities", List.of(card));
+
+        var rendered = renderer.render("organization-roundup", facts);
+
+        assertThat(visibleText(rendered.html())).contains("Q2 2026").contains("Backend Guild")
+                .contains("Hexagons in anger").contains("Event sourcing");
+        assertThat(rendered.html()).contains("background-color:#f6f5f6;");
+        assertThat(rendered.text()).contains("  13 May: Hexagons in anger\n").doesNotContain("Session: null");
+    }
+
+    @Test
+    void aRecordedSessionsBandPlaysItsRecording() {
+
+        var rendered = renderer.render("organization-roundup", aRoundupOf(aCardOf(aHexagonsPoster())));
+
+        assertThat(rendered.html()).contains("<a href=\"" + RECORDING + "\" style=\"display:block;")
+                .containsOnlyOnce(PLAY_GLYPH).contains(">13 May</p>").contains(">1h 12</span>");
+        assertThat(rendered.html()).as("desktop Outlook drops the block link, so the disc and title link on their own")
+                .contains("<a href=\"" + RECORDING
+                        + "\" style=\"color:#ffffff;text-decoration:none;\">Hexagons in anger</a>")
+                .contains("<a href=\"" + RECORDING + "\" style=\"color:#211a26;text-decoration:none;\">" + PLAY_GLYPH);
+        assertThat(rendered.text()).contains("  13 May: Hexagons in anger (1h 12)\n    Watch: " + RECORDING + "\n");
+    }
+
+    /** Without a recording there is nothing to play: no disc, no "Watch:", and the band opens the session instead. */
+    @Test
+    void aSessionWithoutARecordingHasNoPlayDiscAndItsBandOpensTheSession() {
+
+        var rendered = renderer.render("organization-roundup", aRoundupOf(aCardOf(aNamelessPoster())));
+
+        assertThat(rendered.html()).doesNotContain(PLAY_GLYPH)
+                .contains("<a href=\"" + NAMELESS_URL.replace("&", "&amp;") + "\" style=\"display:block;")
+                .contains(">2 June</a></p>").doesNotContain("null");
+        assertThat(rendered.text()).doesNotContain("Watch:").contains("  2 June\n")
+                .contains("    Session: " + NAMELESS_URL + "\n");
+    }
+
+    /** Desktop Outlook ignores CSS backgrounds, so the thumbnail is also a VML frame, over the same dark mix. */
+    @Test
+    void aThumbnailPaintsTheBandForEveryClientIncludingOutlook() {
+
+        var rendered = renderer.render("organization-roundup", aRoundupOf(aCardOf(aHexagonsPoster())));
+
+        assertThat(rendered.html()).contains("background=\"" + THUMBNAIL + "\"").contains("bgcolor=\"#16382d\"")
+                .contains("background-image:url(&#39;" + THUMBNAIL + "&#39;)")
+                .contains("<!--[if gte mso 9]><v:rect xmlns:v=\"urn:schemas-microsoft-com:vml\"")
+                .contains("<v:fill type=\"frame\" src=\"" + THUMBNAIL + "\" color=\"#16382d\"/>")
+                .contains("</v:textbox></v:rect><![endif]-->");
+    }
+
+    @Test
+    void aBandWithoutAThumbnailIsTheAccentGradientAndNoVml() {
+
+        var rendered = renderer.render("organization-roundup", aRoundupOf(aCardOf(aNamelessPoster())));
+
+        assertThat(rendered.html()).contains("bgcolor=\"#16382d\"")
+                .contains("background-image:linear-gradient(120deg,#1b1420 0%,#16382d 65%,#1f9d63 130%)")
+                .doesNotContain("background=\"").doesNotContain("v:rect");
+    }
+
+    @Test
+    void aPosterListsItsTalksWithFacesAndTagsAndCountsWhatItKept() {
+
+        var rendered = renderer.render("organization-roundup", aRoundupOf(aCardOf(aHexagonsPoster())));
+
+        var html = visibleText(rendered.html());
+        assertThat(html).contains("Ports and adapters").contains("Testing the seam").contains("31 going")
+                .contains("Repo 3 · Postmortem 2").contains("Open session");
+        assertThat(rendered.html()).contains("color:#786a7e;\">+1</span>")
+                .containsOnlyOnce("color:#207651;\">hexagonal</span>").contains("Ports and adapters <span")
+                .contains(".rp-tag { float:right !important;");
+        assertThat(rendered.text()).contains("""
+                    Ports and adapters (Alice Dubois and 1 more)
+                    Testing the seam (Bob Martin)
+                    31 going
+                    Repo 3, Postmortem 2
+                    Session: %s
+                """.formatted(HEXAGONS_URL));
+    }
+
+    @Test
+    void aPosterWithMoreTalksThanFitSaysHowManyItLeftOut() {
+
+        var many = aHexagonsPoster();
+        many.put("moreTalkCount", 3);
+        var one = aHexagonsPoster();
+        one.put("moreTalkCount", 1);
+
+        var several = renderer.render("organization-roundup", aRoundupOf(aCardOf(many)));
+        var single = renderer.render("organization-roundup", aRoundupOf(aCardOf(one)));
+
+        assertThat(visibleText(several.html())).contains("+ 3 more talks");
+        assertThat(several.text()).contains("    + 3 more talks\n");
+        assertThat(visibleText(single.html())).contains("+ 1 more talk ").doesNotContain("+ 1 more talks");
+        assertThat(single.text()).contains("    + 1 more talk\n");
+    }
+
+    /** With nothing kept the take-away strip goes and "Open session" moves up into the signals line. */
+    @Test
+    void aPosterThatKeptNothingStillLinksToItsSessionOnce() {
+
+        var rendered = renderer.render("organization-roundup", aRoundupOf(aCardOf(aNamelessPoster())));
+
+        assertThat(rendered.html()).containsOnlyOnce(">Open session</a>").doesNotContain(" going")
+                .doesNotContain("border-top:1px solid #ede4e9");
+    }
+
+    /** The two renderings must agree on every link a reader can follow; nothing in the gate compares them. */
+    @Test
+    void theHtmlAndThePlainTextCarryTheSameRecordingsAndSessions() {
+
+        var rendered = renderer.render("organization-roundup", aRoundup());
+
+        for (var prefix : List.of("https://video.example/", "https://axonia.example/communities/")) {
+            assertThat(linksIn(rendered.html(), prefix)).as(prefix).isNotEmpty()
+                    .isEqualTo(linksIn(rendered.text(), prefix));
+        }
+        assertThat(linksIn(rendered.text(), "https://video.example/")).containsExactly(RECORDING, DOJO_RECORDING);
+        assertThat(linksIn(rendered.text(), "https://axonia.example/communities/")).containsExactly(HEXAGONS_URL,
+                NAMELESS_URL, TOKENS_URL);
+    }
+
+    @Test
+    void aCappedCommunityNamesTheFirstSessionItLeftOut() {
+
+        var rendered = renderer.render("organization-roundup", aRoundup());
+
+        assertThat(rendered.html()).containsOnlyOnce(">+ S26E07 · 15 July</td>");
+        assertThat(rendered.text()).containsOnlyOnce("  + S26E07 · 15 July\n");
+    }
+
+    @Test
+    void aCommunitysNextSessionIsACalendarChipOnItsOwnBlock() {
+
+        var nameless = aBackendGuildCard();
+        nameless.put("nextTitle", null);
+
+        var rendered = renderer.render("organization-roundup", aRoundup());
+        var untitled = renderer.render("organization-roundup", aRoundupOf(nameless));
+
+        assertThat(rendered.html()).containsOnlyOnce(">Next up</p>").contains(">JUL</td>").contains(">14</td>")
+                .contains(">Signals in React</p>").contains(">Tuesday 14 July</p>");
+        assertThat(rendered.text()).containsOnlyOnce("Next up ")
+                .contains("  Next up Signals in React, Tuesday 14 July.");
+        assertThat(untitled.html()).contains(">Tuesday 14 July</p>").doesNotContain("Untitled").doesNotContain("null");
+        assertThat(untitled.text()).contains("  Next up Tuesday 14 July.").doesNotContain("null");
+    }
+
+    @Test
+    void aQuarterOfTwoCommunitiesIsTwoBlocksAndSaysHowManyMoreWereActive() {
 
         var capped = renderer.render("organization-roundup", aRoundup());
         var whole = aRoundup();
@@ -1421,256 +1704,108 @@ class MailRendererTest {
                 .contains("and 3 more communities were active.");
         assertThat(capped.text()).containsOnlyOnce("Backend Guild").containsOnlyOnce("Frontend Dojo")
                 .contains("and 3 more communities were active.");
-        assertThat(complete.html()).doesNotContain("more communities were active")
-                .doesNotContain("more community was active");
-        assertThat(complete.text()).doesNotContain("more communities were active")
-                .doesNotContain("more community was active");
+        assertThat(complete.html()).doesNotContain("were active").doesNotContain("was active");
+        assertThat(complete.text()).doesNotContain("were active").doesNotContain("was active");
     }
 
-    /**
-     * A card capped by {@code sessionsPerCommunityCap} states its own remainder, in all three arms. The plural arm is
-     * asserted absent from the singular rendering, because both arms of a singular/plural branch rendering at once is
-     * precisely the failure this codebase has already shipped once.
-     */
+    /** The open talks are the one button in the letter, on a dark closing card; with none open there is no ask. */
     @Test
-    void aCardCappedByItsSessionCapSaysHowManyItLeftOutAndSaysNothingWhenItLeftOutNone() {
-
-        var many = aBackendGuildCard();
-        many.put("moreSessionCount", 2);
-        var one = aBackendGuildCard();
-        one.put("moreSessionCount", 1);
-
-        var capped = renderer.render("organization-roundup", aRoundupOf(many));
-        var singular = renderer.render("organization-roundup", aRoundupOf(one));
-        var whole = renderer.render("organization-roundup", aRoundup());
-
-        assertThat(capped.html()).contains("and 2 more sessions were held.");
-        assertThat(capped.text()).contains("and 2 more sessions were held.");
-        assertThat(singular.html()).contains("and 1 more session was held.").doesNotContain("more sessions were held");
-        assertThat(singular.text()).contains("and 1 more session was held.").doesNotContain("more sessions were held");
-        assertThat(whole.html()).doesNotContain("more sessions were held").doesNotContain("more session was held");
-        assertThat(whole.text()).doesNotContain("more sessions were held").doesNotContain("more session was held");
-    }
-
-    /**
-     * "What is coming" is no longer a section: each card carries its own future, so a reader meets a community's name
-     * once instead of twice three hundred pixels apart. The heading's absence is asserted as firmly as the line's
-     * presence, and "Next up" is asserted to appear ONCE across two cards - Frontend Dojo has nothing coming, and a
-     * bare {@code contains} would be satisfied by a trailing "Next up null." on its card.
-     */
-    @Test
-    void aCommunitysFutureSitsOnItsOwnCardRatherThanInASectionOfItsOwn() {
-
-        var soon = aBackendGuildCard();
-        soon.put("moreUpcomingCount", 2);
-
-        var rendered = renderer.render("organization-roundup", aRoundup());
-        var more = renderer.render("organization-roundup", aRoundupOf(soon));
-
-        assertThat(rendered.html()).containsOnlyOnce("Next up ").contains(">Signals in React</span")
-                .contains(", Tuesday 14 July.").doesNotContain("What is coming").doesNotContain("more to come")
-                .doesNotContain("null");
-        assertThat(rendered.text()).containsOnlyOnce("Next up ").contains("Next up Signals in React, Tuesday 14 July.")
-                .doesNotContain("What is coming").doesNotContain("more to come").doesNotContain("null");
-        assertThat(more.html()).contains(", Tuesday 14 July. 2 more to come.");
-        assertThat(more.text()).contains("Next up Signals in React, Tuesday 14 July. 2 more to come.");
-    }
-
-    /**
-     * Decision handed down from the activity ports: a series occurrence with no titled slot is nameless, and neither
-     * fallback the app uses is reachable from the roundup. Both the session row and the "next up" line render it by its
-     * date alone, so "Untitled" must be absent as firmly as the date is present.
-     */
-    @Test
-    void aNamelessSessionIsRenderedByItsDateRatherThanByAPlaceholderWord() {
-
-        var nameless = aBackendGuildCard();
-        nameless.put("nextTitle", null);
-
-        var rendered = renderer.render("organization-roundup", aRoundupOf(nameless));
-
-        assertThat(rendered.html()).contains("2 June").contains(">Next up Tuesday 14 July.</p>")
-                .doesNotContain("Untitled").doesNotContain("null");
-        assertThat(rendered.text()).contains("Next up Tuesday 14 July.").doesNotContain("Untitled")
-                .doesNotContain("null").doesNotContain("<");
-    }
-
-    /**
-     * The topic cloud is the "what was this quarter about" glance, sized and coloured by the same three bands the
-     * Expertise page's constellation uses. The heaviest tag is asserted in brand pink at 26px and the lightest muted at
-     * 13px, so a cloud that lost its scale and rendered flat fails here rather than reading as a design choice.
-     */
-    @Test
-    void theTopicCloudSizesAndColoursEachWordByItsWeightAndDisappearsWithTheTags() {
-
-        var untagged = aRoundup();
-        untagged.put("topics", List.of());
-
-        var rendered = renderer.render("organization-roundup", aRoundup());
-        var flat = renderer.render("organization-roundup", untagged);
-
-        assertThat(rendered.html()).contains("What we talked about")
-                .contains("font-size:26px; color:#de3b78;\">hexagonal</span>")
-                .contains("font-size:18px; color:#211a26;\">testing</span>")
-                .contains("font-size:13px; color:#786a7e;\">kafka</span>");
-        assertThat(rendered.text()).contains("What we talked about: hexagonal, testing, kafka");
-        assertThat(flat.html()).doesNotContain("What we talked about").doesNotContain("hexagonal");
-        assertThat(flat.text()).doesNotContain("What we talked about").doesNotContain("hexagonal");
-    }
-
-    /**
-     * The one figure in the letter that asks the reader for something, and the only one that is absent at zero rather
-     * than stated as a zero: an open-slot count of none has nothing to ask for. All three arms, in both halves.
-     */
-    @Test
-    void theAskIsPresentOnlyWhereASlotIsStillOpenAndCarriesBothOfItsArms() {
+    void theOpenTalksAreTheOneClosingAskAndDisappearAtZero() {
 
         var many = aRoundup();
         many.put("openTalkCount", 3);
         var none = aRoundup();
         none.put("openTalkCount", 0);
 
-        var one = renderer.render("organization-roundup", aRoundup());
         var several = renderer.render("organization-roundup", many);
         var closed = renderer.render("organization-roundup", none);
 
-        assertThat(one.html()).contains("1 talk still needs a presenter across the coming quarter. It could be yours.")
-                .doesNotContain("still need a presenter");
-        assertThat(one.text()).contains("1 talk still needs a presenter across the coming quarter. It could be yours.")
-                .doesNotContain("still need a presenter");
-        assertThat(several.html())
-                .contains("3 talks still need a presenter across the coming quarter. One could be yours.")
-                .doesNotContain("still needs a presenter");
+        assertThat(several.html()).contains(">3 talks still wanted</p>")
+                .contains(">Open topics waiting for a presenter</p>")
+                .containsOnlyOnce("<a href=\"https://axonia.example/communities?org=acme\"").contains(">Pick one</a>")
+                .containsOnlyOnce("background-color:#de3b78;color:#ffffff;").doesNotContain("Browse the communities");
         assertThat(several.text())
-                .contains("3 talks still need a presenter across the coming quarter. One could be yours.")
-                .doesNotContain("still needs a presenter");
-        assertThat(closed.html()).doesNotContain("needs a presenter").doesNotContain("need a presenter");
-        assertThat(closed.text()).doesNotContain("needs a presenter").doesNotContain("need a presenter");
+                .contains("3 talks still wanted. Open topics waiting for a presenter.\n"
+                        + "Pick one: https://axonia.example/communities?org=acme")
+                .doesNotContain("Browse the communities");
+        assertThat(closed.html()).doesNotContain("still wanted").doesNotContain("Pick one");
+        assertThat(closed.text()).doesNotContain("still wanted").doesNotContain("Pick one");
     }
 
-    /**
-     * The one quarter where the first-timer figure and the scale line cannot both be stated. It comes from an
-     * organization-wide port with no community predicate, so it survives a filter that dropped every session the letter
-     * could name. The producer's floor is now a single clause and refuses every such SENT letter, but
-     * {@code RoundupPreviewer} deliberately applies no floor, because an administrator deciding whether to switch the
-     * roundup on is entitled to see the empty letter it would have produced.
-     *
-     * <p>
-     * "3 people presented for the first time." under "No sessions were held over the quarter." is not a pair a reader
-     * can reconcile in a preview either. Asserted in both directions and in both halves: a {@code contains} assertion
-     * cannot catch a sentence that renders when it should not.
-     */
     @Test
-    void theFirstTimerSentenceIsAbsentFromAQuarterTheLetterCanReportNoSessionsFor() {
-
-        var archived = aRoundup();
-        archived.put("sessionCount", 0);
-        archived.put("talkCount", 0);
-        archived.put("presenterCount", 0);
-        archived.put("resourceCount", 0);
-        archived.put("topics", List.of());
-        archived.put("communities", List.of());
-        archived.put("moreCommunitiesCount", 0);
-        archived.put("firstTimeContributorCount", 3);
-
-        var quiet = renderer.render("organization-roundup", archived);
-        var busy = renderer.render("organization-roundup", aRoundup());
-
-        assertThat(quiet.html()).contains("No sessions were held over the quarter.")
-                .doesNotContain("presented for the first time");
-        assertThat(quiet.text()).contains("No sessions were held over the quarter.")
-                .doesNotContain("presented for the first time");
-        assertThat(busy.html()).contains(">4 </span><span>people presented for the first time.</span>");
-        assertThat(busy.text()).contains("4 people presented for the first time.");
-    }
-
-    /**
-     * A tenant's first roundup is routinely one session, in one community, by one person. Every plural arm is asserted
-     * absent as well, because both arms of a singular/plural branch rendering at once is precisely the failure this
-     * codebase has already shipped once. The band's labels inflect too: "1 Talks" under a figure of 1 is the sentence
-     * that tells that tenant nobody read this before sending it.
-     */
-    @Test
-    void aQuarterOfOneOfEachReadsAsEnglishRatherThanAsDatabaseOutput() {
+    void anAskWithoutALinkKeepsItsCountAndDropsItsButton() {
 
         var facts = aRoundup();
-        facts.put("sessionCount", 1);
-        facts.put("talkCount", 1);
-        facts.put("presenterCount", 1);
-        facts.put("resourceCount", 1);
-        facts.put("firstTimeContributorCount", 1);
-        facts.put("moreCommunitiesCount", 1);
-
-        var rendered = renderer.render("organization-roundup", facts);
-
-        assertThat(rendered.html()).contains(">Session</p>").contains(">Talk</p>").contains(">Presenter</p>")
-                .contains(">Resource</p>").contains(">1 </span><span>person presented for the first time.</span>")
-                .contains("and 1 more community was active.").doesNotContain(">Sessions</p>")
-                .doesNotContain(">Talks</p>").doesNotContain(">Presenters</p>").doesNotContain(">Resources</p>")
-                .doesNotContain("people presented").doesNotContain("more communities were active");
-        assertThat(rendered.text()).contains("1 session, 1 talk, 1 presenter, 1 resource.")
-                .contains("1 person presented for the first time.").contains("and 1 more community was active.")
-                .doesNotContain("1 sessions").doesNotContain("1 talks").doesNotContain("1 presenters")
-                .doesNotContain("1 resources").doesNotContain("people presented")
-                .doesNotContain("more communities were active");
-    }
-
-    /**
-     * A resource is only ever an {@code <a>} for an http(s) url. The roundup styles its own resource line rather than
-     * reusing {@code resourceLink}, since a session row is a line in a list at a smaller, bolder scale than a wrap-up's
-     * own block - so the safe-scheme rule has to be asserted here too rather than inherited.
-     */
-    @Test
-    void aRoundupResourceWithAnUnsafeSchemeIsNeverAnHref() {
-
-        var card = aBackendGuildCard();
-        card.put("sessions", List.of(aSessionRow("13 May", "Hexagons in anger", List.of(),
-                List.of(aResource(null, "javascript:alert(1)")))));
-
-        var rendered = renderer.render("organization-roundup", aRoundupOf(card));
-
-        assertThat(rendered.html()).doesNotContain("href=\"javascript:alert(1)\"").contains("javascript:alert(1)")
-                .doesNotContain("null");
-        // The .txt half applies no scheme filter and needs none: plain text has no href to hijack, so the url is
-        // printed verbatim. Asserted rather than left unexamined, since this is the one roundup case whose two halves
-        // genuinely differ in behaviour rather than only in wording.
-        assertThat(rendered.text()).contains("javascript:alert(1)").doesNotContain("<").doesNotContain("null");
-    }
-
-    /**
-     * Every section a fact map can legitimately arrive without, asserted absent by its heading rather than by its rows:
-     * a heading rendered above nothing is the shape a reader reads as a broken mail, and it is exactly what an
-     * inclusion that outran its own condition produces.
-     */
-    @Test
-    void everyOptionalSectionDisappearsWithItsOwnFactRatherThanLeavingAHeadingBehind() {
-
-        var facts = aRoundup();
-        facts.put("topics", List.of());
-        facts.put("communities", List.of());
-        facts.put("moreCommunitiesCount", 0);
-        facts.put("openTalkCount", 0);
         facts.put("communitiesUrl", "");
 
         var rendered = renderer.render("organization-roundup", facts);
 
-        assertThat(rendered.html()).doesNotContain("What we talked about").doesNotContain("What happened")
-                .doesNotContain("Browse the communities")
-                .doesNotContain("display:inline-block; background-color:#de3b78; color:#ffffff; text-decoration:none;")
-                .doesNotContain("null");
-        assertThat(rendered.text()).doesNotContain("What we talked about").doesNotContain("What happened")
-                .doesNotContain("Browse the communities").doesNotContain("\n\n\n").doesNotContain("null");
+        assertThat(rendered.html()).contains(">1 talk still wanted</p>").doesNotContain("Pick one");
+        assertThat(rendered.text()).contains("1 talk still wanted.").doesNotContain("Pick one");
     }
 
+    /** Copy rules hold for everything the letter itself says: no dashes, no we, no you. */
     @Test
-    void aRoundupCarriesExactlyOneCallToActionAndItIsBrowsingTheCommunities() {
+    void theLetterSaysNothingWithADashOrInTheFirstOrSecondPerson() {
 
         var rendered = renderer.render("organization-roundup", aRoundup());
 
-        assertThat(rendered.html()).contains("Browse the communities").contains("https://axonia.example/communities")
-                .containsOnlyOnce(
-                        "display:inline-block; background-color:#de3b78; color:#ffffff; text-decoration:none;");
-        assertThat(rendered.text()).contains("Browse the communities: https://axonia.example/communities");
+        for (var copy : List.of(visibleText(rendered.html()), rendered.text(), rendered.subject())) {
+            assertThat(copy).doesNotContain("—").doesNotContain("–").doesNotContain(" - ");
+            assertThat(copy.toLowerCase(Locale.ROOT)).doesNotContainPattern("\\b(we|us|our|you|your)\\b");
+        }
+    }
+
+    /**
+     * Gmail clips a message past about 102 KB of HTML. The busiest letter the caps allow is every community at its
+     * session cap, every poster at its talk cap with a thumbnail, co-presenters, long titles and four kinds kept.
+     */
+    @Test
+    void theBusiestLetterTheCapsAllowStaysUnderGmailsClip() {
+
+        var cards = IntStream.range(0, ROUNDUP_COMMUNITY_CAP).mapToObj(this::aBusiestCard).toList();
+        var facts = aRoundup();
+        facts.put("communities", cards);
+        facts.put("topics",
+                IntStream.range(0, ROUNDUP_TOPIC_CAP).mapToObj(
+                        index -> Map.<String, Object>of("label", "observability-" + index, "weight", 1 + index % 5))
+                        .toList());
+
+        var rendered = renderer.render("organization-roundup", facts);
+
+        assertThat(rendered.html().getBytes(StandardCharsets.UTF_8).length).isLessThan(90 * 1024);
+    }
+
+    private Map<String, Object> aBusiestCard(int index) {
+
+        var card = aBackendGuildCard();
+        card.put("name", "Platform Engineering Guild " + index);
+        card.put("badgeUrl", "https://cdn.axonia.example/communities/" + index + "/badge/7f3a9c1e.png");
+        card.put("presenters",
+                List.of(aPresenter("Alice Dubois", "AD", "#de3b78"), aPresenter("Bob Martin", "BM", "#6e3ceb"),
+                        aPresenter("Carol Ng", "CN", "#1f9d63"), aPresenter("Dana Rue", "DR", "#6e3ceb"),
+                        aPresenter("Eve Ola", "EO", "#1f9d63")));
+        card.put("morePresenterCount", 9);
+        card.put("sessions", IntStream.range(0, ROUNDUP_SESSIONS_PER_COMMUNITY_CAP).mapToObj(session -> {
+            var poster = aHexagonsPoster();
+            poster.put("title", "S26E0" + session + " · Spring AI from prompt to basket in production");
+            poster.put("thumbnailUrl", "https://cdn.axonia.example/communities/" + index + "/roundup/"
+                    + "0b5e9c4a-3f1d-4e8a-9b2c-6d7e8f9a0b1c.jpg");
+            poster.put("sessionUrl", "https://axonia.example/communities/platform-engineering-guild-" + index
+                    + "/sessions/1234" + session + "?org=0b5e9c4a-3f1d-4e8a-9b2c-6d7e8f9a0b1c");
+            poster.put("recordingUrl", "https://video.example/watch/0b5e9c4a-3f1d-4e8a-9b2c-6d7e8f9a0b1c");
+            poster.put("talks",
+                    IntStream.range(0, ROUNDUP_TALK_CAP)
+                            .mapToObj(talk -> aTalk("Cloud deploy 3.0 and the database default change, talk " + talk,
+                                    aPresenter("Alice Dubois", "AD", "#de3b78"), 1, "cloud-deploy"))
+                            .toList());
+            poster.put("moreTalkCount", 4);
+            poster.put("resourceGroups",
+                    List.of(Map.of("label", "Postmortem", "count", 2), Map.of("label", "Repository", "count", 3),
+                            Map.of("label", "Article", "count", 1), Map.of("label", "Link", "count", 3)));
+            return (Map<String, Object>) poster;
+        }).toList());
+        return card;
     }
 
     @Test
@@ -1678,17 +1813,26 @@ class MailRendererTest {
 
         var rendered = renderer.render("organization-roundup", aRoundup());
 
-        assertThat(rendered.html()).contains("You are a member of Acme Corp.");
-        assertThat(rendered.text()).contains("You are a member of Acme Corp.");
+        assertThat(rendered.html()).contains("Sent to members of Acme Corp.");
+        assertThat(rendered.text()).contains("Sent to members of Acme Corp.");
     }
 
-    /** The wordmark belongs to the host, not to the sender - the same rule a session message follows. */
+    /** The wordmark belongs to the host, not to the sender: the same rule a session message follows. */
     @Test
     void aRoundupLeadsWithTheOrganizationAndLeavesTheWordmarkAtTheFoot() {
 
         var rendered = renderer.render("organization-roundup", aRoundup());
 
         var afterHead = rendered.html().substring(rendered.html().indexOf("</head>"));
-        assertThat(afterHead.indexOf(">Q2 2026</h1>")).isLessThan(afterHead.indexOf(">axonia<"));
+        assertThat(afterHead.indexOf("2026</h1>")).isPositive().isLessThan(afterHead.indexOf(">axonia<"));
+    }
+
+    @Test
+    void noFactRendersAsTheWordNull() {
+
+        var rendered = renderer.render("organization-roundup", aRoundup());
+
+        assertThat(rendered.html()).doesNotContain("null");
+        assertThat(rendered.text()).doesNotContain("null").doesNotContain("\n\n\n");
     }
 }

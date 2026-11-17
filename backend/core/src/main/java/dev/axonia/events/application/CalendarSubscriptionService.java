@@ -19,7 +19,6 @@ import dev.axonia.events.domain.CalendarSubscription;
 import dev.axonia.events.domain.CalendarSubscriptionRecord;
 import dev.axonia.events.domain.IcsDocumentRequest;
 import dev.axonia.events.domain.ScheduleIcsDocument;
-import dev.axonia.events.domain.SessionUrls;
 import dev.axonia.events.domain.SubscriptionTokens;
 import dev.axonia.shared.api.error.ForbiddenException;
 import dev.axonia.shared.api.error.NotFoundException;
@@ -160,7 +159,7 @@ public class CalendarSubscriptionService {
                 .to(now.plus(WINDOW_FORWARD_DAYS, ChronoUnit.DAYS)).now(now).build());
         var stamp = ScheduleIcsDocument.stampFor(entries, now);
         var request = IcsDocumentRequest.builder().calendarName(identity.name()).host(feedHost())
-                .communityUrl(SessionUrls.communityUrl(publicUrlProperties.publicBaseUrl(), identity.slug()))
+                .publicBaseUrl(publicUrlProperties.publicBaseUrl()).slug(identity.slug()).organizationId(organizationId)
                 .stamp(stamp).entries(entries).build();
         return new CalendarFeed(identity.name(), ScheduleIcsDocument.render(request));
     }

@@ -19,6 +19,7 @@ import org.mockito.quality.Strictness;
 import dev.axonia.mentoring.application.port.out.CommunityAccess;
 import dev.axonia.mentoring.application.port.out.MemberClocks;
 import dev.axonia.mentoring.application.port.out.MentoringNotices;
+import dev.axonia.mentoring.application.port.out.MentoringNotices.MeetingReminder;
 import dev.axonia.mentoring.application.port.out.PairingRepository;
 import dev.axonia.mentoring.application.port.out.PersonDirectory;
 import dev.axonia.mentoring.domain.Pairing;
@@ -80,6 +81,12 @@ class MeetingRemindersTest {
                 .nextMeetingSetAt(SET_MONDAY);
     }
 
+    private static MeetingReminder reminder(Pairing pairing, String partnerName, String recipientId) {
+
+        return MeetingReminder.builder().organizationId(ORG).pairing(pairing).communityName("Platform")
+                .partnerName(partnerName).recipientId(recipientId).build();
+    }
+
     private void meeting(Pairing pairing) {
 
         when(pairings.withNextMeetingBetween(any(), any(), any())).thenReturn(List.of(pairing));
@@ -97,14 +104,14 @@ class MeetingRemindersTest {
         at("2026-11-18T08:00:00Z").remindDue(ORG);
 
         // then - 09:00 in Zurich, 03:00 in New York
-        verify(notices).meetingReminder(pairing, "Platform", "Noah", MIA);
+        verify(notices).meetingReminder(reminder(pairing, "Noah", MIA));
         verifyNoMoreInteractions(notices);
 
         // and when - 15:00 in Zurich, 09:00 in New York
         at("2026-11-18T14:00:00Z").remindDue(ORG);
 
         // then
-        verify(notices).meetingReminder(pairing, "Platform", "Mia", NOAH);
+        verify(notices).meetingReminder(reminder(pairing, "Mia", NOAH));
     }
 
     @Test
@@ -137,8 +144,8 @@ class MeetingRemindersTest {
         at("2026-11-18T09:00:00Z").remindDue(ORG);
 
         // then
-        verify(notices).meetingReminder(pairing, "Platform", "Noah", MIA);
-        verify(notices).meetingReminder(pairing, "Platform", "Mia", NOAH);
+        verify(notices).meetingReminder(reminder(pairing, "Noah", MIA));
+        verify(notices).meetingReminder(reminder(pairing, "Mia", NOAH));
     }
 
     @Test
@@ -184,8 +191,8 @@ class MeetingRemindersTest {
         at("2026-11-19T12:00:00Z").remindDue(ORG);
 
         // then
-        verify(notices).meetingReminder(friday, "Platform", "Noah", MIA);
-        verify(notices).meetingReminder(friday, "Platform", "Mia", NOAH);
+        verify(notices).meetingReminder(reminder(friday, "Noah", MIA));
+        verify(notices).meetingReminder(reminder(friday, "Mia", NOAH));
     }
 
     @Test

@@ -36,11 +36,10 @@ public interface CommunityActivity {
      * either is absent, so neither is a value a renderer may assume is present.
      *
      * <p>
-     * There is deliberately no {@code slug}, and there was one. The letter does not link a community - a roundup
-     * carries ONE call to action, and eight community links racing it is how that rule dies quietly - so a slug here
-     * was a value nothing could read, and the next person to see it would have wired it into an href without noticing
-     * why it had never been used. {@code QuarterActivity.NamedCommunity} records the same reasoning one layer in.
+     * {@code slug}, {@code heroKey} and the hero focus point are what a session poster needs to link and picture the
+     * community; the hero fields are null for a community that never set one.
      */
-    record CommunitySummary(long id, String name, String badgeKey, String accentColor) {
+    record CommunitySummary(long id, String name, String slug, String badgeKey, String heroKey, Integer heroFocusX,
+            Integer heroFocusY, String accentColor) {
     }
 }

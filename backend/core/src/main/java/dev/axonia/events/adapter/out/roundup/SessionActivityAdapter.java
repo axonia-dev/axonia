@@ -8,6 +8,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -18,6 +20,7 @@ import dev.axonia.events.adapter.out.persistence.SessionNameSql;
 import dev.axonia.events.application.port.out.UserProfileAccess;
 import dev.axonia.events.domain.SessionFacts;
 import dev.axonia.roundup.api.spi.SessionActivity;
+import lombok.Builder;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -55,9 +58,16 @@ class SessionActivityAdapter implements SessionActivity {
              WHERE count_sec.session_id = cs.id) AS talk_count
             """;
 
+    private static final Pattern HTTP_URL = Pattern.compile("^https?://\\S+$", Pattern.CASE_INSENSITIVE);
+
+    private static final String GOING_COUNT = """
+            (SELECT count(*) FROM session_attendance att WHERE att.session_id = cs.id) AS going_count
+            """;
+
     private static final String HELD_SESSIONS = """
             SELECT cs.id, cs.community_id, cs.scheduled_at,
-            """ + TITLE + "," + TALK_COUNT + """
+            cs.duration_minutes, cs.recording_url,
+            """ + TITLE + "," + TALK_COUNT + "," + GOING_COUNT + """
             FROM community_session cs
             """ + TITLE_SOURCES + """
             WHERE cs.organization_id = :organizationId
@@ -120,21 +130,21 @@ class SessionActivityAdapter implements SessionActivity {
             """;
 
     private static final String PRESENTERS_OF_SESSIONS = """
-            SELECT sec.session_id, sp.user_id
+            SELECT sec.session_id, sl.id AS slot_id, sp.user_id
             FROM event_slot_presenter sp
             JOIN event_slot sl ON sp.slot_id = sl.id
             JOIN event_section sec ON sl.section_id = sec.id
             WHERE sec.session_id IN (:sessionIds)
-            ORDER BY sec.session_id, sec.position, sl.position
+            ORDER BY sec.session_id, sec.position, sl.position, sp.user_id
             """;
 
     /**
-     * Every titled slot of the given sessions, in agenda order. Blank titles are dropped here rather than in Java, by
-     * the same {@code btrim(coalesce(sl.title, '')) <> ''} predicate {@link SessionNameSql#SOURCES} already picks its
-     * one slot with, so a slot titled with a space cannot reach a template as an empty line.
+     * Every titled slot of the given sessions, in agenda order, with its alphabetically first tag. Blank titles are
+     * dropped here by the same predicate {@link SessionNameSql#SOURCES} picks its one slot with.
      */
-    private static final String TALK_TITLES_OF_SESSIONS = """
-            SELECT sec.session_id, sl.title
+    private static final String TALKS_OF_SESSIONS = """
+            SELECT sec.session_id, sl.id AS slot_id, sl.title,
+                   (SELECT min(t.tag COLLATE "C") FROM event_slot_tag t WHERE t.slot_id = sl.id) AS tag
             FROM event_slot sl
             JOIN event_section sec ON sl.section_id = sec.id
             WHERE sec.session_id IN (:sessionIds)
@@ -150,21 +160,35 @@ class SessionActivityAdapter implements SessionActivity {
     public List<HeldSession> heldInPeriod(String organizationId, Instant from, Instant to) {
 
         var sessions = jdbc.query(HELD_SESSIONS, window(organizationId, from, to),
-                (rs, rowNum) -> new HeldRow(rs.getLong("id"), rs.getLong("community_id"), rs.getString("title"),
-                        rs.getTimestamp("scheduled_at").toInstant(), rs.getInt("talk_count")));
+                (rs, rowNum) -> HeldRow.builder().id(rs.getLong("id")).communityId(rs.getLong("community_id"))
+                        .title(rs.getString("title")).heldAt(rs.getTimestamp("scheduled_at").toInstant())
+                        .talkCount(rs.getInt("talk_count")).goingCount(rs.getInt("going_count"))
+                        .durationMinutes((Integer) rs.getObject("duration_minutes"))
+                        .recordingUrl(safeLink(rs.getString("recording_url"))).build());
         if (sessions.isEmpty()) {
             return List.of();
         }
-        var presenterIds = presenterIdsBySession(sessions.stream().map(HeldRow::id).toList());
-        var talkTitles = talkTitlesBySession(sessions.stream().map(HeldRow::id).toList());
-        var names = displayNames(organizationId,
-                presenterIds.values().stream().flatMap(List::stream).distinct().toList());
-        return sessions.stream()
-                .map(row -> HeldSession.builder().sessionId(row.id()).communityId(row.communityId()).title(row.title())
-                        .heldAt(row.heldAt()).talkCount(row.talkCount())
-                        .talkTitles(talkTitles.getOrDefault(row.id(), List.of()))
-                        .presenterNames(namesOf(presenterIds.getOrDefault(row.id(), List.of()), names)).build())
-                .toList();
+        var sessionIds = sessions.stream().map(HeldRow::id).toList();
+        var presenters = presenterRows(sessionIds);
+        var talkRows = talkRowsBySession(sessionIds);
+        var names = displayNames(organizationId, presenters.stream().map(PresenterRow::userId).distinct().toList());
+        var bySession = presenters.stream().collect(Collectors.groupingBy(PresenterRow::sessionId));
+        return sessions.stream().map(row -> held(row, bySession.getOrDefault(row.id(), List.of()),
+                talkRows.getOrDefault(row.id(), List.of()), names)).toList();
+    }
+
+    private static HeldSession held(HeldRow row, List<PresenterRow> presenters, List<TalkRow> talkRows,
+            Map<String, String> names) {
+
+        var bySlot = presenters.stream().collect(Collectors.groupingBy(PresenterRow::slotId,
+                Collectors.mapping(PresenterRow::userId, Collectors.toList())));
+        var talks = talkRows.stream().map(talk -> new HeldTalk(talk.title(),
+                namesOf(bySlot.getOrDefault(talk.slotId(), List.of()), names), talk.tag())).toList();
+        return HeldSession.builder().sessionId(row.id()).communityId(row.communityId()).title(row.title())
+                .heldAt(row.heldAt()).durationMinutes(row.durationMinutes()).recordingUrl(row.recordingUrl())
+                .goingCount(row.goingCount()).talkCount(row.talkCount()).talks(talks)
+                .presenterNames(namesOf(presenters.stream().map(PresenterRow::userId).distinct().toList(), names))
+                .build();
     }
 
     @Override
@@ -191,30 +215,26 @@ class SessionActivityAdapter implements SessionActivity {
                 jdbc.queryForObject(FIRST_TIME_PRESENTERS, window(organizationId, from, to), Integer.class));
     }
 
-    /**
-     * One session's presenters in the order they appear on its agenda, each person once however many slots they hold.
-     */
-    private Map<Long, List<String>> presenterIdsBySession(List<Long> sessionIds) {
+    /** Presenters in agenda order, one row per slot they hold. */
+    private List<PresenterRow> presenterRows(List<Long> sessionIds) {
 
-        var bySession = new LinkedHashMap<Long, List<String>>();
-        jdbc.query(PRESENTERS_OF_SESSIONS, new MapSqlParameterSource("sessionIds", sessionIds), rs -> {
-            var presenters = bySession.computeIfAbsent(rs.getLong("session_id"), sessionId -> new ArrayList<>());
-            var userId = rs.getString("user_id");
-            if (!presenters.contains(userId)) {
-                presenters.add(userId);
-            }
+        return jdbc.query(PRESENTERS_OF_SESSIONS, new MapSqlParameterSource("sessionIds", sessionIds), (rs,
+                rowNum) -> new PresenterRow(rs.getLong("session_id"), rs.getLong("slot_id"), rs.getString("user_id")));
+    }
+
+    private Map<Long, List<TalkRow>> talkRowsBySession(List<Long> sessionIds) {
+
+        var bySession = new LinkedHashMap<Long, List<TalkRow>>();
+        jdbc.query(TALKS_OF_SESSIONS, new MapSqlParameterSource("sessionIds", sessionIds), rs -> {
+            bySession.computeIfAbsent(rs.getLong("session_id"), sessionId -> new ArrayList<>())
+                    .add(new TalkRow(rs.getLong("slot_id"), rs.getString("title"), rs.getString("tag")));
         });
         return bySession;
     }
 
-    private Map<Long, List<String>> talkTitlesBySession(List<Long> sessionIds) {
+    private static String safeLink(String value) {
 
-        var bySession = new LinkedHashMap<Long, List<String>>();
-        jdbc.query(TALK_TITLES_OF_SESSIONS, new MapSqlParameterSource("sessionIds", sessionIds), rs -> {
-            bySession.computeIfAbsent(rs.getLong("session_id"), sessionId -> new ArrayList<>())
-                    .add(rs.getString("title"));
-        });
-        return bySession;
+        return value != null && HTTP_URL.matcher(value.strip()).matches() ? value.strip() : null;
     }
 
     /** A quarter whose sessions had nobody presenting asks the directory nothing rather than for an empty set. */
@@ -238,6 +258,14 @@ class SessionActivityAdapter implements SessionActivity {
                 .addValue("from", Timestamp.from(from)).addValue("to", Timestamp.from(to));
     }
 
-    private record HeldRow(long id, long communityId, String title, Instant heldAt, int talkCount) {
+    @Builder
+    private record HeldRow(long id, long communityId, String title, Instant heldAt, int talkCount, int goingCount,
+            Integer durationMinutes, String recordingUrl) {
+    }
+
+    private record PresenterRow(long sessionId, long slotId, String userId) {
+    }
+
+    private record TalkRow(long slotId, String title, String tag) {
     }
 }

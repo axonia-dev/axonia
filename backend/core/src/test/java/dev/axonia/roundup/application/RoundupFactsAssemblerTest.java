@@ -4,10 +4,13 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoSettings;
 
@@ -20,15 +23,19 @@ import dev.axonia.roundup.api.spi.SessionActivity;
 import dev.axonia.roundup.api.spi.SessionActivity.HeldSession;
 import dev.axonia.roundup.api.spi.SessionActivity.UpcomingSession;
 import dev.axonia.roundup.api.spi.TopicActivity;
+import dev.axonia.roundup.application.port.out.SessionThumbnails;
 import dev.axonia.roundup.configuration.RoundupProperties;
 import dev.axonia.roundup.domain.Quarter;
 import dev.axonia.roundup.domain.QuarterActivity.NamedCommunity;
 import dev.axonia.roundup.domain.RoundupFacts;
+import dev.axonia.roundup.domain.ThumbnailRequest;
 import dev.axonia.shared.configuration.PublicUrlProperties;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -59,6 +66,8 @@ class RoundupFactsAssemblerTest {
     private TopicActivity topicActivity;
     @Mock
     private AbsoluteMediaLinks absoluteMediaLinks;
+    @Mock
+    private SessionThumbnails sessionThumbnails;
 
     private RoundupFactsAssembler assembler;
 
@@ -67,15 +76,14 @@ class RoundupFactsAssemblerTest {
 
         assembler = new RoundupFactsAssembler(communityActivity, sessionActivity, artifactActivity, topicActivity,
                 new RoundupProperties(Duration.ofDays(2), COMMUNITY_CAP, SESSIONS_PER_COMMUNITY_CAP, TOPIC_CAP),
-                new PublicUrlProperties("https://axonia.example"), absoluteMediaLinks);
+                new PublicUrlProperties("https://axonia.example"), absoluteMediaLinks, sessionThumbnails);
     }
 
     @Test
     void readsEveryFigureOverTheQuarterItWasAskedAbout() {
 
-        var held = List
-                .of(HeldSession.builder().sessionId(1L).communityId(7L).title("Hexagons in anger").heldAt(QUARTER_START)
-                        .talkCount(2).talkTitles(List.of()).presenterNames(List.of("Alice Dubois")).build());
+        var held = List.of(HeldSession.builder().sessionId(1L).communityId(7L).title("Hexagons in anger")
+                .heldAt(QUARTER_START).talkCount(2).talks(List.of()).presenterNames(List.of("Alice Dubois")).build());
         var communities = List.of(backendGuild());
         var captured = IntStream.range(0, 47)
                 .mapToObj(i -> new CapturedArtifact(1L, "Artifact " + i, "https://example.test/" + i, "Recording"))
@@ -89,8 +97,12 @@ class RoundupFactsAssemblerTest {
 
         assertThat(actual.organizationName()).isEqualTo(ORGANIZATION_NAME);
         assertThat(actual.quarter()).isEqualTo(QUARTER);
-        assertThat(actual.communities()).containsExactly(new NamedCommunity(7L, "Backend Guild", null, null));
+        assertThat(actual.communities()).containsExactly(
+                new NamedCommunity(7L, "Backend Guild", null, null, "backend-guild", null, null, null));
         assertThat(actual.held()).isEqualTo(held);
+        assertThat(actual.organizationId()).isEqualTo(ORGANIZATION_ID);
+        assertThat(actual.publicBaseUrl()).isEqualTo("https://axonia.example");
+        assertThat(actual.thumbnailUrls()).isEmpty();
         assertThat(actual.firstTimePresenterCount()).isEqualTo(3);
         assertThat(actual.captured()).isEqualTo(captured);
     }
@@ -167,7 +179,7 @@ class RoundupFactsAssemblerTest {
         assertThat(actual.communityCap()).isEqualTo(COMMUNITY_CAP);
         assertThat(actual.sessionsPerCommunityCap()).isEqualTo(SESSIONS_PER_COMMUNITY_CAP);
         assertThat(actual.topicCap()).isEqualTo(TOPIC_CAP);
-        assertThat(actual.communitiesUrl()).isEqualTo("https://axonia.example/communities");
+        assertThat(actual.communitiesUrl()).isEqualTo("https://axonia.example/communities?org=acme");
     }
 
     /**
@@ -181,14 +193,14 @@ class RoundupFactsAssemblerTest {
     @Test
     void aCommunitysBadgeKeyIsResolvedToAPublicUrlBeforeItCanReachATemplate() {
 
-        given(communityActivity.activeCommunities(ORGANIZATION_ID))
-                .willReturn(List.of(new CommunitySummary(7L, "Backend Guild", "badges/7.png", "#1f9d63")));
+        given(communityActivity.activeCommunities(ORGANIZATION_ID)).willReturn(List.of(new CommunitySummary(7L,
+                "Backend Guild", "backend-guild", "badges/7.png", "heroes/7.png", 30, 70, "#1f9d63")));
         given(absoluteMediaLinks.urlFor("badges/7.png")).willReturn("https://cdn.axonia.example/badges/7.png");
 
         var actual = assembler.read(ORGANIZATION_ID, ORGANIZATION_NAME, QUARTER);
 
-        assertThat(actual.communities()).containsExactly(
-                new NamedCommunity(7L, "Backend Guild", "https://cdn.axonia.example/badges/7.png", "#1f9d63"));
+        assertThat(actual.communities()).containsExactly(new NamedCommunity(7L, "Backend Guild",
+                "https://cdn.axonia.example/badges/7.png", "#1f9d63", "backend-guild", "heroes/7.png", 30, 70));
     }
 
     /**
@@ -203,18 +215,112 @@ class RoundupFactsAssemblerTest {
 
         var actual = assembler.read(ORGANIZATION_ID, ORGANIZATION_NAME, QUARTER);
 
-        assertThat(actual.communities()).containsExactly(new NamedCommunity(7L, "Backend Guild", null, null));
+        assertThat(actual.communities()).containsExactly(
+                new NamedCommunity(7L, "Backend Guild", null, null, "backend-guild", null, null, null));
         then(absoluteMediaLinks).shouldHaveNoInteractions();
+    }
+
+    @Test
+    void eachShownSessionOfACommunityWithAHeroTakesTheNextSliceOfIt() {
+
+        // given
+        given(communityActivity.activeCommunities(ORGANIZATION_ID)).willReturn(List.of(
+                new CommunitySummary(7L, "Backend Guild", "backend-guild", null, "heroes/7.png", 30, 70, "#1F9D63")));
+        given(sessionActivity.heldInPeriod(ORGANIZATION_ID, QUARTER_START, QUARTER_END))
+                .willReturn(List.of(heldSession(41L, 7L), heldSession(42L, 7L)));
+        given(sessionThumbnails.urlFor(request(0, 30, 70, "#1f9d63"))).willReturn(Optional.of("https://m/0.jpg"));
+        given(sessionThumbnails.urlFor(request(1, 30, 70, "#1f9d63"))).willReturn(Optional.of("https://m/1.jpg"));
+
+        // when
+        var actual = assembler.read(ORGANIZATION_ID, ORGANIZATION_NAME, QUARTER);
+
+        // then
+        assertThat(actual.thumbnailUrls()).isEqualTo(Map.of(42L, "https://m/0.jpg", 41L, "https://m/1.jpg"));
+    }
+
+    @Test
+    void aHeroWithNoFocusOrAccentIsSlicedAroundItsCentreInTheNeutralAccent() {
+
+        // given
+        given(communityActivity.activeCommunities(ORGANIZATION_ID)).willReturn(List.of(
+                new CommunitySummary(7L, "Backend Guild", "backend-guild", null, "heroes/7.png", null, null, null)));
+        given(sessionActivity.heldInPeriod(ORGANIZATION_ID, QUARTER_START, QUARTER_END))
+                .willReturn(List.of(heldSession(41L, 7L)));
+        given(sessionThumbnails.urlFor(any())).willReturn(Optional.empty());
+
+        // when
+        var actual = assembler.read(ORGANIZATION_ID, ORGANIZATION_NAME, QUARTER);
+
+        // then
+        verify(sessionThumbnails).urlFor(request(0, 50, 50, "#786a7e"));
+        assertThat(actual.thumbnailUrls()).isEmpty();
+    }
+
+    @Test
+    void onlyTheNewestSessionsACardShowsAreComposed_andNoneForACommunityWithoutAHero() {
+
+        // given
+        given(communityActivity.activeCommunities(ORGANIZATION_ID)).willReturn(List.of(
+                new CommunitySummary(7L, "Backend Guild", "backend-guild", null, "heroes/7.png", 50, 50, "#abc"),
+                new CommunitySummary(9L, "Frontend Guild", "frontend-guild", null, null, null, null, "#123456")));
+        given(sessionActivity.heldInPeriod(ORGANIZATION_ID, QUARTER_START, QUARTER_END))
+                .willReturn(Stream
+                        .concat(Stream.of(heldSession(90L, 9L)),
+                                IntStream.rangeClosed(1, SESSIONS_PER_COMMUNITY_CAP + 1).mapToObj(
+                                        i -> heldSession(40L + i, 7L, QUARTER_START.plus(Duration.ofDays(i)))))
+                        .toList());
+        given(sessionThumbnails.urlFor(any())).willReturn(Optional.of("https://m/t.jpg"));
+        var requests = ArgumentCaptor.forClass(ThumbnailRequest.class);
+
+        // when
+        var actual = assembler.read(ORGANIZATION_ID, ORGANIZATION_NAME, QUARTER);
+
+        // then
+        verify(sessionThumbnails, times(SESSIONS_PER_COMMUNITY_CAP)).urlFor(requests.capture());
+        assertThat(requests.getAllValues()).extracting(ThumbnailRequest::sliceIndex).containsExactly(0, 1, 2, 3);
+        assertThat(requests.getAllValues()).extracting(ThumbnailRequest::accentHex).containsOnly("#aabbcc");
+        assertThat(actual.thumbnailUrls()).as("the oldest session is the one the cap leaves out").containsOnlyKeys(42L,
+                43L, 44L, 45L);
+    }
+
+    @Test
+    void communitiesPastTheCardCapGetNoThumbnails() {
+
+        // given: nine equally busy communities, so the letter shows the first eight by name
+        var communities = IntStream.rangeClosed(1, COMMUNITY_CAP + 1).mapToObj(i -> new CommunitySummary(100L + i,
+                "Guild " + i, "guild-" + i, null, "heroes/" + i + ".png", 50, 50, null)).toList();
+        given(communityActivity.activeCommunities(ORGANIZATION_ID)).willReturn(communities);
+        given(sessionActivity.heldInPeriod(ORGANIZATION_ID, QUARTER_START, QUARTER_END)).willReturn(
+                IntStream.rangeClosed(1, COMMUNITY_CAP + 1).mapToObj(i -> heldSession(200L + i, 100L + i)).toList());
+        given(sessionThumbnails.urlFor(any())).willReturn(Optional.of("https://m/t.jpg"));
+
+        // when
+        var actual = assembler.read(ORGANIZATION_ID, ORGANIZATION_NAME, QUARTER);
+
+        // then
+        verify(sessionThumbnails, times(COMMUNITY_CAP)).urlFor(any());
+        assertThat(actual.thumbnailUrls()).doesNotContainKey(200L + COMMUNITY_CAP + 1);
+    }
+
+    private static ThumbnailRequest request(int slice, int focusX, int focusY, String accentHex) {
+
+        return ThumbnailRequest.builder().organizationId(ORGANIZATION_ID).communityId(7L).heroKey("heroes/7.png")
+                .heroFocusX(focusX).heroFocusY(focusY).sliceIndex(slice).accentHex(accentHex).build();
     }
 
     private static CommunitySummary backendGuild() {
 
-        return new CommunitySummary(7L, "Backend Guild", null, null);
+        return new CommunitySummary(7L, "Backend Guild", "backend-guild", null, null, null, null, null);
     }
 
     private static HeldSession heldSession(long sessionId, long communityId) {
 
-        return HeldSession.builder().sessionId(sessionId).communityId(communityId).title("A session")
-                .heldAt(QUARTER_START).talkCount(1).talkTitles(List.of()).presenterNames(List.of()).build();
+        return heldSession(sessionId, communityId, QUARTER_START);
+    }
+
+    private static HeldSession heldSession(long sessionId, long communityId, Instant heldAt) {
+
+        return HeldSession.builder().sessionId(sessionId).communityId(communityId).title("A session").heldAt(heldAt)
+                .talkCount(1).talks(List.of()).presenterNames(List.of()).build();
     }
 }

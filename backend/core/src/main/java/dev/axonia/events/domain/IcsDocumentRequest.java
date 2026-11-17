@@ -11,8 +11,8 @@ import lombok.Builder;
  * five-parameter ceiling.
  */
 @Builder
-public record IcsDocumentRequest(String calendarName, String host, String communityUrl, Instant stamp,
-        List<ScheduleEntry> entries) {
+public record IcsDocumentRequest(String calendarName, String host, String publicBaseUrl, String slug,
+        String organizationId, Instant stamp, List<ScheduleEntry> entries) {
 
     public IcsDocumentRequest {
         entries = entries == null ? List.of() : List.copyOf(entries);

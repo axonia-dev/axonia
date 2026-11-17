@@ -4,6 +4,8 @@ import java.time.Duration;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.boot.context.properties.bind.Bindable;
 import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.boot.context.properties.bind.validation.BindValidationException;
@@ -40,11 +42,11 @@ class RoundupPropertiesTest {
     }
 
     @Test
-    void eightCommunitiesAreNamedIndividuallyUnlessConfiguredOtherwise() {
+    void fiveCommunitiesAreNamedIndividuallyUnlessConfiguredOtherwise() {
 
         var bound = bind(Map.of("axonia.roundup.settle-lag", "3d"));
 
-        assertThat(bound.communityCap()).isEqualTo(8);
+        assertThat(bound.communityCap()).isEqualTo(5);
         assertThat(bound.settleLag()).isEqualTo(Duration.ofDays(3));
     }
 
@@ -53,11 +55,11 @@ class RoundupPropertiesTest {
      * quiet ones should not have the quiet four pushed off a card by the busy one.
      */
     @Test
-    void fourOfACommunitysSessionsAreListedIndividuallyUnlessConfiguredOtherwise() {
+    void twoOfACommunitysSessionsAreListedIndividuallyUnlessConfiguredOtherwise() {
 
         var bound = bind(Map.of("axonia.roundup.community-cap", "4"));
 
-        assertThat(bound.sessionsPerCommunityCap()).isEqualTo(4);
+        assertThat(bound.sessionsPerCommunityCap()).isEqualTo(2);
         assertThat(bound.communityCap()).isEqualTo(4);
     }
 
@@ -108,6 +110,17 @@ class RoundupPropertiesTest {
 
         assertThatThrownBy(() -> bind(Map.of("axonia.roundup.settle-lag", "120d"))).rootCause()
                 .isInstanceOf(BindValidationException.class).hasMessageContaining("settleLag");
+    }
+
+    /** Each cap's ceiling is the letter Gmail was measured not to clip; past it the letter is cut off unseen. */
+    @ParameterizedTest
+    @CsvSource({"community-cap,6,communityCap", "sessions-per-community-cap,3,sessionsPerCommunityCap",
+            "topic-cap,13,topicCap"})
+    void refusesACapPastTheLetterGmailWasMeasuredNotToClip(String key, String value, String field) {
+
+        assertThatThrownBy(() -> bind(Map.of("axonia.roundup." + key, value))).rootCause()
+                .isInstanceOf(BindValidationException.class).hasMessageContaining(field)
+                .hasMessageContaining("must be less than or equal to");
     }
 
     /** A cap of zero names no community at all, which is a roundup with its point removed rather than a shorter one. */

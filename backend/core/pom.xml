@@ -163,6 +163,13 @@
 			<version>5.2.4</version>
 		</dependency>
 
+		<!-- A WebP reader for ImageIO, so a community hero uploaded as WebP decodes for the roundup thumbnail. -->
+		<dependency>
+			<groupId>com.twelvemonkeys.imageio</groupId>
+			<artifactId>imageio-webp</artifactId>
+			<version>3.15.3</version>
+		</dependency>
+
 		<!--
 			In-process caches: per-entry expiry, a size bound and atomic compute, on the application's
 			Clock through dev.axonia.shared.api.time.ClockTicker. Version managed by the Spring Boot BOM.

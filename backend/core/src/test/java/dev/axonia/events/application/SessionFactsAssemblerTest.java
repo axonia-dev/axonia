@@ -108,7 +108,8 @@ class SessionFactsAssemblerTest {
         var facts = assembler.facts(ORGANIZATION_ID, entity);
 
         // then
-        assertThat(facts).containsEntry("sessionUrl", "https://axonia.example/communities/frontend-guild/sessions/42");
+        assertThat(facts).containsEntry("sessionUrl",
+                "https://axonia.example/communities/frontend-guild/sessions/42?org=acme");
     }
 
     /**
@@ -125,7 +126,8 @@ class SessionFactsAssemblerTest {
 
         var facts = assembler.facts(ORGANIZATION_ID, entity);
 
-        assertThat(facts).containsEntry("sessionUrl", "https://axonia.example/communities/frontend-guild/sessions/42");
+        assertThat(facts).containsEntry("sessionUrl",
+                "https://axonia.example/communities/frontend-guild/sessions/42?org=acme");
         assertThat((Map<String, String>) facts.get("sender")).containsEntry("name", "Frontend Guild");
         verify(communityAccess, times(1)).communityIdentity(ORGANIZATION_ID, COMMUNITY_ID);
     }
@@ -593,7 +595,7 @@ class SessionFactsAssemblerTest {
         givenLeafDependencies(entity);
 
         assertThat(assembler.facts(ORGANIZATION_ID, entity)).containsEntry("backlogUrl",
-                "https://axonia.example/communities/frontend-guild/backlog");
+                "https://axonia.example/communities/frontend-guild/backlog?org=" + ORGANIZATION_ID);
     }
 
     @Test

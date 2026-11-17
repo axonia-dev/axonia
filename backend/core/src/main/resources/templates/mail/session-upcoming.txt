@@ -20,6 +20,6 @@ Meets online. Join the session: [(${joinUrl})][/][# th:if="${joiningDetails} != 
 [(${ctaLabel})]: [(${sessionUrl})][/][# th:if="${talks} != null and not ${talks.isEmpty()} and not ${#strings.isEmpty(backlogUrl)}"]
 
 Something you want to hear about? Add it to the backlog: [(${backlogUrl})][/][# th:if="${sender} != null"]
-You are a member of [(${sender.name})].[/][# th:if="not ${#strings.isEmpty(unsubscribePageUrl)}"]
+Sent to members of [(${sender.name})].[/][# th:if="not ${#strings.isEmpty(unsubscribePageUrl)}"]
 
 Unsubscribe: [(${unsubscribePageUrl})][/]

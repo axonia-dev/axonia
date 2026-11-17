@@ -17,6 +17,7 @@ class PointerAddressTest {
     @ParameterizedTest
     @ValueSource(strings = {"https://acme.example.test/communities/platform/sessions/42",
             "https://acme.example.test/communities/platform/sessions/42/",
+            "https://acme.example.test/communities/platform/sessions/42?org=acme",
             "https://ACME.example.test:443/communities/platform/sessions/42?tab=agenda#feedback",
             "  https://acme.example.test/communities/platform/sessions/42  "})
     void aSessionPageIsASession(String url) {

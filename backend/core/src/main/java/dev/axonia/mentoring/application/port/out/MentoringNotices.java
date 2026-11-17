@@ -2,12 +2,13 @@ package dev.axonia.mentoring.application.port.out;
 
 import dev.axonia.mentoring.domain.Pairing;
 import dev.axonia.mentoring.domain.Proposal;
+import lombok.Builder;
 
 /** What the two people of a proposal or a pairing are told. No notice carries a message or words text. */
 public interface MentoringNotices {
 
     /** Mailed and in the panel, to the receiver. */
-    void proposed(Proposal proposal, String communityName, String proposerName);
+    void proposed(String organizationId, Proposal proposal, String communityName, String proposerName);
 
     /** In the panel, to the sender: a neutral "not this time" over the first topic, with no reason and no message. */
     void declined(Proposal proposal, String communityName, String declinerName);
@@ -33,5 +34,10 @@ public interface MentoringNotices {
     void meetingSet(Pairing pairing, String communityName, String setByName, String recipientId);
 
     /** Reminds {@code recipientId} of the pairing's next meeting, the day before it. */
-    void meetingReminder(Pairing pairing, String communityName, String partnerName, String recipientId);
+    void meetingReminder(MeetingReminder reminder);
+
+    @Builder
+    record MeetingReminder(String organizationId, Pairing pairing, String communityName, String partnerName,
+            String recipientId) {
+    }
 }

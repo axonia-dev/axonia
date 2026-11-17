@@ -16,6 +16,7 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import dev.axonia.communication.api.CommunicationPort;
 import dev.axonia.communication.api.MessageType;
 import dev.axonia.communication.api.OutboundMessage;
+import dev.axonia.mentoring.application.port.out.MentoringNotices.MeetingReminder;
 import dev.axonia.mentoring.domain.Pairing;
 import dev.axonia.mentoring.domain.Proposal;
 import dev.axonia.mentoring.domain.ProposalStatus;
@@ -70,7 +71,7 @@ class MentoringNoticesAdapterTest {
                 .status(ProposalStatus.OPEN).createdAt(Instant.parse("2026-11-16T10:00:00Z")).build();
 
         // when
-        adapter.proposed(proposal, "Platform", "Noah");
+        adapter.proposed("acme", proposal, "Platform", "Noah");
 
         // then
         var actual = sent();
@@ -83,8 +84,9 @@ class MentoringNoticesAdapterTest {
         assertThat(actual.facts()).containsEntry("sessionTitle", "Noah proposes mentoring")
                 .containsEntry("line", "Kafka, Giving feedback")
                 .containsEntry("topics", List.of("Kafka", "Giving feedback"))
-                .containsEntry("mentoringUrl", "https://axonia.example/me/mentoring").containsEntry("sender", Map.of(
-                        "name", "Platform", "initials", "P", "tintBackground", "#f6f0ec", "tintForeground", "#211a26"));
+                .containsEntry("mentoringUrl", "https://axonia.example/me/mentoring?org=acme")
+                .containsEntry("sender", Map.of("name", "Platform", "initials", "P", "tintBackground", "#f6f0ec",
+                        "tintForeground", "#211a26"));
         assertThat(actual.facts().toString()).doesNotContain(SECRET);
     }
 
@@ -240,7 +242,8 @@ class MentoringNoticesAdapterTest {
                 .nextMeetingSetBy("noah").nextMeetingSetAt(Instant.parse("2026-11-16T10:00:00Z")).build();
 
         // when
-        adapter.meetingReminder(pairing, "Platform", "Mia", "noah");
+        adapter.meetingReminder(MeetingReminder.builder().organizationId("acme").pairing(pairing)
+                .communityName("Platform").partnerName("Mia").recipientId("noah").build());
 
         // then
         var actual = sent();
@@ -253,7 +256,7 @@ class MentoringNoticesAdapterTest {
         assertThat(actual.facts()).containsOnlyKeys("sender", "sessionTitle", "line", "mentoringUrl", "partner")
                 .containsEntry("sessionTitle", "Mentoring with Mia tomorrow")
                 .containsEntry("line", "Thursday 19 November").containsEntry("partner", "Mia")
-                .containsEntry("mentoringUrl", "https://axonia.example/me/mentoring/90");
+                .containsEntry("mentoringUrl", "https://axonia.example/me/mentoring/90?org=acme");
     }
 
     @Test

@@ -11,6 +11,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import dev.axonia.communication.adapter.out.persistence.JdbcOutbox;
+import dev.axonia.communication.api.EnqueuedRender;
 import dev.axonia.communication.api.MessageType;
 import dev.axonia.communication.api.RenderRequest;
 import dev.axonia.communication.api.spi.RecipientDirectory;
@@ -21,6 +22,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
@@ -135,6 +137,26 @@ class MessageRenderAdapterTest {
         assertThat(rendered.get().subject()).isEqualTo("Frontend Dojo: what happened");
         assertThat(rendered.get().html()).contains("https://axonia.test/unsubscribe?token=signed-token");
         verify(unsubscribeTokens).sign("user-1", "acme", MessageType.SESSION_WRAP_UP);
+    }
+
+    /** A caller that has outgrown a stored row's fact shape declines it, and gets the same empty as no row. */
+    @Test
+    void renderEnqueuedIsEmptyWhenTheCallerDeclinesTheStoredFacts() {
+
+        // given
+        var message = OutboxMessage.builder().template("session-wrap-up")
+                .facts("{\"sessionTitle\":\"Frontend Dojo\",\"talks\":[]}").build();
+        when(outbox.findMessageForSubject(MessageType.SESSION_WRAP_UP, "42")).thenReturn(Optional.of(message));
+        var request = EnqueuedRender.builder().organizationId("acme").previewingUserId("user-1")
+                .type(MessageType.SESSION_WRAP_UP).subjectRef("42")
+                .stillCurrent(facts -> facts.containsKey("quarterLabel")).build();
+
+        // when
+        var rendered = adapter.renderEnqueued(request);
+
+        // then
+        assertThat(rendered).isEmpty();
+        verifyNoInteractions(unsubscribeTokens);
     }
 
     /**

@@ -16,6 +16,7 @@ import dev.axonia.mentoring.domain.MentoringSubject;
 import dev.axonia.mentoring.domain.Pairing;
 import dev.axonia.mentoring.domain.Proposal;
 import dev.axonia.shared.api.text.Initials;
+import dev.axonia.shared.api.web.OrganizationLinks;
 import dev.axonia.shared.api.web.PublicUrls;
 import lombok.RequiredArgsConstructor;
 
@@ -60,10 +61,10 @@ public class MentoringNoticesAdapter implements MentoringNotices {
     private final PublicUrls publicUrls;
 
     @Override
-    public void proposed(Proposal proposal, String communityName, String proposerName) {
+    public void proposed(String organizationId, Proposal proposal, String communityName, String proposerName) {
 
         var facts = facts(communityName, proposerName + " proposes mentoring", String.join(", ", proposal.topics()),
-                myMentoringUrl());
+                OrganizationLinks.withOrganization(myMentoringUrl(), organizationId));
         facts.put(TOPICS_FACT, List.copyOf(proposal.topics()));
         communication.enqueue(OutboundMessage.builder().type(MessageType.MENTORING_PROPOSAL)
                 .subjectRef(MentoringSubject.proposal(proposal.id(), proposal.senderId()).ref())
@@ -130,13 +131,16 @@ public class MentoringNoticesAdapter implements MentoringNotices {
     }
 
     @Override
-    public void meetingReminder(Pairing pairing, String communityName, String partnerName, String recipientId) {
+    public void meetingReminder(MeetingReminder reminder) {
 
+        var pairing = reminder.pairing();
+        var recipientId = reminder.recipientId();
         var partnerId = recipientId.equals(pairing.mentorUserId()) ? pairing.menteeUserId() : pairing.mentorUserId();
         var subject = MentoringSubject.pairing(pairing.id(), pairing.nextMeetingOn().toString(), partnerId);
-        var facts = facts(communityName, "Mentoring with " + partnerName + " tomorrow",
-                DAY.format(pairing.nextMeetingOn()), journalUrl(pairing));
-        facts.put(PARTNER_FACT, partnerName);
+        var facts = facts(reminder.communityName(), "Mentoring with " + reminder.partnerName() + " tomorrow",
+                DAY.format(pairing.nextMeetingOn()),
+                OrganizationLinks.withOrganization(journalUrl(pairing), reminder.organizationId()));
+        facts.put(PARTNER_FACT, reminder.partnerName());
         communication.enqueue(OutboundMessage.builder().type(MessageType.MENTORING_MEETING_REMINDER)
                 .subjectRef(subject.ref()).recipientUserIds(List.of(recipientId)).template(REMINDER_TEMPLATE)
                 .aboutUserId(partnerId).facts(Map.copyOf(facts)).build());
