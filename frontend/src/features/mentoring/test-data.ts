@@ -75,6 +75,7 @@ export function pairingOf(
     myRole: "MENTEE",
     partnerId: "u-1",
     partnerName: "Ada",
+    partnerGivenName: null,
     partnerAvatarUrl: null,
     startedAt: "2026-11-16T10:00:00Z",
     endedAt: null,

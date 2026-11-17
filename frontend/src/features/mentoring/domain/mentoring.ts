@@ -66,6 +66,7 @@ export const pairingSummarySchema = z.object({
   myRole: roleSchema,
   partnerId: z.string().nullable(),
   partnerName: z.string(),
+  partnerGivenName: z.string().nullable(),
   partnerAvatarUrl: z.string().nullable(),
   startedAt: z.string(),
   endedAt: z.string().nullable(),

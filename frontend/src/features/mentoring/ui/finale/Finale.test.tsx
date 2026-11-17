@@ -107,6 +107,46 @@ describe("Finale", () => {
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
+  it("names the partner whole when no given name is known", async () => {
+    // given
+    const { onPostcard } = show({
+      pairing: pairingOf({ partnerName: "Rochat, Aurélia-NORTHWIND" }),
+      myWords: "Thank you.",
+      canWriteWords: true,
+    });
+
+    // when
+    await userEvent.click(
+      screen.getByRole("button", { name: "Open the postcard" }),
+    );
+
+    // then
+    expect(
+      screen.getByText("A postcard went to Rochat, Aurélia-NORTHWIND."),
+    ).toBeInTheDocument();
+    expect(onPostcard).toHaveBeenCalled();
+  });
+
+  it("greets the partner by their given name when one is known", async () => {
+    // given
+    show({
+      pairing: pairingOf({
+        partnerName: "Rochat, Aurélia-NORTHWIND",
+        partnerGivenName: "Aurélia",
+      }),
+      myWords: "Thank you.",
+      canWriteWords: true,
+    });
+
+    // when
+    await userEvent.click(
+      screen.getByRole("button", { name: "Open the postcard" }),
+    );
+
+    // then
+    expect(screen.getByText("A postcard went to Aurélia.")).toBeInTheDocument();
+  });
+
   it("no ask for words anywhere", () => {
     // when
     show({

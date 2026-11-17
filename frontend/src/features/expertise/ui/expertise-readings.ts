@@ -28,10 +28,6 @@ export interface Reading {
 
 const MONTH_MS = 1000 * 60 * 60 * 24 * 30.44;
 
-function firstName(full: string): string {
-  return full.split(" ")[0] ?? full;
-}
-
 function pct(share: number): number {
   return Math.round(share * 100);
 }
@@ -72,9 +68,7 @@ const SHAPES: Record<ReadingId, Shape> = {
         ),
     value: (t) => {
       const share = `${pct(t.topHolderShare)}% of ${t.signalCount}`;
-      return t.topHolderName === null
-        ? share
-        : `${share} · ${firstName(t.topHolderName)}`;
+      return t.topHolderName === null ? share : `${share} · ${t.topHolderName}`;
     },
     // The denominator is what this reading can measure, not every area: an area nobody has practised
     // cannot rest on one person, and counting it would understate the share.

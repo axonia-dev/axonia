@@ -52,8 +52,22 @@ test("concentration states how many areas rest on one person", () => {
 
   expect(r.statement).toBe("1 of 2 areas rests on a single person.");
   expect(r.rows.map((x) => x.tag)).toEqual(["flink", "kafka"]);
-  expect(r.rows[0]?.value).toBe("100% of 2 · Dana");
+  expect(r.rows[0]?.value).toBe("100% of 2 · Dana Krupa");
   expect(r.badgeOf("kafka")).toBe("50%");
+});
+
+test("concentration shows the top holder's whole name", () => {
+  const topics = [
+    topic({
+      canonicalTag: "flink",
+      signalCount: 2,
+      topHolderName: "Rochat, Aurélia-NORTHWIND",
+    }),
+  ];
+
+  const r = buildReading("concentrated", topics, NOW);
+
+  expect(r.rows[0]?.value).toBe("100% of 2 · Rochat, Aurélia-NORTHWIND");
 });
 
 test("concentration falls back to the leading share when nothing rests on one person", () => {

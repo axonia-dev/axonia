@@ -23,11 +23,11 @@ interface Props {
   onClose: () => void;
 }
 
-/** The mentor the postcard goes to, in full and by first name. */
+/** The mentor the postcard goes to, in full and by given name when one is known. */
 export function addresseeOf(journal: Journal): { name: string; first: string } {
   const { pairing } = journal;
   const name = personName(pairing.partnerName, pairing.partnerId);
-  return { name, first: name.split(" ")[0] ?? name };
+  return { name, first: pairing.partnerGivenName ?? name };
 }
 
 const CARD =

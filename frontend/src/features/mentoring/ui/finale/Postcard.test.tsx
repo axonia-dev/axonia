@@ -20,6 +20,7 @@ const mutation = () => ({
 });
 const ended = pairingOf({
   partnerName: "Ada Lovelace",
+  partnerGivenName: "Ada",
   endedAt: "2026-11-16T09:00:00Z",
 });
 
