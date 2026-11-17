@@ -54,6 +54,9 @@ class UserServiceReconcileTest {
     @Spy
     MediaLinks mediaLinks = new MediaLinks("https://media.example.test");
 
+    @Spy
+    private MemberNames memberNames = FixedNamePatterns.none();
+
     @InjectMocks
     UserService sut;
 
@@ -155,8 +158,9 @@ class UserServiceReconcileTest {
         // then - carries a freshly generated scimId, so everything else is checked exactly and the id separately
         var captor = ArgumentCaptor.forClass(UserUpsert.class);
         verify(userStore).upsert(captor.capture(), eq(SEEN_AT));
-        assertThat(captor.getValue()).usingRecursiveComparison().ignoringFields("scimId").isEqualTo(UserUpsert.builder()
-                .organizationId("default").userId("sub-123").displayName("Alice").email("alice@acme.test").build());
+        assertThat(captor.getValue()).usingRecursiveComparison().ignoringFields("scimId")
+                .isEqualTo(UserUpsert.builder().organizationId("default").userId("sub-123").displayName("Alice")
+                        .receivedName("Alice").email("alice@acme.test").build());
         assertThat(captor.getValue().scimId()).isNotBlank();
     }
 

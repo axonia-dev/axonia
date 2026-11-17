@@ -6,6 +6,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoSettings;
 
 import dev.axonia.identity.api.spi.SuccessionAddresses;
@@ -35,6 +36,9 @@ class SuccessionAdoptionTest {
 
     @Mock
     private UserStore users;
+
+    @Spy
+    private MemberNames memberNames = FixedNamePatterns.none();
 
     @InjectMocks
     private SuccessionAdoption sut;

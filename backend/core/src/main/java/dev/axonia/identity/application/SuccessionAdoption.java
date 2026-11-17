@@ -28,6 +28,7 @@ public class SuccessionAdoption {
 
     private final SuccessionAddresses successions;
     private final UserStore users;
+    private final MemberNames memberNames;
 
     /**
      * What one directory push says about a person, with nothing SCIM-shaped in it. Its own record rather than six
@@ -53,8 +54,8 @@ public class SuccessionAdoption {
 
         return successions.formerAddressOf(organizationId, push.email())
                 .flatMap(address -> users.findActiveByEmail(organizationId, address))
-                .map(member -> users.save(member.toBuilder().email(push.email()).externalId(push.externalId())
-                        .displayName(push.displayName()).businessUnit(push.businessUnit()).department(push.department())
-                        .team(push.team()).build()));
+                .map(member -> users.save(memberNames.named(member.toBuilder().email(push.email())
+                        .externalId(push.externalId()).businessUnit(push.businessUnit()).department(push.department())
+                        .team(push.team()).build(), push.displayName())));
     }
 }

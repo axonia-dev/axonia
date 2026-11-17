@@ -30,6 +30,7 @@ import lombok.RequiredArgsConstructor;
 public class UserService implements MemberProfiles {
 
     private final UserStore userStore;
+    private final MemberNames memberNames;
     private final ClaimsReader claimsReader;
     private final AvatarSyncService avatarSyncService;
     private final SignInProviderResolver signInProviderResolver;
@@ -107,9 +108,10 @@ public class UserService implements MemberProfiles {
                         .build();
             }
         }
+        var name = memberNames.read(claims.organizationId(), claims.displayName());
         userStore.upsert(UserUpsert.builder().organizationId(claims.organizationId()).userId(claims.userId())
-                .displayName(claims.displayName()).email(claims.email()).scimId(UUID.randomUUID().toString()).build(),
-                seenAt);
+                .receivedName(claims.displayName()).displayName(name.displayName()).givenName(name.givenName())
+                .email(claims.email()).scimId(UUID.randomUUID().toString()).build(), seenAt);
         var row = userStore.findByOrganizationIdAndUserId(claims.organizationId(), claims.userId())
                 .orElseThrow(() -> new IllegalStateException(
                         "provisioned row " + claims.organizationId() + "|" + claims.userId() + " not readable back"));

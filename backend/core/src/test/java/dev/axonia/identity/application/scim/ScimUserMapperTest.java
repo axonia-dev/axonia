@@ -16,7 +16,13 @@ class ScimUserMapperTest {
     private static UserAccount sampleUser() {
 
         return UserAccount.builder().scimId("scim-abc-123").email("alice@example.com").externalId("ext-001")
-                .displayName("Alice Smith").active(true).build();
+                .displayName("Alice Smith").receivedName("Smith, Alice-EXT").active(true).build();
+    }
+
+    @Test
+    void toScim_answersTheNameAsReceivedNotAsShown() {
+
+        assertThat(mapper.toScim(sampleUser()).displayName()).isEqualTo("Smith, Alice-EXT");
     }
 
     @Test
@@ -131,7 +137,7 @@ class ScimUserMapperTest {
         ScimUser scimUser = mapper.toScim(sampleUser());
 
         // then
-        assertThat(mapper.getDisplayName(scimUser)).isEqualTo("Alice Smith");
+        assertThat(mapper.getDisplayName(scimUser)).isEqualTo("Smith, Alice-EXT");
     }
 
     @Test

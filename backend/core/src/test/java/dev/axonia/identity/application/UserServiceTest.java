@@ -76,6 +76,9 @@ class UserServiceTest {
     @Spy
     private MediaLinks mediaLinks = new MediaLinks("https://media.example.test");
 
+    @Spy
+    private MemberNames memberNames = FixedNamePatterns.none();
+
     @InjectMocks
     private UserService sut;
 
@@ -100,7 +103,7 @@ class UserServiceTest {
 
         // then
         verifyUpsertWithGeneratedScimId(UserUpsert.builder().organizationId("acme").userId("u-new")
-                .displayName("Ada Lovelace").email("ada@acme.test").build(), SEEN_AT);
+                .displayName("Ada Lovelace").receivedName("Ada Lovelace").email("ada@acme.test").build(), SEEN_AT);
     }
 
     /**
@@ -171,10 +174,9 @@ class UserServiceTest {
         var actual = sut.provision(CLAIMS);
 
         // then
-        verifyUpsertWithGeneratedScimId(
-                UserUpsert.builder().organizationId("default").userId("11111111-1111-1111-1111-111111111111")
-                        .displayName("Alice Anderson").email("alice@axonia.example").build(),
-                SEEN_AT);
+        verifyUpsertWithGeneratedScimId(UserUpsert.builder().organizationId("default")
+                .userId("11111111-1111-1111-1111-111111111111").displayName("Alice Anderson")
+                .receivedName("Alice Anderson").email("alice@axonia.example").build(), SEEN_AT);
         assertThat(actual).usingRecursiveAssertion().isEqualTo(UserMother.any().build());
     }
 
@@ -194,9 +196,8 @@ class UserServiceTest {
         var actual = sut.provision(claims);
 
         // then - the upsert carries no avatar at all, and the returned avatar is our own, not the claim's
-        verifyUpsertWithGeneratedScimId(
-                UserUpsert.builder().organizationId("t1").userId("u1").displayName("Alex").email("a@x.com").build(),
-                SEEN_AT);
+        verifyUpsertWithGeneratedScimId(UserUpsert.builder().organizationId("t1").userId("u1").displayName("Alex")
+                .receivedName("Alex").email("a@x.com").build(), SEEN_AT);
         assertThat(actual.avatarUrl()).isEqualTo("https://media.example.test/avatars/t1/u1.png");
     }
 
@@ -258,10 +259,9 @@ class UserServiceTest {
         var actual = sut.me();
 
         // then
-        verifyUpsertWithGeneratedScimId(
-                UserUpsert.builder().organizationId("default").userId("11111111-1111-1111-1111-111111111111")
-                        .displayName("Alice Anderson").email("alice@axonia.example").build(),
-                SEEN_AT);
+        verifyUpsertWithGeneratedScimId(UserUpsert.builder().organizationId("default")
+                .userId("11111111-1111-1111-1111-111111111111").displayName("Alice Anderson")
+                .receivedName("Alice Anderson").email("alice@axonia.example").build(), SEEN_AT);
         assertThat(actual).usingRecursiveAssertion().isEqualTo(UserMother.any().build());
     }
 

@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import dev.axonia.identity.api.MemberDeactivated;
+import dev.axonia.identity.application.MemberNames;
 import dev.axonia.identity.application.SuccessionAdoption;
 import dev.axonia.identity.application.port.out.UserStore;
 import dev.axonia.identity.domain.UserAccount;
@@ -30,6 +31,7 @@ public class ScimUserService {
     private final SuccessionAdoption successions;
     private final DirectorySubjectClaim subjects;
     private final ApplicationEventPublisher events;
+    private final MemberNames memberNames;
 
     @Transactional
     public ScimUser create(ScimPrincipal p, ScimUser in) {
@@ -70,10 +72,11 @@ public class ScimUserService {
 
         String scimId = UUID.randomUUID().toString();
 
-        UserAccount toSave = UserAccount.builder().organizationId(p.organizationId()).scimId(scimId)
-                .externalId(externalId).displayName(mapper.getDisplayName(in)).email(email).active(true)
-                .arrival(UserArrival.SYNCED).businessUnit(mapper.getBusinessUnit(in))
-                .department(mapper.getDepartment(in)).team(mapper.getTeam(in)).build();
+        UserAccount toSave = memberNames.named(
+                UserAccount.builder().organizationId(p.organizationId()).scimId(scimId).externalId(externalId)
+                        .email(email).active(true).arrival(UserArrival.SYNCED).businessUnit(mapper.getBusinessUnit(in))
+                        .department(mapper.getDepartment(in)).team(mapper.getTeam(in)).build(),
+                mapper.getDisplayName(in));
 
         UserAccount saved = userStore.save(subjects.withSubject(p.organizationId(), toSave));
 
@@ -113,7 +116,7 @@ public class ScimUserService {
 
         boolean nowActive = mapper.getActive(in);
 
-        UserAccount updated = existing.toBuilder().displayName(mapper.getDisplayName(in)).email(mapper.getUserName(in))
+        UserAccount updated = existing.toBuilder().receivedName(mapper.getDisplayName(in)).email(mapper.getUserName(in))
                 .externalId(mapper.getExternalId(in)).active(nowActive).businessUnit(mapper.getBusinessUnit(in))
                 .department(mapper.getDepartment(in)).team(mapper.getTeam(in)).build();
 
@@ -141,8 +144,9 @@ public class ScimUserService {
 
     private UserAccount directoryWrite(ScimPrincipal p, UserAccount before, UserAccount account) {
 
-        subjects.requireUnheld(p.organizationId(), account);
-        var saved = userStore.save(subjects.withSubject(p.organizationId(), account));
+        var named = memberNames.named(account, account.receivedName());
+        subjects.requireUnheld(p.organizationId(), named);
+        var saved = userStore.save(subjects.withSubject(p.organizationId(), named));
         announceIfDeactivated(before, saved);
         return saved;
     }
@@ -175,7 +179,7 @@ public class ScimUserService {
                 builder.active(toBoolean(value));
             }
         } else if ("displayName".equalsIgnoreCase(path)) {
-            builder.displayName(value != null ? value.toString() : null);
+            builder.receivedName(value != null ? value.toString() : null);
         } else if ("externalId".equalsIgnoreCase(path)) {
             builder.externalId(value != null ? value.toString() : null);
         } else {

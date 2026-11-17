@@ -24,7 +24,7 @@ public class ScimUserMapper {
         }
 
         return ScimUser.builder().id(entity.scimId()).externalId(entity.externalId()).userName(userName)
-                .displayName(entity.displayName()).emails(emails).active(active).meta(meta).enterprise(enterprise)
+                .displayName(entity.receivedName()).emails(emails).active(active).meta(meta).enterprise(enterprise)
                 .build();
     }
 

@@ -13,6 +13,7 @@ import org.springframework.http.HttpStatus;
 
 import dev.axonia.identity.api.MemberDeactivated;
 import dev.axonia.identity.api.spi.DirectorySubjects;
+import dev.axonia.identity.application.FixedNamePatterns;
 import dev.axonia.identity.application.SuccessionAdoption;
 import dev.axonia.identity.application.port.out.UserStore;
 import dev.axonia.identity.domain.UserAccount;
@@ -56,7 +57,7 @@ class ScimUserServiceTest {
     void setUp() {
 
         sut = new ScimUserService(userStore, mapper, successions,
-                new DirectorySubjectClaim(directorySubjects, userStore), events);
+                new DirectorySubjectClaim(directorySubjects, userStore), events, FixedNamePatterns.none());
     }
 
     // --- create ---
@@ -658,7 +659,7 @@ class ScimUserServiceTest {
 
         // given
         UserAccount existing = UserAccount.builder().id(13L).organizationId("tenant-1").scimId("scim-13")
-                .displayName("Kept").active(true).build();
+                .displayName("Kept").receivedName("Kept").active(true).build();
         when(userStore.findByOrganizationIdAndScimId("tenant-1", "scim-13")).thenReturn(Optional.of(existing));
         ArgumentCaptor<UserAccount> captor = ArgumentCaptor.forClass(UserAccount.class);
         when(userStore.save(captor.capture())).thenAnswer(invocation -> invocation.getArgument(0));

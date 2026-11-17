@@ -58,9 +58,10 @@ class UserServiceProvisionJdbcTest extends CoreJdbcTestSupport {
     @BeforeEach
     void assembleService() {
 
-        userService = new UserService(userStore, mock(ClaimsReader.class), mock(AvatarSyncService.class),
-                mock(SignInProviderResolver.class), new UsageCounters(new SimpleMeterRegistry()),
-                new MediaLinks("https://media.example.test"), Clock.fixed(SEEN_AT, ZoneOffset.UTC));
+        userService = new UserService(userStore, FixedNamePatterns.none(), mock(ClaimsReader.class),
+                mock(AvatarSyncService.class), mock(SignInProviderResolver.class),
+                new UsageCounters(new SimpleMeterRegistry()), new MediaLinks("https://media.example.test"),
+                Clock.fixed(SEEN_AT, ZoneOffset.UTC));
     }
 
     /**
@@ -85,6 +86,24 @@ class UserServiceProvisionJdbcTest extends CoreJdbcTestSupport {
                 .as("the subject stayed on the row that already held it").isEqualTo("scim-ada");
         assertThat(userRepository.findById(pushed.getId())).get().extracting(UserEntity::getUserId)
                 .as("the pushed row was left sub-less rather than dragged onto an occupied subject").isNull();
+    }
+
+    @Test
+    void aSignInIsReadThroughTheOrganizationsNamePattern() {
+
+        var service = new UserService(userStore, FixedNamePatterns.declaring(ORG, "{family}, {given}-NORTHWIND"),
+                mock(ClaimsReader.class), mock(AvatarSyncService.class), mock(SignInProviderResolver.class),
+                new UsageCounters(new SimpleMeterRegistry()), new MediaLinks("https://media.example.test"),
+                Clock.fixed(SEEN_AT, ZoneOffset.UTC));
+
+        var user = service.provision(IdentityClaims.builder().organizationId(ORG).userId("sub-jonathan")
+                .displayName("Jacquat, Jonathan-NORTHWIND").email("j.jacquat@acme.test").build());
+
+        var stored = userRepository.findByOrganizationIdAndUserId(ORG, "sub-jonathan").orElseThrow();
+        assertThat(stored.getReceivedName()).isEqualTo("Jacquat, Jonathan-NORTHWIND");
+        assertThat(stored.getDisplayName()).isEqualTo("Jonathan Jacquat");
+        assertThat(stored.getGivenName()).isEqualTo("Jonathan");
+        assertThat(user.displayName()).isEqualTo("Jonathan Jacquat");
     }
 
     /** The other side of the guard: with no row under this subject yet, a pushed row is still reconciled. */
