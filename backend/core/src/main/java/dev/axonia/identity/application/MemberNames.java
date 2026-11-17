@@ -33,6 +33,7 @@ public class MemberNames {
     }
 
     /** The account carrying {@code receivedName} as asserted, and the shown and given names read out of it. */
+    @Transactional(propagation = Propagation.MANDATORY)
     public UserAccount named(UserAccount account, String receivedName) {
 
         var name = read(account.organizationId(), receivedName);
