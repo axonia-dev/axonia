@@ -10,9 +10,15 @@ function jsonResponse(body: unknown): Response {
   });
 }
 
+function urlOf(input: RequestInfo | URL | undefined): string {
+  if (input instanceof Request) return input.url;
+  if (input instanceof URL) return input.href;
+  return input ?? "";
+}
+
 function requestOf(spy: MockInstance<typeof fetch>) {
   const [url, init] = spy.mock.calls[0] ?? [];
-  return { url: String(url), init };
+  return { url: urlOf(url), init };
 }
 
 describe("httpAdminGateway member names", () => {
