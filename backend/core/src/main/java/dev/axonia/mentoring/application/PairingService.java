@@ -172,7 +172,7 @@ public class PairingService {
         var other = MentoringViews.partnerOf(pairing, endedBy);
         if (other != null) {
             notices.ended(pairing, communityAccess.guildOf(org, pairing.communityId()),
-                    personDirectory.displayName(org, endedBy), other);
+                    personDirectory.shortName(org, endedBy), other);
         }
         return true;
     }

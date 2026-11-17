@@ -59,8 +59,8 @@ class MeetingRemindersTest {
     void setUp() {
 
         when(communityAccess.guildOf(ORG, 7L)).thenReturn(new MentoringGuild("platform", "Platform"));
-        when(personDirectory.displayName(ORG, MIA)).thenReturn("Mia");
-        when(personDirectory.displayName(ORG, NOAH)).thenReturn("Noah");
+        when(personDirectory.shortName(ORG, MIA)).thenReturn("Mia");
+        when(personDirectory.shortName(ORG, NOAH)).thenReturn("Noah");
         zones(ZoneId.of("UTC"), ZoneId.of("UTC"));
     }
 
@@ -209,6 +209,6 @@ class MeetingRemindersTest {
 
         // then
         verifyNoInteractions(notices, memberClocks);
-        verify(personDirectory, never()).displayName(any(), any());
+        verify(personDirectory, never()).shortName(any(), any());
     }
 }

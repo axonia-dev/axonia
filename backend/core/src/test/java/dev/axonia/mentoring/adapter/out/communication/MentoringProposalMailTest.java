@@ -49,7 +49,7 @@ class MentoringProposalMailTest {
         var actual = render();
 
         // then
-        assertThat(actual.subject()).isEqualTo("Noah proposes mentoring");
+        assertThat(actual.subject()).isEqualTo("Mentoring proposed by Noah");
     }
 
     @Test
@@ -59,7 +59,7 @@ class MentoringProposalMailTest {
         var actual = render();
 
         // then
-        assertThat(actual.html()).contains("Noah proposes mentoring").contains("Platform").contains("Kafka")
+        assertThat(actual.html()).contains("Mentoring proposed by Noah").contains("Platform").contains("Kafka")
                 .contains("Giving feedback")
                 .contains("href=\"https://axonia.example/communities/platform/me/mentoring?org=acme\"")
                 .contains("Proposed through Platform.").contains("https://axonia.example/unsubscribe/t")
@@ -74,7 +74,7 @@ class MentoringProposalMailTest {
 
         // then
         assertThat(actual.text()).isEqualTo("""
-                Noah proposes mentoring
+                Mentoring proposed by Noah
 
                 A proposal to mentor or be mentored in Platform. It waits on My mentoring for 30 days.
 

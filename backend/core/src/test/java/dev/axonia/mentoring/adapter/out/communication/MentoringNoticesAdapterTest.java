@@ -82,7 +82,7 @@ class MentoringNoticesAdapterTest {
         assertThat(actual.subjectRef()).isEqualTo("proposal:40:noah");
         assertThat(actual.recipientUserIds()).containsExactly("mia");
         assertThat(actual.aboutUserId()).isEqualTo("noah");
-        assertThat(actual.facts()).containsEntry("sessionTitle", "Noah proposes mentoring")
+        assertThat(actual.facts()).containsEntry("sessionTitle", "Mentoring proposed by Noah")
                 .containsEntry("line", "Kafka, Giving feedback")
                 .containsEntry("topics", List.of("Kafka", "Giving feedback"))
                 .containsEntry("mentoringUrl", "https://axonia.example/communities/platform/me/mentoring?org=acme")
@@ -111,7 +111,7 @@ class MentoringNoticesAdapterTest {
         assertThat(actual.recipientUserIds()).containsExactly("noah");
         assertThat(actual.aboutUserId()).isEqualTo("mia");
         assertThat(actual.facts()).containsOnlyKeys("sender", "sessionTitle", "line", "mentoringUrl")
-                .containsEntry("sessionTitle", "Mia answered: not this time").containsEntry("line", "Kafka")
+                .containsEntry("sessionTitle", "Not this time, from Mia").containsEntry("line", "Kafka")
                 .containsEntry("mentoringUrl", "https://axonia.example/communities/platform/me/mentoring");
         assertThat(actual.facts().toString()).doesNotContain(SECRET).doesNotContain("Helm");
     }
@@ -155,7 +155,7 @@ class MentoringNoticesAdapterTest {
         assertThat(actual.recipientUserIds()).containsExactly("noah");
         assertThat(actual.aboutUserId()).isEqualTo("mia");
         assertThat(actual.facts()).containsOnlyKeys("sender", "sessionTitle", "line", "mentoringUrl")
-                .containsEntry("sessionTitle", "Mia reopened a proposal").containsEntry("line", "Kafka")
+                .containsEntry("sessionTitle", "Proposal reopened by Mia").containsEntry("line", "Kafka")
                 .containsEntry("mentoringUrl", "https://axonia.example/communities/platform/me/mentoring");
         assertThat(actual.facts().toString()).doesNotContain(SECRET).doesNotContain("Helm");
     }
@@ -173,7 +173,7 @@ class MentoringNoticesAdapterTest {
         assertThat(actual.subjectRef()).isEqualTo("pairing:90:mia");
         assertThat(actual.recipientUserIds()).containsExactly("noah");
         assertThat(actual.aboutUserId()).isEqualTo("mia");
-        assertThat(actual.facts()).containsEntry("sessionTitle", "Mentoring with Mia ended")
+        assertThat(actual.facts()).containsEntry("sessionTitle", "Mentoring ended with Mia")
                 .containsEntry("line", "A postcard to Mia waits in the journal")
                 .containsEntry("mentoringUrl", "https://axonia.example/communities/platform/me/mentoring/90");
     }
@@ -188,7 +188,7 @@ class MentoringNoticesAdapterTest {
         var actual = sent();
         assertThat(actual.recipientUserIds()).containsExactly("mia");
         assertThat(actual.aboutUserId()).isEqualTo("noah");
-        assertThat(actual.facts()).containsEntry("sessionTitle", "Mentoring with Noah ended").containsEntry("line",
+        assertThat(actual.facts()).containsEntry("sessionTitle", "Mentoring ended with Noah").containsEntry("line",
                 "The journal stays readable");
     }
 
@@ -229,8 +229,7 @@ class MentoringNoticesAdapterTest {
         assertThat(actual.aboutUserId()).isEqualTo("noah");
         assertThat(actual.subjectRef()).isEqualTo("pairing:90@" + setAt.toEpochMilli() + ":noah");
         assertThat(actual.facts()).containsOnlyKeys("sender", "sessionTitle", "line", "mentoringUrl")
-                .containsEntry("sessionTitle", "Noah set the next meeting")
-                .containsEntry("line", "Thursday 19 November")
+                .containsEntry("sessionTitle", "Next meeting set by Noah").containsEntry("line", "Thursday 19 November")
                 .containsEntry("mentoringUrl", "https://axonia.example/communities/platform/me/mentoring/90");
     }
 
@@ -255,7 +254,7 @@ class MentoringNoticesAdapterTest {
         assertThat(actual.aboutUserId()).isEqualTo("mia");
         assertThat(actual.subjectRef()).isEqualTo("pairing:90@2026-11-19:mia");
         assertThat(actual.facts()).containsOnlyKeys("sender", "sessionTitle", "line", "mentoringUrl", "partner")
-                .containsEntry("sessionTitle", "Mentoring with Mia tomorrow")
+                .containsEntry("sessionTitle", "Mentoring tomorrow with Mia")
                 .containsEntry("line", "Thursday 19 November").containsEntry("partner", "Mia")
                 .containsEntry("mentoringUrl", "https://axonia.example/communities/platform/me/mentoring/90?org=acme");
     }

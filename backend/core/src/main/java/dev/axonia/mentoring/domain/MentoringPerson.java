@@ -6,6 +6,12 @@ public record MentoringPerson(String userId, String displayName, String givenNam
     /** Matches identity's label for a departed member. */
     public static final String DELETED_MEMBER = "Deleted member";
 
+    /** The name the person is greeted by: the given name, else the whole display name. */
+    public String shortName() {
+
+        return givenName == null ? displayName : givenName;
+    }
+
     /** A member the directory no longer names; an erased side has no id at all. */
     public static MentoringPerson deleted(String userId) {
 

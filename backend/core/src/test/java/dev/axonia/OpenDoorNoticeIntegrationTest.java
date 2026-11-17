@@ -88,7 +88,7 @@ class OpenDoorNoticeIntegrationTest {
         var entries = panelOf(LEARNER);
         assertThat(entries).singleElement().satisfies(entry -> {
             assertThat(entry.sender()).isEqualTo("Platform Guild");
-            assertThat(entry.headline()).isEqualTo("Lea Moser is open to questions");
+            assertThat(entry.headline()).isEqualTo("Open to questions: Lea Moser");
             assertThat(entry.line()).isEqualTo("observability");
             assertThat(entry.actionUrl())
                     .contains("/communities/" + SLUG + "/expertise?term=observability&who=open&org=");

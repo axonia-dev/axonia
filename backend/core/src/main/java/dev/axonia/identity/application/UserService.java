@@ -252,6 +252,14 @@ public class UserService implements MemberProfiles {
         return userStore.findByOrganizationIdAndUserId(organizationId, userId).map(UserAccount::displayName);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<String> shortName(String organizationId, String userId) {
+
+        return userStore.findByOrganizationIdAndUserId(organizationId, userId)
+                .map(account -> account.givenName() == null ? account.displayName() : account.givenName());
+    }
+
     /** Batch display-name lookup for users in a given organization; unknown ids are omitted from the result. */
     @Override
     @Transactional(readOnly = true)

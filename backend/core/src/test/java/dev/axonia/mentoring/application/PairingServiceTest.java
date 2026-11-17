@@ -110,7 +110,7 @@ class PairingServiceTest {
         when(personDirectory.isPresent(ORG, ME)).thenReturn(true);
         when(memberClocks.zoneOf(ORG, ME)).thenReturn(ZoneOffset.UTC);
         when(pairings.end(eq(ORG), anyLong(), any(), any())).thenReturn(true);
-        when(personDirectory.displayName(eq(ORG), any())).thenAnswer(inv -> name(inv.getArgument(1)));
+        when(personDirectory.shortName(eq(ORG), any())).thenAnswer(inv -> name(inv.getArgument(1)));
         when(personDirectory.resolve(anyCollection())).thenAnswer(inv -> {
             Collection<String> ids = inv.getArgument(0);
             return ids.stream()

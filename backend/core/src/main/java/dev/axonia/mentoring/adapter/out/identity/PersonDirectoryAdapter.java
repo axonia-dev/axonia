@@ -31,9 +31,9 @@ class PersonDirectoryAdapter implements PersonDirectory {
     }
 
     @Override
-    public String displayName(String org, String userId) {
+    public String shortName(String org, String userId) {
 
-        return memberProfiles.displayName(org, userId).orElse(MentoringPerson.DELETED_MEMBER);
+        return memberProfiles.shortName(org, userId).orElse(MentoringPerson.DELETED_MEMBER);
     }
 
     @Override

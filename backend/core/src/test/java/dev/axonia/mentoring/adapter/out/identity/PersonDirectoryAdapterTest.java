@@ -47,12 +47,12 @@ class PersonDirectoryAdapterTest {
 
         // given
         var sut = new PersonDirectoryAdapter(memberProfiles, userDirectory);
-        when(memberProfiles.displayName("org-1", "alice")).thenReturn(Optional.of("Alice"));
-        when(memberProfiles.displayName("org-1", "ghost")).thenReturn(Optional.empty());
+        when(memberProfiles.shortName("org-1", "alice")).thenReturn(Optional.of("Alice"));
+        when(memberProfiles.shortName("org-1", "ghost")).thenReturn(Optional.empty());
 
         // when / then
-        assertThat(sut.displayName("org-1", "alice")).isEqualTo("Alice");
-        assertThat(sut.displayName("org-1", "ghost")).isEqualTo("Deleted member");
+        assertThat(sut.shortName("org-1", "alice")).isEqualTo("Alice");
+        assertThat(sut.shortName("org-1", "ghost")).isEqualTo("Deleted member");
     }
 
     @Test

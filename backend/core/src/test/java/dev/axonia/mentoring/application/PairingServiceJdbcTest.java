@@ -64,7 +64,7 @@ class PairingServiceJdbcTest extends CoreJdbcTestSupport {
         OrganizationContext organizationContext = () -> ORG;
         when(communityAccess.guildOf(ORG, PLATFORM)).thenReturn(new MentoringGuild("platform", "Platform"));
         when(communityAccess.guildOf(ORG, DATA)).thenReturn(new MentoringGuild("data", "Data"));
-        when(personDirectory.displayName(ORG, "leo")).thenReturn("Leo");
+        when(personDirectory.shortName(ORG, "leo")).thenReturn("Leo");
         service = new PairingService(organizationContext, currentUser, communityAccess, pairings, proposals,
                 mock(JournalRepository.class), availabilities, personDirectory, mock(MentoringNotices.class),
                 mock(MemberClocks.class), Clock.fixed(NOW, ZoneOffset.UTC));

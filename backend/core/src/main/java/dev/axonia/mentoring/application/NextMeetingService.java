@@ -49,7 +49,7 @@ public class NextMeetingService {
             notices.meetingSet(
                     pairing.toBuilder().nextMeetingOn(day).nextMeetingSetBy(party.me()).nextMeetingSetAt(at).build(),
                     communityAccess.guildOf(party.org(), pairing.communityId()),
-                    personDirectory.displayName(party.org(), party.me()), partner);
+                    personDirectory.shortName(party.org(), party.me()), partner);
         }
     }
 

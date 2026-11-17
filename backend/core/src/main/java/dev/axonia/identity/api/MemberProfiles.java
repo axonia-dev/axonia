@@ -17,6 +17,12 @@ public interface MemberProfiles {
     /** Display name for a specific user in a given organization; empty if not found. */
     Optional<String> displayName(String organizationId, String userId);
 
+    /**
+     * The name a member is greeted by in a given organization: the given name a pattern read, else the display name;
+     * empty if not found.
+     */
+    Optional<String> shortName(String organizationId, String userId);
+
     /** Batch display-name lookup for users in a given organization; unknown ids are omitted from the result. */
     Map<String, String> displayNames(String organizationId, Collection<String> userIds);
 

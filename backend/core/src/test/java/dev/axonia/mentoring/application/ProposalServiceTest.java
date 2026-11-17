@@ -794,7 +794,7 @@ class ProposalServiceTest {
         var proposal = proposal(ME, MENTEE, Role.MENTEE).build();
         receive(proposal);
         when(communityAccess.guildOf(ORG, COMMUNITY)).thenReturn(new MentoringGuild("platform", "Platform"));
-        when(personDirectory.displayName(ORG, ME)).thenReturn("Max");
+        when(personDirectory.shortName(ORG, ME)).thenReturn("Max");
 
         // when
         service.decline(PROPOSAL);
@@ -842,7 +842,7 @@ class ProposalServiceTest {
         receive(declined);
         when(proposals.between(ORG, COMMUNITY, ME, MENTOR)).thenReturn(List.of(declined));
         when(proposals.reopen(ORG, PROPOSAL, TODAY)).thenReturn(true);
-        when(personDirectory.displayName(ORG, ME)).thenReturn("Max");
+        when(personDirectory.shortName(ORG, ME)).thenReturn("Max");
         return declined;
     }
 

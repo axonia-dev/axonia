@@ -47,7 +47,7 @@ class MentoringMeetingReminderMailTest {
         var actual = render();
 
         // then
-        assertThat(actual.subject()).isEqualTo("Mentoring with Noah tomorrow");
+        assertThat(actual.subject()).isEqualTo("Mentoring tomorrow with Noah");
     }
 
     @Test
@@ -57,7 +57,7 @@ class MentoringMeetingReminderMailTest {
         var actual = render();
 
         // then
-        assertThat(actual.html()).contains("Mentoring with Noah tomorrow")
+        assertThat(actual.html()).contains("Mentoring tomorrow with Noah")
                 .contains("The next meeting with Noah is tomorrow, Thursday 19 November.").contains("Open the journal")
                 .contains("href=\"https://axonia.example/communities/platform/me/mentoring/90?org=acme\"")
                 .contains("Mentoring through Platform.").contains("https://axonia.example/unsubscribe/t");
@@ -71,7 +71,7 @@ class MentoringMeetingReminderMailTest {
 
         // then
         assertThat(actual.text()).isEqualTo("""
-                Mentoring with Noah tomorrow
+                Mentoring tomorrow with Noah
 
                 The next meeting with Noah is tomorrow, Thursday 19 November.
 

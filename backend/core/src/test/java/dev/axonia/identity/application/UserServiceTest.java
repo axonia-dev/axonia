@@ -529,6 +529,32 @@ class UserServiceTest {
     }
 
     @Test
+    void shortName_isTheGivenNameAPatternRead() {
+
+        var entity = UserAccountMother.any().displayName("Aurélia Rochat").givenName("Aurélia").build();
+        when(userStore.findByOrganizationIdAndUserId("default", entity.userId())).thenReturn(Optional.of(entity));
+
+        assertThat(sut.shortName("default", entity.userId())).hasValue("Aurélia");
+    }
+
+    @Test
+    void shortName_isTheDisplayNameWhenNoPatternReadAGivenName() {
+
+        var entity = UserAccountMother.any().givenName(null).build();
+        when(userStore.findByOrganizationIdAndUserId("default", entity.userId())).thenReturn(Optional.of(entity));
+
+        assertThat(sut.shortName("default", entity.userId())).hasValue("Alice Anderson");
+    }
+
+    @Test
+    void shortName_isEmptyWhenNotFound() {
+
+        when(userStore.findByOrganizationIdAndUserId("default", "unknown")).thenReturn(Optional.empty());
+
+        assertThat(sut.shortName("default", "unknown")).isEmpty();
+    }
+
+    @Test
     void displayNames_returnsMapOfDisplayNames() {
 
         var alice = UserAccountMother.any().build();

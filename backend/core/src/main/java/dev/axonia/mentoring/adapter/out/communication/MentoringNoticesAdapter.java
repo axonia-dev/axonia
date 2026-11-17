@@ -22,14 +22,15 @@ import dev.axonia.shared.api.web.PublicUrls;
 import lombok.RequiredArgsConstructor;
 
 /**
- * The mentoring notices. The guild is the sender, as on every other community message, and the headline names the other
- * person. A proposal and a meeting reminder are mailed as well; the others reach the panel alone, so their template is
- * a name no mail is rendered from. A proposal's line is its topics and a decline's its first topic, since the panel
- * already shows the guild as the entry's community. Every link opens My mentoring or the journal inside that guild,
- * where the notice came from, rather than the cross-community page. No notice carries a proposal's message or a
- * mentee's words: only the two people read those, where they wrote them. A decline and a reopening carry their moment
- * in the subject, so a proposal declined, reopened and declined again is told each time, and a decline still waiting is
- * withdrawn alone.
+ * The mentoring notices. The guild is the sender, as on every other community message, and the headline leads with what
+ * happened, then names the other person: by the short name between two people who already know each other, by the whole
+ * name on a proposal, which can come from anyone in the guild. A proposal and a meeting reminder are mailed as well;
+ * the others reach the panel alone, so their template is a name no mail is rendered from. A proposal's line is its
+ * topics and a decline's its first topic, since the panel already shows the guild as the entry's community. Every link
+ * opens My mentoring or the journal inside that guild, where the notice came from, rather than the cross-community
+ * page. No notice carries a proposal's message or a mentee's words: only the two people read those, where they wrote
+ * them. A decline and a reopening carry their moment in the subject, so a proposal declined, reopened and declined
+ * again is told each time, and a decline still waiting is withdrawn alone.
  */
 @Component("mentoringNoticesAdapter")
 @RequiredArgsConstructor
@@ -66,7 +67,7 @@ public class MentoringNoticesAdapter implements MentoringNotices {
     @Override
     public void proposed(String organizationId, Proposal proposal, MentoringGuild guild, String proposerName) {
 
-        var facts = facts(guild, proposerName + " proposes mentoring", String.join(", ", proposal.topics()),
+        var facts = facts(guild, "Mentoring proposed by " + proposerName, String.join(", ", proposal.topics()),
                 OrganizationLinks.withOrganization(myMentoringUrl(guild), organizationId));
         facts.put(TOPICS_FACT, List.copyOf(proposal.topics()));
         communication.enqueue(OutboundMessage.builder().type(MessageType.MENTORING_PROPOSAL)
@@ -79,7 +80,7 @@ public class MentoringNoticesAdapter implements MentoringNotices {
     public void declined(Proposal proposal, MentoringGuild guild, String declinerName) {
 
         inApp(MessageType.MENTORING_DECLINED, theDecline(proposal), proposal.senderId(), facts(guild,
-                declinerName + " answered: not this time", proposal.topics().getFirst(), myMentoringUrl(guild)));
+                "Not this time, from " + declinerName, proposal.topics().getFirst(), myMentoringUrl(guild)));
     }
 
     @Override
@@ -101,7 +102,7 @@ public class MentoringNoticesAdapter implements MentoringNotices {
         var occasion = String.valueOf(proposal.reopenedAt().toEpochMilli());
         inApp(MessageType.MENTORING_PROPOSAL_REOPENED,
                 MentoringSubject.proposal(proposal.id(), occasion, proposal.receiverId()), proposal.senderId(),
-                facts(guild, reopenerName + " reopened a proposal", proposal.topics().getFirst(),
+                facts(guild, "Proposal reopened by " + reopenerName, proposal.topics().getFirst(),
                         myMentoringUrl(guild)));
     }
 
@@ -112,7 +113,7 @@ public class MentoringNoticesAdapter implements MentoringNotices {
         var endedBy = toMentor ? pairing.menteeUserId() : pairing.mentorUserId();
         var line = toMentor ? "The journal stays readable" : "A postcard to " + endedByName + " waits in the journal";
         inApp(MessageType.MENTORING_ENDED, MentoringSubject.pairing(pairing.id(), endedBy), recipientId,
-                facts(guild, "Mentoring with " + endedByName + " ended", line, journalUrl(guild, pairing)));
+                facts(guild, "Mentoring ended with " + endedByName, line, journalUrl(guild, pairing)));
     }
 
     @Override
@@ -129,7 +130,7 @@ public class MentoringNoticesAdapter implements MentoringNotices {
         var occasion = String.valueOf(pairing.nextMeetingSetAt().toEpochMilli());
         inApp(MessageType.MENTORING_MEETING_SET,
                 MentoringSubject.pairing(pairing.id(), occasion, pairing.nextMeetingSetBy()), recipientId,
-                facts(guild, setByName + " set the next meeting", DAY.format(pairing.nextMeetingOn()),
+                facts(guild, "Next meeting set by " + setByName, DAY.format(pairing.nextMeetingOn()),
                         journalUrl(guild, pairing)));
     }
 
@@ -140,7 +141,7 @@ public class MentoringNoticesAdapter implements MentoringNotices {
         var recipientId = reminder.recipientId();
         var partnerId = recipientId.equals(pairing.mentorUserId()) ? pairing.menteeUserId() : pairing.mentorUserId();
         var subject = MentoringSubject.pairing(pairing.id(), pairing.nextMeetingOn().toString(), partnerId);
-        var facts = facts(reminder.guild(), "Mentoring with " + reminder.partnerName() + " tomorrow",
+        var facts = facts(reminder.guild(), "Mentoring tomorrow with " + reminder.partnerName(),
                 DAY.format(pairing.nextMeetingOn()),
                 OrganizationLinks.withOrganization(journalUrl(reminder.guild(), pairing), reminder.organizationId()));
         facts.put(PARTNER_FACT, reminder.partnerName());

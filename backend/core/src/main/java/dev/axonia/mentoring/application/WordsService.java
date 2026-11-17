@@ -64,7 +64,7 @@ public class WordsService {
         if (created) {
             var me = currentUser.userId();
             notices.wordsReceived(pairing, MentoringGuild.of(communityAccess.communityById(pairing.communityId())),
-                    personDirectory.resolve(List.of(me)).get(me).displayName());
+                    personDirectory.resolve(List.of(me)).get(me).shortName());
         }
     }
 

@@ -77,8 +77,8 @@ class NextMeetingServiceTest {
         when(currentUser.userId()).thenReturn(NOAH);
         when(memberClocks.zoneOf(anyString(), anyString())).thenReturn(ZoneId.of("UTC"));
         when(communityAccess.guildOf(ORG, COMMUNITY)).thenReturn(new MentoringGuild("platform", "Platform"));
-        when(personDirectory.displayName(ORG, NOAH)).thenReturn("Noah");
-        when(personDirectory.displayName(ORG, MIA)).thenReturn("Mia");
+        when(personDirectory.shortName(ORG, NOAH)).thenReturn("Noah");
+        when(personDirectory.shortName(ORG, MIA)).thenReturn("Mia");
         service = new NextMeetingService(new PairingParties(organizationContext, currentUser, pairings), pairings,
                 memberClocks, communityAccess, personDirectory, notices, Clock.fixed(NOW, ZoneOffset.UTC));
     }

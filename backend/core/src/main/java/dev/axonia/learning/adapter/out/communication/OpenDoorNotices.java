@@ -46,7 +46,7 @@ public class OpenDoorNotices implements LearnerNotices {
                 .recipientUserIds(notice.learnerIds()).template(TEMPLATE).inAppOnly(true)
                 .aboutUserId(notice.declarerId())
                 .facts(Map.of(SENDER_FACT, Map.of("name", notice.communityName()), HEADLINE_FACT,
-                        notice.declarerName() + " is open to questions", LINE_FACT, notice.area(), LINK_FACT,
+                        "Open to questions: " + notice.declarerName(), LINE_FACT, notice.area(), LINK_FACT,
                         searchUrl(notice)))
                 .build());
     }

@@ -62,7 +62,7 @@ public class MeetingReminders {
 
         notices.meetingReminder(MeetingReminder.builder().organizationId(org).pairing(pairing)
                 .guild(communityAccess.guildOf(org, pairing.communityId()))
-                .partnerName(personDirectory.displayName(org, MentoringViews.partnerOf(pairing, recipientId)))
+                .partnerName(personDirectory.shortName(org, MentoringViews.partnerOf(pairing, recipientId)))
                 .recipientId(recipientId).build());
     }
 }

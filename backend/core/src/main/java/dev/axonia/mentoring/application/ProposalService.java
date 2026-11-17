@@ -133,7 +133,7 @@ public class ProposalService {
         var proposal = close(proposalId, true, ProposalStatus.DECLINED);
         var org = organizationContext.organizationId();
         notices.declined(proposal, communityAccess.guildOf(org, proposal.communityId()),
-                personDirectory.displayName(org, proposal.receiverId()));
+                personDirectory.shortName(org, proposal.receiverId()));
     }
 
     /**
@@ -171,7 +171,7 @@ public class ProposalService {
         }
         if (!notices.withdrawDeclined(proposal)) {
             notices.reopened(proposal.toBuilder().status(ProposalStatus.OPEN).answeredAt(null).reopenedAt(now).build(),
-                    MentoringGuild.of(community), personDirectory.displayName(org, me));
+                    MentoringGuild.of(community), personDirectory.shortName(org, me));
         }
     }
 
