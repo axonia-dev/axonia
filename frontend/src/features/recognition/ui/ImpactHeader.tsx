@@ -98,7 +98,7 @@ function ReplaySummaryLine({ text }: Readonly<{ text: string }>) {
       className={cn(SUMMARY_SLOT, open ? SUMMARY_EXPANDED : SUMMARY_COLLAPSED)}
     >
       <div className="min-h-0 overflow-hidden">
-        <p className="text-primary mt-2 inline-flex items-center gap-1.5 text-sm font-medium">
+        <p className="text-primary-ink mt-2 inline-flex items-center gap-1.5 text-sm font-medium">
           <HeartIcon filled />
           {text}
         </p>

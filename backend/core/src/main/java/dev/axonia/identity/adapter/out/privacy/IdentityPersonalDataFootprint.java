@@ -92,8 +92,8 @@ public class IdentityPersonalDataFootprint implements PersonalDataFootprint {
     }
 
     /**
-     * One consent a member gave an MCP client. {@code code_challenge} is a PKCE digest and {@code redirect_uri} a
-     * loopback address on the member's own machine; neither is exported.
+     * One consent a member gave an MCP client. {@code code_challenge} is a PKCE digest and {@code redirect_uri} the
+     * client's own return address, not data about the member; neither is exported.
      */
     private TableFootprint agentConnection() {
 

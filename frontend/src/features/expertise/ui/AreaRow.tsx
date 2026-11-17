@@ -98,7 +98,7 @@ export function AreaRow({
           aria-expanded={expanded}
           aria-label={expanded ? "Hide evidence" : "Show evidence"}
           onClick={() => setExpanded((prev) => !prev)}
-          className="border-border text-muted-foreground hover:text-primary flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border transition-colors"
+          className="border-border text-muted-foreground hover:text-primary-ink flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border transition-colors"
         >
           <ChevronDown
             size={16}

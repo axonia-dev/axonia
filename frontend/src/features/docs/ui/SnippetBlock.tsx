@@ -23,7 +23,7 @@ export function SnippetBlock({
       <button
         type="button"
         onClick={() => void copy()}
-        className="border-border-strong bg-surface text-muted-foreground hover:text-primary mt-3 mr-3 shrink-0 rounded-md border px-3 py-1 text-xs font-semibold"
+        className="border-border-strong bg-surface text-muted-foreground hover:text-primary-ink mt-3 mr-3 shrink-0 rounded-md border px-3 py-1 text-xs font-semibold"
       >
         {copiedSnippet === snippet ? "Copied" : "Copy"}
       </button>

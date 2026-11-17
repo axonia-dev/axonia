@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { httpMentoringSettingsCalls } from "@/features/community/adapters/http-mentoring-settings";
 import type { ChatDestinationInput } from "@/features/community/domain/chat-destination";
 import {
   chatDestinationListSchema,
@@ -38,6 +39,7 @@ const creditablePersonListSchema = z.array(creditablePersonSchema);
 const communityKindListSchema = z.array(communityKindSchema);
 
 export const httpCommunityGateway: CommunityGateway = {
+  ...httpMentoringSettingsCalls,
   async list(params: ListParams) {
     const data = await apiFetch<unknown>(
       `/axonia/communities${query({ ...params })}`,

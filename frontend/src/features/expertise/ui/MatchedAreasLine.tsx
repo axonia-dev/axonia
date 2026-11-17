@@ -17,7 +17,7 @@ export function MatchedAreasLine({
           key={tag}
           type="button"
           onClick={() => onChoose(tag)}
-          className="border-border-strong text-foreground hover:border-primary hover:text-primary-strong focus-visible:ring-focus-ring cursor-pointer rounded-full border px-2.5 py-0.5 text-xs font-medium outline-none focus-visible:ring-2"
+          className="border-border-strong text-foreground hover:border-primary hover:text-primary-ink-strong focus-visible:ring-focus-ring cursor-pointer rounded-full border px-2.5 py-0.5 text-xs font-medium outline-none focus-visible:ring-2"
         >
           {tag}
         </button>

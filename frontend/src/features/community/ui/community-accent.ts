@@ -22,13 +22,16 @@ export function communityHue(community: Coloured): string {
 
 /** The theme tokens one hue re-assigns, and nothing else: the accent replaces the product's
  *  primary, it does not repaint success, warning or danger. The focus ring is mixed toward the
- *  foreground, which keeps every palette hue at 3:1 on the surface in both themes. */
+ *  foreground, which keeps every palette hue at 3:1 on the surface in both themes; the inks, the
+ *  accent as words, are mixed further, to 4.5:1 on the surface and the page. */
 function accentProperties(hue: string): Record<string, string> {
   return {
     "--primary": hue,
     "--primary-strong": hue,
     "--primary-foreground": accentForeground(hue),
     "--focus-ring": `color-mix(in srgb, ${hue} 85%, var(--foreground))`,
+    "--primary-ink": `color-mix(in srgb, ${hue} 65%, var(--foreground))`,
+    "--primary-ink-strong": `color-mix(in srgb, ${hue} 55%, var(--foreground))`,
     "--community-accent": hue,
   };
 }

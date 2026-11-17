@@ -28,6 +28,9 @@
   --primary-foreground: #ffffff;
   --secondary: #6e3ceb;
   --secondary-foreground: #ffffff;
+  /* A mentoring pair's two voices, kept apart from the community accent that repaints primary. */
+  --mentor: #6e3ceb;
+  --mentee: #de3b78;
 
   --success: #1f9d63;
   --success-foreground: #ffffff;
@@ -37,6 +40,11 @@
   --danger-foreground: #ffffff;
 
   --focus-ring: #de3b78;
+  /* The accent as words: text drawn in the accent holds 4.5:1 on the surface, the page and a
+     sunken panel. Bare --primary is a fill and a mark colour; a community re-mixes both inks from
+     its own hue (community-accent.ts), and accent-ink-contrast.test.ts measures every palette hue. */
+  --primary-ink: var(--primary-strong);
+  --primary-ink-strong: var(--primary-strong);
 
   /* The health page's two colour systems. Status judges, on pills and finding icons only: the
      inks deepen the semantic colour toward the foreground so a 12px word holds 4.5:1 on its own
@@ -154,6 +162,8 @@
   /* Dark's secondary is a light violet, same as primary's dark-theme lift, so dark ink is the
      readable choice on it - exactly why --primary-foreground inverts above. */
   --secondary-foreground: #1a0e14;
+  --mentor: #9b6bff;
+  --mentee: #ff5c97;
 
   --success: #37b47b;
   --success-foreground: #0e1a14;
@@ -161,6 +171,8 @@
   --danger: #ef6258;
 
   --focus-ring: #ff5c97;
+  --primary-ink: var(--primary);
+  --primary-ink-strong: var(--primary-strong);
 
   /* Dark surfaces already carry the semantic colours at 4.5:1, so the inks are the colours
      themselves, danger aside, which needs a touch of foreground to clear 4.5:1, and --great
@@ -238,9 +250,13 @@
   --color-ink-sepia-soft: var(--ink-sepia-soft);
   --color-primary: var(--primary);
   --color-primary-strong: var(--primary-strong);
+  --color-primary-ink: var(--primary-ink);
+  --color-primary-ink-strong: var(--primary-ink-strong);
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
+  --color-mentor: var(--mentor);
+  --color-mentee: var(--mentee);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
@@ -356,13 +372,13 @@
     transform: scale(0.5);
     opacity: 0;
     background: color-mix(in srgb, var(--primary) 24%, var(--surface));
-    color: var(--primary-strong);
+    color: var(--primary-ink-strong);
   }
   45% {
     transform: scale(1.12);
     opacity: 1;
     background: color-mix(in srgb, var(--primary) 24%, var(--surface));
-    color: var(--primary-strong);
+    color: var(--primary-ink-strong);
   }
   100% {
     transform: scale(1);
@@ -532,6 +548,60 @@
     transform: translateY(6px);
   }
 }
+/* The mentoring board: a sticker dropped on Done is stamped, a topic opened from the trail glows. */
+@keyframes stamp-in {
+  0% {
+    opacity: 0;
+    transform: scale(2.2) rotate(-14deg);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(0.92) rotate(12deg);
+  }
+  100% {
+    transform: scale(1) rotate(10deg);
+  }
+}
+/* The mentoring trail: the stop in progress breathes, the pair standing on it bob. */
+@keyframes stop-pulse {
+  50% {
+    box-shadow: 0 0 0 12px color-mix(in srgb, var(--warning) 10%, transparent);
+  }
+}
+@keyframes walker-bob {
+  50% {
+    transform: translateY(-4px);
+  }
+}
+/* My mentoring: the walked road draws in, the stop in progress breathes, an accepted seal breaks. */
+@keyframes trail-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+}
+@keyframes trail-halo {
+  50% {
+    transform: scale(1.22);
+    opacity: 0.55;
+  }
+}
+@keyframes seal-split {
+  to {
+    transform: translate(var(--split-x), 34px) rotate(var(--split-turn));
+    opacity: 0;
+  }
+}
+/* The finale's last flag. */
+@keyframes flag-wave {
+  50% {
+    transform: rotate(-8deg);
+  }
+}
+@keyframes topic-found {
+  50% {
+    box-shadow: 0 0 0 8px color-mix(in srgb, var(--secondary) 22%, transparent);
+  }
+}
 @media (prefers-reduced-motion: no-preference) {
   .next-breathe {
     animation: next-breathe 3.2s ease-in-out infinite;
@@ -665,7 +735,7 @@ html {
   color: var(--muted-foreground);
 }
 .doc-prose a {
-  color: var(--primary);
+  color: var(--primary-ink);
   font-weight: 600;
   text-decoration: none;
 }

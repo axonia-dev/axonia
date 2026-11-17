@@ -49,7 +49,7 @@ function RailRow({
         className={cn(
           "focus-visible:ring-focus-ring flex items-center gap-2.5 rounded-md border px-2.5 py-2 outline-none focus-visible:ring-2",
           selected
-            ? "border-primary/40 bg-primary/[.13] text-primary-strong"
+            ? "border-primary/40 bg-primary/[.13] text-primary-ink-strong"
             : "hover:bg-surface-sunken border-transparent",
         )}
       >
@@ -61,7 +61,7 @@ function RailRow({
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="truncate text-sm font-medium">{role.name}</span>
           {grantsMatching > 0 && (
-            <span className="text-primary-strong text-[10px] whitespace-nowrap">
+            <span className="text-primary-ink-strong text-[10px] whitespace-nowrap">
               {grantsMatching === 1 ? "1 match" : `${grantsMatching} matches`}
             </span>
           )}
@@ -145,7 +145,7 @@ export function RoleRail({
         </div>
         {grantMatches > 0 && (
           <p className="text-muted-foreground px-3 pt-2.5 text-xs">
-            <b className="text-primary-strong">{grantMatches}</b> of{" "}
+            <b className="text-primary-ink-strong">{grantMatches}</b> of{" "}
             {totalRoles} roles {grantMatches === 1 ? "grants" : "grant"} a
             permission matching &ldquo;{q}&rdquo;.
           </p>

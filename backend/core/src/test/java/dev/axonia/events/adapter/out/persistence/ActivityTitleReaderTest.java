@@ -9,6 +9,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 import dev.axonia.CoreJdbcTestSupport;
+import dev.axonia.events.api.NamedSession;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
@@ -22,6 +23,8 @@ class ActivityTitleReaderTest extends CoreJdbcTestSupport {
     private NamedParameterJdbcTemplate jdbc;
 
     private ActivityTitleReader sut;
+
+    private int occurrences;
 
     @BeforeEach
     void createReader() {
@@ -61,10 +64,52 @@ class ActivityTitleReaderTest extends CoreJdbcTestSupport {
     }
 
     @Test
+    void sessionNames_followTheNameEveryOtherSurfaceShows() {
+
+        // given
+        var communityId = seedCommunity();
+        var seriesId = seedSeries(communityId, "Platform evenings");
+        var ownTitle = seedSession("default", communityId, seriesId, "Kafka night");
+        var byItsTalk = seedSession("default", communityId, seriesId, null);
+        var later = seedSectionIn(byItsTalk, 1);
+        var earlier = seedSectionIn(byItsTalk, 0);
+        seedSlot(later, 0, "Second section talk");
+        seedSlot(earlier, 0, "   ");
+        seedSlot(earlier, 1, "Radical candor in reviews");
+        var bySeries = seedSession("default", communityId, seriesId, null);
+        var oneOff = seedSession("default", communityId, null, null);
+
+        // when
+        var actual = sut.sessionNames(List.of(ownTitle, byItsTalk, bySeries, oneOff));
+
+        // then
+        assertThat(actual).containsOnly(entry(ownTitle, new NamedSession(communityId, "Kafka night")),
+                entry(byItsTalk, new NamedSession(communityId, "Radical candor in reviews")),
+                entry(bySeries, new NamedSession(communityId, "Platform evenings")),
+                entry(oneOff, new NamedSession(communityId, "Session")));
+    }
+
+    @Test
+    void sessionNames_areScopedToTheCallersOrganization() {
+
+        // given
+        var communityId = seedCommunity();
+        var mine = seedSession("default", communityId, null, "Ours");
+        var theirs = seedSession("other-org", communityId, null, "Theirs");
+
+        // when
+        var actual = sut.sessionNames(List.of(mine, theirs));
+
+        // then
+        assertThat(actual).containsOnly(entry(mine, new NamedSession(communityId, "Ours")));
+    }
+
+    @Test
     void anIdThatNoLongerResolvesIsAbsentRatherThanAThrow() {
 
         assertThat(sut.slotTitles(List.of(GONE))).isEmpty();
         assertThat(sut.topicTitles(List.of(GONE))).isEmpty();
+        assertThat(sut.sessionNames(List.of(GONE))).isEmpty();
     }
 
     @Test
@@ -72,6 +117,7 @@ class ActivityTitleReaderTest extends CoreJdbcTestSupport {
 
         assertThat(sut.slotTitles(List.of())).isEmpty();
         assertThat(sut.topicTitles(List.of())).isEmpty();
+        assertThat(sut.sessionNames(List.of())).isEmpty();
     }
 
     private Long seedCommunity() {
@@ -89,22 +135,39 @@ class ActivityTitleReaderTest extends CoreJdbcTestSupport {
 
     private Long seedSection(Long communityId) {
 
-        var seriesId = jdbc.queryForObject(
+        return seedSectionIn(seedSession("default", communityId, seedSeries(communityId, "AT Series"), null), 0);
+    }
+
+    private Long seedSeries(Long communityId, String title) {
+
+        return jdbc.queryForObject(
                 "INSERT INTO event_series (organization_id, community_id, title, cadence_count, cadence_unit, starts_on, preferred_time, time_zone, status, created_at, updated_at, version) "
-                        + "VALUES ('default', :communityId, 'AT Series', 1, 'WEEK', '2026-01-01', '18:00', 'UTC', 'ACTIVE', now(), now(), 0) RETURNING id",
-                new MapSqlParameterSource("communityId", communityId), Long.class);
-        var sessionId = jdbc.queryForObject(
-                "INSERT INTO community_session (organization_id, series_id, community_id, status, scheduled_at, occurrence_date, notes, recording_url, has_time, created_at, updated_at, version) "
-                        + "VALUES ('default', :seriesId, :communityId, 'SCHEDULED', now(), now()::date, '', '', true, now(), now(), 0) RETURNING id",
-                new MapSqlParameterSource("seriesId", seriesId).addValue("communityId", communityId), Long.class);
+                        + "VALUES ('default', :communityId, :title, 1, 'WEEK', '2026-01-01', '18:00', 'UTC', 'ACTIVE', now(), now(), 0) RETURNING id",
+                new MapSqlParameterSource("communityId", communityId).addValue("title", title), Long.class);
+    }
+
+    private Long seedSession(String organizationId, Long communityId, Long seriesId, String title) {
+
+        return jdbc.queryForObject(
+                "INSERT INTO community_session (organization_id, series_id, community_id, status, scheduled_at, occurrence_date, notes, recording_url, has_time, title, created_at, updated_at, version) "
+                        + "VALUES (:org, :seriesId, :communityId, 'SCHEDULED', now(), DATE '2026-01-01' + :occurrence, '', '', true, :title, now(), now(), 0) RETURNING id",
+                new MapSqlParameterSource("seriesId", seriesId).addValue("communityId", communityId)
+                        .addValue("org", organizationId).addValue("title", title).addValue("occurrence", occurrences++),
+                Long.class);
+    }
+
+    private Long seedSectionIn(Long sessionId, int position) {
+
         var sectionTypeId = jdbc.queryForObject("INSERT INTO event_section_type "
                 + "(organization_id, label, expects_presenter, created_at, updated_at, version, icon, accent_color) "
-                + "VALUES ('default', 'ActivityTitleSection', true, now(), now(), 0, 'wrench', '#123456') RETURNING id",
-                new MapSqlParameterSource(), Long.class);
+                + "VALUES ('default', 'ActivityTitleSection ' || :sessionId || ' ' || :position, true, now(), now(), 0, 'wrench', '#123456') RETURNING id",
+                new MapSqlParameterSource("sessionId", sessionId).addValue("position", position), Long.class);
         return jdbc.queryForObject(
                 "INSERT INTO event_section (session_id, section_type_id, title, position, duration_minutes) "
-                        + "VALUES (:sessionId, :sectionTypeId, 'Talks', 0, 30) RETURNING id",
-                new MapSqlParameterSource("sessionId", sessionId).addValue("sectionTypeId", sectionTypeId), Long.class);
+                        + "VALUES (:sessionId, :sectionTypeId, 'Talks', :position, 30) RETURNING id",
+                new MapSqlParameterSource("sessionId", sessionId).addValue("sectionTypeId", sectionTypeId)
+                        .addValue("position", position),
+                Long.class);
     }
 
     private Long seedSlot(Long sectionId, int position, String title) {

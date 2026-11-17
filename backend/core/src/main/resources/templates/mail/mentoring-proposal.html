@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title th:text="${sessionTitle} ?: 'A mentoring proposal'">A mentoring proposal</title>
+</head>
+<body style="margin:0; padding:0;">
+<div style="display:none; max-height:0; overflow:hidden; mso-hide:all;">
+<div th:replace="~{_shell.html :: preheader(fallback='A proposal waits on My mentoring for 30 days.')}">Preheader</div>
+</div>
+<div th:replace="~{_shell.html :: page(body=~{::content}, when='', reason='Proposed through')}">
+<!-- The proposal's message is never in this mail: only the two people read it, on My mentoring. -->
+<th:block th:fragment="content"
+    th:with="guildName=(${sender} != null) ? ${sender.name} : 'a mentoring guild'">
+<tr th:replace="~{_shell.html :: bodyText(text='A proposal to mentor or be mentored in ' + ${guildName} + '. It waits on My mentoring for 30 days.')}">Body</tr>
+<th:block th:if="${topics} != null and not ${topics.isEmpty()}">
+<tr th:replace="~{_shell.html :: sectionHeading(text='Topics')}">Heading</tr>
+<th:block th:each="topic : ${topics}">
+<tr th:replace="~{_shell.html :: bodyText(text=${topic})}">Topic</tr>
+</th:block>
+</th:block>
+<th:block th:if="not ${#strings.isEmpty(mentoringUrl)}">
+<tr th:replace="~{_shell.html :: primaryButton(url=${mentoringUrl}, label='Open My mentoring')}">Button</tr>
+</th:block>
+</th:block>
+</div>
+<div style="display:none; max-height:0; overflow:hidden; mso-hide:all;">
+<th:block th:fragment="subject" th:text="${sessionTitle} ?: 'A mentoring proposal'">Subject</th:block>
+</div>
+</body>
+</html>

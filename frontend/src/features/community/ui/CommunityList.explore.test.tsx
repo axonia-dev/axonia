@@ -32,6 +32,7 @@ const listing: CommunityListing = {
   description: "",
   status: "ACTIVE",
   memberCount: 3,
+  mentoringEnabled: false,
   role: null,
   badgeUrl: "/media/badge.png",
   createdAt: "2026-05-31T10:00:00Z",

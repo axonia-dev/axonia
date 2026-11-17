@@ -15,18 +15,40 @@ public record ClientMetadata(String clientId, String clientName, String clientHo
 
     private static final Set<String> LOOPBACK_HOSTS = Set.of("localhost", "127.0.0.1");
 
-    /** RFC 8252 section 7.3: a loopback redirect matches on scheme, host and path, on any port. */
+    /**
+     * A loopback redirect matches on scheme, host and path, on any port (RFC 8252 section 7.3). A hosted redirect
+     * matches a registered one exactly, as OAuth 2.1 requires of every other redirect.
+     */
     public boolean accepts(String redirectUri) {
 
         var candidate = parse(redirectUri);
-        if (candidate == null || !isLoopback(candidate)) {
+        if (candidate == null) {
             return false;
         }
-        return redirectUris.stream().map(ClientMetadata::parse).filter(Objects::nonNull)
-                .anyMatch(registered -> sameExceptPort(registered, candidate));
+        if (isLoopback(candidate)) {
+            return redirectUris.stream().map(ClientMetadata::parse).filter(Objects::nonNull)
+                    .filter(ClientMetadata::isLoopback).anyMatch(registered -> sameExceptPort(registered, candidate));
+        }
+        return isHostedBy(candidate, clientHost) && redirectUris.contains(redirectUri);
     }
 
-    public static boolean isLoopback(URI uri) {
+    /**
+     * A client returns either to the person's own machine, as an installed agent does, or to the host that serves its
+     * document, as a web agent does. That host is one the operator already trusts, so a redirect there sends the code
+     * nowhere the client's identity did not already come from.
+     */
+    public static boolean isPermittedRedirect(URI uri, String clientHost) {
+
+        return isLoopback(uri) || isHostedBy(uri, clientHost);
+    }
+
+    private static boolean isHostedBy(URI uri, String clientHost) {
+
+        return "https".equals(uri.getScheme()) && uri.getHost() != null && uri.getHost().equalsIgnoreCase(clientHost)
+                && uri.getPort() == -1 && uri.getRawUserInfo() == null && uri.getRawFragment() == null;
+    }
+
+    private static boolean isLoopback(URI uri) {
 
         return "http".equals(uri.getScheme()) && uri.getHost() != null
                 && LOOPBACK_HOSTS.contains(uri.getHost().toLowerCase(Locale.ROOT)) && uri.getRawUserInfo() == null

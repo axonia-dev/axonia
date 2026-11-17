@@ -11,7 +11,8 @@
  * at the reading width left its slot cards around 500px wide, yet a slot card
  * is text and stops reading well long before the drawing width. The health
  * page is a dashboard: a glance row of four tiles and two panels side by side
- * do not fit the reading width, yet its panels are read, not drawn. Pure so it
+ * do not fit the reading width, yet its panels are read, not drawn. A mentoring
+ * journal takes the same width for its trail and its board of three columns. Pure so it
  * is unit-testable without rendering the shell.
  */
 const WIDE_PAGES = new Set(["schedule", "expertise"]);
@@ -25,10 +26,14 @@ function isSessionPage(page: string): boolean {
   return /^sessions\/[^/]+$/.test(page);
 }
 
+function isJournalPage(page: string): boolean {
+  return /^me\/mentoring\/[^/]+$/.test(page);
+}
+
 export function contentMaxWidthClass(pathname: string): string {
   const page = pageOf(pathname);
   if (WIDE_PAGES.has(page)) return "max-w-[2048px]";
   if (isSessionPage(page)) return "max-w-6xl";
-  if (page === "health") return "max-w-5xl";
+  if (page === "health" || isJournalPage(page)) return "max-w-5xl";
   return "max-w-3xl";
 }

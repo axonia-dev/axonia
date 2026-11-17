@@ -69,13 +69,13 @@ const addButtonBase =
 
 /** With nobody yet the "+" is the whole stack and the invitation, so it stands in the place a
  * face will take: the avatar's own `size-7 border-2`, in the accent. */
-const inviteClass = `${addButtonBase} border-primary text-primary bg-surface hover:bg-primary/10 size-7 border-2 after:left-1/2 after:-translate-x-1/2`;
+const inviteClass = `${addButtonBase} border-primary text-primary-ink bg-surface hover:bg-primary/10 size-7 border-2 after:left-1/2 after:-translate-x-1/2`;
 
 /** Beside faces it is a secondary action, so it is smaller and neutral until pointed at: at the
  * avatar's size and in the accent it read as one more person. Its hit area starts past the
  * `ml-1` gap and the border, where the last face ends, so it never covers that face, and the
  * `mr-2` reserves the rest of its width so it never covers the title either. */
-const trailingClass = `${addButtonBase} border-border-strong text-muted-foreground hover:border-primary hover:text-primary hover:bg-primary/10 ml-1 mr-2 size-5 border after:-left-[calc(--spacing(1)+1px)]`;
+const trailingClass = `${addButtonBase} border-border-strong text-muted-foreground hover:border-primary hover:text-primary-ink hover:bg-primary/10 ml-1 mr-2 size-5 border after:-left-[calc(--spacing(1)+1px)]`;
 
 /** An icon rather than a typed "+": centring a glyph centres its line box, and a plus sign sits
  * high in its own em box, so the typed one landed ~1px below the circle's centre. A vector plus is

@@ -1,6 +1,7 @@
 package dev.axonia.learning.api;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * The areas members want to learn, one community at a time. Intents are stored as typed and read through the
@@ -26,6 +27,12 @@ public interface LearningIntents {
 
     /** The caller's areas when they are a member, and what the community's current members want, for anyone. */
     LearningPage page(String slug);
+
+    /**
+     * Every current member who wants something, mapped to the canonical areas they want, sorted by name. A member
+     * counts once per area however many spellings they typed. Needs membership, like {@link #page}.
+     */
+    Map<String, List<String>> learnersIn(String slug);
 
     /** The current members who want the area the tag names in this community, earliest first. */
     List<Learner> learners(String slug, String rawTag);

@@ -12,7 +12,7 @@ export function SessionOpenLink({
     <SessionMorphLink
       to={href}
       sessionId={morphId === undefined ? null : entry.sessionId}
-      className="text-primary inline-flex items-center gap-1.5 text-sm font-semibold"
+      className="text-primary-ink inline-flex items-center gap-1.5 text-sm font-semibold"
     >
       {entry.virtual ? "Open the preview" : "Open the session"}
       <ExternalLink aria-hidden size={13} />

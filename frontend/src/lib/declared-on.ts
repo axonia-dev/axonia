@@ -4,6 +4,19 @@ const DAY = new Intl.DateTimeFormat("en-GB", {
   year: "numeric",
 });
 
+const DAY_UTC = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
+const DAY_MONTH_UTC = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  timeZone: "UTC",
+});
+
 const MONTH_YEAR_UTC = new Intl.DateTimeFormat("en-GB", {
   month: "short",
   year: "numeric",
@@ -28,6 +41,16 @@ function withThreeLetterMonth(format: Intl.DateTimeFormat, iso: string) {
 /** "12 Sep 2026", in the reader's own zone: `declaredAt` is an instant, not a calendar day. */
 export function declaredOn(iso: string): string {
   return withThreeLetterMonth(DAY, iso);
+}
+
+/** "1 Sep 2026" from a calendar day such as "2026-09-01": a date with no zone, read as one. */
+export function calendarDay(day: string): string {
+  return withThreeLetterMonth(DAY_UTC, day);
+}
+
+/** "1 Sep" from a calendar day such as "2026-09-01", for a day close enough to need no year. */
+export function dayAndMonth(day: string): string {
+  return withThreeLetterMonth(DAY_MONTH_UTC, day);
 }
 
 /** "Sep 2026", the month of the instant in UTC. */

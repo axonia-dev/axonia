@@ -7,6 +7,7 @@ interface FilterToggleChipProps {
   active: boolean;
   onToggle: () => void;
   icon?: ReactNode;
+  isDisabled?: boolean | undefined;
   children: ReactNode;
 }
 
@@ -18,6 +19,7 @@ export function FilterToggleChip({
   active,
   onToggle,
   icon,
+  isDisabled = false,
   children,
 }: Readonly<FilterToggleChipProps>) {
   return (
@@ -26,6 +28,7 @@ export function FilterToggleChip({
       size="sm"
       aria-pressed={active}
       onPress={onToggle}
+      isDisabled={isDisabled}
       className={cn(
         "shrink-0 gap-1.5 rounded-full border px-3 py-1 font-medium",
         active

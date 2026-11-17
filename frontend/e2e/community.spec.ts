@@ -16,6 +16,7 @@ function community(slug: string, name: string, memberCount: number) {
     description: `${name} description`,
     status: "ACTIVE",
     memberCount,
+    mentoringEnabled: false,
     createdAt: "2026-05-31T10:00:00Z",
     updatedAt: "2026-05-31T10:00:00Z",
   };

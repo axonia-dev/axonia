@@ -69,6 +69,16 @@ class JdbcMembershipLedgerTest {
     }
 
     @Test
+    void inAMentoringCommunity_asks_the_repository() {
+
+        // given
+        when(membershipRepository.existsMentoringCommunityOf("default", "alice")).thenReturn(true);
+
+        // then
+        assertThat(sut.inAMentoringCommunity("default", "alice")).isTrue();
+    }
+
+    @Test
     void count_asks_the_repository() {
 
         // given

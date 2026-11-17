@@ -44,6 +44,15 @@ describe("contentMaxWidthClass", () => {
     );
   });
 
+  it("gives a mentoring journal room for its trail and its three columns", () => {
+    expect(contentMaxWidthClass("/communities/backend/me/mentoring/11")).toBe(
+      "max-w-5xl",
+    );
+    expect(contentMaxWidthClass("/communities/backend/me/mentoring")).toBe(
+      "max-w-3xl",
+    );
+  });
+
   it("keeps the reading width for other community pages", () => {
     expect(contentMaxWidthClass("/communities/backend")).toBe("max-w-3xl");
     expect(contentMaxWidthClass("/communities/backend/backlog")).toBe(

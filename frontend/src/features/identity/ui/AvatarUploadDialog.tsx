@@ -110,7 +110,7 @@ function AvatarPicker({
         <AriaButton isDisabled={isDisabled} className={pressableClass}>
           {shownUrl === null ? (
             <span className="flex w-full flex-col items-center gap-2 py-1 text-center">
-              <Upload aria-hidden size={22} className="text-primary" />
+              <Upload aria-hidden size={22} className="text-primary-ink" />
               <span className="text-foreground text-sm font-medium">
                 {BROWSE_HINT}
               </span>

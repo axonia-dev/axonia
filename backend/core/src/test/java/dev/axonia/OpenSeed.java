@@ -91,6 +91,7 @@ public final class OpenSeed {
         seedExpertiseGraph();
         jdbc.update("INSERT INTO learning_intent (organization_id, community_id, user_id, tag, declared_at) "
                 + "VALUES (:org, 1, 'layer3-user', 'layer3-tag', now())", Map.of("org", ORG));
+        seedMentoring(communityId);
         jdbc.update("INSERT INTO identity_user (organization_id, user_id, display_name, scim_id, arrival, "
                 + "avatar_media_key, avatar_override_key, created_at, updated_at, version) "
                 + "VALUES (:org, 'layer3-user', 'Layer 3 User', 'layer3-scim-id', 'SYNCED', "
@@ -146,6 +147,38 @@ public final class OpenSeed {
         jdbc.update("INSERT INTO roundup_settings (organization_id, enabled, created_at, updated_at, version) "
                 + "VALUES (:org, true, now(), now(), 0)", Map.of("org", ORG));
         seedOnboarding();
+    }
+
+    /** One row per mentoring table, the member on both sides of the pairing so every scope reaches each of them. */
+    private void seedMentoring(long communityId) {
+
+        var params = Map.<String, Object>of("org", ORG, "communityId", communityId, "user", USER);
+        jdbc.update("INSERT INTO mentoring_availability (organization_id, community_id, user_id, taking_mentees, "
+                + "mentee_limit, looking_for_mentor, updated_at) VALUES (:org, :communityId, :user, true, 2, false, "
+                + "now())", params);
+        jdbc.update("INSERT INTO mentoring_proposal (organization_id, community_id, mentor_user_id, mentee_user_id, "
+                + "proposed_by, topics, message, status, created_at) VALUES (:org, :communityId, :user, :user, "
+                + "'MENTEE', ARRAY['Kafka']::varchar[], 'Layer 3 message', 'OPEN', now())", params);
+        var pairingId = jdbc.queryForObject("INSERT INTO mentoring_pairing (organization_id, community_id, "
+                + "mentor_user_id, mentee_user_id, started_at, next_meeting_on, next_meeting_set_by, "
+                + "next_meeting_set_at) VALUES (:org, :communityId, :user, :user, now(), current_date + 3, :user, now()) "
+                + "RETURNING id", params, Long.class);
+        var pairing = Map.<String, Object>of("org", ORG, "pairingId", pairingId, "user", USER);
+        var topicId = jdbc.queryForObject(
+                "INSERT INTO mentoring_topic (organization_id, pairing_id, label, state, "
+                        + "\"position\", created_at) VALUES (:org, :pairingId, 'Kafka', 'TODO', 1, now()) RETURNING id",
+                pairing, Long.class);
+        var noteId = jdbc.queryForObject("INSERT INTO mentoring_note (organization_id, pairing_id, author_user_id, "
+                + "body, meeting_on, written_at) VALUES (:org, :pairingId, :user, 'Layer 3 note', current_date, now()) "
+                + "RETURNING id", pairing, Long.class);
+        jdbc.update("INSERT INTO mentoring_note_topic (organization_id, note_id, topic_id) VALUES (:org, :noteId, "
+                + ":topicId)", Map.of("org", ORG, "noteId", noteId, "topicId", topicId));
+        jdbc.update(
+                "INSERT INTO mentoring_pointer (organization_id, pairing_id, topic_id, kind, target_user_id, "
+                        + "created_at) VALUES (:org, :pairingId, :topicId, 'MEMBER', :user, now())",
+                Map.of("org", ORG, "pairingId", pairingId, "topicId", topicId, "user", USER));
+        jdbc.update("INSERT INTO mentoring_words (pairing_id, organization_id, body, written_at) "
+                + "VALUES (:pairingId, :org, 'Layer 3 words', now())", pairing);
     }
 
     /**

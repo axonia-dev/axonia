@@ -22,6 +22,7 @@ import dev.axonia.community.api.CommunityStatus;
 import dev.axonia.community.api.ContributionPolicy;
 import dev.axonia.community.api.FocalPoint;
 import dev.axonia.community.api.MembershipFilter;
+import dev.axonia.community.api.MentoringSettings;
 import dev.axonia.community.application.CommunityPolicyService;
 import dev.axonia.community.application.CommunityService;
 import dev.axonia.community.application.CreateCommunityRequest;
@@ -43,6 +44,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.refEq;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 
@@ -388,6 +390,40 @@ class CommunityControllerTest extends ControllerTestSupport {
 
         // then
         actual.assertThat().hasStatus(403);
+    }
+
+    @Test
+    void mentoringSettingsRoundTrip() throws JacksonException {
+
+        // given
+        when(communityPolicyService.updateMentoringSettings("backend-guild", true))
+                .thenReturn(new MentoringSettings(true));
+        when(communityPolicyService.getMentoringSettings("backend-guild")).thenReturn(new MentoringSettings(true));
+        when(communityService.getBySlug("backend-guild"))
+                .thenReturn(CommunityMother.any().mentoringEnabled(true).build());
+
+        // when
+        var put = mvc.put().uri("/axonia/communities/{slug}/mentoring-settings", "backend-guild")
+                .contentType(MediaType.APPLICATION_JSON).content("{\"enabled\":true}");
+        var get = mvc.get().uri("/axonia/communities/{slug}/mentoring-settings", "backend-guild");
+        var detail = mvc.get().uri("/axonia/communities/{slug}", "backend-guild");
+
+        // then
+        put.assertThat().hasStatus(200).bodyJson().extractingPath("$.enabled").isEqualTo(true);
+        get.assertThat().hasStatus(200).bodyJson().extractingPath("$.enabled").isEqualTo(true);
+        detail.assertThat().hasStatus(200).bodyJson().extractingPath("$.mentoringEnabled").isEqualTo(true);
+    }
+
+    @Test
+    void mentoringSettingsWithoutTheSwitchAreRefusedRatherThanSwitchingOff() {
+
+        // when
+        var actual = mvc.put().uri("/axonia/communities/{slug}/mentoring-settings", "backend-guild")
+                .contentType(MediaType.APPLICATION_JSON).content("{}");
+
+        // then
+        actual.assertThat().hasStatus(400);
+        verifyNoInteractions(communityPolicyService);
     }
 
     @Test

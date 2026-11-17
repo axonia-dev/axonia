@@ -28,6 +28,7 @@ import dev.axonia.community.api.CommunityListing;
 import dev.axonia.community.api.ContributionPolicy;
 import dev.axonia.community.api.FocalPoint;
 import dev.axonia.community.api.MembershipFilter;
+import dev.axonia.community.api.MentoringSettings;
 import dev.axonia.community.application.CommunityPolicyService;
 import dev.axonia.community.application.CommunityService;
 import dev.axonia.community.application.CreateCommunityRequest;
@@ -36,6 +37,7 @@ import dev.axonia.community.application.UpdateCommunicationSettingsRequest;
 import dev.axonia.community.application.UpdateCommunityRequest;
 import dev.axonia.community.application.UpdateContributionPolicyRequest;
 import dev.axonia.community.application.UpdateManagementPolicyRequest;
+import dev.axonia.community.application.UpdateMentoringSettingsRequest;
 import dev.axonia.community.domain.LookAndFeelAsset;
 import dev.axonia.community.domain.ManagementPolicy;
 import dev.axonia.media.api.ImageUploads;
@@ -121,6 +123,19 @@ public class CommunityController {
             @Valid @RequestBody UpdateCommunicationSettingsRequest request) {
 
         return communityPolicyService.updateCommunicationSettings(slug, request);
+    }
+
+    @GetMapping("/{slug}/mentoring-settings")
+    MentoringSettings mentoringSettings(@PathVariable String slug) {
+
+        return communityPolicyService.getMentoringSettings(slug);
+    }
+
+    @PutMapping("/{slug}/mentoring-settings")
+    MentoringSettings updateMentoringSettings(@PathVariable String slug,
+            @Valid @RequestBody UpdateMentoringSettingsRequest request) {
+
+        return communityPolicyService.updateMentoringSettings(slug, request.enabled());
     }
 
     @PutMapping("/{slug}/look-and-feel")

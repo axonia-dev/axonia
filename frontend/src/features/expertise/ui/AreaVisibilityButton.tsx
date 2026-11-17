@@ -26,8 +26,8 @@ export function AreaVisibilityButton({
       className={cn(
         "flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border transition-colors",
         hidden
-          ? "text-primary border-[color-mix(in_srgb,var(--primary)_30%,var(--border))]"
-          : "border-border text-muted-foreground hover:text-primary",
+          ? "text-primary-ink border-[color-mix(in_srgb,var(--primary)_30%,var(--border))]"
+          : "border-border text-muted-foreground hover:text-primary-ink",
       )}
     >
       {hidden ? <EyeOff size={16} /> : <Eye size={16} />}

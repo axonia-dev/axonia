@@ -66,6 +66,7 @@ const organizerAccess = {
   communication: true,
   credit: true,
   any: true,
+  member: true,
   isLoading: false,
 };
 

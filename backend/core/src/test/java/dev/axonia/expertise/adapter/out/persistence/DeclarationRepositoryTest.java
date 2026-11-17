@@ -261,6 +261,37 @@ class DeclarationRepositoryTest extends ExpertiseJdbcTestSupport {
     }
 
     @Test
+    void allDeclaredInKeepsAPausedMember() {
+
+        var community = seedCommunity("platform");
+        seedMember(community, "alice", true);
+        var kafka = declaration(community, "alice", "kafka", EARLY);
+        repo.insert(ORG, kafka);
+        preferences.setPaused(ORG, "alice", true);
+
+        assertThat(repo.allDeclaredIn(ORG, community)).containsExactly(kafka);
+    }
+
+    @Test
+    void allDeclaredInStillDropsAnOptedOutMemberAHiddenAreaAnInactiveMemberAndANonMember() {
+
+        var community = seedCommunity("platform");
+        seedMember(community, "opted-out", true);
+        seedMember(community, "hider", true);
+        seedMember(community, "inactive", false);
+        seedUser("departed", true);
+        preferences.setOptOut(ORG, "opted-out", true);
+        aliases.addAlias(ORG, community, "k8s", "kubernetes");
+        preferences.hideTag(ORG, "hider", "kubernetes");
+        repo.insert(ORG, declaration(community, "opted-out", "kafka", EARLY));
+        repo.insert(ORG, declaration(community, "hider", "k8s", EARLY));
+        repo.insert(ORG, declaration(community, "inactive", "kafka", EARLY));
+        repo.insert(ORG, declaration(community, "departed", "kafka", EARLY));
+
+        assertThat(repo.allDeclaredIn(ORG, community)).isEmpty();
+    }
+
+    @Test
     void unpausedDeclarerReturnsUnchanged() {
 
         var community = seedCommunity("platform");

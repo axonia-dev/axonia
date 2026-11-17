@@ -162,7 +162,8 @@ class CrossCommunityReferenceGuardTest {
      */
     private static final List<String> GUARDS = List.of("requireSessionInCommunity", "requireSegmentInSession",
             "requireOriginSessionInCommunity", "requireUpcomingSessionInCommunity", "requireMayQueueTopics",
-            "sectionTypeCatalog.require(", "communityAccess.resolvePerson(", "facilitatorResolver.resolve(");
+            "sectionTypeCatalog.require(", "communityAccess.resolvePerson(", "facilitatorResolver.resolve(",
+            "requireTopicInPairing(");
 
     @Test
     void everyMemberThatWritesACommunityOwnedIdFromARequestAlsoGuardsIt() throws IOException {

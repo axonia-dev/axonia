@@ -16,6 +16,7 @@ import type {
 } from "@/features/community/domain/membership";
 import { expertiseKeys } from "@/features/expertise/api/query-keys";
 import { learningKeys } from "@/features/learning/api/query-keys";
+import { mentoringKeys } from "@/features/mentoring/api/query-keys";
 import type { Page } from "@/lib/page";
 
 const gateway = httpCommunityGateway;
@@ -90,6 +91,8 @@ export function useJoin(slug: string, onJoined?: () => void | Promise<void>) {
         queryClient.invalidateQueries({
           queryKey: learningKeys.community(slug),
         }),
+        // Joining a mentoring guild opens My mentoring and the guild's directory.
+        queryClient.invalidateQueries({ queryKey: mentoringKeys.all }),
         markListsStale(queryClient),
       ]);
     },
@@ -119,6 +122,8 @@ export function useLeave(slug: string) {
       void queryClient.invalidateQueries({
         queryKey: learningKeys.community(slug),
       });
+      // Leaving ends the member's pairings there, withdraws their proposals and their availability.
+      void queryClient.invalidateQueries({ queryKey: mentoringKeys.all });
       void markListsStale(queryClient);
     },
   });

@@ -14,6 +14,12 @@ public interface OpenDoors {
     List<OpenArea> openIn(String slug);
 
     /**
+     * The areas members have declared, under the rule {@link #openIn} reads except that a paused member stays: a pause
+     * stops questions, it does not retract what the member knows. Same shape and folding as {@link #openIn}.
+     */
+    List<OpenArea> declaredIn(String slug);
+
+    /**
      * Whether the member is open to questions on the area, under any spelling the community reads as it, by the same
      * rule {@link #openIn} reads. Org-explicit, so it may be asked off a request, at delivery.
      */

@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { declaredMonth, declaredOn, monthName } from "@/lib/declared-on";
+import {
+  calendarDay,
+  dayAndMonth,
+  declaredMonth,
+  declaredOn,
+  monthName,
+} from "@/lib/declared-on";
 
 const NOW = new Date("2026-11-11T10:00:00Z");
 
@@ -49,5 +55,32 @@ describe("monthName", () => {
 
     // then
     expect(actual).toBe("Jan");
+  });
+});
+
+describe("calendarDay", () => {
+  it.each([
+    ["2026-12-01", "1 Dec 2026"],
+    ["2026-09-30", "30 Sep 2026"],
+    ["2027-01-01", "1 Jan 2027"],
+  ])("names %s as the same day in every zone", (day, expected) => {
+    // when
+    const actual = calendarDay(day);
+
+    // then
+    expect(actual).toBe(expected);
+  });
+});
+
+describe("dayAndMonth", () => {
+  it.each([
+    ["2026-12-16", "16 Dec"],
+    ["2026-09-01", "1 Sep"],
+  ])("names %s by its day and month", (day, expected) => {
+    // when
+    const actual = dayAndMonth(day);
+
+    // then
+    expect(actual).toBe(expected);
   });
 });

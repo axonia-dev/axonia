@@ -102,7 +102,7 @@ function LoveLine({
   heartRef: ((element: HTMLElement | null) => void) | undefined;
 }>) {
   return (
-    <p className="text-primary mt-2 inline-flex items-center gap-1.5 text-sm tabular-nums">
+    <p className="text-primary-ink mt-2 inline-flex items-center gap-1.5 text-sm tabular-nums">
       <span ref={heartRef} aria-hidden className="inline-flex">
         <HeartIcon filled />
       </span>
@@ -112,7 +112,7 @@ function LoveLine({
       {replay?.marked === true && (
         <span
           aria-hidden
-          className="text-primary bg-primary/10 rounded-full px-1.5 text-xs font-semibold"
+          className="text-primary-ink bg-primary/10 rounded-full px-1.5 text-xs font-semibold"
         >
           +{replay.newLoves}
         </span>
@@ -152,7 +152,7 @@ export function ContributionCard({
           {linkable ? (
             <Link
               to={sourceHref(contribution, slug)}
-              className="text-foreground hover:text-primary min-w-0 truncate text-sm font-medium underline-offset-2 hover:underline"
+              className="text-foreground hover:text-primary-ink min-w-0 truncate text-sm font-medium underline-offset-2 hover:underline"
             >
               {contribution.title}
             </Link>

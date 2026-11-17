@@ -142,7 +142,8 @@ export function PermissionGroupSection(
               role={role}
               permissions={group.permissions}
               className={cn(
-                compareRole !== null && "text-primary-strong w-16 text-center",
+                compareRole !== null &&
+                  "text-primary-ink-strong w-16 text-center",
               )}
             />
           </span>

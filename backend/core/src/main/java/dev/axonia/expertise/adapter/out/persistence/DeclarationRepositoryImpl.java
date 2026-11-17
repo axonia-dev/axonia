@@ -46,23 +46,35 @@ public class DeclarationRepositoryImpl implements DeclarationRepository {
                     ON hidden.organization_id = d.organization_id
                    AND hidden.user_id         = d.user_id
                    AND hidden.tag          = COALESCE(alias.canonical_tag, d.tag)
-             LEFT JOIN expertise_pause pause
-                    ON pause.organization_id = d.organization_id
-                   AND pause.user_id         = d.user_id
+            {pauseJoin}
             WHERE d.organization_id = :org
               AND d.community_id    = :communityId
               AND optout.user_id    IS NULL
               AND hidden.tag        IS NULL
-              AND pause.user_id     IS NULL
+            {pauseFilter}
             {tagFilter}
             ORDER BY d.user_id, d.declared_at, d.tag
             """;
 
-    private static final String VISIBLE_IN_SQL = VISIBLE_SQL.replace("{tagFilter}", "  AND d.tag IN (:tags)");
+    private static final String PAUSE_JOIN = """
+            LEFT JOIN expertise_pause pause
+                   ON pause.organization_id = d.organization_id
+                  AND pause.user_id         = d.user_id""";
 
-    private static final String ALL_VISIBLE_IN_SQL = VISIBLE_SQL.replace("{tagFilter}", "");
+    private static final String PAUSE_FILTER = "  AND pause.user_id     IS NULL";
 
-    private static final String VISIBLE_OF_USER_SQL = VISIBLE_SQL.replace("{tagFilter}",
+    private static final String NOT_PAUSED_SQL = VISIBLE_SQL.replace("{pauseJoin}", PAUSE_JOIN).replace("{pauseFilter}",
+            PAUSE_FILTER);
+
+    private static final String DECLARED_SQL = VISIBLE_SQL.replace("{pauseJoin}", "").replace("{pauseFilter}", "");
+
+    private static final String VISIBLE_IN_SQL = NOT_PAUSED_SQL.replace("{tagFilter}", "  AND d.tag IN (:tags)");
+
+    private static final String ALL_VISIBLE_IN_SQL = NOT_PAUSED_SQL.replace("{tagFilter}", "");
+
+    private static final String ALL_DECLARED_IN_SQL = DECLARED_SQL.replace("{tagFilter}", "");
+
+    private static final String VISIBLE_OF_USER_SQL = NOT_PAUSED_SQL.replace("{tagFilter}",
             "  AND d.tag IN (:tags) AND d.user_id = :userId");
 
     private static final String COUNT_IN_SQL = """
@@ -127,6 +139,12 @@ public class DeclarationRepositoryImpl implements DeclarationRepository {
     public List<Declaration> allVisibleIn(String org, long communityId) {
 
         return declarations.query(ALL_VISIBLE_IN_SQL, scope(org, communityId));
+    }
+
+    @Override
+    public List<Declaration> allDeclaredIn(String org, long communityId) {
+
+        return declarations.query(ALL_DECLARED_IN_SQL, scope(org, communityId));
     }
 
     @Override

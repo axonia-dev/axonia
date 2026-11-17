@@ -17,6 +17,7 @@ export const communitySchema = z.object({
   description: z.string(),
   status: communityStatusSchema,
   memberCount: z.number(),
+  mentoringEnabled: z.boolean(),
   badgeUrl: z.string().nullable().optional(),
   heroUrl: z.string().nullable().optional(),
   accentColor: z.string().nullable().optional(),

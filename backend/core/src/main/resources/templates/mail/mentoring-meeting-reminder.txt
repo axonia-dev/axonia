@@ -1,0 +1,9 @@
+[(${sessionTitle} ?: 'A mentoring meeting tomorrow')]
+
+The next meeting with [(${partner} ?: 'the other person')] is tomorrow, [(${line} ?: 'the next meeting day')].[# th:if="not ${#strings.isEmpty(mentoringUrl)}"]
+
+Open the journal: [(${mentoringUrl})][/][# th:if="${sender} != null"]
+
+Mentoring through [(${sender.name})].[/][# th:if="not ${#strings.isEmpty(unsubscribePageUrl)}"]
+
+Unsubscribe: [(${unsubscribePageUrl})][/]

@@ -35,6 +35,7 @@ import {
 import { CommunityIdentityChip } from "@/features/community/ui/CommunityIdentityChip";
 import { CommunitySwitcher } from "@/features/community/ui/CommunitySwitcher";
 import { contentMaxWidthClass } from "@/features/community/ui/content-width";
+import { useCommunityNavAccess } from "@/features/community/ui/use-community-nav-access";
 import { AccountMenu } from "@/features/identity/ui/AccountMenu";
 import {
   useAssignOnboarding,
@@ -150,6 +151,7 @@ export function CommunityShell() {
   const { data: community } = query;
   const [crumbs, setCrumbs] = useState<Crumb[]>([]);
   const access = useManagementAccess(slug);
+  const navAccess = useCommunityNavAccess(access, community);
   const { data: organization } = useCurrentOrganization();
   const isHub = organization?.kind === "HUB";
   useAssignOnboardingOnArrival(community === undefined ? "" : slug);
@@ -192,7 +194,7 @@ export function CommunityShell() {
     end: true,
   };
 
-  const groupSpecs = communityGroupSpecs(access);
+  const groupSpecs = communityGroupSpecs(navAccess);
 
   const groups: NavGroup[] = groupSpecs.map(([label, Icon, items]) => ({
     label,

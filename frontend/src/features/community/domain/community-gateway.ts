@@ -16,6 +16,7 @@ import type {
   CreditablePerson,
   Membership,
 } from "@/features/community/domain/membership";
+import type { MentoringSettings } from "@/features/community/domain/mentoring-settings";
 import type { Page } from "@/features/community/domain/page";
 import type { ImageLimits } from "@/lib/fit-image";
 
@@ -83,6 +84,11 @@ export interface CommunityGateway {
     slug: string,
     policy: ManagementPolicy,
   ): Promise<ManagementPolicy>;
+  getMentoringSettings(slug: string): Promise<MentoringSettings>;
+  updateMentoringSettings(
+    slug: string,
+    settings: MentoringSettings,
+  ): Promise<MentoringSettings>;
   getCommunicationSettings(slug: string): Promise<CommunicationSettings>;
   updateCommunicationSettings(
     slug: string,

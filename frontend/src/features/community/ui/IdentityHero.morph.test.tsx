@@ -85,6 +85,7 @@ const community: Community = {
   description: "",
   status: "ACTIVE",
   memberCount: 42,
+  mentoringEnabled: false,
   heroUrl: "/media/hero.png",
   badgeUrl: "/media/badge.png",
   createdAt: "2026-05-31T10:00:00Z",

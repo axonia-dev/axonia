@@ -28,6 +28,16 @@ describe("httpNotificationPreferenceGateway", () => {
     expect(result[1]).toEqual({ type: "session_wrap_up", enabled: false });
   });
 
+  it("keeps the mentoring proposal preference", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse([{ type: "mentoring_proposal", enabled: false }]),
+    );
+
+    const result = await gateway.getMine();
+
+    expect(result).toEqual([{ type: "mentoring_proposal", enabled: false }]);
+  });
+
   it("drops a row of a message type this build does not know about, keeping the rest", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       jsonResponse([

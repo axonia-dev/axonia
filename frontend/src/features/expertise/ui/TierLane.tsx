@@ -95,7 +95,7 @@ export function TierLane({
             <button
               type="button"
               onClick={() => setShown((n) => n + pageSize)}
-              className="text-primary self-center py-1 text-xs font-semibold"
+              className="text-primary-ink self-center py-1 text-xs font-semibold"
             >
               Show {areas.length - shown} more
             </button>

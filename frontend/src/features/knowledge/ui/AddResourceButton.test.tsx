@@ -232,7 +232,7 @@ describe("AddResourceButton", () => {
   it("renders the launcher as a quiet accent link, not a solid primary button", () => {
     renderButton();
     const trigger = screen.getByRole("button", { name: /add resource/i });
-    expect(trigger.className).toContain("text-primary");
+    expect(trigger.className).toContain("text-primary-ink");
     expect(trigger.className).not.toContain("bg-primary");
   });
 

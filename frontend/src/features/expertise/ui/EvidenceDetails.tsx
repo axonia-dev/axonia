@@ -26,7 +26,7 @@ function PagerButton({
       <button
         type="button"
         onClick={onShowOlder}
-        className="text-primary text-xs font-semibold"
+        className="text-primary-ink text-xs font-semibold"
       >
         Show older proof ({remaining} more)
       </button>
@@ -37,7 +37,7 @@ function PagerButton({
     <button
       type="button"
       onClick={onShowMore}
-      className="text-primary text-xs font-semibold"
+      className="text-primary-ink text-xs font-semibold"
     >
       Show more
     </button>

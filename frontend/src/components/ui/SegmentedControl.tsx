@@ -21,6 +21,8 @@ interface SegmentedControlProps {
   options: ReadonlyArray<SegmentedOption>;
   onChange: (value: string) => void;
   hideLabel?: boolean;
+  /** `sm` tightens each option for a control that sits inside a card. */
+  size?: "md" | "sm";
   className?: string;
 }
 
@@ -43,6 +45,7 @@ export function SegmentedControl({
   options,
   onChange,
   hideLabel,
+  size = "md",
   className,
 }: Readonly<SegmentedControlProps>) {
   const labelId = useId();
@@ -74,10 +77,17 @@ export function SegmentedControl({
         className={groupClass}
       >
         {options.map((option) => (
-          <ToggleButton key={option.id} id={option.id} className={buttonClass}>
+          <ToggleButton
+            key={option.id}
+            id={option.id}
+            className={cn(
+              buttonClass,
+              size === "sm" && "px-2 py-1 text-[11px]",
+            )}
+          >
             {option.label}
             {option.count !== undefined && (
-              <span className="text-muted-foreground group-data-[selected]:text-primary ml-1.5 text-[10px] font-medium tabular-nums">
+              <span className="text-muted-foreground group-data-[selected]:text-primary-ink ml-1.5 text-[10px] font-medium tabular-nums">
                 {option.count}
               </span>
             )}

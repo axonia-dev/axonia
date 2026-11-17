@@ -35,7 +35,7 @@ function dayInkClass(ghost: boolean, memory: boolean): string {
 
 function weekdayInkClass(ghost: boolean, memory: boolean): string {
   if (ghost) return "text-muted-foreground";
-  return memory ? "text-ink-sepia" : "text-primary";
+  return memory ? "text-ink-sepia" : "text-primary-ink";
 }
 
 function Caption({

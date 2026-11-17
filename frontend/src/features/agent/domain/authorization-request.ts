@@ -65,28 +65,43 @@ export type RefusalReason = z.infer<typeof refusalReasonSchema>;
 
 const LOOPBACK_HOSTS: ReadonlySet<string> = new Set(["localhost", "127.0.0.1"]);
 
-/** The server only ever answers with a registered loopback redirect; the page refuses to follow
- *  anything else, so a server defect can never navigate the browser off this machine. */
-function isLoopbackRedirect(url: string): boolean {
+/** The server only ever answers with a redirect the client registered: a loopback one, or an
+ *  https one on the host its client_id names. The page refuses to follow anything else, so a
+ *  server defect can never navigate the browser to a host the request did not name. */
+function isReturnAddressOf(
+  request: AuthorizationRequest,
+  url: string,
+): boolean {
   if (!URL.canParse(url)) return false;
   const parsed = new URL(url);
-  return parsed.protocol === "http:" && LOOPBACK_HOSTS.has(parsed.hostname);
+  if (parsed.protocol === "http:") return LOOPBACK_HOSTS.has(parsed.hostname);
+  return (
+    parsed.protocol === "https:" &&
+    parsed.username === "" &&
+    parsed.password === "" &&
+    parsed.port === "" &&
+    parsed.hostname === claimedClientHost(request)
+  );
 }
 
-export const authorizationOutcomeSchema = z.discriminatedUnion("outcome", [
-  z.object({
-    outcome: z.literal("READY"),
-    clientName: z.string(),
-    clientHost: z.string(),
-    requestedScopes: z.array(z.string()),
-  }),
-  z.object({
-    outcome: z.literal("REDIRECT"),
-    redirectUrl: z.string().refine(isLoopbackRedirect),
-  }),
-  z.object({ outcome: z.literal("REFUSED"), reason: refusalReasonSchema }),
-]);
-export type AuthorizationOutcome = z.infer<typeof authorizationOutcomeSchema>;
+export function authorizationOutcomeSchemaFor(request: AuthorizationRequest) {
+  return z.discriminatedUnion("outcome", [
+    z.object({
+      outcome: z.literal("READY"),
+      clientName: z.string(),
+      clientHost: z.string(),
+      requestedScopes: z.array(z.string()),
+    }),
+    z.object({
+      outcome: z.literal("REDIRECT"),
+      redirectUrl: z.string().refine((url) => isReturnAddressOf(request, url)),
+    }),
+    z.object({ outcome: z.literal("REFUSED"), reason: refusalReasonSchema }),
+  ]);
+}
+export type AuthorizationOutcome = z.infer<
+  ReturnType<typeof authorizationOutcomeSchemaFor>
+>;
 
 const REFUSALS: ReadonlyMap<RefusalReason, string> = new Map([
   ["UNTRUSTED_CLIENT", "This app is not on the list of trusted apps."],

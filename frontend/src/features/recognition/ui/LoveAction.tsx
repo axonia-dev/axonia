@@ -160,7 +160,7 @@ export function LoveAction({
           variant="ghost"
           size="sm"
           aria-label={`Unlove, ${count} ${lovesLabel(count)}`}
-          className={cn("text-primary", btn)}
+          className={cn("text-primary-ink", btn)}
           isDisabled={unlove.isPending}
           onPress={() => unlove.mutate()}
         >

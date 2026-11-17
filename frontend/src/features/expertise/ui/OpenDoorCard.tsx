@@ -40,7 +40,7 @@ export function OpenDoorCard({
       <span className="flex w-full flex-wrap items-center justify-between gap-x-2 gap-y-1">
         <span className="text-muted-foreground text-xs">{count}</span>
         {isNew && (
-          <span className="text-primary-strong inline-flex shrink-0 items-center gap-1.5 text-[0.68rem] font-medium">
+          <span className="text-primary-ink-strong inline-flex shrink-0 items-center gap-1.5 text-[0.68rem] font-medium">
             <span
               aria-hidden="true"
               className="bg-focus-ring ring-primary/15 size-1.5 rounded-full ring-3"

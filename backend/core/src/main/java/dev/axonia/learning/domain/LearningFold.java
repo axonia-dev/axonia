@@ -4,9 +4,12 @@ import java.time.Instant;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.function.BinaryOperator;
 
 import dev.axonia.expertise.api.CommunityAreas;
@@ -58,6 +61,18 @@ public final class LearningFold {
                 .map(e -> new WantedArea(e.getKey(), e.getValue().size(), canBeAsked.getOrDefault(e.getKey(), 0)))
                 .sorted(Comparator.comparingInt(WantedArea::learners).reversed().thenComparing(WantedArea::tag))
                 .toList();
+    }
+
+    /** Each member's areas as the community reads them, once each, sorted by name. */
+    public static Map<String, List<String>> areasByLearner(List<LearningIntent> intents, CommunityAreas areas) {
+
+        var areasByUser = new TreeMap<String, Set<String>>();
+        for (var intent : intents) {
+            areasByUser.computeIfAbsent(intent.userId(), user -> new TreeSet<>()).add(areas.canonicalOf(intent.tag()));
+        }
+        var sorted = new LinkedHashMap<String, List<String>>();
+        areasByUser.forEach((user, userAreas) -> sorted.put(user, List.copyOf(userAreas)));
+        return sorted;
     }
 
     /** Each member holding the area, at the earliest date they stated any spelling of it, earliest first. */

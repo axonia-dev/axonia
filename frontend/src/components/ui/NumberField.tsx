@@ -21,6 +21,7 @@ interface NumberFieldProps {
   minValue: number;
   maxValue: number;
   errorMessage?: string;
+  isDisabled?: boolean | undefined;
 }
 
 /**
@@ -40,6 +41,7 @@ export function NumberField({
   minValue,
   maxValue,
   errorMessage,
+  isDisabled = false,
 }: Readonly<NumberFieldProps>) {
   return (
     <AriaNumberField
@@ -53,6 +55,7 @@ export function NumberField({
       // caller's own bound message (`communicationFieldError`) can state it instead of
       // the control silently fixing it.
       commitBehavior="validate"
+      isDisabled={isDisabled}
       isInvalid={errorMessage !== undefined}
       formatOptions={{ useGrouping: false }}
       className="inline-flex flex-col gap-1"

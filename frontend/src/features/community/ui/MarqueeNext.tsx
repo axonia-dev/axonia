@@ -65,7 +65,7 @@ export function MarqueeNext({ slug, next }: Readonly<Props>) {
       </p>
       <Link
         to={href}
-        className="text-primary inline-flex shrink-0 items-center gap-1 text-sm font-semibold hover:underline"
+        className="text-primary-ink inline-flex shrink-0 items-center gap-1 text-sm font-semibold hover:underline"
       >
         {callToAction(next)}
         <ArrowRight size={13} />

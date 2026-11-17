@@ -163,7 +163,7 @@ export function RoleDetailPane(props: Readonly<RoleDetailPaneProps>) {
         <span>
           <AnimatedCount
             value={grantedCount}
-            className="text-primary-strong font-semibold"
+            className="text-primary-ink-strong font-semibold"
           />{" "}
           of {total} permissions
         </span>

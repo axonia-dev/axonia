@@ -40,7 +40,7 @@ export function DocsNav({ onGetHelp }: Readonly<{ onGetHelp?: () => void }>) {
                 cn(
                   "block rounded-md px-3 py-2 text-sm",
                   isActive
-                    ? "text-primary font-semibold"
+                    ? "text-primary-ink font-semibold"
                     : "text-foreground hover:bg-surface-sunken",
                 )
               }

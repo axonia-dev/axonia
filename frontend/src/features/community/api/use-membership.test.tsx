@@ -16,6 +16,7 @@ import {
 import type { Membership } from "@/features/community/domain/membership";
 import { expertiseKeys } from "@/features/expertise/api/query-keys";
 import { learningKeys } from "@/features/learning/api/query-keys";
+import { mentoringKeys } from "@/features/mentoring/api/query-keys";
 
 vi.mock("@/features/community/adapters/http-community-gateway", () => ({
   httpCommunityGateway: {
@@ -185,7 +186,7 @@ describe("useLeave", () => {
     expect(gateway.leave.mock.calls[0]).toEqual(["backend-guild"]);
   });
 
-  it("invalidates the community detail, my-organizations, own expertise and Learning queries on success", async () => {
+  it("invalidates the community detail, my-organizations, own expertise, Learning and mentoring queries on success", async () => {
     // given - leaving can cascade to the org, which my-organizations reflects
     gateway.leave.mockResolvedValue(undefined);
     const client = testClient();
@@ -204,6 +205,7 @@ describe("useLeave", () => {
       adminKeys.myOrganizations(),
       expertiseKeys.selfView(),
       learningKeys.community("backend-guild"),
+      mentoringKeys.all,
     ]) {
       expect(invalidateSpy).toHaveBeenCalledWith({ queryKey });
     }

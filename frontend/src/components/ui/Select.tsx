@@ -59,7 +59,7 @@ const popoverClass =
 const POPOVER_MAX_HEIGHT = 320;
 
 const itemClass =
-  "flex cursor-pointer items-center justify-between gap-2 rounded-sm px-3 py-2 text-sm text-foreground outline-none transition-colors data-[hovered]:bg-surface-sunken data-[focused]:bg-surface-sunken data-[selected]:font-semibold data-[selected]:text-primary";
+  "flex cursor-pointer items-center justify-between gap-2 rounded-sm px-3 py-2 text-sm text-foreground outline-none transition-colors data-[hovered]:bg-surface-sunken data-[focused]:bg-surface-sunken data-[selected]:font-semibold data-[selected]:text-primary-ink";
 
 /**
  * A labelled single-choice dropdown over a fixed set of string- or number-keyed

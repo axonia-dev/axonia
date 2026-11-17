@@ -15,7 +15,7 @@ const LABELS: Record<CommunityRole, string> = {
  */
 export function MembershipChip({ role }: Readonly<{ role: CommunityRole }>) {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-[color-mix(in_srgb,var(--community-accent,var(--primary))_13%,var(--surface))] px-3 py-1 text-xs font-semibold whitespace-nowrap text-[color-mix(in_srgb,var(--community-accent,var(--primary))_80%,var(--foreground))]">
+    <span className="text-primary-ink inline-flex items-center gap-1.5 rounded-full bg-[color-mix(in_srgb,var(--community-accent,var(--primary))_13%,var(--surface))] px-3 py-1 text-xs font-semibold whitespace-nowrap">
       <Check size={14} aria-hidden />
       {LABELS[role]}
     </span>

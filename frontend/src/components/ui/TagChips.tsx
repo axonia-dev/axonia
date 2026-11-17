@@ -24,7 +24,7 @@ export function TagChips({ tags, onTagClick }: Readonly<TagChipsProps>) {
             <button
               type="button"
               onClick={() => onTagClick(tag)}
-              className="bg-surface border-border text-muted-foreground hover:text-primary hover:border-primary/40 cursor-pointer rounded-sm border px-2 py-0.5 text-xs transition-colors"
+              className="bg-surface border-border text-muted-foreground hover:text-primary-ink hover:border-primary/40 cursor-pointer rounded-sm border px-2 py-0.5 text-xs transition-colors"
             >
               #{tag}
             </button>

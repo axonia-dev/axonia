@@ -1,7 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { GlobalShell } from "@/components/patterns/GlobalShell";
 import { SidebarProvider } from "@/components/patterns/SidebarProvider";
@@ -10,6 +10,11 @@ import { permissionState } from "@/test/permissions";
 import { ThemeProvider } from "@/theme/ThemeProvider";
 
 // AccountMenu (now rendered inside the shell) needs auth + /me.
+const mentoring = vi.hoisted(() => ({ mine: false }));
+vi.mock("@/features/mentoring/api/use-mentoring", () => ({
+  useHasMentoring: () => mentoring.mine,
+}));
+
 vi.mock("@/auth/session", () => ({
   useAuth: () => ({
     user: {
@@ -74,6 +79,10 @@ function renderShell() {
     </ThemeProvider>,
   );
 }
+
+afterEach(() => {
+  mentoring.mine = false;
+});
 
 describe("GlobalShell", () => {
   it("keeps only destinations in the rail", () => {
@@ -181,6 +190,21 @@ describe("GlobalShell", () => {
     expect(sheet.getByRole("link", { name: /saved/i })).toHaveAttribute(
       "href",
       "/me/saved",
+    );
+  });
+
+  it("lists My mentoring in the Activity destinations only with mentoring of one's own", async () => {
+    const user = userEvent.setup({ delay: null });
+    mockUsePermissions.mockReturnValue(permissionState(() => false));
+    mentoring.mine = true;
+    renderShell();
+    const tabs = within(screen.getByTestId("global-tabs"));
+    await user.click(tabs.getByRole("button", { name: "Me" }));
+
+    const sheet = within(screen.getByRole("dialog"));
+    expect(sheet.getByRole("link", { name: /my mentoring/i })).toHaveAttribute(
+      "href",
+      "/me/mentoring",
     );
   });
 

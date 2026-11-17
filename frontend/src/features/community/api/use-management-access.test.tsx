@@ -63,6 +63,7 @@ describe("useManagementAccess", () => {
       communication: true,
       credit: true,
       any: true,
+      member: true,
       isLoading: false,
     });
   });
@@ -89,6 +90,7 @@ describe("useManagementAccess", () => {
 
     // then
     expect(result.current.any).toBe(false);
+    expect(result.current.member).toBe(false);
   });
 
   it("grants a member nothing while the policy is unknown", () => {
@@ -118,6 +120,7 @@ describe("useManagementAccess", () => {
     invite: false,
     communication: false,
     credit: false,
+    member: true,
     isLoading: false,
   };
 

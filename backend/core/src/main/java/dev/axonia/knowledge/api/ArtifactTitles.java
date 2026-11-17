@@ -7,4 +7,7 @@ import java.util.Map;
 public interface ArtifactTitles {
 
     Map<Long, String> titlesByIds(Collection<Long> ids);
+
+    /** The same lookup, with the community whose library holds each artifact. */
+    Map<Long, TitledArtifact> artifactsByIds(Collection<Long> ids);
 }

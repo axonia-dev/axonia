@@ -95,7 +95,7 @@ export function LibrarySearchPanel({
       <button
         type="button"
         onClick={onCreate}
-        className="border-border-strong text-primary hover:bg-surface-sunken focus-visible:ring-focus-ring flex w-full cursor-pointer items-center gap-2 rounded-md border border-dashed px-3 py-2 text-left text-sm font-semibold transition-colors outline-none focus-visible:ring-2"
+        className="border-border-strong text-primary-ink hover:bg-surface-sunken focus-visible:ring-focus-ring flex w-full cursor-pointer items-center gap-2 rounded-md border border-dashed px-3 py-2 text-left text-sm font-semibold transition-colors outline-none focus-visible:ring-2"
       >
         {createLabel}
       </button>
@@ -166,7 +166,7 @@ function RowAction({ state }: Readonly<{ state: RowState }>) {
     );
   }
   return (
-    <span className="text-primary shrink-0 text-xs font-semibold">
+    <span className="text-primary-ink shrink-0 text-xs font-semibold">
       ＋ Attach
     </span>
   );

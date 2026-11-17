@@ -46,7 +46,7 @@ export function RoleSwitch({
           <span className="text-muted-foreground transition-opacity group-data-[selected]:opacity-0">
             Member
           </span>
-          <span className="text-primary absolute top-0 right-0 opacity-0 transition-opacity group-data-[selected]:opacity-100">
+          <span className="text-primary-ink absolute top-0 right-0 opacity-0 transition-opacity group-data-[selected]:opacity-100">
             Organizer
           </span>
         </span>

@@ -36,7 +36,7 @@ export function SectionCard({
         {action && (
           <Link
             to={action.to}
-            className="text-primary inline-flex shrink-0 items-center gap-1 text-sm font-medium whitespace-nowrap hover:underline"
+            className="text-primary-ink inline-flex shrink-0 items-center gap-1 text-sm font-medium whitespace-nowrap hover:underline"
           >
             {action.label}
             <ArrowRight size={13} />

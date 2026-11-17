@@ -107,7 +107,7 @@ export function WhoKnowsSection({
         <button
           type="button"
           onClick={() => onOpenSearch(tag)}
-          className="text-primary-strong focus-visible:ring-focus-ring cursor-pointer self-start rounded-lg text-sm font-medium outline-none hover:underline focus-visible:ring-2"
+          className="text-primary-ink-strong focus-visible:ring-focus-ring cursor-pointer self-start rounded-lg text-sm font-medium outline-none hover:underline focus-visible:ring-2"
         >
           Open in Search
         </button>

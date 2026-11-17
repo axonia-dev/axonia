@@ -55,7 +55,7 @@ public class CommunityPersonalDataFootprint implements PersonalDataFootprint {
                         "can_manage_contribution_policy", "can_archive_community", "can_curate_tags", "can_view_health",
                         "can_invite_members", "can_manage_communication", "notify_session_upcoming",
                         "notify_session_wrap_up", "session_upcoming_lead_days", "wrap_up_grace_hours",
-                        "can_credit_contributions"))
+                        "can_credit_contributions", "mentoring_enabled"))
                 .build();
     }
 

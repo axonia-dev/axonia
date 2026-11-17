@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { httpCommunityGateway } from "@/features/community/adapters/http-community-gateway";
 import { communityKeys } from "@/features/community/api/query-keys";
 import { useJoin, useLeave } from "@/features/community/api/use-membership";
+import { mentoringKeys } from "@/features/mentoring/api/query-keys";
 
 vi.mock("@/features/community/adapters/http-community-gateway", () => ({
   httpCommunityGateway: { join: vi.fn(), leave: vi.fn() },
@@ -100,5 +101,24 @@ describe("community lists", () => {
       queryKey: communityKeys.lists(),
       refetchType: "none",
     });
+  });
+
+  it("refreshes every mentoring read after a join, the shell's probe included", async () => {
+    // given - joining a mentoring guild is what opens My mentoring
+    gateway.join.mockResolvedValue(membership);
+    const client = testClient();
+    client.setQueryData(mentoringKeys.presence(), { inAMentoringGuild: false });
+    const { result } = renderHook(() => useJoin("backend-guild"), {
+      wrapper: clientWrapper(client),
+    });
+
+    // when
+    result.current.mutate();
+
+    // then
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(client.getQueryState(mentoringKeys.presence())?.isInvalidated).toBe(
+      true,
+    );
   });
 });

@@ -14,6 +14,7 @@ const community: Community = {
   description: "Paved roads.",
   status: "ACTIVE",
   memberCount: 42,
+  mentoringEnabled: false,
   createdAt: "2026-10-13T10:00:00Z",
   updatedAt: "2026-10-13T10:00:00Z",
 };

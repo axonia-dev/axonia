@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title th:text="${sessionTitle} ?: 'A mentoring meeting tomorrow'">A mentoring meeting tomorrow</title>
+</head>
+<body style="margin:0; padding:0;">
+<div style="display:none; max-height:0; overflow:hidden; mso-hide:all;">
+<div th:replace="~{_shell.html :: preheader(fallback='The next mentoring meeting is tomorrow.')}">Preheader</div>
+</div>
+<div th:replace="~{_shell.html :: page(body=~{::content}, when='', reason='Mentoring through')}">
+<!-- Nothing from the journal is in this mail: only the two people read it, in the journal. -->
+<th:block th:fragment="content"
+    th:with="partnerName=${partner} ?: 'the other person', day=${line} ?: 'the next meeting day'">
+<tr th:replace="~{_shell.html :: bodyText(text='The next meeting with ' + ${partnerName} + ' is tomorrow, ' + ${day} + '.')}">Body</tr>
+<th:block th:if="not ${#strings.isEmpty(mentoringUrl)}">
+<tr th:replace="~{_shell.html :: primaryButton(url=${mentoringUrl}, label='Open the journal')}">Button</tr>
+</th:block>
+</th:block>
+</div>
+<div style="display:none; max-height:0; overflow:hidden; mso-hide:all;">
+<th:block th:fragment="subject" th:text="${sessionTitle} ?: 'A mentoring meeting tomorrow'">Subject</th:block>
+</div>
+</body>
+</html>

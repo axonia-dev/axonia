@@ -40,7 +40,7 @@ export function StepButton({
     <button
       type="button"
       onClick={onPress}
-      className="border-border-strong text-primary-strong hover:border-primary hover:bg-primary/5 inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold whitespace-nowrap transition-colors max-sm:size-9 max-sm:justify-center max-sm:px-0"
+      className="border-border-strong text-primary-ink-strong hover:border-primary hover:bg-primary/5 inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold whitespace-nowrap transition-colors max-sm:size-9 max-sm:justify-center max-sm:px-0"
     >
       {children}
     </button>

@@ -28,7 +28,7 @@ function ExpandToggle({ expanded, controls, onPress }: Readonly<ToggleProps>) {
       onClick={onPress}
       aria-expanded={expanded}
       aria-controls={controls}
-      className="text-primary hover:text-primary-strong float-right ml-3 flex cursor-pointer items-center gap-1 text-xs font-semibold"
+      className="text-primary-ink hover:text-primary-ink-strong float-right ml-3 flex cursor-pointer items-center gap-1 text-xs font-semibold"
     >
       {expanded ? "Show less" : "Show more"}
       <ChevronDown

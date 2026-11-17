@@ -20,7 +20,7 @@ export function CompareColumnHeads({
       </span>
       <span
         data-testid="compare-head"
-        className="text-primary-strong w-16 text-center text-[10px] font-semibold tracking-wide uppercase"
+        className="text-primary-ink-strong w-16 text-center text-[10px] font-semibold tracking-wide uppercase"
       >
         {role.name}
       </span>
@@ -41,7 +41,7 @@ function CollapsedNote({
       <button
         type="button"
         onClick={onAction}
-        className="text-primary-strong focus-visible:ring-focus-ring cursor-pointer rounded outline-none focus-visible:ring-2"
+        className="text-primary-ink-strong focus-visible:ring-focus-ring cursor-pointer rounded outline-none focus-visible:ring-2"
       >
         {actionLabel}
       </button>

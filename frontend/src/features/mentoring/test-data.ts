@@ -1,0 +1,181 @@
+import type {
+  Availability,
+  DirectoryPerson,
+  Journal,
+  MentoringPage,
+  MyMentoring,
+  Note,
+  PairingSummary,
+  Pointer,
+  Proposal,
+  Topic,
+  Words,
+} from "@/features/mentoring/domain/mentoring";
+
+export const availability: Availability = {
+  takingMentees: true,
+  menteeLimit: 3,
+  lookingForMentor: false,
+};
+
+export function personOf(
+  overrides: Partial<DirectoryPerson> = {},
+): DirectoryPerson {
+  return {
+    userId: "u-1",
+    displayName: "Ada",
+    avatarUrl: null,
+    areas: ["kafka"],
+    proposable: true,
+    proposalState: null,
+    proposalsOpenOn: null,
+    ...overrides,
+  };
+}
+
+export function pageOf(overrides: Partial<MentoringPage> = {}): MentoringPage {
+  return {
+    archived: false,
+    mine: availability,
+    mentors: [personOf()],
+    mentees: [],
+    canMentorOn: ["kafka"],
+    wantsToGrowIn: ["testing"],
+    guidedStart: false,
+    ...overrides,
+  };
+}
+
+export function proposalOf(overrides: Partial<Proposal> = {}): Proposal {
+  return {
+    id: 7,
+    communitySlug: "platform",
+    communityName: "Platform",
+    proposedBy: "MENTEE",
+    partnerId: "u-1",
+    partnerName: "Ada",
+    partnerAvatarUrl: null,
+    topics: ["Giving feedback"],
+    message: "Happy to pair up?",
+    status: "OPEN",
+    createdAt: "2026-11-16T10:00:00Z",
+    reopenableUntil: null,
+    lapsesOn: null,
+    ...overrides,
+  };
+}
+
+export function pairingOf(
+  overrides: Partial<PairingSummary> = {},
+): PairingSummary {
+  return {
+    id: 11,
+    communitySlug: "platform",
+    communityName: "Platform",
+    myRole: "MENTEE",
+    partnerId: "u-1",
+    partnerName: "Ada",
+    partnerAvatarUrl: null,
+    startedAt: "2026-11-16T10:00:00Z",
+    endedAt: null,
+    stops: ["IN_PROGRESS"],
+    nowTopic: null,
+    nextMeeting: null,
+    meetings: 0,
+    notes: 0,
+    lastMetOn: null,
+    ...overrides,
+  };
+}
+
+export function pointerOf(overrides: Partial<Pointer> = {}): Pointer {
+  return {
+    id: 5,
+    kind: "SESSION",
+    title: "Kafka basics",
+    href: "/communities/platform/sessions/9",
+    available: true,
+    ...overrides,
+  };
+}
+
+export function topicOf(overrides: Partial<Topic> = {}): Topic {
+  return {
+    id: 1,
+    label: "Giving feedback",
+    area: null,
+    state: "IN_PROGRESS",
+    position: 0,
+    pointers: [],
+    ...overrides,
+  };
+}
+
+export function noteOf(overrides: Partial<Note> = {}): Note {
+  return {
+    id: 2,
+    authorId: "u-2",
+    authorName: "Noah",
+    authorAvatarUrl: null,
+    mine: true,
+    body: "Met, covered unit tests.",
+    meetingOn: "2026-11-16",
+    topicIds: [],
+    writtenAt: "2026-11-16T11:00:00Z",
+    editedAt: null,
+    pointers: [],
+    ...overrides,
+  };
+}
+
+export function journalOf(overrides: Partial<Journal> = {}): Journal {
+  return {
+    pairing: pairingOf(),
+    writable: true,
+    today: "2026-11-16",
+    startedOn: "2026-11-16",
+    topics: [topicOf({ pointers: [pointerOf()] })],
+    notes: [noteOf()],
+    nextMeeting: null,
+    wordsWritten: false,
+    canWriteWords: true,
+    myWords: null,
+    ...overrides,
+  };
+}
+
+export function wordsOf(overrides: Partial<Words> = {}): Words {
+  return {
+    pairingId: 11,
+    communitySlug: "platform",
+    communityName: "Platform",
+    menteeId: "u-2",
+    menteeName: "Noah",
+    menteeAvatarUrl: null,
+    startedAt: "2026-11-16T10:00:00Z",
+    endedAt: null,
+    body: "Thanks for the time.",
+    writtenAt: "2026-11-20T10:00:00Z",
+    openedAt: null,
+    ...overrides,
+  };
+}
+
+export const page: MentoringPage = pageOf();
+
+export const proposal: Proposal = proposalOf();
+
+export const pairing: PairingSummary = pairingOf();
+
+export const mine: MyMentoring = {
+  inAMentoringGuild: true,
+  received: [],
+  sent: [proposal],
+  ongoing: [pairing],
+  ended: [],
+  today: "2026-11-17",
+};
+
+export const journal: Journal = journalOf();
+
+export const words: Words = wordsOf();

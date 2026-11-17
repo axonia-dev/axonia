@@ -11,6 +11,7 @@ const community = {
   description: "A guild",
   status: "ACTIVE",
   memberCount: 1,
+  mentoringEnabled: false,
   badgeUrl: null,
   heroUrl: null,
   accentColor: null,

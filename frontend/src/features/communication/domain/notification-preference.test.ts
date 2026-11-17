@@ -13,6 +13,8 @@ describe("MESSAGE_TYPES", () => {
       "session_wrap_up",
       "session_awaiting_close",
       "organization_roundup",
+      "mentoring_proposal",
+      "mentoring_meeting_reminder",
     ]);
   });
 });

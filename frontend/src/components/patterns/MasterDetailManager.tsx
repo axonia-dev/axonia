@@ -28,7 +28,7 @@ function rowClass(selected: boolean): string {
   return cn(
     "flex w-full cursor-pointer items-center gap-3 rounded-md border px-3 py-2 text-left text-sm transition-colors",
     selected
-      ? "border-primary bg-surface-sunken text-primary"
+      ? "border-primary bg-surface-sunken text-primary-ink"
       : "border-border hover:border-border-strong hover:bg-surface-sunken",
   );
 }

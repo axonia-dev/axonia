@@ -133,7 +133,7 @@ export function BannerEditZone({
       highlightClassName="border-primary bg-primary/15 rounded-md"
       reposition={reposition}
       highlight={
-        <span className="bg-surface/95 text-primary inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-sm font-semibold shadow-sm backdrop-blur">
+        <span className="bg-surface/95 text-primary-ink inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-sm font-semibold shadow-sm backdrop-blur">
           <Upload size={15} />
           Drop image to set banner
         </span>

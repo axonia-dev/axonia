@@ -23,7 +23,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const STATUS_TONE: Record<string, string> = {
-  SCHEDULED: "bg-primary/10 text-primary",
+  SCHEDULED: "bg-primary/10 text-primary-ink",
   HELD: "bg-surface-sunken text-muted-foreground",
   CANCELLED: "bg-danger/15 text-danger",
   SKIPPED: "bg-surface-sunken text-muted-foreground",
@@ -37,7 +37,7 @@ function slotSummary(count: number): string {
 }
 
 const TITLE_CLASS =
-  "text-foreground hover:text-primary inline-flex items-center gap-1 font-semibold underline-offset-2 hover:underline";
+  "text-foreground hover:text-primary-ink inline-flex items-center gap-1 font-semibold underline-offset-2 hover:underline";
 
 function SessionTitle({
   item: { session, community },

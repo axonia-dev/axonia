@@ -18,7 +18,7 @@ export function RailToggleBadge({
       aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
       aria-expanded={!collapsed}
       className={cn(
-        "border-border bg-surface text-muted-foreground hover:text-primary hover:border-primary focus-visible:ring-focus-ring absolute z-10 flex size-4 cursor-pointer items-center justify-center rounded-full border shadow-sm transition-colors focus-visible:ring-2 focus-visible:outline-none",
+        "border-border bg-surface text-muted-foreground hover:text-primary-ink hover:border-primary focus-visible:ring-focus-ring absolute z-10 flex size-4 cursor-pointer items-center justify-center rounded-full border shadow-sm transition-colors focus-visible:ring-2 focus-visible:outline-none",
         className,
       )}
     >

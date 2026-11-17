@@ -14,6 +14,7 @@ const base: Community = {
   description: "Patterns and practices.",
   status: "ACTIVE",
   memberCount: 120,
+  mentoringEnabled: false,
   badgeUrl: null,
   heroUrl: null,
   accentColor: null,

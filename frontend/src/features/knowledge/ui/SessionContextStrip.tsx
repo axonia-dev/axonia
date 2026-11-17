@@ -39,7 +39,7 @@ export function SessionContextStrip({ slug, sessionId }: Readonly<Props>) {
         <h3 className="font-display text-foreground font-semibold">{title}</h3>
         <Link
           to={`/communities/${slug}/sessions/${sessionId}`}
-          className="text-primary text-sm underline-offset-2 hover:underline"
+          className="text-primary-ink text-sm underline-offset-2 hover:underline"
         >
           Open session →
         </Link>

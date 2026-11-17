@@ -14,6 +14,8 @@ class ClientMetadataTest {
     private static final ClientMetadata CLAUDE_CODE = new ClientMetadata(
             "https://claude.ai/oauth/claude-code-client-metadata", "Claude Code", "claude.ai",
             List.of("http://localhost/callback", "http://127.0.0.1/callback"));
+    private static final ClientMetadata CLAUDE = new ClientMetadata("https://claude.ai/oauth/mcp-oauth-client-metadata",
+            "Claude", "claude.ai", List.of("https://claude.ai/api/mcp/auth_callback"));
 
     @ParameterizedTest
     @ValueSource(strings = {"http://localhost:54321/callback", "http://localhost/callback",
@@ -47,11 +49,50 @@ class ClientMetadataTest {
     }
 
     @Test
-    void isLoopback() {
-        assertThat(ClientMetadata.isLoopback(URI.create("http://127.0.0.1/cb"))).isTrue();
-        assertThat(ClientMetadata.isLoopback(URI.create("http://localhost/cb"))).isTrue();
-        assertThat(ClientMetadata.isLoopback(URI.create("http://example.com/cb"))).isFalse();
-        assertThat(ClientMetadata.isLoopback(URI.create("https://localhost/cb"))).isFalse();
-        assertThat(ClientMetadata.isLoopback(URI.create("http://u@localhost/cb"))).isFalse();
+    void accepts_aRegisteredHostedRedirectExactly() {
+        assertThat(CLAUDE.accepts("https://claude.ai/api/mcp/auth_callback")).isTrue();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"https://claude.ai/api/mcp/auth_callback/extra", "https://claude.ai/api/mcp/Auth_callback",
+            "https://claude.ai/api/mcp/auth_callback?x=1", "https://claude.ai:443/api/mcp/auth_callback",
+            "https://CLAUDE.ai/api/mcp/auth_callback", "http://claude.ai/api/mcp/auth_callback",
+            "https://evil.example/api/mcp/auth_callback", "https://claude.ai/other",
+            "http://localhost/api/mcp/auth_callback"})
+    void accepts_refusesAnyOtherHostedRedirect(String redirectUri) {
+        assertThat(CLAUDE.accepts(redirectUri)).isFalse();
+    }
+
+    @Test
+    void accepts_refusesAHostedRedirectOffTheClientHostEvenWhenRegistered() {
+
+        var offHost = new ClientMetadata("https://claude.ai/a", "A", "claude.ai",
+                List.of("https://evil.example/callback"));
+
+        assertThat(offHost.accepts("https://evil.example/callback")).isFalse();
+    }
+
+    @Test
+    void accepts_matchesALoopbackOnlyAgainstARegisteredLoopback() {
+
+        var hostedLocalhost = new ClientMetadata("https://localhost/a", "A", "localhost",
+                List.of("https://localhost/callback"));
+
+        assertThat(hostedLocalhost.accepts("http://localhost:3118/callback")).isFalse();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"http://127.0.0.1/cb", "http://localhost/cb", "https://claude.ai/cb",
+            "https://CLAUDE.AI/cb"})
+    void isPermittedRedirect_loopbackOrTheClientHost(String uri) {
+        assertThat(ClientMetadata.isPermittedRedirect(URI.create(uri), "claude.ai")).isTrue();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"http://example.com/cb", "https://localhost/cb", "http://u@localhost/cb",
+            "http://claude.ai/cb", "https://api.claude.ai/cb", "https://claude.ai:8443/cb", "https://u@claude.ai/cb",
+            "https://claude.ai/cb#f", "urn:x", "https:///cb"})
+    void isPermittedRedirect_refusesAnythingElse(String uri) {
+        assertThat(ClientMetadata.isPermittedRedirect(URI.create(uri), "claude.ai")).isFalse();
     }
 }

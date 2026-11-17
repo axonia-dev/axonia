@@ -60,6 +60,7 @@ function access(overrides?: Partial<ManagementAccess>): ManagementAccess {
     communication: true,
     credit: true,
     any: true,
+    member: true,
     isLoading: false,
     ...overrides,
   };

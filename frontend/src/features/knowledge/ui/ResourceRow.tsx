@@ -61,7 +61,7 @@ function LibraryLink({
       <Focusable>
         <Link
           to={`/communities/${slug}/library?q=${encodeURIComponent(title)}`}
-          className="text-muted-foreground hover:text-primary flex items-center rounded-sm text-xs whitespace-nowrap underline-offset-2 hover:underline @max-sm:p-1.5"
+          className="text-muted-foreground hover:text-primary-ink flex items-center rounded-sm text-xs whitespace-nowrap underline-offset-2 hover:underline @max-sm:p-1.5"
         >
           <Book size={15} aria-hidden className="hidden @max-sm:block" />
           <span ref={label} className="@max-sm:sr-only">
@@ -81,7 +81,7 @@ function DetachButton({ onDetach }: Readonly<{ onDetach: () => void }>) {
         variant="ghost"
         size="sm"
         aria-label="Detach"
-        className="text-muted-foreground hover:text-primary p-1.5 hover:bg-transparent"
+        className="text-muted-foreground hover:text-primary-ink p-1.5 hover:bg-transparent"
         onPress={onDetach}
       >
         <Unlink size={15} aria-hidden />
@@ -115,7 +115,7 @@ export function ResourceRow({
       <ArtifactLink
         artifactId={artifact.id}
         url={artifact.url}
-        className="text-foreground hover:text-primary min-w-0 truncate text-sm underline-offset-2 hover:underline"
+        className="text-foreground hover:text-primary-ink min-w-0 truncate text-sm underline-offset-2 hover:underline"
       >
         {artifact.title}
       </ArtifactLink>

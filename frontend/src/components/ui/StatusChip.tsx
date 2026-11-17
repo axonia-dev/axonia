@@ -16,7 +16,7 @@ const tones: Record<StatusTone, string> = {
   neutral:
     "text-muted-foreground bg-[color-mix(in_srgb,var(--muted-foreground)_13%,var(--surface))]",
   primary:
-    "text-primary-strong bg-[color-mix(in_srgb,var(--primary)_15%,var(--surface))]",
+    "text-primary-ink-strong bg-[color-mix(in_srgb,var(--primary)_15%,var(--surface))]",
 };
 
 const SHAPE =

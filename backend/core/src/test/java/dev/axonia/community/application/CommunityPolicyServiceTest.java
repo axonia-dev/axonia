@@ -7,18 +7,22 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoSettings;
 
 import dev.axonia.community.api.CommunicationSettings;
+import dev.axonia.community.api.CommunityStatus;
 import dev.axonia.community.api.ContributionPolicy;
+import dev.axonia.community.api.MentoringSettings;
 import dev.axonia.community.api.TopicManagementPolicy;
 import dev.axonia.community.application.port.out.CommunityStore;
 import dev.axonia.community.application.port.out.CurrentUser;
 import dev.axonia.community.application.port.out.OrganizationContext;
 import dev.axonia.community.domain.CommunityRecordMother;
 import dev.axonia.community.domain.ManagementPolicy;
+import dev.axonia.shared.api.error.ForbiddenException;
 import dev.axonia.shared.api.error.NotFoundException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -207,6 +211,70 @@ class CommunityPolicyServiceTest {
 
         // then
         assertThat(actual).isEqualTo(ManagementPolicy.curated());
+    }
+
+    @Test
+    void getMentoringSettings() {
+
+        // given
+        when(communities.findBySlugOrThrow("default", "backend-guild"))
+                .thenReturn(CommunityRecordMother.any().id(1L).mentoringEnabled(true).build());
+
+        // when
+        var actual = sut.getMentoringSettings("backend-guild");
+
+        // then
+        assertThat(actual).isEqualTo(new MentoringSettings(true));
+    }
+
+    @Test
+    void onlyAnOrganizerSwitchesMentoring() {
+
+        // given
+        when(currentUser.userId()).thenReturn("member");
+        var entity = CommunityRecordMother.any().id(1L).canManageCommunication(true).canEditCommunity(true).build();
+        when(communities.findBySlugOrThrow("default", "backend-guild")).thenReturn(entity);
+        doThrow(new ForbiddenException("Organizer role required")).when(membershipAuthorizer)
+                .requireOrganizer("default", 1L, "member");
+
+        // when / then
+        assertThatThrownBy(() -> sut.updateMentoringSettings("backend-guild", true))
+                .isInstanceOf(ForbiddenException.class);
+        verifyNoInteractions(communityStore);
+    }
+
+    @Test
+    void anOrganizerSwitchesMentoringOn() {
+
+        // given
+        when(currentUser.userId()).thenReturn("organizer");
+        when(communities.findBySlugOrThrow("default", "backend-guild"))
+                .thenReturn(CommunityRecordMother.any().id(1L).build());
+        when(communityStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // when
+        var actual = sut.updateMentoringSettings("backend-guild", true);
+
+        // then
+        assertThat(actual).isEqualTo(new MentoringSettings(true));
+        verify(membershipAuthorizer).requireOrganizer("default", 1L, "organizer");
+    }
+
+    @Test
+    void anArchivedCommunityStillSwitchesMentoringOff() {
+
+        // given
+        when(currentUser.userId()).thenReturn("organizer");
+        var archived = CommunityRecordMother.any().id(1L).status(CommunityStatus.ARCHIVED).mentoringEnabled(true)
+                .build();
+        when(communities.findBySlugOrThrow("default", "backend-guild")).thenReturn(archived);
+        when(communityStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // when
+        var actual = sut.updateMentoringSettings("backend-guild", false);
+
+        // then
+        assertThat(actual).isEqualTo(new MentoringSettings(false));
     }
 
     @Test

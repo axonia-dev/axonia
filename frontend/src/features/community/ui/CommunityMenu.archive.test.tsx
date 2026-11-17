@@ -63,6 +63,7 @@ const community: Community = {
   description: "Patterns and practices.",
   status: "ACTIVE",
   memberCount: 120,
+  mentoringEnabled: false,
   createdAt: "2026-05-31T10:00:00Z",
   updatedAt: "2026-05-31T10:00:00Z",
 };
@@ -81,6 +82,7 @@ function fullAccess(overrides?: Partial<ManagementAccess>): ManagementAccess {
     communication: true,
     credit: true,
     any: true,
+    member: true,
     isLoading: false,
     ...overrides,
   };

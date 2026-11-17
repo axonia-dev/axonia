@@ -7,7 +7,6 @@ import { SidebarProvider } from "@/components/patterns/SidebarProvider";
 import { useManagementAccess } from "@/features/community/api/use-management-access";
 import { CommunityShell } from "@/features/community/ui/CommunityShell";
 import { ThemeProvider } from "@/theme/ThemeProvider";
-
 vi.mock("@/features/community/api/use-communities", () => ({
   useCommunity: vi.fn(() => ({
     isLoading: false,
@@ -23,10 +22,8 @@ vi.mock("@/features/community/api/use-communities", () => ({
   useCommunities: () => ({ data: { content: [] } }),
 }));
 
-// CommunityShell now also reads the current organization + permissions to
-// decide whether to show the hub-only rail groups (see
-// CommunityShell.hub.test.tsx); default to a pending/enterprise-like org here
-// so these plain-shell tests are unaffected.
+// The shell reads the organization and permissions for the hub-only rail groups;
+// default to a pending/enterprise-like org here.
 vi.mock("@/features/admin/api/use-current-organization", () => ({
   useCurrentOrganization: vi.fn(() => ({ data: undefined })),
 }));
@@ -61,6 +58,7 @@ const noAccess = {
   communication: false,
   credit: false,
   any: false,
+  member: true,
   isLoading: false,
 };
 

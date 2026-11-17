@@ -48,7 +48,7 @@ export function AccountExpertise() {
       action={
         <Link
           to="/me/expertise"
-          className="text-primary inline-flex items-center gap-1 text-sm font-medium hover:underline"
+          className="text-primary-ink inline-flex items-center gap-1 text-sm font-medium hover:underline"
         >
           All areas
           <ArrowRight size={13} />

@@ -1,0 +1,81 @@
+package dev.axonia.mentoring.adapter.out.community;
+
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Component;
+
+import dev.axonia.community.api.Communities;
+import dev.axonia.community.api.Community;
+import dev.axonia.community.api.CommunityStatus;
+import dev.axonia.community.api.Memberships;
+import dev.axonia.community.api.MentoringMemberships;
+import dev.axonia.mentoring.application.port.out.CommunityAccess;
+import dev.axonia.mentoring.domain.MentoringCommunity;
+import lombok.RequiredArgsConstructor;
+
+@Component("mentoringCommunityAccessAdapter")
+@RequiredArgsConstructor
+class CommunityAccessAdapter implements CommunityAccess {
+
+    private final Communities communityService;
+    private final Memberships membershipService;
+    private final MentoringMemberships mentoringMemberships;
+
+    @Override
+    public MentoringCommunity communityForSlug(String slug) {
+
+        return of(communityService.getBySlug(slug));
+    }
+
+    @Override
+    public MentoringCommunity communityById(long communityId) {
+
+        return of(communityService.getById(communityId));
+    }
+
+    @Override
+    public String nameOf(String org, long communityId) {
+
+        return communityService.identityById(org, communityId).name();
+    }
+
+    @Override
+    public boolean inAMentoringGuild(String org, String userId) {
+
+        return mentoringMemberships.inAMentoringCommunity(org, userId);
+    }
+
+    @Override
+    public List<Long> communityIdsOf(String org, String userId) {
+
+        return membershipService.communityIdsOf(org, userId);
+    }
+
+    @Override
+    public Map<Long, String> slugsOf(Collection<Long> communityIds) {
+
+        return communityService.identitiesByIds(communityIds).entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().slug()));
+    }
+
+    @Override
+    public boolean isMember(long communityId, String userId) {
+
+        return membershipService.isMember(communityId, userId);
+    }
+
+    @Override
+    public boolean isMember(String org, long communityId, String userId) {
+
+        return membershipService.isMember(org, communityId, userId);
+    }
+
+    private static MentoringCommunity of(Community community) {
+
+        return new MentoringCommunity(community.id(), community.slug(), community.name(),
+                community.status() == CommunityStatus.ARCHIVED, community.mentoringEnabled());
+    }
+}

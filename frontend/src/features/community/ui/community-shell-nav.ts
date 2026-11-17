@@ -3,6 +3,8 @@ import {
   Book,
   Calendar,
   GraduationCap,
+  Handshake,
+  HeartHandshake,
   Lightbulb,
   List,
   Megaphone,
@@ -31,19 +33,23 @@ export type GroupSpec = [string, ElementType, ItemSpec[]];
  * permission gate). Saved items are a filter on the Library and the Schedule. Organization administration lives behind the account
  * menu's Organization settings, not in this rail.
  */
-function meGroupSpec(): GroupSpec {
-  return [
-    "Me",
-    User,
-    [
-      ["My impact", "me/impact", Zap],
-      ["My expertise", "me/expertise", Lightbulb],
-    ],
+function meGroupSpec(access: CommunityNavAccess): GroupSpec {
+  const items: ItemSpec[] = [
+    ["My impact", "me/impact", Zap],
+    ["My expertise", "me/expertise", Lightbulb],
   ];
+  if (access.myMentoring)
+    items.push(["My mentoring", "me/mentoring", Handshake]);
+  return ["Me", User, items];
 }
 
 // The management-stewardship access flags the "Manage" group reads.
-export type CommunityNavAccess = { curation: boolean; health: boolean };
+export type CommunityNavAccess = {
+  curation: boolean;
+  health: boolean;
+  mentoring: boolean;
+  myMentoring: boolean;
+};
 
 /**
  * The full, ordered community rail below "Overview": community content
@@ -53,6 +59,14 @@ export type CommunityNavAccess = { curation: boolean; health: boolean };
  * `complexity` budget.
  */
 export function communityGroupSpecs(access: CommunityNavAccess): GroupSpec[] {
+  const knowledgeItems: ItemSpec[] = [
+    ["Library", "library", Book],
+    ["Expertise", "expertise", Lightbulb, { end: true }],
+    ["Learning", "learning", Sprout],
+  ];
+  if (access.mentoring)
+    knowledgeItems.push(["Mentoring", "mentoring", HeartHandshake]);
+
   const groups: GroupSpec[] = [
     [
       "Engage",
@@ -62,16 +76,8 @@ export function communityGroupSpecs(access: CommunityNavAccess): GroupSpec[] {
         ["Backlog", "backlog", List],
       ],
     ],
-    [
-      "Knowledge",
-      GraduationCap,
-      [
-        ["Library", "library", Book],
-        ["Expertise", "expertise", Lightbulb, { end: true }],
-        ["Learning", "learning", Sprout],
-      ],
-    ],
-    meGroupSpec(),
+    ["Knowledge", GraduationCap, knowledgeItems],
+    meGroupSpec(access),
   ];
 
   const manageItems: ItemSpec[] = [];

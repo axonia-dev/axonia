@@ -46,6 +46,13 @@ public class JdbcMembershipLedger implements MembershipLedger {
 
     @Override
     @Transactional(readOnly = true)
+    public boolean inAMentoringCommunity(String organizationId, String userId) {
+
+        return membershipRepository.existsMentoringCommunityOf(organizationId, userId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public long count(String organizationId, Long communityId) {
 
         return membershipRepository.countByOrganizationIdAndCommunityId(organizationId, communityId);

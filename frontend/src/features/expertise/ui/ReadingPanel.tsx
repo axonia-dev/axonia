@@ -266,7 +266,7 @@ function TopicDetail({
                 type="button"
                 onClick={() => onSelectTag(entry.tag)}
                 aria-label={`${entry.tag}, ${entry.weight} shared ${pluralWord(entry.weight, "person")}`}
-                className="border-border-strong text-muted-foreground hover:border-primary hover:text-primary-strong cursor-pointer rounded-full border px-2.5 py-1 text-xs"
+                className="border-border-strong text-muted-foreground hover:border-primary hover:text-primary-ink-strong cursor-pointer rounded-full border px-2.5 py-1 text-xs"
               >
                 <span className="text-foreground font-medium">{entry.tag}</span>{" "}
                 {entry.weight}

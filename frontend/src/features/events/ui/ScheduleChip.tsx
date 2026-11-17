@@ -33,7 +33,7 @@ function chipClass(entry: ScheduleEntry): string {
     return "text-muted-foreground line-through opacity-60";
   return entry.seriesId === null
     ? "border-l-2 border-secondary bg-secondary/15 text-secondary"
-    : "border-l-2 border-primary bg-primary/15 text-primary";
+    : "border-l-2 border-primary bg-primary/15 text-primary-ink";
 }
 
 function ChipBody({

@@ -48,6 +48,13 @@ public interface DeclarationRepository {
     List<Declaration> allVisibleIn(String org, long communityId);
 
     /**
+     * Every declaration of a current member the community may read, under the rule of
+     * {@link #allVisibleIn(String, long)} except that a paused declarer stays: a pause silences questions, it does not
+     * retract a declaration.
+     */
+    List<Declaration> allDeclaredIn(String org, long communityId);
+
+    /**
      * Whether others may see the member's declaration of any of {@code tags} in the community, under the visibility
      * rule of {@link #visibleIn(String, long, Set)}: the one question a declare and a delivery both ask before telling
      * anybody the member is open.

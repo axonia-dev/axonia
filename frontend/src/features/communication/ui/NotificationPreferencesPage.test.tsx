@@ -75,6 +75,28 @@ describe("NotificationPreferencesPage", () => {
     ).not.toBeChecked();
   });
 
+  it("lists Mentoring proposals among the mail preferences", () => {
+    renderPreferences([{ type: "mentoring_proposal", enabled: false }]);
+
+    expect(
+      screen.getByRole("switch", { name: /mentoring proposals/i }),
+    ).not.toBeChecked();
+    expect(
+      screen.getByText("A mail when someone proposes mentoring."),
+    ).toBeInTheDocument();
+  });
+
+  it("lists Mentoring meeting reminders, on by default", () => {
+    renderPreferences([{ type: "mentoring_proposal", enabled: false }]);
+
+    expect(
+      screen.getByRole("switch", { name: /mentoring meeting reminders/i }),
+    ).toBeChecked();
+    expect(
+      screen.getByText("A mail the day before a mentoring meeting."),
+    ).toBeInTheDocument();
+  });
+
   it("defaults a missing type to enabled, mirroring the backend's own default", () => {
     renderPreferences([{ type: "session_upcoming", enabled: true }]);
 

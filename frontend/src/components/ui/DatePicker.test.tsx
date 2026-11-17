@@ -67,6 +67,23 @@ describe("DatePicker", () => {
     expect(dayCell("20")).not.toHaveAttribute("aria-disabled");
   });
 
+  it("disables a calendar day after maxValue", async () => {
+    renderUS(
+      <DatePicker
+        label="Met on"
+        value="2026-08-10"
+        onChange={vi.fn()}
+        maxValue="2026-08-15"
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: /open calendar/i }));
+    const dayCells = screen.getAllByRole("button");
+    const dayCell = (day: string) =>
+      dayCells.find((cell) => cell.textContent === day);
+    expect(dayCell("20")).toHaveAttribute("aria-disabled", "true");
+    expect(dayCell("10")).not.toHaveAttribute("aria-disabled");
+  });
+
   /**
    * A refusal a caller works out for itself - a bound on more than this one field - reaching both
    * halves of the signal: the segments say so to assistive tech, and the group carries the state

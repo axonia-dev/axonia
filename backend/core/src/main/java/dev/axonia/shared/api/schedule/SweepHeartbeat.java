@@ -112,6 +112,8 @@ public class SweepHeartbeat {
 
         public static final Sweep AGENT_CONNECTION_RETENTION = new Sweep("agent-connection-retention");
 
+        public static final Sweep MENTORING_MEETING_REMINDER = new Sweep("mentoring-meeting-reminder");
+
         public Sweep {
 
             MeterVocabulary.requireTag(tag);
@@ -120,7 +122,7 @@ public class SweepHeartbeat {
         static List<Sweep> open() {
 
             return List.of(COMMUNICATION_PRODUCE, COMMUNICATION_DRAIN, COMMUNICATION_RETENTION,
-                    AGENT_CONNECTION_RETENTION);
+                    AGENT_CONNECTION_RETENTION, MENTORING_MEETING_REMINDER);
         }
     }
 

@@ -5,16 +5,19 @@ import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import dev.axonia.identity.api.spi.DirectorySubjects;
+import dev.axonia.identity.api.MemberDeactivated;
 import dev.axonia.identity.application.SuccessionAdoption;
 import dev.axonia.identity.application.port.out.UserStore;
 import dev.axonia.identity.domain.UserAccount;
 import dev.axonia.identity.domain.UserArrival;
+import lombok.RequiredArgsConstructor;
 
 @Service
+@RequiredArgsConstructor
 public class ScimUserService {
 
     private static final int DEFAULT_PAGE_SIZE = 100;
@@ -26,15 +29,7 @@ public class ScimUserService {
     private final ScimUserMapper mapper;
     private final SuccessionAdoption successions;
     private final DirectorySubjectClaim subjects;
-
-    public ScimUserService(UserStore userStore, ScimUserMapper mapper, SuccessionAdoption successions,
-            DirectorySubjects directorySubjects) {
-
-        this.userStore = userStore;
-        this.mapper = mapper;
-        this.successions = successions;
-        this.subjects = new DirectorySubjectClaim(directorySubjects, userStore);
-    }
+    private final ApplicationEventPublisher events;
 
     @Transactional
     public ScimUser create(ScimPrincipal p, ScimUser in) {
@@ -122,7 +117,7 @@ public class ScimUserService {
                 .externalId(mapper.getExternalId(in)).active(nowActive).businessUnit(mapper.getBusinessUnit(in))
                 .department(mapper.getDepartment(in)).team(mapper.getTeam(in)).build();
 
-        return mapper.toScim(directoryWrite(p, updated));
+        return mapper.toScim(directoryWrite(p, existing, updated));
     }
 
     @Transactional
@@ -141,21 +136,33 @@ public class ScimUserService {
             }
         }
 
-        return mapper.toScim(directoryWrite(p, builder.build()));
+        return mapper.toScim(directoryWrite(p, existing, builder.build()));
     }
 
-    private UserAccount directoryWrite(ScimPrincipal p, UserAccount account) {
+    private UserAccount directoryWrite(ScimPrincipal p, UserAccount before, UserAccount account) {
 
         subjects.requireUnheld(p.organizationId(), account);
-        return userStore.save(subjects.withSubject(p.organizationId(), account));
+        var saved = userStore.save(subjects.withSubject(p.organizationId(), account));
+        announceIfDeactivated(before, saved);
+        return saved;
     }
 
+    private void announceIfDeactivated(UserAccount before, UserAccount after) {
+
+        var wasActive = !Boolean.FALSE.equals(before.active());
+        var isInactive = Boolean.FALSE.equals(after.active());
+        if (wasActive && isInactive && after.userId() != null) {
+            events.publishEvent(new MemberDeactivated(after.organizationId(), after.userId()));
+        }
+    }
+
+    @Transactional
     public void delete(ScimPrincipal p, String scimId) {
 
         UserAccount existing = userStore.findByOrganizationIdAndScimId(p.organizationId(), scimId)
                 .orElseThrow(() -> ScimException.notFound("No SCIM user found: " + scimId));
 
-        userStore.save(existing.toBuilder().active(false).build());
+        announceIfDeactivated(existing, userStore.save(existing.toBuilder().active(false).build()));
     }
 
     // --- private helpers ---

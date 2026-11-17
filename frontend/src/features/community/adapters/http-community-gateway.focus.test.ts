@@ -18,6 +18,7 @@ describe("httpCommunityGateway.setFocalPoint", () => {
       description: "",
       status: "ACTIVE",
       memberCount: 3,
+      mentoringEnabled: false,
       heroFocus: { x: 50, y: 78 },
       createdAt: "2026-08-31T00:00:00Z",
       updatedAt: "2026-08-31T00:00:00Z",

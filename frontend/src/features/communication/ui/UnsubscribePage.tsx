@@ -93,7 +93,7 @@ export function UnsubscribePage() {
         <StatusMessage status={status} />
         {auth.isAuthenticated && (
           <Link
-            className="text-primary text-sm underline"
+            className="text-primary-ink text-sm underline"
             to="/settings/account/notifications"
           >
             Manage notification settings

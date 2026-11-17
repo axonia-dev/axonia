@@ -171,6 +171,8 @@ public final class ErasureSweepFixtures {
                         + "VALUES (:org, :communityId, :user, 'sweep-tag', now())",
                 Map.of("org", organizationId, "communityId", communityId, "user", userId));
 
+        seedMentoring(organizationId, communityId, userId);
+
         // events: a topic still open and one already done, both proposed by the target (anonymised), one voted
         // on by the target, and the open one offered by the target as its speaker (deleted)
         var openTopicId = seedTopic(organizationId, communityId, userId, "PROPOSED");
@@ -208,6 +210,58 @@ public final class ErasureSweepFixtures {
                 "now() + interval '30 days'");
         seedSlotPresenter(futureSessionId, sectionTypeId, userId);
         seedSlotPresenter(pastSessionId, sectionTypeId, userId);
+    }
+
+    /**
+     * mentoring: the target's availability and an open proposal to the owner; an ongoing pairing as the owner's mentee,
+     * with a note from each side (the target's naming the topic), a next meeting the target set, a topic, a pointer
+     * naming the target and the target's words; and a pairing the target mentored whose mentee was erased before, which
+     * goes whole. Leaving the community on the way to erasure ends the ongoing pairing and tells the owner in a notice
+     * naming the target, which must not survive either; nor may the record of an expired notice about them.
+     */
+    private void seedMentoring(String organizationId, long communityId, String userId) {
+
+        var params = Map.<String, Object>of("org", organizationId, "communityId", communityId, "user", userId, "owner",
+                OWNER);
+        jdbc.update(
+                "INSERT INTO mentoring_availability (organization_id, community_id, user_id, taking_mentees, "
+                        + "looking_for_mentor, updated_at) VALUES (:org, :communityId, :user, false, true, now())",
+                params);
+        jdbc.update("INSERT INTO mentoring_proposal (organization_id, community_id, mentor_user_id, mentee_user_id, "
+                + "proposed_by, topics, message, status, created_at) VALUES (:org, :communityId, :owner, :user, "
+                + "'MENTEE', ARRAY['Retries']::varchar[], 'Could we talk about retries?', 'OPEN', now())", params);
+        var pairingId = jdbc.queryForObject("INSERT INTO mentoring_pairing (organization_id, community_id, "
+                + "mentor_user_id, mentee_user_id, started_at) VALUES (:org, :communityId, :owner, :user, now()) "
+                + "RETURNING id", params, Long.class);
+        var pairing = Map.<String, Object>of("org", organizationId, "pairingId", pairingId, "user", userId, "owner",
+                OWNER);
+        var topicId = jdbc.queryForObject("INSERT INTO mentoring_topic (organization_id, pairing_id, label, state, "
+                + "\"position\", created_at) VALUES (:org, :pairingId, 'Retries', 'TODO', 1, now()) RETURNING id",
+                pairing, Long.class);
+        var targetNote = jdbc.queryForObject("INSERT INTO mentoring_note (organization_id, pairing_id, author_user_id, "
+                + "body, meeting_on, written_at) VALUES (:org, :pairingId, :user, 'Read the retry policy.', "
+                + "current_date, now()) RETURNING id", pairing, Long.class);
+        jdbc.update("INSERT INTO mentoring_note_topic (organization_id, note_id, topic_id) VALUES (:org, :noteId, "
+                + ":topicId)", Map.of("org", organizationId, "noteId", targetNote, "topicId", topicId));
+        jdbc.update("UPDATE mentoring_pairing SET next_meeting_on = current_date + 3, next_meeting_set_by = :user, "
+                + "next_meeting_set_at = now() WHERE id = :pairingId", pairing);
+        jdbc.update(
+                "INSERT INTO mentoring_note (organization_id, pairing_id, author_user_id, body, meeting_on, "
+                        + "written_at) VALUES (:org, :pairingId, :owner, 'Next time: backoff.', current_date, now())",
+                pairing);
+        jdbc.update(
+                "INSERT INTO mentoring_pointer (organization_id, pairing_id, topic_id, kind, target_user_id, "
+                        + "created_at) VALUES (:org, :pairingId, :topicId, 'MEMBER', :user, now())",
+                Map.of("org", organizationId, "pairingId", pairingId, "topicId", topicId, "user", userId));
+        jdbc.update("INSERT INTO mentoring_words (pairing_id, organization_id, body, written_at) "
+                + "VALUES (:pairingId, :org, 'Patient and clear.', now())", pairing);
+        jdbc.update("INSERT INTO mentoring_pairing (organization_id, community_id, mentor_user_id, mentee_user_id, "
+                + "started_at, ended_at, end_reason) VALUES (:org, :communityId, :user, NULL, now(), now(), 'MENTEE')",
+                params);
+        jdbc.update("INSERT INTO communication_expired_message (organization_id, message_type, subject_ref, "
+                + "pending_count, sent_count, suppressed_count, unreachable_count, abandoned_count, expired_at) "
+                + "VALUES (:org, 'mentoring_proposal', :subject, 0, 1, 0, 0, 0, now())",
+                Map.of("org", organizationId, "subject", "proposal:1:" + userId));
     }
 
     /** An artifact in another Organization naming the subject, which no erasure of theirs elsewhere may reach. */

@@ -199,6 +199,20 @@ class NotificationEntryBuildersTest {
     }
 
     @Test
+    void namesTheTypesOnlyTheMemberReads() {
+
+        // given
+        var shared = new InAppEntryShape(MessageType.of("shared_type"), "line", "url");
+        var personal = new InAppEntryShape(MessageType.of("personal_type"), "line", "url", true);
+
+        // when
+        var actual = new NotificationEntryBuilders(List.of(shared, personal)).privateToMember();
+
+        // then
+        assertThat(actual).containsExactly("personal_type");
+    }
+
+    @Test
     void buildsNothingForATypeNoModuleShaped() {
 
         assertThat(new NotificationEntryBuilders(List.of()).build(MessageType.of("unknown_type"), Map.of())).isEmpty();

@@ -21,7 +21,7 @@ function VitalityLine({
       </p>
     );
   }
-  const count = "text-primary font-semibold";
+  const count = "text-primary-ink font-semibold";
   return (
     <p className="text-muted-foreground text-sm">
       <AnimatedCount value={stats.total} className={count} />{" "}

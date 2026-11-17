@@ -26,6 +26,7 @@ const community = {
   description: "We build platforms",
   status: "ACTIVE",
   memberCount: 20,
+  mentoringEnabled: false,
   createdAt: "2026-05-31T10:00:00Z",
   updatedAt: "2026-05-31T10:00:00Z",
 };

@@ -1,0 +1,14 @@
+[(${sessionTitle} ?: 'A mentoring proposal')]
+[# th:with="guildName=(${sender} != null) ? ${sender.name} : 'a mentoring guild'"]
+A proposal to mentor or be mentored in [(${guildName})]. It waits on My mentoring for 30 days.[/]
+[# th:if="${topics} != null and not ${topics.isEmpty()}"]
+
+Topics:
+[# th:each="topic : ${topics}"]  [(${topic})]
+[/][/][# th:if="not ${#strings.isEmpty(mentoringUrl)}"]
+
+Open My mentoring: [(${mentoringUrl})][/][# th:if="${sender} != null"]
+
+Proposed through [(${sender.name})].[/][# th:if="not ${#strings.isEmpty(unsubscribePageUrl)}"]
+
+Unsubscribe: [(${unsubscribePageUrl})][/]

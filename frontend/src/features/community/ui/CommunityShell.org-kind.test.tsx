@@ -36,6 +36,7 @@ const noAccess = {
   communication: false,
   credit: false,
   any: false,
+  member: true,
   isLoading: false,
 };
 

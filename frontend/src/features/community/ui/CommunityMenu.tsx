@@ -74,6 +74,9 @@ function coreMenuItems(
       label: "Communication",
     });
   }
+  if (access.managementPolicy) {
+    items.push({ id: "mentoring-settings", label: "Mentoring" });
+  }
   return items;
 }
 
@@ -121,6 +124,7 @@ const SECTION_PATHS: Record<string, string> = {
   "community-policy": "settings/policy",
   "look-and-feel": "look-and-feel",
   "communication-settings": "settings/communication",
+  "mentoring-settings": "settings/mentoring",
 };
 
 function sectionPath(slug: string, key: Key): string {

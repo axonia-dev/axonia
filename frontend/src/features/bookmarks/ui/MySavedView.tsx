@@ -96,7 +96,7 @@ function SavedResults({
         action={
           <Button
             onPress={onClearFilters}
-            className="text-primary text-sm font-semibold underline-offset-2 hover:underline"
+            className="text-primary-ink text-sm font-semibold underline-offset-2 hover:underline"
           >
             Clear filters
           </Button>
@@ -195,7 +195,10 @@ export function MySavedView() {
           <span className="text-muted-foreground text-sm font-semibold">
             {items.length} saved
             {reviewCount > 0 && (
-              <span className="text-primary"> · {reviewCount} to review</span>
+              <span className="text-primary-ink">
+                {" "}
+                · {reviewCount} to review
+              </span>
             )}
           </span>
         )}

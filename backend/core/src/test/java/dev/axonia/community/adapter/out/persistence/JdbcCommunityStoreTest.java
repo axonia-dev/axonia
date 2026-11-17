@@ -37,8 +37,9 @@ class JdbcCommunityStoreTest {
             .canManageMembers(true).canManageContributionPolicy(true).canArchiveCommunity(true).canCurateTags(true)
             .canViewHealth(true).canInviteMembers(true).canManageCommunication(true).canCreditContributions(true)
             .notifySessionUpcoming(false).notifySessionWrapUp(false).sessionUpcomingLeadDays(5).wrapUpGraceHours(12)
-            .topicManagementPolicy(TopicManagementPolicy.ANY_MEMBER).createdAt(Instant.parse("2026-06-01T00:00:00Z"))
-            .updatedAt(Instant.parse("2026-06-02T00:00:00Z")).version(4L).build();
+            .topicManagementPolicy(TopicManagementPolicy.ANY_MEMBER).mentoringEnabled(true)
+            .createdAt(Instant.parse("2026-06-01T00:00:00Z")).updatedAt(Instant.parse("2026-06-02T00:00:00Z"))
+            .version(4L).build();
 
     @Mock
     private CommunityRepository communityRepository;

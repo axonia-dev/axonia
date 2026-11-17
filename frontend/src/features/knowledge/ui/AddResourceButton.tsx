@@ -105,7 +105,7 @@ export function AddResourceButton({
       <Button
         variant="ghost"
         size="sm"
-        className="hover:text-primary-strong w-fit gap-1 px-0 hover:bg-transparent"
+        className="hover:text-primary-ink-strong w-fit gap-1 px-0 hover:bg-transparent"
         onPress={() => setOpen(true)}
       >
         ＋ Add resource

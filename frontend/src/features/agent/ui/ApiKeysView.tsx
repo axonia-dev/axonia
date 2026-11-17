@@ -105,7 +105,7 @@ export function ApiKeysView() {
         />
         <Link
           to="/docs/connect-your-agent"
-          className="text-primary text-xs font-semibold"
+          className="text-primary-ink text-xs font-semibold"
         >
           Read the connect guide
         </Link>

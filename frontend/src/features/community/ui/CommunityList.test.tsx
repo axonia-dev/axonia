@@ -36,6 +36,7 @@ const community: CommunityListing = {
   description: "A guild",
   status: "ACTIVE",
   memberCount: 3,
+  mentoringEnabled: false,
   role: null,
   createdAt: "2026-05-31T10:00:00Z",
   updatedAt: "2026-05-31T10:00:00Z",

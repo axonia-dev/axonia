@@ -26,7 +26,8 @@ class SelfHostedMeterVocabularyTest {
     void registersEverySweepAnInstallationRuns() {
 
         assertThat(tags("axonia.sweep.runs", "sweep")).containsExactly("agent-connection-retention",
-                "communication-drain", "communication-produce", "communication-retention");
+                "communication-drain", "communication-produce", "communication-retention",
+                "mentoring-meeting-reminder");
     }
 
     @Test

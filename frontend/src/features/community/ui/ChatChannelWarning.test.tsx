@@ -46,6 +46,7 @@ function fullAccess(communication: boolean): ManagementAccess {
     communication,
     credit: true,
     any: true,
+    member: true,
     isLoading: false,
   };
 }

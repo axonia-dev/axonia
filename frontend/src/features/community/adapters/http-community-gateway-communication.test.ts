@@ -66,4 +66,38 @@ describe("httpCommunityGateway communication settings", () => {
     expect(init?.method).toBe("PUT");
     expect(bodyOf(init)).toContain("wrapUpGraceHours");
   });
+
+  it("getMentoringSettings reads the switch and refuses a malformed body", async () => {
+    // given
+    fetchSpy.mockResolvedValueOnce(jsonResponse({ enabled: true }));
+
+    // when
+    const actual = await httpCommunityGateway.getMentoringSettings("g");
+
+    // then
+    expect(actual).toEqual({ enabled: true });
+    const [url] = fetchSpy.mock.calls[0] ?? [];
+    expect(urlOf(url)).toContain("/axonia/communities/g/mentoring-settings");
+    fetchSpy.mockResolvedValueOnce(jsonResponse({ enabled: "yes" }));
+    await expect(
+      httpCommunityGateway.getMentoringSettings("g"),
+    ).rejects.toThrow();
+  });
+
+  it("updateMentoringSettings PUTs the switch", async () => {
+    // given
+    fetchSpy.mockResolvedValue(jsonResponse({ enabled: false }));
+
+    // when
+    const actual = await httpCommunityGateway.updateMentoringSettings("g", {
+      enabled: false,
+    });
+
+    // then
+    expect(actual).toEqual({ enabled: false });
+    const [url, init] = fetchSpy.mock.calls[0] ?? [];
+    expect(urlOf(url)).toContain("/axonia/communities/g/mentoring-settings");
+    expect(init?.method).toBe("PUT");
+    expect(init?.body).toBe('{"enabled":false}');
+  });
 });

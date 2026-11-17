@@ -26,7 +26,7 @@ export function SlotActions({
         variant="outline"
         size="sm"
         aria-label="Edit slot"
-        className="hover:border-primary hover:text-primary"
+        className="hover:border-primary hover:text-primary-ink"
         onPress={onEdit}
       >
         <Pencil className="h-3.5 w-3.5" />

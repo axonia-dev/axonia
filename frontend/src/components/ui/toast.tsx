@@ -60,7 +60,7 @@ export function ToastViewport() {
                 toast.content.action?.onPress();
                 toastQueue.close(toast.key);
               }}
-              className="text-primary-strong hover:text-primary data-[focus-visible]:ring-focus-ring cursor-pointer rounded-sm px-1 font-semibold outline-none data-[focus-visible]:ring-2"
+              className="text-primary-ink-strong hover:text-primary-ink data-[focus-visible]:ring-focus-ring cursor-pointer rounded-sm px-1 font-semibold outline-none data-[focus-visible]:ring-2"
             >
               {toast.content.action.label}
             </Button>

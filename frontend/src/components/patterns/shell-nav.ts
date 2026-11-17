@@ -5,7 +5,7 @@ import { cn } from "@/lib/cn";
 export function tabClass({ isActive }: { isActive: boolean }) {
   return cn(
     "flex flex-1 flex-col items-center gap-1 rounded-md py-1 text-xs transition-colors",
-    isActive ? "text-primary" : "text-muted-foreground",
+    isActive ? "text-primary-ink" : "text-muted-foreground",
   );
 }
 
@@ -14,7 +14,7 @@ export function sheetLinkClass({ isActive }: { isActive: boolean }) {
   return cn(
     "flex items-center gap-3 rounded-md px-3 py-3 text-sm transition-colors",
     isActive
-      ? "bg-surface-sunken text-primary"
+      ? "bg-surface-sunken text-primary-ink"
       : "text-foreground data-[hovered]:bg-surface-sunken",
   );
 }

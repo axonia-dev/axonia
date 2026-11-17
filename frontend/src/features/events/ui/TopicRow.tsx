@@ -49,14 +49,14 @@ function VoteZone({
       <ChevronUp
         className={cn(
           "h-5 w-5 transition-colors",
-          topic.hasVoted ? "text-primary" : "text-muted-foreground",
+          topic.hasVoted ? "text-primary-ink" : "text-muted-foreground",
           voteAnim && "motion-safe:animate-vote-bounce",
         )}
       />
       <span
         className={cn(
           "text-sm font-semibold tabular-nums transition-colors",
-          topic.hasVoted ? "text-primary" : "text-muted-foreground",
+          topic.hasVoted ? "text-primary-ink" : "text-muted-foreground",
           countAnim && "motion-safe:animate-count-pop",
         )}
       >

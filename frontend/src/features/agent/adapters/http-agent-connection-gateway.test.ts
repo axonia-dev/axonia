@@ -64,6 +64,39 @@ describe("httpAgentConnectionGateway", () => {
     });
   });
 
+  it("follows a return to the host the client_id names", async () => {
+    stubFetchJson({
+      outcome: "REDIRECT",
+      redirectUrl: "https://claude.ai/api/mcp/auth_callback?code=c",
+    });
+
+    const outcome = await httpAgentConnectionGateway.approve(
+      { client_id: "https://claude.ai/oauth/mcp-oauth-client-metadata" },
+      ["read"],
+      "acme",
+    );
+
+    expect(outcome).toEqual({
+      outcome: "REDIRECT",
+      redirectUrl: "https://claude.ai/api/mcp/auth_callback?code=c",
+    });
+  });
+
+  it("refuses a return to a host the client_id does not name", async () => {
+    stubFetchJson({
+      outcome: "REDIRECT",
+      redirectUrl: "https://evil.example/callback?code=c",
+    });
+
+    await expect(
+      httpAgentConnectionGateway.approve(
+        { client_id: "https://claude.ai/oauth/mcp-oauth-client-metadata" },
+        ["read"],
+        "acme",
+      ),
+    ).rejects.toThrow();
+  });
+
   it("posts the request to deny", async () => {
     const spy = stubFetchJson({
       outcome: "REDIRECT",

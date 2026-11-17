@@ -33,6 +33,33 @@ public record MessageType(@JsonValue String code) {
     /** In-app only: {@code learning} tells a learner that someone is now open to questions on an area they hold. */
     public static final MessageType OPEN_TO_QUESTIONS = new MessageType("open_to_questions");
 
+    /** Mailed: {@code mentoring} tells a member someone proposes mentoring with them. */
+    public static final MessageType MENTORING_PROPOSAL = new MessageType("mentoring_proposal");
+
+    /** In-app only: {@code mentoring} tells a member their proposal was answered "not this time". */
+    public static final MessageType MENTORING_DECLINED = new MessageType("mentoring_declined");
+
+    /** In-app only: {@code mentoring} tells one side of a pairing that it ended. */
+    public static final MessageType MENTORING_ENDED = new MessageType("mentoring_ended");
+
+    /**
+     * In-app only: {@code mentoring} told a mentee their mentor asks for a few words. Never sent again, still declared
+     * so the entries already in a panel render and erasure finds them.
+     */
+    public static final MessageType MENTORING_WORDS_ASKED = new MessageType("mentoring_words_asked");
+
+    /** In-app only: {@code mentoring} tells a mentor that words from their mentee arrived. */
+    public static final MessageType MENTORING_WORDS_RECEIVED = new MessageType("mentoring_words_received");
+
+    /** In-app only: {@code mentoring} tells one side of a pairing the other set or changed the next meeting. */
+    public static final MessageType MENTORING_MEETING_SET = new MessageType("mentoring_meeting_set");
+
+    /** Mailed: {@code mentoring} reminds each side of a pairing of its next meeting, the day before. */
+    public static final MessageType MENTORING_MEETING_REMINDER = new MessageType("mentoring_meeting_reminder");
+
+    /** In-app only: {@code mentoring} tells a member the person who declined their proposal reopened it. */
+    public static final MessageType MENTORING_PROPOSAL_REOPENED = new MessageType("mentoring_proposal_reopened");
+
     private static final Map<String, MessageType> OPEN = open().stream()
             .collect(Collectors.toUnmodifiableMap(MessageType::code, Function.identity()));
 
@@ -47,7 +74,9 @@ public record MessageType(@JsonValue String code) {
     public static List<MessageType> open() {
 
         return List.of(SESSION_UPCOMING, SESSION_WRAP_UP, SESSION_AWAITING_CLOSE, ORGANIZATION_ROUNDUP,
-                OPEN_TO_QUESTIONS);
+                OPEN_TO_QUESTIONS, MENTORING_PROPOSAL, MENTORING_DECLINED, MENTORING_ENDED, MENTORING_WORDS_ASKED,
+                MENTORING_WORDS_RECEIVED, MENTORING_MEETING_SET, MENTORING_MEETING_REMINDER,
+                MENTORING_PROPOSAL_REOPENED);
     }
 
     /** The type a code names: an open code's constant itself, so an open type read back keeps its identity. */

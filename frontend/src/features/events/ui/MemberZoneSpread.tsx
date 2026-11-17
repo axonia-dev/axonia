@@ -62,7 +62,7 @@ function Toggle() {
   return (
     <AriaButton
       slot="trigger"
-      className="text-primary focus-visible:ring-focus-ring hover:bg-surface-sunken -mx-1 cursor-pointer rounded px-1 text-xs font-medium outline-none focus-visible:ring-2"
+      className="text-primary-ink focus-visible:ring-focus-ring hover:bg-surface-sunken -mx-1 cursor-pointer rounded px-1 text-xs font-medium outline-none focus-visible:ring-2"
     >
       {isExpanded ? "Hide" : "Which"}
     </AriaButton>

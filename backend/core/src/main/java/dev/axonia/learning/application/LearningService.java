@@ -137,6 +137,19 @@ public class LearningService implements LearningIntents {
         }).toList();
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public Map<String, List<String>> learnersIn(String slug) {
+
+        var org = organizationContext.organizationId();
+        var community = communityAccess.communityForSlug(slug);
+        if (!communityAccess.isMember(community.id(), currentUser.userId())) {
+            throw new ForbiddenException("Community membership required");
+        }
+        return LearningFold.areasByLearner(repository.currentIn(org, community.id()),
+                vocabulary.areasOf(community.id()));
+    }
+
     /**
      * Tells every other current member holding the declared area, under any spelling the community reads as it, that
      * the declarer is now open to questions on it. Nobody holding it means no notice at all. Runs inside the declaring

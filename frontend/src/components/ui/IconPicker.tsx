@@ -44,7 +44,7 @@ function IconButton({
       className={cn(
         "flex size-9 items-center justify-center rounded-lg border transition-colors",
         active
-          ? "border-primary text-primary"
+          ? "border-primary text-primary-ink"
           : "border-border text-muted-foreground hover:border-border-strong",
       )}
     >

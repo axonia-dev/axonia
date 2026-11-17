@@ -41,6 +41,15 @@ public interface MembershipRepository
     List<MemberCommunity> findActiveCommunitiesOf(@Param("organizationId") String organizationId,
             @Param("userId") String userId);
 
+    @Query("""
+            SELECT EXISTS (SELECT 1
+                             FROM memberships m
+                             JOIN communities c ON c.id = m.community_id AND c.organization_id = m.organization_id
+                            WHERE m.organization_id = :organizationId AND m.user_id = :userId
+                              AND c.status = 'ACTIVE' AND c.mentoring_enabled)
+            """)
+    boolean existsMentoringCommunityOf(@Param("organizationId") String organizationId, @Param("userId") String userId);
+
     long countByOrganizationIdAndCommunityId(String organizationId, Long communityId);
 
     long countByOrganizationIdAndCommunityIdAndRole(String organizationId, Long communityId, CommunityRole role);

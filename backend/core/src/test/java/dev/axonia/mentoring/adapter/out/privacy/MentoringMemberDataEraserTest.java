@@ -1,0 +1,209 @@
+package dev.axonia.mentoring.adapter.out.privacy;
+
+import java.time.Instant;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+
+import dev.axonia.FootprintTestSupport;
+import dev.axonia.shared.api.personaldata.ErasureCounts;
+import dev.axonia.shared.api.personaldata.MemberErasure;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+class MentoringMemberDataEraserTest extends FootprintTestSupport {
+
+    private static final String ORG = "mentoring-erasure-org";
+    private static final String OTHER_ORG = "mentoring-erasure-other-org";
+    private static final String MENTOR = "mia";
+    private static final String MENTEE = "noah";
+    private static final String STRANGER = "leo";
+
+    @Autowired
+    private NamedParameterJdbcTemplate jdbc;
+
+    @Autowired
+    private MentoringMemberDataEraser eraser;
+
+    private MentoringRows rows;
+    private long guild;
+
+    @BeforeEach
+    void seed() {
+
+        rows = new MentoringRows(jdbc, ORG);
+        guild = rows.community("Data Guild");
+    }
+
+    @Test
+    void erasingTheMenteeKeepsTheMentorsNotesAndTopics() {
+
+        // given
+        var pairing = rows.pairing(guild, MENTOR, MENTEE);
+        rows.topic(pairing, "Kafka");
+        rows.note(pairing, MENTOR, "Mentor note");
+        rows.note(pairing, MENTEE, "Mentee note");
+        rows.words(pairing, "Patient and clear");
+
+        // when
+        var actual = eraser.erase(erasureOf(MENTEE));
+
+        // then
+        assertThat(actual).isEqualTo(new ErasureCounts(2, 1, 0, 0));
+        assertThat(sides(pairing)).containsExactly(MENTOR, null);
+        assertThat(strings("SELECT label FROM mentoring_topic WHERE organization_id = :org")).containsExactly("Kafka");
+        assertThat(strings("SELECT body FROM mentoring_note WHERE organization_id = :org"))
+                .containsExactly("Mentor note");
+        assertThat(rows.count("mentoring_words")).isZero();
+    }
+
+    @Test
+    void erasingTheMentorDeletesTheWordsWrittenToThem() {
+
+        // given
+        var pairing = rows.pairing(guild, MENTOR, MENTEE);
+        rows.note(pairing, MENTEE, "Mentee note");
+        rows.words(pairing, "Patient and clear");
+
+        // when
+        var actual = eraser.erase(erasureOf(MENTOR));
+
+        // then
+        assertThat(actual).isEqualTo(new ErasureCounts(1, 1, 0, 0));
+        assertThat(sides(pairing)).containsExactly(null, MENTEE);
+        assertThat(rows.count("mentoring_words")).isZero();
+        assertThat(rows.count("mentoring_note")).isEqualTo(1);
+    }
+
+    @Test
+    void erasingThePersonWhoSetTheNextMeetingClearsIt() {
+
+        // given
+        var pairing = rows.pairing(guild, MENTOR, MENTEE);
+        var other = rows.pairing(guild, MENTOR, STRANGER);
+        rows.nextMeeting(pairing, MENTEE);
+        rows.nextMeeting(other, MENTOR);
+
+        // when
+        eraser.erase(erasureOf(MENTEE));
+
+        // then
+        assertThat(jdbc.queryForList("SELECT next_meeting_on, next_meeting_set_by, next_meeting_set_at FROM "
+                + "mentoring_pairing WHERE id = :id", Map.of("id", pairing))).singleElement()
+                .satisfies(row -> assertThat(row.values()).containsOnlyNulls());
+        assertThat(jdbc.queryForObject("SELECT next_meeting_set_by FROM mentoring_pairing WHERE id = :id",
+                Map.of("id", other), String.class)).isEqualTo(MENTOR);
+    }
+
+    @Test
+    void erasingBothSidesDeletesThePairing() {
+
+        // given
+        var pairing = rows.pairing(guild, MENTOR, MENTEE);
+        rows.topic(pairing, "Kafka");
+        eraser.erase(erasureOf(MENTEE));
+
+        // when
+        var actual = eraser.erase(erasureOf(MENTOR));
+
+        // then
+        assertThat(actual).isEqualTo(new ErasureCounts(1, 0, 0, 0));
+        assertThat(rows.count("mentoring_pairing")).isZero();
+        assertThat(rows.count("mentoring_topic")).isZero();
+    }
+
+    @Test
+    void erasureDeletesOpenProposalsAvailabilityAndPointersNamingThePerson() {
+
+        // given
+        rows.availability(guild, MENTEE);
+        rows.availability(guild, STRANGER);
+        rows.proposal(guild, MENTOR, MENTEE, "Sent by the mentee");
+        rows.proposal(guild, MENTEE, STRANGER, "Sent to the mentee");
+        rows.proposal(guild, MENTOR, STRANGER, "Between two others");
+        var others = rows.pairing(guild, MENTOR, STRANGER);
+        var topic = rows.topic(others, "People to meet");
+        rows.memberOnTopic(others, topic, MENTEE);
+        rows.linkOnTopic(others, topic, "https://kept.example");
+
+        // when
+        var actual = eraser.erase(erasureOf(MENTEE));
+
+        // then
+        assertThat(actual).isEqualTo(new ErasureCounts(4, 0, 0, 0));
+        assertThat(strings("SELECT user_id FROM mentoring_availability WHERE organization_id = :org"))
+                .containsExactly(STRANGER);
+        assertThat(strings("SELECT message FROM mentoring_proposal WHERE organization_id = :org"))
+                .containsExactly("Between two others");
+        assertThat(strings("SELECT url FROM mentoring_pointer WHERE organization_id = :org"))
+                .containsExactly("https://kept.example");
+        assertThat(sides(others)).containsExactly(MENTOR, STRANGER);
+    }
+
+    @Test
+    void erasureForgetsMentoringNoticesAboutThePerson() {
+
+        // given
+        var notices = List.of("mentoring_proposal", "mentoring_declined", "mentoring_ended", "mentoring_words_asked",
+                "mentoring_words_received");
+        notices.forEach(type -> rows.expiredNotice(type, "pairing:7:" + MENTEE));
+        rows.expiredNotice("mentoring_meeting_set", "pairing:7@1794844318000:" + MENTEE);
+        rows.expiredNotice("mentoring_meeting_reminder", "pairing:7@2026-11-19:" + MENTEE);
+        rows.expiredNotice("mentoring_proposal_reopened", "proposal:7@1794844318000:" + MENTEE);
+        rows.expiredNotice("mentoring_ended", "pairing:7:" + MENTOR);
+        rows.expiredNotice("mentoring_ended", "pairing:7:x" + MENTEE);
+        rows.expiredNotice("open_to_questions", "7:kafka:" + MENTEE);
+
+        // when
+        var actual = eraser.erase(erasureOf(MENTEE));
+
+        // then
+        assertThat(actual).isEqualTo(new ErasureCounts(8, 0, 0, 0));
+        assertThat(strings("SELECT message_type || ' ' || subject_ref FROM communication_expired_message "
+                + "WHERE organization_id = :org")).containsExactlyInAnyOrder("mentoring_ended pairing:7:" + MENTOR,
+                        "mentoring_ended pairing:7:x" + MENTEE, "open_to_questions 7:kafka:" + MENTEE);
+    }
+
+    @Test
+    void leavesTheSamePersonInAnotherOrganizationUntouched() {
+
+        // given
+        var elsewhere = new MentoringRows(jdbc, OTHER_ORG);
+        var pairing = elsewhere.pairing(elsewhere.community("Other Guild"), MENTOR, MENTEE);
+        elsewhere.availability(1L, MENTEE);
+        elsewhere.note(pairing, MENTEE, "Kept elsewhere");
+        elsewhere.words(pairing, "Kept elsewhere");
+
+        // when
+        var actual = eraser.erase(erasureOf(MENTEE));
+
+        // then
+        assertThat(actual).isEqualTo(new ErasureCounts(0, 0, 0, 0));
+        assertThat(elsewhere.count("mentoring_pairing")).isEqualTo(1);
+        assertThat(elsewhere.count("mentoring_availability")).isEqualTo(1);
+        assertThat(elsewhere.count("mentoring_note")).isEqualTo(1);
+        assertThat(elsewhere.count("mentoring_words")).isEqualTo(1);
+    }
+
+    private List<String> sides(long pairingId) {
+
+        return jdbc.query("SELECT mentor_user_id, mentee_user_id FROM mentoring_pairing WHERE id = :id",
+                Map.of("id", pairingId), (rs, i) -> Arrays.asList(rs.getString(1), rs.getString(2))).getFirst();
+    }
+
+    private List<String> strings(String sql) {
+
+        return jdbc.queryForList(sql, Map.of("org", ORG), String.class);
+    }
+
+    private static MemberErasure erasureOf(String userId) {
+
+        return MemberErasure.builder().organizationId(ORG).userId(userId).surrogateId("erased:test-surrogate")
+                .erasedAt(Instant.parse("2026-11-16T10:00:00Z")).build();
+    }
+}

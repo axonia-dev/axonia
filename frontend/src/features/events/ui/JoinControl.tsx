@@ -87,7 +87,7 @@ function Chip({ id, label, className }: Readonly<ChipProps>) {
       id={id}
       role="status"
       className={cn(
-        "bg-primary/10 text-primary-strong flex w-fit shrink-0 items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold",
+        "bg-primary/10 text-primary-ink-strong flex w-fit shrink-0 items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold",
         className,
       )}
     >

@@ -244,7 +244,7 @@ export function MyExpertiseView() {
           action={
             <Button
               onPress={toolbar.clear}
-              className="text-primary text-sm font-semibold underline-offset-2 hover:underline"
+              className="text-primary-ink text-sm font-semibold underline-offset-2 hover:underline"
             >
               Clear filters
             </Button>

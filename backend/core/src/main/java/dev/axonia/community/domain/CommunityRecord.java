@@ -60,6 +60,8 @@ public class CommunityRecord {
     @Builder.Default
     TopicManagementPolicy topicManagementPolicy = TopicManagementPolicy.ORGANIZER_ONLY;
 
+    boolean mentoringEnabled;
+
     Instant createdAt;
     Instant updatedAt;
     Long version;

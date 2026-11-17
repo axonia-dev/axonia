@@ -152,7 +152,8 @@ public class JdbcCommunityStore implements CommunityStore {
                 .canCreditContributions(e.isCanCreditContributions()).notifySessionUpcoming(e.isNotifySessionUpcoming())
                 .notifySessionWrapUp(e.isNotifySessionWrapUp()).sessionUpcomingLeadDays(e.getSessionUpcomingLeadDays())
                 .wrapUpGraceHours(e.getWrapUpGraceHours()).topicManagementPolicy(e.getTopicManagementPolicy())
-                .createdAt(e.getCreatedAt()).updatedAt(e.getUpdatedAt()).version(e.getVersion()).build();
+                .mentoringEnabled(e.isMentoringEnabled()).createdAt(e.getCreatedAt()).updatedAt(e.getUpdatedAt())
+                .version(e.getVersion()).build();
     }
 
     static CommunityEntity toEntity(CommunityRecord c) {
@@ -172,6 +173,7 @@ public class JdbcCommunityStore implements CommunityStore {
                 .canCreditContributions(c.isCanCreditContributions()).notifySessionUpcoming(c.isNotifySessionUpcoming())
                 .notifySessionWrapUp(c.isNotifySessionWrapUp()).sessionUpcomingLeadDays(c.getSessionUpcomingLeadDays())
                 .wrapUpGraceHours(c.getWrapUpGraceHours()).topicManagementPolicy(c.getTopicManagementPolicy())
-                .createdAt(c.getCreatedAt()).updatedAt(c.getUpdatedAt()).version(c.getVersion()).build();
+                .mentoringEnabled(c.isMentoringEnabled()).createdAt(c.getCreatedAt()).updatedAt(c.getUpdatedAt())
+                .version(c.getVersion()).build();
     }
 }

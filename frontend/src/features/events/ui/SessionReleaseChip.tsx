@@ -43,7 +43,7 @@ interface OptionProps {
 function AnswerOption({ label, hint }: Readonly<OptionProps>) {
   return (
     <>
-      <span aria-hidden className="text-primary w-3.5 shrink-0">
+      <span aria-hidden className="text-primary-ink w-3.5 shrink-0">
         <Check className="hidden size-3.5 group-aria-checked:block" />
       </span>
       <span className="flex min-w-0 flex-col">

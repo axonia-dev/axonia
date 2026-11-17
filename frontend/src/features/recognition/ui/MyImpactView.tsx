@@ -5,6 +5,7 @@ import { useParams } from "react-router-dom";
 import { EmptyState } from "@/components/patterns/EmptyState";
 import { LoadFailed } from "@/components/patterns/LoadFailed";
 import { usePageCommunity } from "@/features/community/ui/use-page-community";
+import { WordsFromMentees } from "@/features/mentoring/ui/WordsFromMentees";
 import { useMyContributions } from "@/features/recognition/api/use-recognition";
 import {
   ALL_COMMUNITIES,
@@ -108,7 +109,7 @@ function ImpactResults({
         action={
           <Button
             onPress={onClearFilters}
-            className="text-primary text-sm font-semibold underline-offset-2 hover:underline"
+            className="text-primary-ink text-sm font-semibold underline-offset-2 hover:underline"
           >
             Clear filters
           </Button>
@@ -244,6 +245,8 @@ export function MyImpactView() {
         onClearFilters={clearFilters}
         onShowMore={() => setShown((n) => n + PAGE_SIZE)}
       />
+
+      <WordsFromMentees />
     </section>
   );
 }

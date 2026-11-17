@@ -6,6 +6,7 @@ import org.springframework.transaction.annotation.Transactional;
 import dev.axonia.community.api.CommunicationSettings;
 import dev.axonia.community.api.CommunityPolicies;
 import dev.axonia.community.api.ContributionPolicy;
+import dev.axonia.community.api.MentoringSettings;
 import dev.axonia.community.api.TopicManagementPolicy;
 import dev.axonia.community.application.port.out.CommunityStore;
 import dev.axonia.community.application.port.out.CurrentUser;
@@ -133,6 +134,24 @@ public class CommunityPolicyService implements CommunityPolicies {
                 .sessionUpcomingLeadDays(request.sessionUpcomingLeadDays()).wrapUpGraceHours(request.wrapUpGraceHours())
                 .build());
         return toCommunicationSettings(saved);
+    }
+
+    @Transactional(readOnly = true)
+    public MentoringSettings getMentoringSettings(String slug) {
+
+        return new MentoringSettings(
+                communities.findBySlugOrThrow(organizationContext.organizationId(), slug).isMentoringEnabled());
+    }
+
+    @Transactional
+    public MentoringSettings updateMentoringSettings(String slug, boolean enabled) {
+
+        var organizationId = organizationContext.organizationId();
+        var entity = communities.findBySlugOrThrow(organizationId, slug);
+        membershipAuthorizer.requireOrganizer(organizationId, entity.getId(), currentUser.userId());
+
+        var saved = communityStore.save(entity.toBuilder().mentoringEnabled(enabled).build());
+        return new MentoringSettings(saved.isMentoringEnabled());
     }
 
     private ContributionPolicy toPolicy(CommunityRecord e) {

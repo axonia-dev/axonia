@@ -21,7 +21,7 @@ function railLinkClass(isActive: boolean, collapsed: boolean): string {
     "relative flex items-center rounded-md text-sm transition-colors",
     collapsed ? "h-10 w-10 justify-center" : "gap-3 px-3 py-2",
     isActive
-      ? "text-primary bg-[color-mix(in_srgb,var(--primary)_11%,var(--surface))] font-semibold"
+      ? "text-primary-ink bg-[color-mix(in_srgb,var(--primary)_11%,var(--surface))] font-semibold"
       : "text-muted-foreground hover:text-foreground hover:bg-[color-mix(in_srgb,var(--primary)_6%,var(--surface))]",
     // Primary accent bar: the on-brand marker of "you are here". An inset shadow rather than a
     // positioned span, so the bar runs the item's whole height and the border radius clips its

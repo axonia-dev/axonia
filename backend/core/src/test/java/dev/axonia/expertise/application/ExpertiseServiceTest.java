@@ -916,6 +916,24 @@ class ExpertiseServiceTest {
         when(expertiseQueryRepository.userTagAggregates("org-1", 1L)).thenReturn(List.of(rows));
     }
 
+    @Test
+    void declaredInReadsTheDeclarationsAPausedMemberKeeps() {
+
+        // given
+        when(declarationRepository.allDeclaredIn("org-1", 1L)).thenReturn(List.of(declared("ann", "kafka", EARLY)));
+        givenPeople("ann");
+
+        // when
+        var result = sut.declaredIn("eng");
+
+        // then
+        assertThat(result).singleElement().satisfies(area -> {
+            assertThat(area.canonicalTag()).isEqualTo("kafka");
+            assertThat(area.people()).extracting(OpenPerson::userId).containsExactly("ann");
+        });
+        verify(declarationRepository, never()).allVisibleIn(any(), anyLong());
+    }
+
     private void givenDeclarationsInCommunity(Declaration... declarations) {
 
         when(declarationRepository.allVisibleIn("org-1", 1L)).thenReturn(List.of(declarations));

@@ -144,6 +144,37 @@ class HttpClientMetadataDocumentsTest {
     }
 
     @Test
+    void resolve_readsAWebClientReturningToItsOwnHost() {
+
+        // given
+        var webClientId = "https://claude.ai/oauth/mcp-oauth-client-metadata";
+        server.expect(once(), requestTo(webClientId)).andRespond(withSuccess("""
+                {"client_id":"https://claude.ai/oauth/mcp-oauth-client-metadata","client_name":"Claude",
+                 "client_uri":"https://claude.ai","redirect_uris":["https://claude.ai/api/mcp/auth_callback"],
+                 "grant_types":["authorization_code","refresh_token","urn:ietf:params:oauth:grant-type:jwt-bearer"],
+                 "response_types":["code"],"token_endpoint_auth_method":"none"}""", MediaType.APPLICATION_JSON));
+
+        // when
+        var actual = sut.resolve(webClientId);
+
+        // then
+        assertThat(actual).isPresent();
+        assertThat(actual.get().redirectUris()).containsExactly("https://claude.ai/api/mcp/auth_callback");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"https://api.claude.ai/callback", "https://claude.ai.evil.example/callback",
+            "http://claude.ai/callback", "https://claude.ai:8443/callback", "https://user@claude.ai/callback",
+            "https://claude.ai/callback#frag"})
+    void resolve_refusesADocumentWithAHostedRedirectOffItsOwnHost(String redirect) {
+
+        server.expect(requestTo(CLIENT_ID)).andRespond(withSuccess(
+                DOCUMENT.replace("\"http://127.0.0.1/callback\"", "\"" + redirect + "\""), MediaType.APPLICATION_JSON));
+
+        assertThat(sut.resolve(CLIENT_ID)).isEmpty();
+    }
+
+    @Test
     void resolve_refusesADocumentWithoutTheCodeGrant() {
 
         server.expect(requestTo(CLIENT_ID))

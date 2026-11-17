@@ -115,7 +115,7 @@ function MergeHintPill({ hint }: Readonly<{ hint: MergeHint }>) {
       className={cn(
         "mt-2 inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold",
         keeps
-          ? "text-primary-strong bg-[color-mix(in_srgb,var(--primary)_14%,var(--surface))]"
+          ? "text-primary-ink-strong bg-[color-mix(in_srgb,var(--primary)_14%,var(--surface))]"
           : "bg-surface-sunken text-muted-foreground",
       )}
     >
@@ -153,7 +153,7 @@ function AliasChips({
             type="button"
             aria-label={`Split ${variant} out of ${canonicalTag}`}
             onClick={() => onSplit(variant)}
-            className="hover:text-primary-strong cursor-pointer rounded-full px-1 leading-none transition-colors hover:bg-[color-mix(in_srgb,var(--primary)_12%,transparent)]"
+            className="hover:text-primary-ink-strong cursor-pointer rounded-full px-1 leading-none transition-colors hover:bg-[color-mix(in_srgb,var(--primary)_12%,transparent)]"
           >
             ×
           </button>

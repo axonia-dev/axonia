@@ -270,7 +270,7 @@ public class CommunityService implements Communities {
                 .badgeUrl(resolve(e.getBadgeKey())).heroUrl(resolve(e.getHeroKey())).accentColor(e.getAccentColor())
                 .heroFocus(FocalPoint.fromColumns(e.getHeroFocusX(), e.getHeroFocusY()))
                 .badgeFocus(FocalPoint.fromColumns(e.getBadgeFocusX(), e.getBadgeFocusY())).createdAt(e.getCreatedAt())
-                .updatedAt(e.getUpdatedAt()).build();
+                .mentoringEnabled(e.isMentoringEnabled()).updatedAt(e.getUpdatedAt()).build();
     }
 
     private String resolve(String key) {

@@ -39,7 +39,9 @@ public enum SuppressionReason {
      * A mail row for somebody the directory provisioned whom nobody has signed in as yet. Held back by design rather
      * than unreachable: axonia writes to nobody before their first sign-in, so it is not in {@link #UNREACHABLE}.
      */
-    NOT_SIGNED_IN;
+    NOT_SIGNED_IN,
+    /** Taken back by its sender before any delivery was made, through {@code CommunicationPort#withdrawPending}. */
+    WITHDRAWN;
 
     public static final List<String> UNREACHABLE = List.of(NO_ADDRESS.name(), MAIL_NOT_CONFIGURED.name());
 }

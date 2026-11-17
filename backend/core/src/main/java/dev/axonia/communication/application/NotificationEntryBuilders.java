@@ -3,6 +3,7 @@ package dev.axonia.communication.application;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -19,9 +20,9 @@ import dev.axonia.communication.api.MessageType;
  * <p>
  * Every type a module sends reaches a member's panel, because the in-app channel is unconditional: the session and
  * roundup types have their shape here, and every other type, open or contributed, declares one beside the policy that
- * claims it. {@link MessageType#OPEN_TO_QUESTIONS} is open but shaped by {@code learning}, which owns its facts and
- * ships in every edition. The hosted edition's {@code EveryMessageTypeReachesThePanelTest} holds every declared type to
- * that.
+ * claims it. {@link MessageType#OPEN_TO_QUESTIONS} is open but shaped by {@code learning}, and the five mentoring types
+ * by {@code mentoring}, each owning its facts and shipping in every edition. The hosted edition's
+ * {@code EveryMessageTypeReachesThePanelTest} holds every declared type to that.
  */
 @Component
 public class NotificationEntryBuilders {
@@ -32,6 +33,13 @@ public class NotificationEntryBuilders {
 
         this.contributed = shapes.stream()
                 .collect(Collectors.toUnmodifiableMap(InAppEntryShape::type, Function.identity()));
+    }
+
+    /** The codes of the types whose entries only the member reads, never a session acting for them. */
+    public Set<String> privateToMember() {
+
+        return contributed.values().stream().filter(InAppEntryShape::privateToMember).map(shape -> shape.type().code())
+                .collect(Collectors.toUnmodifiableSet());
     }
 
     public Optional<PartialEntry> build(MessageType type, Map<String, Object> facts) {

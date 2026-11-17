@@ -107,7 +107,7 @@ function OpenRow({
         {isNext && (
           <span
             aria-hidden
-            className="text-primary ml-auto flex flex-none items-center self-center text-xs font-semibold"
+            className="text-primary-ink ml-auto flex flex-none items-center self-center text-xs font-semibold"
           >
             Open
             <ChevronRight size={13} />

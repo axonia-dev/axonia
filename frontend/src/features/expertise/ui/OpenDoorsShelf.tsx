@@ -32,7 +32,7 @@ export function OpenDoorsShelf({
           <button
             type="button"
             onClick={() => setShowAll(true)}
-            className="text-primary-strong focus-visible:ring-focus-ring shrink-0 cursor-pointer rounded-lg text-sm font-medium outline-none hover:underline focus-visible:ring-2"
+            className="text-primary-ink-strong focus-visible:ring-focus-ring shrink-0 cursor-pointer rounded-lg text-sm font-medium outline-none hover:underline focus-visible:ring-2"
           >
             All {data.length} areas
           </button>

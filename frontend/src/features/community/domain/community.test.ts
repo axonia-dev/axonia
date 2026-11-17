@@ -16,6 +16,7 @@ const active: Community = {
   description: "A guild",
   status: "ACTIVE",
   memberCount: 3,
+  mentoringEnabled: false,
   createdAt: "2026-05-31T10:00:00Z",
   updatedAt: "2026-05-31T10:00:00Z",
 };
@@ -29,6 +30,26 @@ describe("communitySchema", () => {
 
     // then
     expect(actual).toEqual(active);
+  });
+
+  it("reads mentoringEnabled as given", () => {
+    // when
+    const actual = communitySchema.parse({ ...active, mentoringEnabled: true });
+
+    // then
+    expect(actual.mentoringEnabled).toBe(true);
+  });
+
+  it("rejects a community that does not say whether mentoring is on", () => {
+    // given
+    const silent: Partial<Community> = { ...active };
+    delete silent.mentoringEnabled;
+
+    // when
+    const actual = () => communitySchema.parse(silent);
+
+    // then
+    expect(actual).toThrow();
   });
 
   it("rejects an unknown status", () => {

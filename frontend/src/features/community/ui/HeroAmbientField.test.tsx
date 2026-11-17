@@ -48,6 +48,7 @@ const community: Community = {
   description: "",
   status: "ACTIVE",
   memberCount: 120,
+  mentoringEnabled: false,
   badgeUrl: null,
   heroUrl: null,
   accentColor: "#6e3ceb",

@@ -31,6 +31,7 @@ import {
 import { CommunityShell } from "@/features/community/ui/CommunityShell";
 import { LookAndFeelEditor } from "@/features/community/ui/LookAndFeelEditor";
 import { MembersPage } from "@/features/community/ui/MembersPage";
+import { MentoringSettingsPage } from "@/features/community/ui/MentoringSettingsPage";
 import { DocPageView } from "@/features/docs/ui/DocPageView";
 import { DocsShell } from "@/features/docs/ui/DocsShell";
 import { OccurrencePreviewPage } from "@/features/events/ui/OccurrencePreviewPage";
@@ -41,6 +42,9 @@ import { MyExpertiseView } from "@/features/expertise/ui/MyExpertiseView";
 import { TagCurationView } from "@/features/expertise/ui/TagCurationView";
 import { HealthSection } from "@/features/health/ui/HealthSection";
 import { LearningPage } from "@/features/learning/ui/LearningPage";
+import { JournalPage } from "@/features/mentoring/ui/JournalPage";
+import { MentoringPage } from "@/features/mentoring/ui/MentoringPage";
+import { MyMentoringView } from "@/features/mentoring/ui/MyMentoringView";
 import {
   MyImpactRoute,
   MyImpactView,
@@ -207,6 +211,8 @@ function openRoutes(edition: EditionSlots): ReactNode {
         />
         <Route path="/me/impact" element={<MyImpactView />} />
         <Route path="/me/expertise" element={<MyExpertiseView />} />
+        <Route path="/me/mentoring" element={<MyMentoringView />} />
+        <Route path="/me/mentoring/:pairingId" element={<JournalPage />} />
         <Route path="/me/saved" element={<MySavedView />} />
       </Route>
       {/* The hub variant of the same settings subtree, matched before CommunityShell so a
@@ -225,6 +231,7 @@ function openRoutes(edition: EditionSlots): ReactNode {
         <Route path="expertise" element={<ExpertiseRoute />} />
         <Route path="expertise/curation" element={<CurationRoute />} />
         <Route path="learning" element={<LearningPage />} />
+        <Route path="mentoring" element={<MentoringPage />} />
         <Route path="health" element={<HealthSection />} />
         <Route path="edit" element={<CommunityEditPage />} />
         <Route path="look-and-feel" element={<LookAndFeelEditor />} />
@@ -234,8 +241,11 @@ function openRoutes(edition: EditionSlots): ReactNode {
           path="settings/communication"
           element={<CommunicationSettingsPage />}
         />
+        <Route path="settings/mentoring" element={<MentoringSettingsPage />} />
         <Route path="me/impact" element={<MyImpactRoute />} />
         <Route path="me/expertise" element={<MyExpertiseView />} />
+        <Route path="me/mentoring" element={<MyMentoringView />} />
+        <Route path="me/mentoring/:pairingId" element={<JournalPage />} />
         <Route
           path="me/saved"
           element={<Navigate to="../library?saved=1" replace />}

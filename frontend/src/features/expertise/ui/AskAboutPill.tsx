@@ -12,7 +12,7 @@ export function AskAboutPill({
   return (
     <span
       data-testid="ask-about"
-      className="border-primary/25 bg-primary/10 inline-flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium text-[color-mix(in_srgb,var(--primary)_82%,var(--foreground))]"
+      className="border-primary/25 bg-primary/10 text-primary-ink inline-flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium"
     >
       <MessageCircle
         size={13}

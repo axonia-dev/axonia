@@ -33,6 +33,8 @@ interface Props {
   isRequired?: boolean;
   /** ISO `YYYY-MM-DD`; a date before this is not offerable in the calendar popover. */
   minValue?: string;
+  /** ISO `YYYY-MM-DD`; a date after this is not offerable in the calendar popover. */
+  maxValue?: string;
   /** Marks the field as refused: the border turns, and assistive tech is told, so the reason
    *  stated beside it is not the only place the state exists. */
   isInvalid?: boolean;
@@ -85,6 +87,7 @@ export function DatePicker({
   hideLabel,
   className,
   minValue,
+  maxValue,
 }: Readonly<Props>) {
   return (
     <AriaDatePicker
@@ -94,6 +97,9 @@ export function DatePicker({
       {...(isInvalid !== undefined ? { isInvalid } : {})}
       {...(minValue !== undefined
         ? { minValue: toCalendarDate(minValue) }
+        : {})}
+      {...(maxValue !== undefined
+        ? { maxValue: toCalendarDate(maxValue) }
         : {})}
       className={cn("flex flex-col gap-1", className)}
     >

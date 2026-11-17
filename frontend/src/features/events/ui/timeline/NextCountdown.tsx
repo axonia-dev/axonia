@@ -36,7 +36,7 @@ export function NextCountdown({ entry }: Readonly<{ entry: ScheduleEntry }>) {
     return (
       <p
         ref={setElement}
-        className="text-primary-strong mt-2 inline-flex items-center gap-2 text-xs font-semibold"
+        className="text-primary-ink-strong mt-2 inline-flex items-center gap-2 text-xs font-semibold"
       >
         <span
           aria-hidden="true"
@@ -50,7 +50,7 @@ export function NextCountdown({ entry }: Readonly<{ entry: ScheduleEntry }>) {
     return (
       <p
         ref={setElement}
-        className="text-primary-strong font-display mt-2 text-sm font-semibold tabular-nums"
+        className="text-primary-ink-strong font-display mt-2 text-sm font-semibold tabular-nums"
       >
         {lastHourLabel(phase.msLeft)}
       </p>
@@ -72,7 +72,7 @@ export function NextCountdown({ entry }: Readonly<{ entry: ScheduleEntry }>) {
       {tiles.map(([value, unit], i) => (
         <span
           key={unit}
-          className="bg-primary/10 text-primary-strong min-w-8 rounded-md px-1.5 py-0.5 text-center text-sm font-semibold"
+          className="bg-primary/10 text-primary-ink-strong min-w-8 rounded-md px-1.5 py-0.5 text-center text-sm font-semibold"
         >
           {i === 0 ? value : String(value).padStart(2, "0")}
           <span className="ml-px text-[10px] opacity-75">{unit}</span>

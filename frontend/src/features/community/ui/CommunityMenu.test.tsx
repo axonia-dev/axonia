@@ -6,9 +6,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ManagementAccess } from "@/features/community/api/use-management-access";
 import type { Community } from "@/features/community/domain/community";
 import { CommunityMenu } from "@/features/community/ui/CommunityMenu";
+import { communityFixture } from "@/test/community-fixture";
 
 let user: ReturnType<typeof userEvent.setup>;
-
 beforeEach(() => {
   user = userEvent.setup({ delay: null });
 });
@@ -56,18 +56,10 @@ vi.mock("@/auth/session", () => ({
   useAuth: () => ({ signinRedirect: vi.fn() }),
 }));
 
-const community: Community = {
-  id: 1,
-  slug: "backend-guild",
-  name: "Backend Guild",
-  kindId: 1,
-  kind: "Guild",
+const community = communityFixture({
   description: "Patterns and practices.",
-  status: "ACTIVE",
   memberCount: 120,
-  createdAt: "2026-05-31T10:00:00Z",
-  updatedAt: "2026-05-31T10:00:00Z",
-};
+});
 
 function LocationDisplay() {
   return <div>at {useLocation().pathname}</div>;
@@ -87,6 +79,7 @@ function fullAccess(overrides?: Partial<ManagementAccess>): ManagementAccess {
     communication: true,
     credit: true,
     any: true,
+    member: true,
     isLoading: false,
     ...overrides,
   };
@@ -123,6 +116,42 @@ describe("CommunityMenu", () => {
   afterEach(() => {
     useCurrentOrganizationMock.mockReturnValue({ data: undefined });
     usePermissionsMock.mockReturnValue({ can: () => false });
+  });
+
+  it("lists Mentoring settings for an organizer only", async () => {
+    // when
+    renderMenu({ access: { managementPolicy: true } });
+    await openMenu();
+
+    // then
+    expect(
+      screen.getByRole("menuitem", { name: "Mentoring" }),
+    ).toBeInTheDocument();
+  });
+
+  it("leaves Mentoring settings out for anyone who is not an organizer", async () => {
+    // when
+    renderMenu({ access: { managementPolicy: false } });
+    await openMenu();
+
+    // then
+    expect(
+      screen.queryByRole("menuitem", { name: "Mentoring" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("opens the mentoring settings", async () => {
+    // given
+    renderMenu();
+    await openMenu();
+
+    // when
+    await user.click(screen.getByRole("menuitem", { name: "Mentoring" }));
+
+    // then
+    expect(
+      screen.getByText("at /communities/backend-guild/settings/mentoring"),
+    ).toBeInTheDocument();
   });
 
   it("offers Edit, Community policy and Archive for an active community", async () => {

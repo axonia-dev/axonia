@@ -3,13 +3,15 @@ package dev.axonia.identity.application.scim;
 import java.util.List;
 import java.util.Optional;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoSettings;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 
+import dev.axonia.identity.api.MemberDeactivated;
 import dev.axonia.identity.api.spi.DirectorySubjects;
 import dev.axonia.identity.application.SuccessionAdoption;
 import dev.axonia.identity.application.port.out.UserStore;
@@ -22,6 +24,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -44,8 +47,17 @@ class ScimUserServiceTest {
     @Mock
     DirectorySubjects directorySubjects;
 
-    @InjectMocks
+    @Mock
+    ApplicationEventPublisher events;
+
     ScimUserService sut;
+
+    @BeforeEach
+    void setUp() {
+
+        sut = new ScimUserService(userStore, mapper, successions,
+                new DirectorySubjectClaim(directorySubjects, userStore), events);
+    }
 
     // --- create ---
 
@@ -478,6 +490,105 @@ class ScimUserServiceTest {
 
         // then - active=false must be persisted
         assertThat(captor.getValue().active()).isFalse();
+    }
+
+    @Test
+    void deprovisioningPublishesMemberDeactivatedOnce() {
+
+        // given
+        UserAccount existing = UserAccount.builder().id(20L).organizationId("tenant-1").scimId("scim-20").active(true)
+                .userId("sub-grace").build();
+        when(userStore.findByOrganizationIdAndScimId("tenant-1", "scim-20")).thenReturn(Optional.of(existing));
+        when(userStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // when
+        sut.delete(PRINCIPAL, "scim-20");
+
+        // then
+        verify(events, times(1)).publishEvent(new MemberDeactivated("tenant-1", "sub-grace"));
+    }
+
+    @Test
+    void patchingActiveFalsePublishesIt() {
+
+        // given
+        UserAccount existing = UserAccount.builder().id(20L).organizationId("tenant-1").scimId("scim-20").active(true)
+                .userId("sub-grace").build();
+        when(userStore.findByOrganizationIdAndScimId("tenant-1", "scim-20")).thenReturn(Optional.of(existing));
+        when(userStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // when
+        sut.patch(PRINCIPAL, "scim-20",
+                ScimPatchRequest.of(List.of(new ScimPatchOperation("replace", "active", false))));
+
+        // then
+        verify(events).publishEvent(new MemberDeactivated("tenant-1", "sub-grace"));
+    }
+
+    @Test
+    void replacingWithActiveFalsePublishesIt() {
+
+        // given
+        UserAccount existing = UserAccount.builder().id(20L).organizationId("tenant-1").scimId("scim-20").active(true)
+                .userId("sub-grace").build();
+        when(userStore.findByOrganizationIdAndScimId("tenant-1", "scim-20")).thenReturn(Optional.of(existing));
+        when(userStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(mapper.getActive(any())).thenReturn(false);
+
+        // when
+        sut.replace(PRINCIPAL, "scim-20", scimUserInput("grace@acme.test", "ext-20", "Grace"));
+
+        // then
+        verify(events).publishEvent(new MemberDeactivated("tenant-1", "sub-grace"));
+    }
+
+    @Test
+    void deactivatingAnAlreadyInactiveUserPublishesNothing() {
+
+        // given
+        UserAccount existing = UserAccount.builder().id(20L).organizationId("tenant-1").scimId("scim-20").active(false)
+                .userId("sub-grace").build();
+        when(userStore.findByOrganizationIdAndScimId("tenant-1", "scim-20")).thenReturn(Optional.of(existing));
+        when(userStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // when
+        sut.delete(PRINCIPAL, "scim-20");
+
+        // then
+        verify(events, never()).publishEvent(any(Object.class));
+    }
+
+    @Test
+    void reactivatingPublishesNothing() {
+
+        // given
+        UserAccount existing = UserAccount.builder().id(20L).organizationId("tenant-1").scimId("scim-20").active(false)
+                .userId("sub-grace").build();
+        when(userStore.findByOrganizationIdAndScimId("tenant-1", "scim-20")).thenReturn(Optional.of(existing));
+        when(userStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // when
+        sut.patch(PRINCIPAL, "scim-20",
+                ScimPatchRequest.of(List.of(new ScimPatchOperation("replace", "active", true))));
+
+        // then
+        verify(events, never()).publishEvent(any(Object.class));
+    }
+
+    @Test
+    void deactivatingARowNobodyHasSignedInAsPublishesNothing() {
+
+        // given
+        UserAccount existing = UserAccount.builder().id(20L).organizationId("tenant-1").scimId("scim-20").active(true)
+                .build();
+        when(userStore.findByOrganizationIdAndScimId("tenant-1", "scim-20")).thenReturn(Optional.of(existing));
+        when(userStore.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // when
+        sut.delete(PRINCIPAL, "scim-20");
+
+        // then
+        verify(events, never()).publishEvent(any(Object.class));
     }
 
     @Test

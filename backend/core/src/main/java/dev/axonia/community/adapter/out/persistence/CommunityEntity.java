@@ -70,6 +70,8 @@ public class CommunityEntity implements Entity {
     @Builder.Default
     private TopicManagementPolicy topicManagementPolicy = TopicManagementPolicy.ORGANIZER_ONLY;
 
+    private boolean mentoringEnabled;
+
     @CreatedDate
     private Instant createdAt;
 

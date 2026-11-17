@@ -130,7 +130,7 @@ export function ExpertiseSearchView() {
             <button
               type="button"
               onClick={() => askAbout("")}
-              className="text-primary-strong hover:text-primary cursor-pointer text-sm font-medium"
+              className="text-primary-ink-strong hover:text-primary-ink cursor-pointer text-sm font-medium"
             >
               clear
             </button>

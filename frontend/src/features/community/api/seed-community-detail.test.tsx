@@ -19,6 +19,7 @@ const community: Community = {
   description: "",
   status: "ACTIVE",
   memberCount: 3,
+  mentoringEnabled: false,
   createdAt: "2026-05-31T10:00:00Z",
   updatedAt: "2026-05-31T10:00:00Z",
 };

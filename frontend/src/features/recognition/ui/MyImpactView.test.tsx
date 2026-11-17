@@ -19,6 +19,9 @@ vi.mock("@/features/recognition/api/use-new-loves", () => ({
   useNewLoves: vi.fn(),
   useMarkImpactSeen: vi.fn(),
 }));
+vi.mock("@/features/mentoring/api/use-mentoring", () => ({
+  useMyWords: vi.fn(() => ({ data: [] })),
+}));
 vi.mock("@/features/identity/api/use-me", () => ({ useMe: vi.fn() }));
 vi.mock("@/features/community/api/use-communities", () => ({
   useCommunity: vi.fn(),

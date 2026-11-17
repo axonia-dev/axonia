@@ -9,9 +9,9 @@ import {
   useMembers,
   useMyMembership,
 } from "@/features/community/api/use-membership";
-import type { Community } from "@/features/community/domain/community";
 import { IdentityHero } from "@/features/community/ui/IdentityHero";
 import { useUsers } from "@/features/identity/api/use-users";
+import { communityFixture } from "@/test/community-fixture";
 
 vi.mock("@/features/community/ui/HeroAmbientField", () => ({
   HeroAmbientField: () => null,
@@ -51,18 +51,7 @@ vi.mock("@/features/admin/api/use-current-organization", () => ({
 }));
 vi.mock("@/features/identity/api/use-users", () => ({ useUsers: vi.fn() }));
 
-const community: Community = {
-  id: 1,
-  slug: "backend-guild",
-  name: "Backend Guild",
-  kindId: 1,
-  kind: "Guild",
-  description: "",
-  status: "ACTIVE",
-  memberCount: 42,
-  createdAt: "2026-05-31T10:00:00Z",
-  updatedAt: "2026-05-31T10:00:00Z",
-};
+const community = communityFixture({ memberCount: 42 });
 
 function renderHero() {
   return render(

@@ -43,7 +43,7 @@ export const TIER_META: Record<Tier, TierMeta> = {
   OPEN_TO_QUESTIONS: {
     label: "Open to questions",
     badgeClassName:
-      "border border-dashed border-[color-mix(in_srgb,var(--primary)_85%,var(--foreground))] px-[7px] py-px text-[color-mix(in_srgb,var(--primary)_60%,var(--foreground))]",
+      "border border-dashed border-[color-mix(in_srgb,var(--primary)_85%,var(--foreground))] px-[7px] py-px text-primary-ink",
     dotClassName:
       "bg-[repeating-linear-gradient(135deg,color-mix(in_srgb,var(--primary)_85%,var(--foreground))_0_2px,transparent_2px_4px)]",
     colour: "color-mix(in srgb,var(--primary) 85%,var(--foreground))",

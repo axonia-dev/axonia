@@ -111,7 +111,7 @@ export function CommunitySwitcher({
           />
           <span className="flex-1 truncate">{community.name}</span>
           {community.slug === current.slug && (
-            <span aria-hidden className="text-primary">
+            <span aria-hidden className="text-primary-ink">
               ✓
             </span>
           )}

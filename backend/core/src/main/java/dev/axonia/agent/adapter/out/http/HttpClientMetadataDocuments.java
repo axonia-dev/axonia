@@ -142,13 +142,13 @@ class HttpClientMetadataDocuments implements ClientMetadataDocuments {
             var name = document.path("client_name").asString("");
             var authMethod = document.path("token_endpoint_auth_method").asString("none");
             var redirectUris = strings(document.path("redirect_uris"));
+            var host = url.getHost().toLowerCase(Locale.ROOT);
             var valid = clientId.equals(document.path("client_id").asString("")) && !name.isBlank()
                     && name.length() <= MAX_NAME_LENGTH && "none".equals(authMethod) && allowsCodeGrant(document)
                     && !redirectUris.isEmpty()
-                    && redirectUris.stream().allMatch(HttpClientMetadataDocuments::isLoopback);
+                    && redirectUris.stream().allMatch(redirect -> isPermittedRedirect(redirect, host));
             return valid
-                    ? Optional.of(new ClientMetadata(clientId, name.strip(), url.getHost().toLowerCase(Locale.ROOT),
-                            redirectUris))
+                    ? Optional.of(new ClientMetadata(clientId, name.strip(), host, redirectUris))
                     : Optional.empty();
         } catch (RuntimeException e) {
             return Optional.empty();
@@ -177,10 +177,10 @@ class HttpClientMetadataDocuments implements ClientMetadataDocuments {
         return values;
     }
 
-    private static boolean isLoopback(String value) {
+    private static boolean isPermittedRedirect(String value, String clientHost) {
 
         try {
-            return ClientMetadata.isLoopback(new URI(value));
+            return ClientMetadata.isPermittedRedirect(new URI(value), clientHost);
         } catch (URISyntaxException e) {
             return false;
         }

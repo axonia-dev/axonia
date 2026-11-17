@@ -9,6 +9,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 import dev.axonia.CoreJdbcTestSupport;
+import dev.axonia.knowledge.api.TitledArtifact;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
@@ -39,6 +40,19 @@ class ArtifactTitleReaderTest extends CoreJdbcTestSupport {
 
         assertThat(sut.titlesByIds(List.of(first, second))).containsOnly(entry(first, "Kafka playbook"),
                 entry(second, "Kubernetes runbook"));
+    }
+
+    @Test
+    void artifactsByIds_carryTheCommunityWhoseLibraryHoldsEach() {
+
+        var communityId = seedCommunity();
+        var typeId = seedArtifactType();
+        var mine = seedArtifact("default", communityId, typeId, "Kafka playbook");
+        var theirs = seedArtifact("other-org", communityId, typeId, "Their playbook");
+
+        assertThat(sut.artifactsByIds(List.of(mine, theirs, GONE)))
+                .containsOnly(entry(mine, new TitledArtifact(communityId, "Kafka playbook")));
+        assertThat(sut.artifactsByIds(List.of())).isEmpty();
     }
 
     @Test

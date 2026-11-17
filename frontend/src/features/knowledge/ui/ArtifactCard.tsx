@@ -62,9 +62,9 @@ function SourceLine({
   return (
     <Link
       to={`/communities/${slug}/sessions/${artifact.provenance.sessionId}`}
-      className="text-muted-foreground hover:text-primary inline-flex w-fit max-w-full items-center gap-1.5 text-xs underline-offset-2 hover:underline"
+      className="text-muted-foreground hover:text-primary-ink inline-flex w-fit max-w-full items-center gap-1.5 text-xs underline-offset-2 hover:underline"
     >
-      <Calendar size={13} className="text-primary shrink-0" />
+      <Calendar size={13} className="text-primary-ink shrink-0" />
       <span className="truncate">{label}</span>
     </Link>
   );
@@ -72,7 +72,10 @@ function SourceLine({
 
 function OpenLinkGlyph() {
   return (
-    <span aria-hidden className="text-primary ml-1 inline-block align-[-1px]">
+    <span
+      aria-hidden
+      className="text-primary-ink ml-1 inline-block align-[-1px]"
+    >
       <ExternalLink size={13} />
     </span>
   );
@@ -129,7 +132,7 @@ export function ArtifactCard({
             <ArtifactLink
               artifactId={artifact.id}
               url={artifact.url}
-              className="text-foreground hover:text-primary font-medium underline-offset-2 hover:underline"
+              className="text-foreground hover:text-primary-ink font-medium underline-offset-2 hover:underline"
             >
               {artifact.title}
               <OpenLinkGlyph />

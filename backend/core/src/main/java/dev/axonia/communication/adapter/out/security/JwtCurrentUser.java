@@ -11,4 +11,9 @@ class JwtCurrentUser implements CurrentUser {
     public String userId() {
         return CurrentToken.subject();
     }
+
+    @Override
+    public boolean delegated() {
+        return CurrentToken.isDelegated();
+    }
 }

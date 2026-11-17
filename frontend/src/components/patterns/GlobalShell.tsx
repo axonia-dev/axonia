@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   Bookmark,
+  Handshake,
   Lightbulb,
   Settings,
   UserRound,
@@ -10,6 +11,7 @@ import {
 import { Outlet, useLocation } from "react-router-dom";
 
 import { AppShell } from "@/components/patterns/AppShell";
+import { globalContentMaxWidthClass } from "@/components/patterns/global-content-width";
 import type { NavGroup, NavItem } from "@/components/patterns/nav-types";
 import { ACCOUNT_SETTINGS } from "@/components/patterns/settings-nav";
 import type { ShellTab } from "@/components/patterns/ShellTabBar";
@@ -17,11 +19,13 @@ import { OrganizationSwitcher } from "@/features/admin/ui/OrganizationSwitcher";
 import { NotificationBell } from "@/features/communication/ui/NotificationBell";
 import { useReportObservedZone } from "@/features/identity/api/use-time-zone";
 import { AccountMenu } from "@/features/identity/ui/AccountMenu";
+import { useHasMentoring } from "@/features/mentoring/api/use-mentoring";
 import {
   OnboardingAffordance,
   useOnboardingPath,
 } from "@/features/onboarding/ui/OnboardingAffordance";
 import { useVisitRecorder } from "@/features/onboarding/ui/use-visit-recorder";
+import { cn } from "@/lib/cn";
 
 // Builds a single NavItem, keeping the `end: true` + icon-size convention shared
 // by every entry in the arrays below in one place instead of repeated per item.
@@ -47,14 +51,19 @@ const PRIMARY: ReadonlyArray<NavItem> = [COMMUNITIES];
 
 // Personal participation - the rail's only group. Everything configurable now
 // lives behind the account menu in one of the two settings surfaces.
-const ACTIVITY_GROUP: NavGroup = {
-  label: "Activity",
-  items: [
-    navItem("/me/impact", "My impact", Zap),
-    navItem("/me/expertise", "My expertise", Lightbulb),
-    navItem("/me/saved", "Saved", Bookmark),
-  ],
-};
+function activityGroup(hasMentoring: boolean): NavGroup {
+  return {
+    label: "Activity",
+    items: [
+      navItem("/me/impact", "My impact", Zap),
+      navItem("/me/expertise", "My expertise", Lightbulb),
+      ...(hasMentoring
+        ? [navItem("/me/mentoring", "My mentoring", Handshake)]
+        : []),
+      navItem("/me/saved", "Saved", Bookmark),
+    ],
+  };
+}
 
 function linkTab(item: NavItem): ShellTab {
   return {
@@ -78,7 +87,8 @@ export function GlobalShell() {
   useReportObservedZone();
 
   // The rail holds only places you go, never things you configure: one group.
-  const railGroups: ReadonlyArray<NavGroup> = [ACTIVITY_GROUP];
+  const activity = activityGroup(useHasMentoring());
+  const railGroups: ReadonlyArray<NavGroup> = [activity];
 
   const meTab: ShellTab = {
     kind: "menu",
@@ -90,14 +100,16 @@ export function GlobalShell() {
     // Personal participation only - not "whatever the rail holds" (identical today
     // because the rail has exactly one group, but a future non-personal rail group
     // must not silently appear inside a sheet titled "Me").
-    groups: [ACTIVITY_GROUP],
+    groups: [activity],
   };
 
   // Bar order: Communities · Me · Settings.
   const tabs: ShellTab[] = [linkTab(COMMUNITIES), meTab, linkTab(SETTINGS)];
 
-  const mainClassName =
-    "mx-auto w-full max-w-3xl flex-1 px-6 pt-8 pb-24 md:pb-8";
+  const mainClassName = cn(
+    "mx-auto w-full flex-1 px-6 pt-8 pb-24 md:pb-8",
+    globalContentMaxWidthClass(location.pathname),
+  );
 
   return (
     <AppShell

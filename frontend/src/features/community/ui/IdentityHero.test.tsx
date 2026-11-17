@@ -62,6 +62,7 @@ function access(any: boolean): ManagementAccess {
     communication: any,
     credit: any,
     any,
+    member: true,
     isLoading: false,
   };
 }
@@ -79,6 +80,7 @@ const community: Community = {
   description: "Patterns and practices.",
   status: "ACTIVE",
   memberCount: 120,
+  mentoringEnabled: false,
   createdAt: "2026-05-31T10:00:00Z",
   updatedAt: "2026-05-31T10:00:00Z",
 };

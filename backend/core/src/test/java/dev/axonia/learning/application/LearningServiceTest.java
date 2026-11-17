@@ -352,6 +352,37 @@ class LearningServiceTest {
     }
 
     @Test
+    void learnersInMapsEachLearnerToCanonicalAreas() {
+
+        aliases.put("k8s", "kubernetes");
+        when(repository.currentIn(ORG, COMMUNITY)).thenReturn(List.of(intentOf(ALICE, "k8s", EARLY),
+                intentOf(ALICE, "kubernetes", LATE), intentOf(ALICE, "kafka", LATE), intentOf("bob", "rust", LATE)));
+
+        var actual = sut.learnersIn(SLUG);
+
+        assertThat(actual).containsExactly(Map.entry(ALICE, List.of("kafka", "kubernetes")),
+                Map.entry("bob", List.of("rust")));
+    }
+
+    @Test
+    void learnersInIsEmptyWhenNobodyIsCurrentlyLearning() {
+
+        when(repository.currentIn(ORG, COMMUNITY)).thenReturn(List.of());
+
+        var actual = sut.learnersIn(SLUG);
+
+        assertThat(actual).isEmpty();
+    }
+
+    @Test
+    void learnersInRequiresMembership() {
+
+        when(communityAccess.isMember(COMMUNITY, ALICE)).thenReturn(false);
+
+        assertThatThrownBy(() -> sut.learnersIn(SLUG)).isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
     void anAreaNobodyWantsHasNoLearners() {
 
         when(repository.currentIn(ORG, COMMUNITY)).thenReturn(List.of(intentOf("bob", "kafka", EARLY)));

@@ -1108,6 +1108,15 @@
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
+		PanelViewer (dev.axonia.communication) carries a hiddenTypes (Set<String>) component, copied with Set.copyOf in
+		its compact constructor: who reads the panel and which types stay out of it, built once per request by
+		NotificationCentreService and read once by JdbcNotificationCentre. Narrowly scoped.
+	-->
+	<Match>
+		<Class name="dev.axonia.communication.domain.PanelViewer"/>
+		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+	</Match>
+	<!--
 		IcsDocumentRequest$IcsDocumentRequestBuilder trips EI_EXPOSE_REP2 on the entries
 		(List<ScheduleEntry>) setter: the Lombok @Builder-generated setter stores the caller's
 		list reference before the record's compact constructor makes its own List.copyOf() -
@@ -1218,6 +1227,42 @@
 	-->
 	<Match>
 		<Class name="dev.axonia.learning.api.LearningPage"/>
+		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+	</Match>
+	<!--
+		mentoring.domain.Proposal: its topics List, built once per proposal and handed straight to the
+		repository and the read model. Same case as LearningPage above: exclusion, not List.copyOf.
+	-->
+	<Match>
+		<Class name="dev.axonia.mentoring.domain.Proposal"/>
+		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+	</Match>
+	<!--
+		mentoring.application.PairingProgress: a pairing's trail, read once per request and handed straight to the
+		read model. Same case as LearningPage above.
+	-->
+	<Match>
+		<Class name="dev.axonia.mentoring.application.PairingProgress"/>
+		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+	</Match>
+	<!--
+		mentoring.api.MentoringPage, DirectoryPerson, ProposalView, MyMentoring, ProposeRequest, Journal, TopicView, NoteView, NoteRequest and PairingSummary: read-model and request records
+		with List components, built once per request and serialized straight out or read straight in. Same case as
+		LearningPage above.
+	-->
+	<Match>
+		<Or>
+			<Class name="dev.axonia.mentoring.api.MentoringPage"/>
+			<Class name="dev.axonia.mentoring.api.DirectoryPerson"/>
+			<Class name="dev.axonia.mentoring.api.ProposalView"/>
+			<Class name="dev.axonia.mentoring.api.MyMentoring"/>
+			<Class name="dev.axonia.mentoring.api.ProposeRequest"/>
+			<Class name="dev.axonia.mentoring.api.Journal"/>
+			<Class name="dev.axonia.mentoring.api.TopicView"/>
+			<Class name="dev.axonia.mentoring.api.NoteView"/>
+			<Class name="dev.axonia.mentoring.api.NoteRequest"/>
+			<Class name="dev.axonia.mentoring.api.PairingSummary"/>
+		</Or>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<!--

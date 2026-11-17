@@ -2,6 +2,7 @@ package dev.axonia.communication.adapter.out.persistence;
 
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.Set;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -18,6 +19,7 @@ import dev.axonia.communication.application.MessageRenderAdapter;
 import dev.axonia.communication.application.NotificationEntryBuilders;
 import dev.axonia.communication.application.port.out.NotificationCentreReads;
 import dev.axonia.communication.domain.NotificationEntry;
+import dev.axonia.communication.domain.PanelViewer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -60,7 +62,7 @@ class JdbcNotificationCentreTest extends CommunicationJdbcTestSupport {
         insertDelivery(messageId, "alice", "EMAIL", "SENT", SENT_AT);
         insertDelivery(messageId, "bob", "IN_APP", "SENT", SENT_AT);
 
-        var page = centre.page("alice", null, null, 20);
+        var page = centre.page(PanelViewer.member("alice"), null, null, 20);
 
         assertThat(page.entries()).hasSize(1);
         assertThat(page.hasMore()).isFalse();
@@ -72,7 +74,7 @@ class JdbcNotificationCentreTest extends CommunicationJdbcTestSupport {
         var messageId = insertMessage("602");
         insertDelivery(messageId, "alice", "IN_APP", "PENDING", null);
 
-        assertThat(centre.page("alice", null, null, 20).entries()).isEmpty();
+        assertThat(centre.page(PanelViewer.member("alice"), null, null, 20).entries()).isEmpty();
     }
 
     @Test
@@ -81,7 +83,7 @@ class JdbcNotificationCentreTest extends CommunicationJdbcTestSupport {
         insertSentEntry("603", "alice", Instant.parse("2026-08-01T10:00:00Z"));
         insertSentEntry("604", "alice", Instant.parse("2026-08-03T10:00:00Z"));
 
-        var page = centre.page("alice", null, null, 20);
+        var page = centre.page(PanelViewer.member("alice"), null, null, 20);
 
         assertThat(page.entries()).extracting(NotificationEntry::sentAt)
                 .containsExactly(Instant.parse("2026-08-03T10:00:00Z"), Instant.parse("2026-08-01T10:00:00Z"));
@@ -93,7 +95,7 @@ class JdbcNotificationCentreTest extends CommunicationJdbcTestSupport {
         insertSentEntry("605", "alice", Instant.parse("2026-08-01T10:00:00Z"));
         insertSentEntry("606", "alice", Instant.parse("2026-08-02T10:00:00Z"));
 
-        var page = centre.page("alice", null, null, 1);
+        var page = centre.page(PanelViewer.member("alice"), null, null, 1);
 
         assertThat(page.entries()).hasSize(1);
         assertThat(page.hasMore()).isTrue();
@@ -106,9 +108,9 @@ class JdbcNotificationCentreTest extends CommunicationJdbcTestSupport {
         insertSentEntry("608", "alice", Instant.parse("2026-08-02T10:00:00Z"));
         insertSentEntry("609", "alice", Instant.parse("2026-08-03T10:00:00Z"));
 
-        var first = centre.page("alice", null, null, 2);
+        var first = centre.page(PanelViewer.member("alice"), null, null, 2);
         var last = first.entries().get(1);
-        var second = centre.page("alice", last.sentAt(), last.id(), 2);
+        var second = centre.page(PanelViewer.member("alice"), last.sentAt(), last.id(), 2);
 
         assertThat(second.entries()).hasSize(1);
         assertThat(second.entries().get(0).id()).isNotIn(first.entries().stream().map(NotificationEntry::id).toList());
@@ -121,9 +123,9 @@ class JdbcNotificationCentreTest extends CommunicationJdbcTestSupport {
         insertSentEntry("610", "alice", shared);
         insertSentEntry("611", "alice", shared);
 
-        var first = centre.page("alice", null, null, 1);
+        var first = centre.page(PanelViewer.member("alice"), null, null, 1);
         var last = first.entries().get(0);
-        var second = centre.page("alice", last.sentAt(), last.id(), 1);
+        var second = centre.page(PanelViewer.member("alice"), last.sentAt(), last.id(), 1);
 
         assertThat(second.entries().get(0).id()).isNotEqualTo(last.id());
     }
@@ -134,15 +136,15 @@ class JdbcNotificationCentreTest extends CommunicationJdbcTestSupport {
         insertSentEntry("612", "alice", SENT_AT);
         insertSentEntry("613", "alice", SENT_AT);
         insertSentEntry("614", "bob", SENT_AT);
-        centre.markAllRead("alice", NOW);
+        centre.markAllRead(PanelViewer.member("alice"), NOW);
         insertSentEntry("615", "alice", SENT_AT);
 
-        assertThat(centre.unreadCount("alice")).isEqualTo(1);
+        assertThat(centre.unreadCount(PanelViewer.member("alice"))).isEqualTo(1);
         // Pins that markAllRead's own WHERE carries the user_id predicate: nothing would fail here if that predicate
         // were dropped and markAllRead ran only against alice's rows by coincidence of them being the only ones
         // touched above, since bob's own entry was never marked - a lost predicate would only surface once bob's
         // count is actually asserted.
-        assertThat(centre.unreadCount("bob")).isEqualTo(1);
+        assertThat(centre.unreadCount(PanelViewer.member("bob"))).isEqualTo(1);
     }
 
     @Test
@@ -150,17 +152,17 @@ class JdbcNotificationCentreTest extends CommunicationJdbcTestSupport {
 
         var id = insertSentEntry("616", "bob", SENT_AT);
 
-        assertThat(centre.markRead("alice", id, NOW)).isZero();
-        assertThat(centre.unreadCount("bob")).isEqualTo(1);
+        assertThat(centre.markRead(PanelViewer.member("alice"), id, NOW)).isZero();
+        assertThat(centre.unreadCount(PanelViewer.member("bob"))).isEqualTo(1);
     }
 
     @Test
     void markingAnAlreadyReadEntryReadAgainIsANoOp() {
 
         var id = insertSentEntry("617", "alice", SENT_AT);
-        centre.markRead("alice", id, NOW);
+        centre.markRead(PanelViewer.member("alice"), id, NOW);
 
-        assertThat(centre.markRead("alice", id, LATER)).isZero();
+        assertThat(centre.markRead(PanelViewer.member("alice"), id, LATER)).isZero();
     }
 
     /**
@@ -175,7 +177,7 @@ class JdbcNotificationCentreTest extends CommunicationJdbcTestSupport {
         var messageId = insertMessage("630");
         var id = insertDelivery(messageId, "alice", "IN_APP", "PENDING", null);
 
-        assertThat(centre.markRead("alice", id, NOW)).isZero();
+        assertThat(centre.markRead(PanelViewer.member("alice"), id, NOW)).isZero();
     }
 
     /**
@@ -188,9 +190,9 @@ class JdbcNotificationCentreTest extends CommunicationJdbcTestSupport {
     void aReadEntryStillAppearsInThePageMarkedRead() {
 
         var id = insertSentEntry("620", "alice", SENT_AT);
-        centre.markRead("alice", id, NOW);
+        centre.markRead(PanelViewer.member("alice"), id, NOW);
 
-        var page = centre.page("alice", null, null, 20);
+        var page = centre.page(PanelViewer.member("alice"), null, null, 20);
 
         assertThat(page.entries()).singleElement().satisfies(entry -> assertThat(entry.read()).isTrue());
     }
@@ -206,7 +208,7 @@ class JdbcNotificationCentreTest extends CommunicationJdbcTestSupport {
         var messageId = insertMessage("621", "legacy_reminder", "{}");
         insertDelivery(messageId, "alice", "IN_APP", "SENT", SENT_AT);
 
-        assertThat(centre.page("alice", null, null, 20).entries()).isEmpty();
+        assertThat(centre.page(PanelViewer.member("alice"), null, null, 20).entries()).isEmpty();
     }
 
     /**
@@ -226,7 +228,7 @@ class JdbcNotificationCentreTest extends CommunicationJdbcTestSupport {
         var messageId = insertMessage("625", "legacy_reminder", "{}");
         insertDelivery(messageId, "alice", "IN_APP", "SENT", Instant.parse("2026-08-03T10:00:00Z"));
 
-        var page = centre.page("alice", null, null, 1);
+        var page = centre.page(PanelViewer.member("alice"), null, null, 1);
 
         assertThat(page.entries()).isEmpty();
         assertThat(page.hasMore()).isTrue();
@@ -247,13 +249,13 @@ class JdbcNotificationCentreTest extends CommunicationJdbcTestSupport {
         var messageId = insertMessage("642", "legacy_reminder", "{}");
         var droppedId = insertDelivery(messageId, "alice", "IN_APP", "SENT", Instant.parse("2026-08-03T10:00:00Z"));
 
-        var first = centre.page("alice", null, null, 1);
+        var first = centre.page(PanelViewer.member("alice"), null, null, 1);
 
         assertThat(first.entries()).isEmpty();
         assertThat(first.nextBefore()).isEqualTo(Instant.parse("2026-08-03T10:00:00Z"));
         assertThat(first.nextBeforeId()).isEqualTo(droppedId);
 
-        var second = centre.page("alice", first.nextBefore(), first.nextBeforeId(), 20);
+        var second = centre.page(PanelViewer.member("alice"), first.nextBefore(), first.nextBeforeId(), 20);
 
         assertThat(second.entries()).hasSize(2);
         assertThat(second.hasMore()).isFalse();
@@ -271,11 +273,11 @@ class JdbcNotificationCentreTest extends CommunicationJdbcTestSupport {
         var served = insertSentEntry("644", "alice", Instant.parse("2026-08-02T10:00:00Z"));
         insertSentEntry("645", "alice", Instant.parse("2026-08-03T10:00:00Z"));
 
-        var first = centre.page("alice", null, null, 2);
+        var first = centre.page(PanelViewer.member("alice"), null, null, 2);
 
         assertThat(first.nextBeforeId()).isEqualTo(served);
 
-        var second = centre.page("alice", first.nextBefore(), first.nextBeforeId(), 20);
+        var second = centre.page(PanelViewer.member("alice"), first.nextBefore(), first.nextBeforeId(), 20);
 
         assertThat(second.entries()).extracting(NotificationEntry::id).containsExactly(oldest);
     }
@@ -286,7 +288,7 @@ class JdbcNotificationCentreTest extends CommunicationJdbcTestSupport {
 
         insertSentEntry("646", "alice", SENT_AT);
 
-        var page = centre.page("alice", null, null, 20);
+        var page = centre.page(PanelViewer.member("alice"), null, null, 20);
 
         assertThat(page.hasMore()).isFalse();
         assertThat(page.nextBefore()).isNull();
@@ -306,7 +308,7 @@ class JdbcNotificationCentreTest extends CommunicationJdbcTestSupport {
         insertSentEntry("628", "alice", shared);
         insertSentEntry("629", "alice", shared);
 
-        var page = centre.page("alice", shared, null, 20);
+        var page = centre.page(PanelViewer.member("alice"), shared, null, 20);
 
         assertThat(page.entries()).hasSize(2);
     }
@@ -316,7 +318,7 @@ class JdbcNotificationCentreTest extends CommunicationJdbcTestSupport {
 
         insertSentEntry("631", "alice", SENT_AT);
 
-        var page = centre.page("alice", null, null, 0);
+        var page = centre.page(PanelViewer.member("alice"), null, null, 0);
 
         assertThat(page.entries()).isEmpty();
         assertThat(page.hasMore()).isFalse();
@@ -338,10 +340,39 @@ class JdbcNotificationCentreTest extends CommunicationJdbcTestSupport {
         var messageId = insertMessage("622", "session_wrap_up", "{\"scheduledAt\": \"2026-08-01T10:00:00Z\"}");
         insertDelivery(messageId, "alice", "IN_APP", "SENT", SENT_AT);
 
-        var page = centre.page("alice", null, null, 20);
+        var page = centre.page(PanelViewer.member("alice"), null, null, 20);
 
         assertThat(page.entries()).singleElement()
                 .satisfies(entry -> assertThat(entry.line()).isEqualTo("Held 1 August 2026 at 10:00 in UTC"));
+    }
+
+    /**
+     * A type the viewer hides is out of the list, the badge and both marks alike, so a session acting for the member
+     * reads a panel that is whole in itself and leaves the member's own entries unread for them.
+     */
+    @Test
+    void aHiddenTypeIsNeitherListedCountedNorMarked() {
+
+        // given
+        var shown = insertSentEntry("630", "alice", SENT_AT);
+        var privateMessage = insertMessage("631", "organization_roundup", "{}");
+        var hidden = insertDelivery(privateMessage, "alice", "IN_APP", "SENT", LATER);
+        var viewer = new PanelViewer("alice", Set.of("organization_roundup"));
+
+        // when
+        var page = centre.page(viewer, null, null, 20);
+        var unread = centre.unreadCount(viewer);
+        var markedHidden = centre.markRead(viewer, hidden, NOW);
+        centre.markAllRead(viewer, NOW);
+
+        // then
+        assertThat(page.entries()).extracting(NotificationEntry::id).containsExactly(shown);
+        assertThat(unread).isEqualTo(1);
+        assertThat(markedHidden).isZero();
+        assertThat(centre.page(PanelViewer.member("alice"), null, null, 20).entries())
+                .filteredOn(entry -> entry.id() == hidden).singleElement()
+                .satisfies(entry -> assertThat(entry.read()).isFalse());
+        assertThat(centre.unreadCount(PanelViewer.member("alice"))).isEqualTo(1);
     }
 
     private Long insertMessage(String subjectRef) {

@@ -53,7 +53,7 @@ describe("RailLink", () => {
     );
     expect(
       screen.getByRole("link", { name: "Communities" }).className,
-    ).toContain("text-primary");
+    ).toContain("text-primary-ink");
   });
 
   it("shows no tooltip when expanded, even after focusing the link", async () => {
@@ -149,7 +149,7 @@ describe("RailLink", () => {
     );
     const link = screen.getByRole("link", { name: "Schedule" });
     expect(link).toHaveAttribute("aria-current", "page");
-    expect(link.className).toContain("text-primary");
+    expect(link.className).toContain("text-primary-ink");
   });
 
   it("is not lit on a path it neither is nor owns", () => {

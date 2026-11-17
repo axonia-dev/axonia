@@ -21,6 +21,9 @@ public interface MembershipLedger {
     /** The member's communities that are not archived, ordered by name ignoring case. */
     List<MemberCommunity> activeCommunitiesOf(String organizationId, String userId);
 
+    /** Whether the member belongs to a community that is not archived and takes mentoring. */
+    boolean inAMentoringCommunity(String organizationId, String userId);
+
     long count(String organizationId, Long communityId);
 
     long countWithRole(String organizationId, Long communityId, CommunityRole role);

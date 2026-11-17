@@ -11,6 +11,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiFunction;
 import java.util.function.BinaryOperator;
 import java.util.stream.Collectors;
 
@@ -104,12 +105,24 @@ public class ExpertiseService implements OpenDoors {
     @Transactional(readOnly = true)
     public List<OpenArea> openIn(String slug) {
 
+        return openAreas(slug, declarationRepository::allVisibleIn);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<OpenArea> declaredIn(String slug) {
+
+        return openAreas(slug, declarationRepository::allDeclaredIn);
+    }
+
+    private List<OpenArea> openAreas(String slug, BiFunction<String, Long, List<Declaration>> declarationsRead) {
+
         var org = organizationContext.organizationId();
         var community = communityAccess.communityIdForSlug(slug);
         var aliasMap = tagAliasRepository.aliasMap(org, community);
 
         var declarersByArea = new LinkedHashMap<String, Map<String, Instant>>();
-        for (var declaration : declarationRepository.allVisibleIn(org, community)) {
+        for (var declaration : declarationsRead.apply(org, community)) {
             declarersByArea
                     .computeIfAbsent(AliasResolver.canonicalOf(declaration.tag(), aliasMap), k -> new HashMap<>())
                     .merge(declaration.userId(), declaration.declaredAt(),

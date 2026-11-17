@@ -91,7 +91,7 @@ function ActiveTag({
     <button
       type="button"
       onClick={onClear}
-      className="border-primary text-primary inline-flex items-center gap-1 self-start rounded-full border px-2 py-0.5 text-xs"
+      className="border-primary text-primary-ink inline-flex items-center gap-1 self-start rounded-full border px-2 py-0.5 text-xs"
     >
       #{tag} ✕
     </button>

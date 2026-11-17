@@ -100,7 +100,8 @@ class SweepHeartbeatTest {
     void carriesTheContractTagOfEverySweep() {
 
         assertThat(Sweep.open().stream().map(Sweep::tag)).containsExactly("communication-produce",
-                "communication-drain", "communication-retention", "agent-connection-retention");
+                "communication-drain", "communication-retention", "agent-connection-retention",
+                "mentoring-meeting-reminder");
     }
 
     @Test

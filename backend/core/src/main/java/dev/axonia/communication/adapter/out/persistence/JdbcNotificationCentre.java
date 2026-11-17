@@ -3,10 +3,12 @@ package dev.axonia.communication.adapter.out.persistence;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.sql.Types;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 
+import org.springframework.jdbc.core.SqlParameterValue;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -18,6 +20,7 @@ import dev.axonia.communication.application.NotificationEntryBuilders;
 import dev.axonia.communication.application.port.out.NotificationCentreReads;
 import dev.axonia.communication.domain.NotificationEntry;
 import dev.axonia.communication.domain.NotificationPage;
+import dev.axonia.communication.domain.PanelViewer;
 import lombok.RequiredArgsConstructor;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -50,6 +53,10 @@ import tools.jackson.databind.json.JsonMapper;
  * saw the rows the page was cut from, so only this class can state where it ends.
  *
  * <p>
+ * A type the viewer hides is left out of all four the same way, by {@link #VISIBLE}: its rows are not listed, not
+ * counted and never marked, so the badge a session acting for the member shows matches the list it shows.
+ *
+ * <p>
  * Nothing here reads the clock. {@code markRead} and {@code markAllRead} take the instant from their caller, which
  * takes it from the injected {@code Clock}, because no timestamp in this codebase is stamped by the database.
  *
@@ -65,12 +72,21 @@ import tools.jackson.databind.json.JsonMapper;
 @RequiredArgsConstructor
 class JdbcNotificationCentre implements NotificationCentreReads {
 
+    /** Keeps a delivery {@code d} whose message's type the viewer does not hide; an empty array hides nothing. */
+    private static final String VISIBLE = """
+               AND NOT EXISTS (SELECT 1
+                                 FROM communication_message hidden
+                                WHERE hidden.id = d.message_id
+                                  AND hidden.organization_id = d.organization_id
+                                  AND hidden.message_type = ANY(:hidden))
+            """;
+
     private final NamedParameterJdbcTemplate jdbc;
     private final JsonMapper jsonMapper;
     private final NotificationEntryBuilders builders;
 
     @Override
-    public NotificationPage page(String userId, Instant before, Long beforeId, int size) {
+    public NotificationPage page(PanelViewer viewer, Instant before, Long beforeId, int size) {
 
         if (size <= 0) {
             return new NotificationPage(List.of(), false, null, null);
@@ -93,13 +109,11 @@ class JdbcNotificationCentre implements NotificationCentreReads {
                    AND d.status = 'SENT'
                    AND (CAST(:before AS timestamptz) IS NULL
                         OR (d.sent_at, d.id) < (CAST(:before AS timestamptz), :beforeId))
+                """ + VISIBLE + """
                  ORDER BY d.sent_at DESC, d.id DESC
                  LIMIT :limit
-                """,
-                new MapSqlParameterSource().addValue("user", userId)
-                        .addValue("before", cursored ? Timestamp.from(before) : null)
-                        .addValue("beforeId", cursored ? beforeId : 0L).addValue("limit", size + 1),
-                this::toRow);
+                """, viewed(viewer).addValue("before", cursored ? Timestamp.from(before) : null)
+                .addValue("beforeId", cursored ? beforeId : 0L).addValue("limit", size + 1), this::toRow);
 
         // hasMore and the cursor are both read off the raw, untruncated window, before an unknown message type's row
         // is dropped: a row this deploy no longer declares is one row narrower than the client's page, not one row
@@ -120,17 +134,17 @@ class JdbcNotificationCentre implements NotificationCentreReads {
     }
 
     @Override
-    public int unreadCount(String userId) {
+    public int unreadCount(PanelViewer viewer) {
 
         var count = jdbc.queryForObject("""
                 SELECT count(*)
-                  FROM communication_delivery
-                 WHERE organization_id = current_setting('app.current_org', true)
-                   AND user_id = :user
-                   AND channel = 'IN_APP'
-                   AND status = 'SENT'
-                   AND read_at IS NULL
-                """, new MapSqlParameterSource().addValue("user", userId), Integer.class);
+                  FROM communication_delivery d
+                 WHERE d.organization_id = current_setting('app.current_org', true)
+                   AND d.user_id = :user
+                   AND d.channel = 'IN_APP'
+                   AND d.status = 'SENT'
+                   AND d.read_at IS NULL
+                """ + VISIBLE, viewed(viewer), Integer.class);
 
         // A count(*) can never actually come back null, but queryForObject's return type says it can - the same
         // null-safe unwrap this codebase's other Integer.class count reads use (see PreferenceRepositoryImpl and
@@ -139,33 +153,38 @@ class JdbcNotificationCentre implements NotificationCentreReads {
     }
 
     @Override
-    public int markRead(String userId, long id, Instant now) {
+    public int markRead(PanelViewer viewer, long id, Instant now) {
 
         return jdbc.update("""
-                UPDATE communication_delivery
+                UPDATE communication_delivery d
                    SET read_at = :now, updated_at = :now
-                 WHERE id = :id
-                   AND organization_id = current_setting('app.current_org', true)
-                   AND user_id = :user
-                   AND channel = 'IN_APP'
-                   AND status = 'SENT'
-                   AND read_at IS NULL
-                """, new MapSqlParameterSource().addValue("id", id).addValue("user", userId).addValue("now",
-                Timestamp.from(now)));
+                 WHERE d.id = :id
+                   AND d.organization_id = current_setting('app.current_org', true)
+                   AND d.user_id = :user
+                   AND d.channel = 'IN_APP'
+                   AND d.status = 'SENT'
+                   AND d.read_at IS NULL
+                """ + VISIBLE, viewed(viewer).addValue("id", id).addValue("now", Timestamp.from(now)));
     }
 
     @Override
-    public int markAllRead(String userId, Instant now) {
+    public int markAllRead(PanelViewer viewer, Instant now) {
 
         return jdbc.update("""
-                UPDATE communication_delivery
+                UPDATE communication_delivery d
                    SET read_at = :now, updated_at = :now
-                 WHERE organization_id = current_setting('app.current_org', true)
-                   AND user_id = :user
-                   AND channel = 'IN_APP'
-                   AND status = 'SENT'
-                   AND read_at IS NULL
-                """, new MapSqlParameterSource().addValue("user", userId).addValue("now", Timestamp.from(now)));
+                 WHERE d.organization_id = current_setting('app.current_org', true)
+                   AND d.user_id = :user
+                   AND d.channel = 'IN_APP'
+                   AND d.status = 'SENT'
+                   AND d.read_at IS NULL
+                """ + VISIBLE, viewed(viewer).addValue("now", Timestamp.from(now)));
+    }
+
+    private static MapSqlParameterSource viewed(PanelViewer viewer) {
+
+        return new MapSqlParameterSource().addValue("user", viewer.userId()).addValue("hidden",
+                new SqlParameterValue(Types.ARRAY, "varchar", viewer.hiddenTypes().toArray(String[]::new)));
     }
 
     /**

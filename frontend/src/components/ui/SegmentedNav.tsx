@@ -49,7 +49,10 @@ export function SegmentedNav({ label, items }: Readonly<SegmentedNavProps>) {
               {item.icon !== undefined && (
                 <span
                   aria-hidden
-                  className={cn("flex shrink-0", isActive && "text-primary")}
+                  className={cn(
+                    "flex shrink-0",
+                    isActive && "text-primary-ink",
+                  )}
                 >
                   {item.icon}
                 </span>

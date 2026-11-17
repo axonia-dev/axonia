@@ -44,7 +44,9 @@ class MailTemplateAttributePrecedenceTest {
      */
     private static final List<String> OPEN_TEMPLATES = List.of("_shell.html", "session-upcoming.html",
             "session-upcoming.txt", "session-wrap-up.html", "session-wrap-up.txt", "session-awaiting-close.html",
-            "session-awaiting-close.txt", "organization-roundup.html", "organization-roundup.txt");
+            "session-awaiting-close.txt", "organization-roundup.html", "organization-roundup.txt",
+            "mentoring-proposal.html", "mentoring-proposal.txt", "mentoring-meeting-reminder.html",
+            "mentoring-meeting-reminder.txt");
 
     private static final List<String> CONDITIONS = List.of("th:if", "th:unless", "th:each");
     private static final List<String> INCLUSIONS = List.of("th:replace", "th:insert", "th:include");

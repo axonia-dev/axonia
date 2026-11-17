@@ -46,7 +46,7 @@ describe("IconButton", () => {
 
     const button = screen.getByRole("button", { name: "Delete Acme" });
     expect(button).toHaveClass("text-muted-foreground");
-    expect(button).not.toHaveClass("text-primary");
+    expect(button).not.toHaveClass("text-primary-ink");
   });
 
   it("keeps a square box so a row of buttons shares one centre line", () => {

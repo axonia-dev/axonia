@@ -90,7 +90,7 @@ export function NeighbourhoodSummary({
               aria-label={groupNames(group).accessible}
               data-kind={group.kind}
               className={cn(
-                "border-border-strong text-muted-foreground hover:border-primary hover:text-primary-strong cursor-pointer rounded-full border px-2.5 py-1 text-xs",
+                "border-border-strong text-muted-foreground hover:border-primary hover:text-primary-ink-strong cursor-pointer rounded-full border px-2.5 py-1 text-xs",
                 group.kind === "named" && "text-foreground font-medium",
               )}
             >

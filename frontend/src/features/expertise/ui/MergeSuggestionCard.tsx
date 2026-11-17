@@ -40,7 +40,7 @@ export function MergeSuggestionCard({
         variant="ghost"
         size="sm"
         aria-label="Not a match"
-        className="text-muted-foreground hover:text-primary absolute top-2.5 right-2.5 p-1.5 hover:bg-transparent"
+        className="text-muted-foreground hover:text-primary-ink absolute top-2.5 right-2.5 p-1.5 hover:bg-transparent"
         onPress={() => onDismiss({ tagA, tagB })}
       >
         <Ban size={16} aria-hidden />

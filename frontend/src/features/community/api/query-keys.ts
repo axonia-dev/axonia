@@ -26,6 +26,8 @@ export const communityKeys = {
     [...communityKeys.detail(slug), "management-policy"] as const,
   communicationSettings: (slug: string) =>
     [...communityKeys.detail(slug), "communication-settings"] as const,
+  mentoringSettings: (slug: string) =>
+    [...communityKeys.detail(slug), "mentoring-settings"] as const,
   chatDestinations: (slug: string) =>
     [...communityKeys.detail(slug), "chat-destinations"] as const,
 };

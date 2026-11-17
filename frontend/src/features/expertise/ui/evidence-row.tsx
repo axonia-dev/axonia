@@ -112,7 +112,7 @@ export function EvidenceRow({ item, onDismiss }: Readonly<RowProps>) {
       {linkable ? (
         <Link
           to={sourceHref(item)}
-          className="text-foreground hover:text-primary min-w-0 flex-1 truncate text-sm font-medium underline-offset-2 hover:underline"
+          className="text-foreground hover:text-primary-ink min-w-0 flex-1 truncate text-sm font-medium underline-offset-2 hover:underline"
         >
           {text}
         </Link>

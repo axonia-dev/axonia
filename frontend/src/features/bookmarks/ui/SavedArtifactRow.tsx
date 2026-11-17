@@ -40,10 +40,10 @@ export function SavedArtifactRow({ item, type }: Readonly<Props>) {
       <ArtifactLink
         artifactId={artifact.id}
         url={artifact.url}
-        className="text-foreground hover:text-primary inline-flex items-center gap-1 font-semibold underline-offset-2 hover:underline"
+        className="text-foreground hover:text-primary-ink inline-flex items-center gap-1 font-semibold underline-offset-2 hover:underline"
       >
         {artifact.title}
-        <ExternalLink size={13} className="text-primary shrink-0" />
+        <ExternalLink size={13} className="text-primary-ink shrink-0" />
       </ArtifactLink>
       <div className="mt-1 flex flex-wrap items-center gap-2">
         {item.community && <CommunityBadge community={item.community} />}

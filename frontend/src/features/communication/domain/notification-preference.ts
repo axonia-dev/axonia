@@ -5,6 +5,8 @@ export const messageTypeSchema = z.enum([
   "session_wrap_up",
   "session_awaiting_close",
   "organization_roundup",
+  "mentoring_proposal",
+  "mentoring_meeting_reminder",
 ]);
 export type MessageType = z.infer<typeof messageTypeSchema>;
 
@@ -52,6 +54,16 @@ export const MESSAGE_TYPES: ReadonlyArray<MessageTypeCopy> = [
     label: "Quarterly roundup",
     description:
       "Once a quarter, what the communities in the organization got done: sessions held, knowledge published, and what's picking up.",
+  },
+  {
+    type: "mentoring_proposal",
+    label: "Mentoring proposals",
+    description: "A mail when someone proposes mentoring.",
+  },
+  {
+    type: "mentoring_meeting_reminder",
+    label: "Mentoring meeting reminders",
+    description: "A mail the day before a mentoring meeting.",
   },
 ];
 

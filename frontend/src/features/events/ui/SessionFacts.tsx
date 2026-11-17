@@ -103,7 +103,7 @@ export function SessionFacts({
           <Fact>{plural(distinctPresenters(session).length, "presenter")}</Fact>
           {showSpots && (
             <Fact>
-              <span className="text-primary-strong font-semibold">
+              <span className="text-primary-ink-strong font-semibold">
                 {plural(spots, "open spot")}
               </span>
             </Fact>

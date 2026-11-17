@@ -371,6 +371,32 @@ public class JdbcOutbox implements CommunicationPort, MessageOutcomePort, Outbox
     }
 
     /**
+     * Withdraws a subject's deliveries no attempt reached yet: {@code PENDING}, or {@code FAILED} and waiting out its
+     * backoff. A {@code SENDING} row is in flight and may land, so it is left to finish; the row lock this update takes
+     * means a concurrent {@link #claim} either got the row first, and this finds it {@code SENDING}, or skips it.
+     */
+    @Override
+    @Transactional
+    public int withdrawPending(MessageType type, String subjectRef) {
+
+        return jdbc.update("""
+                UPDATE communication_delivery d
+                   SET status = :suppressed, suppressed_reason = :withdrawn, updated_at = :now
+                  FROM communication_message m
+                 WHERE m.id = d.message_id
+                   AND m.message_type = :type
+                   AND m.subject_ref = :subject
+                   AND m.organization_id = :org
+                   AND d.organization_id = :org
+                   AND d.status IN (:pending, :failed)
+                """, new MapSqlParameterSource().addValue("suppressed", OutboxStatus.SUPPRESSED.name())
+                .addValue("withdrawn", SuppressionReason.WITHDRAWN.name())
+                .addValue("now", Timestamp.from(clock.instant())).addValue("type", type.code())
+                .addValue("subject", subjectRef).addValue("org", organizationContext.organizationId())
+                .addValue("pending", OutboxStatus.PENDING.name()).addValue("failed", OutboxStatus.FAILED.name()));
+    }
+
+    /**
      * Counts this subject's outbox rows by status and, for {@code SUPPRESSED} rows, by {@link SuppressionReason} - see
      * {@link MessageOutcome} for how the six {@link OutboxStatus} values, crossed with that reason, coarsen into the
      * five counts returned. The {@code GROUP BY} carries both columns rather than status alone specifically so

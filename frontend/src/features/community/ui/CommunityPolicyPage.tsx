@@ -118,7 +118,7 @@ function PolicyEditor({
           )}
         />
         <span>
-          <b className="text-primary-strong tabular-nums">{openCount}</b> of{" "}
+          <b className="text-primary-ink-strong tabular-nums">{openCount}</b> of{" "}
           {axisCount} sections opened to members
         </span>
       </p>

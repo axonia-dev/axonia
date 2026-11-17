@@ -19,6 +19,7 @@ const listing: CommunityListing = {
   description: "",
   status: "ACTIVE",
   memberCount: 3,
+  mentoringEnabled: false,
   role: "ORGANIZER",
   heroUrl: "/media/hero.png",
   heroFocus: { x: 20, y: 70 },

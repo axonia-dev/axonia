@@ -34,6 +34,15 @@ public enum DataCategory {
     /** What a member wants to learn: the areas they named, per community. */
     WHAT_YOU_WANT_TO_LEARN("what-you-want-to-learn"),
 
+    /** Whether a member offers to mentor or looks for a mentor in a community, and how many mentees they take. */
+    MENTORING_AVAILABILITY("mentoring-availability"),
+
+    /** The proposals between two members, the pairings they become, and the journal a pairing keeps. */
+    MENTORING("mentoring"),
+
+    /** The few words a mentee writes about their mentor, read by that mentor alone. */
+    WORDS_FROM_MENTEES("words-from-mentees"),
+
     /** What a member kept for themselves: bookmarks and saved items. */
     WHAT_YOU_SAVED("what-you-saved"),
 

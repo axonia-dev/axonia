@@ -39,7 +39,7 @@ function PastTopicMeta({
       {topic.scheduledFor && (
         <Link
           to={`/communities/${slug}/sessions/${topic.scheduledFor.sessionId}`}
-          className="text-muted-foreground hover:text-primary text-xs underline-offset-2 hover:underline"
+          className="text-muted-foreground hover:text-primary-ink text-xs underline-offset-2 hover:underline"
         >
           {topic.scheduledFor.scheduleLabel}
         </Link>

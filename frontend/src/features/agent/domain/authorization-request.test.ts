@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  authorizationOutcomeSchema,
+  authorizationOutcomeSchemaFor,
   authorizationRequestFrom,
   claimedClientHost,
   initialScopes,
@@ -92,10 +92,14 @@ describe("initialScopes", () => {
   });
 });
 
-describe("authorizationOutcomeSchema", () => {
+describe("authorizationOutcomeSchemaFor", () => {
+  const claudeCode = authorizationOutcomeSchemaFor({
+    client_id: "https://claude.ai/oauth/claude-code-client-metadata",
+  });
+
   it("reads each outcome", () => {
     expect(
-      authorizationOutcomeSchema.parse({
+      claudeCode.parse({
         outcome: "READY",
         clientName: "Claude Code",
         clientHost: "claude.ai",
@@ -103,13 +107,13 @@ describe("authorizationOutcomeSchema", () => {
       }).outcome,
     ).toBe("READY");
     expect(
-      authorizationOutcomeSchema.parse({
+      claudeCode.parse({
         outcome: "REDIRECT",
         redirectUrl: "http://localhost/cb",
       }).outcome,
     ).toBe("REDIRECT");
     expect(
-      authorizationOutcomeSchema.parse({
+      claudeCode.parse({
         outcome: "REFUSED",
         reason: "UNTRUSTED_CLIENT",
       }).outcome,
@@ -120,16 +124,26 @@ describe("authorizationOutcomeSchema", () => {
     "http://localhost:54321/callback?code=c&state=s",
     "http://127.0.0.1:1/callback",
     "http://localhost/callback",
-  ])("accepts a loopback redirect: %s", (redirectUrl) => {
-    expect(
-      authorizationOutcomeSchema.safeParse({ outcome: "REDIRECT", redirectUrl })
-        .success,
-    ).toBe(true);
-  });
+    "https://claude.ai/api/mcp/auth_callback?code=c&state=s",
+  ])(
+    "accepts a loopback redirect or one on the client host: %s",
+    (redirectUrl) => {
+      expect(
+        claudeCode.safeParse({ outcome: "REDIRECT", redirectUrl }).success,
+      ).toBe(true);
+    },
+  );
 
   it.each([
     "https://evil.example/callback",
     "https://localhost/callback",
+    "https://api.claude.ai/callback",
+    "https://claude.ai.evil.example/callback",
+    "https://claude.ai:8443/callback",
+    "https://user@claude.ai/callback",
+    "https://:pw@claude.ai/callback",
+    // eslint-disable-next-line sonarjs/no-clear-text-protocols -- the downgrade the check must refuse
+    "http://claude.ai/callback",
     "http://localhost.evil.example/callback",
     "http://evil.example@evil.example/callback",
     "http://[::1]:5/callback",
@@ -137,10 +151,21 @@ describe("authorizationOutcomeSchema", () => {
     "//evil.example/callback",
     "/callback",
     "not a url",
-  ])("refuses anything but a loopback redirect: %s", (redirectUrl) => {
+  ])("refuses any other redirect: %s", (redirectUrl) => {
     expect(
-      authorizationOutcomeSchema.safeParse({ outcome: "REDIRECT", redirectUrl })
-        .success,
+      claudeCode.safeParse({ outcome: "REDIRECT", redirectUrl }).success,
+    ).toBe(false);
+  });
+
+  it("refuses an https redirect when the client_id names no https host", () => {
+    expect(
+      authorizationOutcomeSchemaFor({
+        // eslint-disable-next-line sonarjs/no-clear-text-protocols -- a client_id that names no https host
+        client_id: "http://claude.ai/x",
+      }).safeParse({
+        outcome: "REDIRECT",
+        redirectUrl: "https://claude.ai/callback",
+      }).success,
     ).toBe(false);
   });
 });

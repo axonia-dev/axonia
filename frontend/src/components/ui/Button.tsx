@@ -29,7 +29,7 @@ const variants: Record<Variant, string> = {
   // the places an outline button is used.
   outline:
     "bg-surface text-foreground border border-border-strong shadow-sm hover:border-foreground/30 hover:shadow-md",
-  ghost: "bg-transparent text-primary hover:bg-surface-sunken",
+  ghost: "bg-transparent text-primary-ink hover:bg-surface-sunken",
   danger: "bg-danger text-danger-foreground hover:opacity-90",
 };
 

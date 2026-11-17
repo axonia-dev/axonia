@@ -15,6 +15,8 @@ export interface ManagementAccess {
   communication: boolean;
   credit: boolean;
   any: boolean;
+  /** The caller holds a membership here, whatever the role. */
+  member: boolean;
   /** Membership or policy has not resolved yet: a caller gating on one axis (e.g. `credit`)
    *  should wait rather than briefly act on the closed default. */
   isLoading: boolean;
@@ -48,6 +50,7 @@ export function useManagementAccess(slug: string): ManagementAccess {
   return {
     ...access,
     any: Object.values(access).some(Boolean),
+    member: membership !== undefined && membership !== null,
     isLoading: membershipQuery.isLoading || policyQuery.isLoading,
   };
 }

@@ -1,5 +1,7 @@
 package dev.axonia.identity.application.scim;
 
+import org.springframework.stereotype.Component;
+
 import dev.axonia.identity.api.spi.DirectorySubjects;
 import dev.axonia.identity.application.port.out.UserStore;
 import dev.axonia.identity.domain.UserAccount;
@@ -15,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
  * person, and merging them is not this push's to decide.
  */
 @Slf4j
+@Component
 final class DirectorySubjectClaim {
 
     private final DirectorySubjects directorySubjects;

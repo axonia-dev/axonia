@@ -129,6 +129,28 @@ class MembershipRepositoryTest extends CoreJdbcTestSupport {
                 new MemberCommunity(platform, "platform", "Platform"));
     }
 
+    @Test
+    void existsMentoringCommunityOf_needsAnActiveCommunityOfTheMemberWithMentoringOn() {
+
+        // given
+        var off = community("default", "off", "Off", CommunityStatus.ACTIVE);
+        var archived = communityRepository.save(CommunityEntityMother.any().slug("archived").name("Archived")
+                .status(CommunityStatus.ARCHIVED).mentoringEnabled(true).kindId(kindId).build()).getId();
+        var on = communityRepository.save(CommunityEntityMother.any().slug("on").name("On")
+                .status(CommunityStatus.ACTIVE).mentoringEnabled(true).kindId(kindId).build()).getId();
+        for (var id : List.of(off, archived)) {
+            membershipRepository.save(MembershipEntityMother.any().communityId(id).userId("alice").build());
+        }
+        membershipRepository.save(MembershipEntityMother.any().communityId(on).userId("bob").build());
+        membershipRepository
+                .save(MembershipEntityMother.any().organizationId("other").communityId(on).userId("carol").build());
+
+        // when / then
+        assertThat(membershipRepository.existsMentoringCommunityOf("default", "alice")).isFalse();
+        assertThat(membershipRepository.existsMentoringCommunityOf("default", "bob")).isTrue();
+        assertThat(membershipRepository.existsMentoringCommunityOf("other", "carol")).isFalse();
+    }
+
     private Long community(String organizationId, String slug, String name, CommunityStatus status) {
 
         return communityRepository.save(CommunityEntityMother.any().organizationId(organizationId).slug(slug).name(name)

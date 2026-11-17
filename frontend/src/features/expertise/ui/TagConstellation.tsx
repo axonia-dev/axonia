@@ -28,7 +28,7 @@ function sizeClass(ratio: number): string {
 }
 
 function colorClass(ratio: number, active: boolean): string {
-  if (active || ratio >= 0.8) return "text-primary";
+  if (active || ratio >= 0.8) return "text-primary-ink";
   if (ratio < 0.2) return "text-muted-foreground";
   return "text-foreground";
 }
@@ -56,7 +56,7 @@ export function TagConstellation({
             onClick={() => onSelect(area.canonicalTag)}
             title={`${people} can be asked`}
             aria-label={`${area.canonicalTag}, ${people}`}
-            className={`font-display hover:text-primary cursor-pointer leading-none font-semibold transition-colors ${sizeClass(ratio)} ${colorClass(ratio, active)} ${active ? "underline decoration-[color-mix(in_srgb,var(--primary)_45%,transparent)] decoration-2 underline-offset-4" : ""}`}
+            className={`font-display hover:text-primary-ink cursor-pointer leading-none font-semibold transition-colors ${sizeClass(ratio)} ${colorClass(ratio, active)} ${active ? "underline decoration-[color-mix(in_srgb,var(--primary)_45%,transparent)] decoration-2 underline-offset-4" : ""}`}
           >
             {area.canonicalTag}
             {/* No whitespace before the count: the pair then has no break opportunity. */}

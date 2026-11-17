@@ -45,6 +45,7 @@ const community = {
   description: "A guild",
   status: "ACTIVE" as const,
   memberCount: 1,
+  mentoringEnabled: false,
   createdAt: "2026-05-31T10:00:00Z",
   updatedAt: "2026-05-31T10:00:00Z",
 };

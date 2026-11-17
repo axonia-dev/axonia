@@ -48,7 +48,7 @@ function BackButton({
       type="button"
       variant="ghost"
       size="sm"
-      className="hover:text-primary-strong self-start px-0 hover:bg-transparent"
+      className="hover:text-primary-ink-strong self-start px-0 hover:bg-transparent"
       onPress={onBack}
     >
       ← Back to search

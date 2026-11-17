@@ -39,6 +39,9 @@ import dev.axonia.learning.adapter.out.privacy.LearningMemberDataEraser;
 import dev.axonia.learning.adapter.out.privacy.LearningPersonalDataExporter;
 import dev.axonia.learning.adapter.out.privacy.LearningPersonalDataFootprint;
 import dev.axonia.media.api.MediaStorage;
+import dev.axonia.mentoring.adapter.out.privacy.MentoringMemberDataEraser;
+import dev.axonia.mentoring.adapter.out.privacy.MentoringPersonalDataExporter;
+import dev.axonia.mentoring.adapter.out.privacy.MentoringPersonalDataFootprint;
 import dev.axonia.onboarding.adapter.out.privacy.OnboardingPersonDataEraser;
 import dev.axonia.onboarding.adapter.out.privacy.OnboardingPersonalDataExporter;
 import dev.axonia.onboarding.adapter.out.privacy.OnboardingPersonalDataFootprint;
@@ -88,18 +91,19 @@ import static org.mockito.Mockito.mock;
 @Import({AccessPersonalDataFootprint.class, AgentPersonalDataFootprint.class, BookmarksPersonalDataFootprint.class,
         CommunicationPersonalDataFootprint.class, CommunityPersonalDataFootprint.class,
         EventsPersonalDataFootprint.class, ExpertisePersonalDataFootprint.class, IdentityPersonalDataFootprint.class,
-        KnowledgePersonalDataFootprint.class, LearningPersonalDataFootprint.class,
+        KnowledgePersonalDataFootprint.class, LearningPersonalDataFootprint.class, MentoringPersonalDataFootprint.class,
         OnboardingPersonalDataFootprint.class, OrganizationPersonalDataFootprint.class,
         PrivacyPersonalDataFootprint.class, RecognitionPersonalDataFootprint.class, RoundupPersonalDataFootprint.class,
         AccessMemberDataEraser.class, AgentMemberDataEraser.class, BookmarksMemberDataEraser.class,
         CommunicationMemberDataEraser.class, JdbcExpiredSubjects.class, EventsMemberDataEraser.class,
         ExpertiseMemberDataEraser.class, IdentityMemberDataEraser.class, KnowledgeMemberDataEraser.class,
-        LearningMemberDataEraser.class, OnboardingPersonDataEraser.class, RecognitionMemberDataEraser.class,
-        AccessPersonalDataExporter.class, AgentPersonalDataExporter.class, BookmarksPersonalDataExporter.class,
-        CommunicationPersonalDataExporter.class, CommunityPersonalDataExporter.class, EventsPersonalDataExporter.class,
-        ExpertisePersonalDataExporter.class, IdentityPersonalDataExporter.class, KnowledgePersonalDataExporter.class,
-        LearningPersonalDataExporter.class, OnboardingPersonalDataExporter.class, RecognitionPersonalDataExporter.class,
-        TimeConfig.class, FootprintTestSupport.MediaStorageTestConfig.class})
+        LearningMemberDataEraser.class, MentoringMemberDataEraser.class, OnboardingPersonDataEraser.class,
+        RecognitionMemberDataEraser.class, AccessPersonalDataExporter.class, AgentPersonalDataExporter.class,
+        BookmarksPersonalDataExporter.class, CommunicationPersonalDataExporter.class,
+        CommunityPersonalDataExporter.class, EventsPersonalDataExporter.class, ExpertisePersonalDataExporter.class,
+        IdentityPersonalDataExporter.class, KnowledgePersonalDataExporter.class, LearningPersonalDataExporter.class,
+        MentoringPersonalDataExporter.class, OnboardingPersonalDataExporter.class,
+        RecognitionPersonalDataExporter.class, TimeConfig.class, FootprintTestSupport.MediaStorageTestConfig.class})
 public abstract class FootprintTestSupport extends CoreJdbcTestSupport {
 
     private static final JsonMapper EXPORT_MAPPER = JsonMapper.builder().findAndAddModules().build();

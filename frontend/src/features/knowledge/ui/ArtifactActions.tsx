@@ -18,7 +18,7 @@ interface Props {
   canCredit: boolean;
 }
 
-const iconButtonClass = "hover:border-primary hover:text-primary";
+const iconButtonClass = "hover:border-primary hover:text-primary-ink";
 
 export function ArtifactActions({
   artifact,

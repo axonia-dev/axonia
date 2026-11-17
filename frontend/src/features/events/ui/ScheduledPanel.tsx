@@ -32,7 +32,9 @@ function CountdownChip({ scheduledAt }: Readonly<{ scheduledAt: string }>) {
     <span
       className={cn(
         "rounded-full px-2 py-0.5 text-[11px] font-semibold",
-        soon ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground",
+        soon
+          ? "bg-primary/10 text-primary-ink"
+          : "bg-muted text-muted-foreground",
       )}
     >
       {label}
@@ -72,7 +74,7 @@ function SessionNode({
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <Link
           to={`/communities/${slug}/sessions/${group.sessionId}`}
-          className="text-foreground hover:text-primary text-sm font-bold underline-offset-2 hover:underline"
+          className="text-foreground hover:text-primary-ink text-sm font-bold underline-offset-2 hover:underline"
         >
           {date}
         </Link>

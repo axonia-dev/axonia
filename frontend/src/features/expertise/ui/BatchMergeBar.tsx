@@ -12,7 +12,7 @@ interface Props {
 const chip =
   "inline-flex items-center rounded-full border px-3 py-1 text-sm font-semibold";
 const mergedChip = `${chip} bg-surface border-border-strong text-foreground`;
-const survivorChip = `${chip} border-primary text-primary-strong bg-[color-mix(in_srgb,var(--primary)_12%,var(--surface))]`;
+const survivorChip = `${chip} border-primary text-primary-ink-strong bg-[color-mix(in_srgb,var(--primary)_12%,var(--surface))]`;
 
 /**
  * Sticky action bar shown while ≥2 tags are selected. It spells out the merge
@@ -48,7 +48,7 @@ export function BatchMergeBar({
               type="button"
               aria-label="Swap which tag survives"
               onClick={() => merged[0] && onSurvivorChange(merged[0])}
-              className="border-border-strong text-muted-foreground hover:border-primary hover:text-primary flex size-[30px] items-center justify-center rounded-md border bg-[var(--surface)] text-sm"
+              className="border-border-strong text-muted-foreground hover:border-primary hover:text-primary-ink flex size-[30px] items-center justify-center rounded-md border bg-[var(--surface)] text-sm"
             >
               ⇄
             </button>

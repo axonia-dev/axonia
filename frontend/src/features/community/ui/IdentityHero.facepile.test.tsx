@@ -47,6 +47,7 @@ const community: Community = {
   description: "Patterns and practices.",
   status: "ACTIVE",
   memberCount: 120,
+  mentoringEnabled: false,
   createdAt: "2026-05-31T10:00:00Z",
   updatedAt: "2026-05-31T10:00:00Z",
 };
@@ -89,6 +90,7 @@ function renderHero(memberCount: number) {
     communication: false,
     credit: false,
     any: false,
+    member: true,
     isLoading: false,
   });
   vi.mocked(useMyMembership).mockReturnValue({
