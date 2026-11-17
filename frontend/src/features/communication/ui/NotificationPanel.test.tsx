@@ -97,6 +97,17 @@ describe("NotificationPanel", () => {
     expect(within(rows[1]!).getByText("Platform Forum")).toBeInTheDocument();
   });
 
+  it("wraps a headline to two lines before clipping it, while the line under it stays one", () => {
+    renderPanel();
+
+    const row = within(screen.getAllByRole("listitem")[0]!);
+    expect(row.getByText("Frontend Dojo")).toHaveClass("line-clamp-2");
+    expect(row.getByText("Frontend Dojo")).not.toHaveClass("truncate");
+    expect(row.getByText("Held 1 August 2026 at 09:00")).toHaveClass(
+      "truncate",
+    );
+  });
+
   it("opens an entry at the path of its absolute action URL, not at the URL itself", () => {
     renderPanel();
 

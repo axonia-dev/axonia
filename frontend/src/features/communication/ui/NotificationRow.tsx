@@ -41,7 +41,7 @@ function RowBody({ entry }: Readonly<{ entry: Notification }>) {
         )}
       />
       <span className="min-w-0 flex-1">
-        <span className="text-foreground block truncate text-sm font-medium">
+        <span className="text-foreground line-clamp-2 text-sm font-medium break-words">
           {entry.headline}
         </span>
         {line !== undefined && (
