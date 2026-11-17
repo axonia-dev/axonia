@@ -132,6 +132,81 @@ describe("MemberNamesPage", () => {
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
   });
 
+  it("marks the field a refusal names by its index", async () => {
+    const user = userEvent.setup();
+    await pageWith(["a", "b"]);
+    await screen.findByText("Aurélia Rochat");
+    gateway.previewMemberNames.mockRejectedValue(
+      Object.assign(
+        new ApiError(400, "bad", "NAME_PATTERN_INVALID", "Needs both parts."),
+        { field: "patterns[1]" },
+      ),
+    );
+
+    await user.type(screen.getByDisplayValue("a"), "x");
+
+    const message = await screen.findByText("Needs both parts.");
+    const second = screen.getByDisplayValue("b").closest("li");
+    expect(second).toContainElement(message);
+    expect(screen.getAllByText("Needs both parts.")).toHaveLength(1);
+  });
+
+  it("keeps the last good rows, dimmed, beside a refusal", async () => {
+    const user = userEvent.setup();
+    await pageWith([PATTERN]);
+    await screen.findByText("Aurélia Rochat");
+    gateway.previewMemberNames.mockRejectedValue(
+      new ApiError(400, "bad", "NAME_PATTERN_INVALID", "Needs both parts."),
+    );
+
+    await user.type(screen.getByDisplayValue(PATTERN), "Z");
+
+    await screen.findByText("Needs both parts.");
+    expect(screen.getByText("Aurélia Rochat")).toBeVisible();
+    expect(screen.queryByText("No members to preview.")).toBeNull();
+  });
+
+  it("offers a retry and keeps Save enabled when the preview fails otherwise", async () => {
+    const user = userEvent.setup();
+    await pageWith([PATTERN]);
+    await screen.findByText("Aurélia Rochat");
+    gateway.previewMemberNames.mockRejectedValue(new ApiError(502, "down"));
+
+    await user.type(screen.getByDisplayValue(PATTERN), "Z");
+
+    expect(
+      await screen.findByRole("button", { name: "Try again" }),
+    ).toBeVisible();
+    expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+  });
+
+  it("numbers a match by the field it came from", async () => {
+    gateway.previewMemberNames.mockResolvedValue([{ ...ROW, matched: 0 }]);
+    await pageWith(["", "b"]);
+
+    const table = await screen.findByRole("table");
+    expect(within(table).getByText("Pattern 2")).toBeVisible();
+  });
+
+  it("shows the server reason for a failed save, until the next edit", async () => {
+    const user = userEvent.setup();
+    await pageWith([PATTERN]);
+    await screen.findByText("Aurélia Rochat");
+    gateway.saveMemberNamePatterns.mockRejectedValue(
+      new ApiError(400, "bad", "NAME_PATTERN_INVALID", "Too many."),
+    );
+    await user.type(screen.getByDisplayValue(PATTERN), "Z");
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Save" })).toBeEnabled(),
+    );
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByText("Too many.")).toBeVisible();
+
+    await user.type(screen.getByDisplayValue(`${PATTERN}Z`), "Y");
+    expect(screen.queryByText("Too many.")).toBeNull();
+  });
+
   it("saves and reports how many names changed", async () => {
     const user = userEvent.setup();
     await pageWith([PATTERN]);

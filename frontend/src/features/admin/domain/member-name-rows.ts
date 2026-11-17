@@ -17,23 +17,46 @@ export function changedLabel(count: number) {
   return `${count} ${count === 1 ? "name" : "names"} changed`;
 }
 
-/** The row a refusal names by its `field` such as `patterns[1]`, else the first filled row. */
+const REFUSAL_CODES = new Set([
+  "NAME_PATTERN_INVALID",
+  "NAME_PATTERNS_TOO_MANY",
+]);
+
+export function isPatternRefusal(error: unknown): error is ApiError {
+  return (
+    error instanceof ApiError &&
+    error.status === 400 &&
+    REFUSAL_CODES.has(error.code ?? "")
+  );
+}
+
+/** The refusal's reason, only when the matcher refused the list; null for any other failure. */
+export function refusalOf(error: unknown): string | null {
+  return isPatternRefusal(error)
+    ? (error.detail ?? "This pattern is not valid.")
+    : null;
+}
+
+/** The row a refusal names by its `field` such as `patterns[1]`; the bare list, or no index, lands on the first filled row. */
 export function offendingRowId(
   error: unknown,
   rows: ReadonlyArray<PatternRow>,
 ): number | undefined {
+  if (!isPatternRefusal(error)) return undefined;
   const withText = rows.filter(isFilled);
-  const index =
-    error instanceof ApiError ? /\d+/.exec(error.field ?? "")?.[0] : undefined;
+  const index = /\[(\d+)\]/.exec(error.field ?? "")?.[1];
   return (withText[Number(index)] ?? withText[0])?.id;
 }
 
-export function refusalOf(error: unknown): string | null {
-  if (error === null || error === undefined) return null;
-  if (error instanceof ApiError && error.status === 400) {
-    return error.detail ?? "This pattern is not valid.";
-  }
-  return "Could not preview the names.";
+/** The number each filled pattern carries on screen, by its place among all the fields. */
+export function fieldNumbers(rows: ReadonlyArray<PatternRow>): number[] {
+  return rows.flatMap((row, index) => (isFilled(row) ? [index + 1] : []));
+}
+
+export function failureOf(error: unknown, fallback: string): string {
+  return error instanceof ApiError && error.detail !== undefined
+    ? error.detail
+    : fallback;
 }
 
 export function insertAt(

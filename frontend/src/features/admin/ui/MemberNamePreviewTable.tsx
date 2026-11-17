@@ -1,15 +1,25 @@
 import type { MemberNamePreviewRow } from "@/features/admin/domain/member-names";
 
+interface PreviewTableProps {
+  rows: ReadonlyArray<MemberNamePreviewRow>;
+  numbers: ReadonlyArray<number>;
+  dimmed: boolean;
+}
+
 export function PreviewTable({
   rows,
-}: Readonly<{ rows: ReadonlyArray<MemberNamePreviewRow> }>) {
+  numbers,
+  dimmed,
+}: Readonly<PreviewTableProps>) {
   if (rows.length === 0) {
     return (
       <p className="text-muted-foreground text-sm">No members to preview.</p>
     );
   }
   return (
-    <div className="border-border overflow-x-auto rounded-md border">
+    <div
+      className={`border-border overflow-x-auto rounded-md border ${dimmed ? "opacity-50" : ""}`}
+    >
       <table className="w-full text-left text-sm">
         <thead className="bg-surface-sunken text-muted-foreground text-xs">
           <tr>
@@ -28,15 +38,15 @@ export function PreviewTable({
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
-            <tr key={row.received} className="border-border border-t">
+          {rows.map((row, index) => (
+            <tr key={index} className="border-border border-t">
               <td className="px-3 py-2">{row.received}</td>
               <td className="px-3 py-2">{row.displayName}</td>
               <td className="px-3 py-2">{row.givenName ?? ""}</td>
               <td className="text-muted-foreground px-3 py-2">
                 {row.matched === null
                   ? "Unchanged"
-                  : `Pattern ${row.matched + 1}`}
+                  : `Pattern ${numbers[row.matched] ?? row.matched + 1}`}
               </td>
             </tr>
           ))}

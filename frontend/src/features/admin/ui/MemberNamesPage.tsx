@@ -1,29 +1,23 @@
 import { Plus } from "lucide-react";
-import { useState } from "react";
 
 import { LoadFailed } from "@/components/patterns/LoadFailed";
 import { PageHeader } from "@/components/patterns/PageHeader";
 import { Button } from "@/components/ui/Button";
-import {
-  useMemberNamePatterns,
-  useMemberNamePreview,
-  useSaveMemberNamePatterns,
-} from "@/features/admin/api/use-member-names";
+import { useMemberNamePatterns } from "@/features/admin/api/use-member-names";
 import { usePermissions } from "@/features/admin/api/use-permissions";
 import {
   changedLabel,
-  offendingRowId,
-  refusalOf,
+  fieldNumbers,
 } from "@/features/admin/domain/member-name-rows";
 import { MAX_NAME_PATTERNS } from "@/features/admin/domain/member-names";
 import { PatternField } from "@/features/admin/ui/MemberNamePatternField";
 import { PreviewTable } from "@/features/admin/ui/MemberNamePreviewTable";
 import { RequirePermission } from "@/features/admin/ui/RequirePermission";
+import { useNamePreview } from "@/features/admin/ui/use-name-preview";
 import { usePatternEditor } from "@/features/admin/ui/use-pattern-editor";
+import { useSaveOutcome } from "@/features/admin/ui/use-save-outcome";
 import { failedToLoad } from "@/lib/failed-to-load";
-import { useDebouncedValue } from "@/lib/use-debounced-value";
 
-const PREVIEW_DEBOUNCE_MS = 300;
 const PLACEHOLDERS = ["{given}", "{family}"] as const;
 
 interface EditorProps {
@@ -52,8 +46,8 @@ function PatternList({
       <div className="flex flex-col gap-1">
         <h2 className="text-foreground text-base font-semibold">Patterns</h2>
         <p className="text-muted-foreground text-sm">
-          A name that matches the first pattern, in order, is shown as given
-          name then family name. A name no pattern matches is kept as received.
+          Patterns are tried in order. The first match shows a name as given
+          name then family name. Other names are kept as received.
         </p>
       </div>
       {rows.length === 0 && (
@@ -109,7 +103,7 @@ function PatternList({
 interface SaveBarProps {
   canSave: boolean;
   isPending: boolean;
-  isError: boolean;
+  errorMessage: string | null;
   savedCount: number | null;
   onSave: () => void;
 }
@@ -117,7 +111,7 @@ interface SaveBarProps {
 function SaveBar({
   canSave,
   isPending,
-  isError,
+  errorMessage,
   savedCount,
   onSave,
 }: Readonly<SaveBarProps>) {
@@ -131,9 +125,9 @@ function SaveBar({
           {changedLabel(savedCount)}
         </p>
       )}
-      {isError && (
+      {errorMessage !== null && (
         <p role="alert" className="text-danger text-sm">
-          Could not save the patterns.
+          {errorMessage}
         </p>
       )}
     </div>
@@ -142,19 +136,11 @@ function SaveBar({
 
 function MemberNamesEditor({ stored, canWrite }: Readonly<EditorProps>) {
   const editor = usePatternEditor(stored);
-  const [saved, setSaved] = useState<{ edit: number; count: number } | null>(
-    null,
-  );
-  const save = useSaveMemberNamePatterns();
-
-  const key = JSON.stringify(editor.patterns);
-  const settled = useDebouncedValue(key, PREVIEW_DEBOUNCE_MS);
-  const preview = useMemberNamePreview(JSON.parse(settled) as string[]);
-  const refusal = refusalOf(preview.error);
+  const save = useSaveOutcome(editor.patterns, editor.edits);
+  const preview = useNamePreview(editor.patterns, editor.rows);
   const canSave =
-    key !== JSON.stringify(stored) &&
-    settled === key &&
-    refusal === null &&
+    JSON.stringify(editor.patterns) !== JSON.stringify(stored) &&
+    preview.isReady &&
     !save.isPending;
 
   return (
@@ -162,24 +148,31 @@ function MemberNamesEditor({ stored, canWrite }: Readonly<EditorProps>) {
       <PatternList
         editor={editor}
         canWrite={canWrite}
-        refusal={refusal}
-        refusedId={offendingRowId(preview.error, editor.rows)}
+        refusal={preview.refusal}
+        refusedId={preview.refusedId}
       />
       <section className="flex flex-col gap-3">
         <h2 className="text-foreground text-base font-semibold">Preview</h2>
-        <PreviewTable rows={preview.data ?? []} />
+        {preview.failed && (
+          <LoadFailed
+            inline
+            message="Could not load the preview."
+            query={preview.query}
+          />
+        )}
+        <PreviewTable
+          rows={preview.rows}
+          numbers={fieldNumbers(editor.rows)}
+          dimmed={preview.dimmed}
+        />
       </section>
       {canWrite && (
         <SaveBar
           canSave={canSave}
           isPending={save.isPending}
-          isError={save.isError}
-          savedCount={saved?.edit === editor.edits ? saved.count : null}
-          onSave={() =>
-            save.mutate(editor.patterns, {
-              onSuccess: (count) => setSaved({ edit: editor.edits, count }),
-            })
-          }
+          errorMessage={save.error}
+          savedCount={save.count}
+          onSave={save.submit}
         />
       )}
     </div>
