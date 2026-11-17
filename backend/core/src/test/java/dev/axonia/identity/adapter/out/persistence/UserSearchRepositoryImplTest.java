@@ -227,6 +227,28 @@ class UserSearchRepositoryImplTest extends CoreJdbcTestSupport {
     }
 
     @Test
+    void findsAMemberByTheShownOrTheReceivedName() {
+
+        // given
+        userRepository.upsert(
+                UserUpsert.builder().organizationId("default").userId("user-e-aurelia")
+                        .receivedName("Rochat, Aurélia-NORTHWIND").displayName("Aurélia Rochat").givenName("Aurélia")
+                        .email("a.rochat@acme.com").scimId("scim-user-e-aurelia").build(),
+                Instant.parse("2026-07-25T12:00:00Z"));
+
+        // when
+        var byReceived = searchOrganization("rochat, aur", 10, 0);
+        var byShown = searchOrganization("aurélia ro", 10, 0);
+        var bySuffix = userRepository.search(UserSearch.builder().organizationId("default").query("northwind")
+                .limit(10).offset(0).nameOnly(true).build());
+
+        // then
+        assertThat(byReceived).extracting(UserEntity::getUserId).containsExactly("user-e-aurelia");
+        assertThat(byShown).extracting(UserEntity::getUserId).containsExactly("user-e-aurelia");
+        assertThat(bySuffix).extracting(UserEntity::getUserId).containsExactly("user-e-aurelia");
+    }
+
+    @Test
     void findsAMemberByAnAngleBracketedMailboxHeader() {
 
         // when

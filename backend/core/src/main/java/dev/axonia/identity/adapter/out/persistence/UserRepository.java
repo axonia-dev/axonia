@@ -25,12 +25,30 @@ public interface UserRepository extends CrudRepository<UserEntity, Long>, UserSe
     @Query("SELECT " + UserEntity.COLUMNS + """
              FROM identity_user
             WHERE organization_id = :organizationId AND active = true AND user_id IS NOT NULL
-              AND (lower(trim(display_name)) = :reference OR lower(email) = :reference)
+              AND (lower(trim(display_name)) = :reference OR lower(trim(received_name)) = :reference
+                   OR lower(email) = :reference)
             ORDER BY display_name, user_id
             """)
     List<UserEntity> findPeopleNamedExactly(String organizationId, String reference);
 
     List<UserEntity> findByOrganizationId(String organizationId, Pageable pageable);
+
+    @Query("SELECT " + UserEntity.COLUMNS + " FROM identity_user WHERE organization_id = :organizationId ORDER BY id")
+    List<UserEntity> findAllByOrganizationId(@Param("organizationId") String organizationId);
+
+    /**
+     * Writes what the Organization's name patterns read out of a member's received name. A row that predates
+     * {@code received_name} keeps its current display name as the received one, before that is overwritten.
+     */
+    @Modifying
+    @Query("""
+            UPDATE identity_user
+            SET received_name = coalesce(received_name, display_name), display_name = :displayName,
+                given_name = :givenName, version = version + 1
+            WHERE organization_id = :organizationId AND id = :id
+            """)
+    void updateNames(@Param("organizationId") String organizationId, @Param("id") Long id,
+            @Param("displayName") String displayName, @Param("givenName") String givenName);
 
     Optional<UserEntity> findByOrganizationIdAndScimId(String organizationId, String scimId);
 
@@ -143,12 +161,14 @@ public interface UserRepository extends CrudRepository<UserEntity, Long>, UserSe
      */
     @Modifying
     @Query("""
-            INSERT INTO identity_user (organization_id, user_id, display_name, email, scim_id, arrival,
-                                       signed_in, last_seen_at, created_at, updated_at, version)
-            VALUES (:#{#user.organizationId}, :#{#user.userId}, :#{#user.displayName}, :#{#user.email},
-                    :#{#user.scimId}, 'FIRST_SIGN_IN', true, :seenAt, :seenAt, :seenAt, 0)
+            INSERT INTO identity_user (organization_id, user_id, display_name, received_name, given_name, email,
+                                       scim_id, arrival, signed_in, last_seen_at, created_at, updated_at, version)
+            VALUES (:#{#user.organizationId}, :#{#user.userId}, :#{#user.displayName}, :#{#user.receivedName},
+                    :#{#user.givenName}, :#{#user.email}, :#{#user.scimId}, 'FIRST_SIGN_IN', true, :seenAt, :seenAt,
+                    :seenAt, 0)
             ON CONFLICT (organization_id, user_id)
-            DO UPDATE SET display_name = :#{#user.displayName}, email = :#{#user.email},
+            DO UPDATE SET display_name = :#{#user.displayName}, received_name = :#{#user.receivedName},
+                          given_name = :#{#user.givenName}, email = :#{#user.email},
                           signed_in = true, last_seen_at = :seenAt, updated_at = :seenAt,
                           version = identity_user.version + 1
             """)

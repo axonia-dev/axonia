@@ -7,6 +7,7 @@ import java.util.Optional;
 
 import dev.axonia.identity.domain.AvatarOverrideUpdate;
 import dev.axonia.identity.domain.AvatarSyncUpdate;
+import dev.axonia.identity.domain.ReadName;
 import dev.axonia.identity.domain.UserAccount;
 import dev.axonia.identity.domain.UserSearch;
 import dev.axonia.identity.domain.UserTimeZoneRow;
@@ -20,6 +21,9 @@ public interface UserStore {
     List<UserAccount> findByOrganizationIdAndUserIdIn(String organizationId, Collection<String> userIds);
 
     List<UserAccount> findByOrganizationId(String organizationId, int limit);
+
+    /** Everybody in one organization's directory, departed and never-signed-in members included. */
+    List<UserAccount> findAllByOrganizationId(String organizationId);
 
     Optional<UserAccount> findByOrganizationIdAndScimId(String organizationId, String scimId);
 
@@ -54,6 +58,9 @@ public interface UserStore {
     UserAccount save(UserAccount user);
 
     void attachSub(Long id, String userId, Instant seenAt);
+
+    /** Writes the shown and given name a name pattern read; keyed by row, since a member may hold no subject yet. */
+    void updateNames(String organizationId, Long id, ReadName name);
 
     /** Race-safe just-in-time insert or refresh of one sign-in's profile. */
     void upsert(UserUpsert user, Instant seenAt);

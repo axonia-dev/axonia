@@ -40,11 +40,15 @@ class UserSearchRepositoryImpl implements UserSearchRepository {
     /** A person's name is a handful of words. Past this the query is noise, and each token costs another scan. */
     private static final int MAX_TOKENS = 5;
 
-    /** What a token is matched against: the display name and the email, lowercased, as one string. */
-    private static final String NAME_AND_EMAIL_HAYSTACK = "lower(coalesce(display_name,'') || ' ' || coalesce(email,''))";
+    /**
+     * What a token is matched against: the shown name, the name as received and the email, lowercased, as one string.
+     * The received name keeps a search in the directory's own format finding a member whose shown name was tidied.
+     */
+    private static final String NAME_AND_EMAIL_HAYSTACK = "lower(coalesce(display_name,'') || ' '"
+            + " || coalesce(received_name,'') || ' ' || coalesce(email,''))";
 
-    /** {@link UserSearch#nameOnly()}'s haystack: the display name alone, never the email. */
-    private static final String NAME_ONLY_HAYSTACK = "lower(coalesce(display_name,''))";
+    /** {@link UserSearch#nameOnly()}'s haystack: the shown and the received name, never the email. */
+    private static final String NAME_ONLY_HAYSTACK = "lower(coalesce(display_name,'') || ' ' || coalesce(received_name,''))";
 
     /**
      * Whitespace, plus the punctuation that surrounds a name in the places these queries come from: {@code "Dinant,

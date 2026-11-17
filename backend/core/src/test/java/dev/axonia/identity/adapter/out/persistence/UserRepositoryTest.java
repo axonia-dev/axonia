@@ -69,6 +69,97 @@ class UserRepositoryTest extends CoreJdbcTestSupport {
     }
 
     @Test
+    void upsert_writesTheReceivedTheShownAndTheGivenName() {
+
+        // given
+        var entity = UserEntityMother.any().build();
+
+        // when
+        userRepository.upsert(namedUpsertOf(entity, "Rochat, Aurélia-NORTHWIND", "Aurélia Rochat", "Aurélia"),
+                SEEN_AT);
+
+        // then
+        var actual = userRepository.findByOrganizationIdAndUserId(entity.getOrganizationId(), entity.getUserId())
+                .orElseThrow();
+        assertThat(actual.getReceivedName()).isEqualTo("Rochat, Aurélia-NORTHWIND");
+        assertThat(actual.getDisplayName()).isEqualTo("Aurélia Rochat");
+        assertThat(actual.getGivenName()).isEqualTo("Aurélia");
+    }
+
+    @Test
+    void upsert_aNewReceivedNameOverwritesAllThreeNames() {
+
+        // given
+        var entity = UserEntityMother.any().build();
+        userRepository.upsert(namedUpsertOf(entity, "Rochat, Aurélia-NORTHWIND", "Aurélia Rochat", "Aurélia"),
+                SEEN_AT);
+
+        // when
+        userRepository.upsert(namedUpsertOf(entity, "octocat", "octocat", null), SEEN_AT);
+
+        // then
+        var actual = userRepository.findByOrganizationIdAndUserId(entity.getOrganizationId(), entity.getUserId())
+                .orElseThrow();
+        assertThat(actual.getReceivedName()).isEqualTo("octocat");
+        assertThat(actual.getDisplayName()).isEqualTo("octocat");
+        assertThat(actual.getGivenName()).isNull();
+    }
+
+    @Test
+    void findPeopleNamedExactly_matchesTheReceivedNameToo() {
+
+        // given
+        var entity = UserEntityMother.any().build();
+        userRepository.upsert(namedUpsertOf(entity, "Rochat, Aurélia-NORTHWIND", "Aurélia Rochat", "Aurélia"),
+                SEEN_AT);
+
+        // when
+        var byReceived = userRepository.findPeopleNamedExactly("default", "rochat, aurélia-northwind");
+        var byShown = userRepository.findPeopleNamedExactly("default", "aurélia rochat");
+
+        // then
+        assertThat(byReceived).extracting(UserEntity::getUserId).containsExactly(entity.getUserId());
+        assertThat(byShown).extracting(UserEntity::getUserId).containsExactly(entity.getUserId());
+    }
+
+    @Test
+    void findAllByOrganizationId_listsEveryMemberOfThatTenantOnly() {
+
+        // given
+        var entity = UserEntityMother.any().build();
+        userRepository.upsert(upsertOf(entity), SEEN_AT);
+        userRepository.upsert(UserUpsert.builder().organizationId("acme").userId("44444444-4444-4444-4444-444444444444")
+                .displayName("Dave Diaz").email("dave@acme.dev").scimId("44444444-4444-4444-4444-444444444444").build(),
+                SEEN_AT);
+
+        // when
+        var actual = userRepository.findAllByOrganizationId("default");
+
+        // then
+        assertThat(actual).extracting(UserEntity::getUserId).containsExactly(entity.getUserId());
+    }
+
+    @Test
+    void updateNames_writesTheReadNameAndKeepsAnUnrecordedReceivedName() {
+
+        // given a row written before received_name existed
+        var entity = UserEntityMother.any().build();
+        userRepository.upsert(upsertOf(entity), SEEN_AT);
+        var id = userRepository.findByOrganizationIdAndUserId("default", entity.getUserId()).orElseThrow().getId();
+
+        // when
+        userRepository.updateNames("default", id, "Anderson Alice", "Anderson");
+        userRepository.updateNames("acme", id, "Somebody Else", "Somebody");
+
+        // then
+        var actual = userRepository.findById(id).orElseThrow();
+        assertThat(actual.getReceivedName()).isEqualTo("Alice Anderson");
+        assertThat(actual.getDisplayName()).isEqualTo("Anderson Alice");
+        assertThat(actual.getGivenName()).isEqualTo("Anderson");
+        assertThat(actual.getVersion()).isEqualTo(1L);
+    }
+
+    @Test
     void findByOrganizationIdAndUserIdIn_isTenantScoped() {
 
         // given
@@ -385,6 +476,13 @@ class UserRepositoryTest extends CoreJdbcTestSupport {
 
         // then
         assertThat(userRepository.findById(pushed.getId()).orElseThrow().isSignedIn()).isTrue();
+    }
+
+    private static UserUpsert namedUpsertOf(UserEntity entity, String received, String shown, String given) {
+
+        return UserUpsert.builder().organizationId(entity.getOrganizationId()).userId(entity.getUserId())
+                .receivedName(received).displayName(shown).givenName(given).email(entity.getEmail())
+                .scimId(entity.getScimId()).build();
     }
 
     private static UserUpsert upsertOf(UserEntity entity) {

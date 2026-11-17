@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import dev.axonia.identity.application.port.out.UserStore;
 import dev.axonia.identity.domain.AvatarOverrideUpdate;
 import dev.axonia.identity.domain.AvatarSyncUpdate;
+import dev.axonia.identity.domain.ReadName;
 import dev.axonia.identity.domain.UserAccount;
 import dev.axonia.identity.domain.UserSearch;
 import dev.axonia.identity.domain.UserTimeZoneRow;
@@ -49,6 +50,13 @@ public class JdbcUserStore implements UserStore {
     public List<UserAccount> findByOrganizationId(String organizationId, int limit) {
         return userRepository.findByOrganizationId(organizationId, PageRequest.of(0, limit)).stream()
                 .map(JdbcUserStore::toUserAccount).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<UserAccount> findAllByOrganizationId(String organizationId) {
+        return userRepository.findAllByOrganizationId(organizationId).stream().map(JdbcUserStore::toUserAccount)
+                .toList();
     }
 
     @Override
@@ -120,6 +128,12 @@ public class JdbcUserStore implements UserStore {
 
     @Override
     @Transactional
+    public void updateNames(String organizationId, Long id, ReadName name) {
+        userRepository.updateNames(organizationId, id, name.displayName(), name.givenName());
+    }
+
+    @Override
+    @Transactional
     public void upsert(UserUpsert user, Instant seenAt) {
         userRepository.upsert(user, seenAt);
     }
@@ -174,20 +188,22 @@ public class JdbcUserStore implements UserStore {
 
     static UserAccount toUserAccount(UserEntity entity) {
         return UserAccount.builder().id(entity.getId()).organizationId(entity.getOrganizationId())
-                .userId(entity.getUserId()).displayName(entity.getDisplayName()).email(entity.getEmail())
-                .active(entity.getActive()).externalId(entity.getExternalId()).scimId(entity.getScimId())
-                .arrival(entity.getArrival()).avatarMediaKey(entity.getAvatarMediaKey())
-                .avatarEtag(entity.getAvatarEtag()).avatarSyncedAt(entity.getAvatarSyncedAt())
-                .avatarOverrideKey(entity.getAvatarOverrideKey()).lastSeenAt(entity.getLastSeenAt())
-                .signedIn(entity.isSignedIn()).observedTimeZone(entity.getObservedTimeZone())
-                .declaredTimeZone(entity.getDeclaredTimeZone()).businessUnit(entity.getBusinessUnit())
-                .department(entity.getDepartment()).team(entity.getTeam()).createdAt(entity.getCreatedAt())
-                .updatedAt(entity.getUpdatedAt()).version(entity.getVersion()).build();
+                .userId(entity.getUserId()).displayName(entity.getDisplayName())
+                .receivedName(entity.getReceivedName() == null ? entity.getDisplayName() : entity.getReceivedName())
+                .givenName(entity.getGivenName()).email(entity.getEmail()).active(entity.getActive())
+                .externalId(entity.getExternalId()).scimId(entity.getScimId()).arrival(entity.getArrival())
+                .avatarMediaKey(entity.getAvatarMediaKey()).avatarEtag(entity.getAvatarEtag())
+                .avatarSyncedAt(entity.getAvatarSyncedAt()).avatarOverrideKey(entity.getAvatarOverrideKey())
+                .lastSeenAt(entity.getLastSeenAt()).signedIn(entity.isSignedIn())
+                .observedTimeZone(entity.getObservedTimeZone()).declaredTimeZone(entity.getDeclaredTimeZone())
+                .businessUnit(entity.getBusinessUnit()).department(entity.getDepartment()).team(entity.getTeam())
+                .createdAt(entity.getCreatedAt()).updatedAt(entity.getUpdatedAt()).version(entity.getVersion()).build();
     }
 
     static UserEntity toEntity(UserAccount userAccount) {
         return UserEntity.builder().id(userAccount.id()).organizationId(userAccount.organizationId())
-                .userId(userAccount.userId()).displayName(userAccount.displayName()).email(userAccount.email())
+                .userId(userAccount.userId()).displayName(userAccount.displayName())
+                .receivedName(userAccount.receivedName()).givenName(userAccount.givenName()).email(userAccount.email())
                 .active(userAccount.active()).externalId(userAccount.externalId()).scimId(userAccount.scimId())
                 .arrival(userAccount.arrival()).avatarMediaKey(userAccount.avatarMediaKey())
                 .avatarEtag(userAccount.avatarEtag()).avatarSyncedAt(userAccount.avatarSyncedAt())

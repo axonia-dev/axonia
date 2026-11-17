@@ -24,7 +24,7 @@ public class UserEntity implements Entity {
      * The select list of every hand-written query that returns a member. Never {@code SELECT *}: a statement prepared
      * over every column fails on the release still serving once a migration drops one.
      */
-    static final String COLUMNS = "id, organization_id, user_id, display_name, email, active, external_id, scim_id,"
+    static final String COLUMNS = "id, organization_id, user_id, display_name, received_name, given_name, email, active, external_id, scim_id,"
             + " arrival, avatar_media_key, avatar_etag, avatar_synced_at, avatar_override_key, last_seen_at, signed_in,"
             + " observed_time_zone, declared_time_zone, business_unit, department, team, created_at, updated_at,"
             + " version";
@@ -35,6 +35,17 @@ public class UserEntity implements Entity {
     private String organizationId;
     private String userId;
     private String displayName;
+
+    /**
+     * The name exactly as the provider or directory asserted it, which {@code displayName} is read from through the
+     * Organization's name patterns. Null on a row written by a release that predates the column: that row's
+     * {@code displayName} is its received name.
+     */
+    private String receivedName;
+
+    /** What a name pattern read as the given name; null when no pattern matched. */
+    private String givenName;
+
     private String email;
     private Boolean active;
     private String externalId;

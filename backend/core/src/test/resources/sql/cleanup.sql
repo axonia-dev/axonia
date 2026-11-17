@@ -67,6 +67,7 @@ TRUNCATE TABLE
     expertise_signal,
     expertise_tag_alias,
     expertise_tag_dismissal,
+    identity_name_pattern,
     identity_user,
     impact_visit,
     learning_intent,

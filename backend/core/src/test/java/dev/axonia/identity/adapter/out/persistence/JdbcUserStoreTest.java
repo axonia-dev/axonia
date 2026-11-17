@@ -14,6 +14,7 @@ import org.springframework.data.domain.PageRequest;
 
 import dev.axonia.identity.domain.AvatarOverrideUpdate;
 import dev.axonia.identity.domain.AvatarSyncUpdate;
+import dev.axonia.identity.domain.ReadName;
 import dev.axonia.identity.domain.UserAccount;
 import dev.axonia.identity.domain.UserArrival;
 import dev.axonia.identity.domain.UserSearch;
@@ -29,9 +30,9 @@ import static org.mockito.Mockito.when;
 class JdbcUserStoreTest {
 
     private static final UserEntity ENTITY = UserEntity.builder().id(10L).organizationId("organizationId-1")
-            .userId("userId-2").displayName("displayName-3").email("email-4").active(Boolean.TRUE)
-            .externalId("externalId-6").scimId("scimId-7").arrival(UserArrival.SYNCED)
-            .avatarMediaKey("avatarMediaKey-9").avatarEtag("avatarEtag-10")
+            .userId("userId-2").displayName("displayName-3").receivedName("receivedName-3a").givenName("givenName-3b")
+            .email("email-4").active(Boolean.TRUE).externalId("externalId-6").scimId("scimId-7")
+            .arrival(UserArrival.SYNCED).avatarMediaKey("avatarMediaKey-9").avatarEtag("avatarEtag-10")
             .avatarSyncedAt(Instant.parse("2026-03-03T10:00:00Z")).avatarOverrideKey("avatarOverrideKey-12")
             .lastSeenAt(Instant.parse("2026-05-05T10:00:00Z")).observedTimeZone("observedTimeZone-14")
             .declaredTimeZone("declaredTimeZone-15").businessUnit("businessUnit-16").department("department-17")
@@ -79,6 +80,30 @@ class JdbcUserStoreTest {
                 .thenReturn(List.of(ENTITY));
 
         assertThat(store.findByOrganizationId("organizationId-0", 10)).containsExactly(DOMAIN);
+    }
+
+    @Test
+    void aRowWithNoRecordedReceivedNameReadsItsDisplayNameAsReceived() {
+
+        var legacy = ENTITY.toBuilder().receivedName(null).build();
+
+        assertThat(JdbcUserStore.toUserAccount(legacy).receivedName()).isEqualTo("displayName-3");
+    }
+
+    @Test
+    void findAllByOrganizationIdMapsEveryRowItFinds() {
+
+        when(userRepository.findAllByOrganizationId("organizationId-0")).thenReturn(List.of(ENTITY));
+
+        assertThat(store.findAllByOrganizationId("organizationId-0")).containsExactly(DOMAIN);
+    }
+
+    @Test
+    void updateNamesDelegatesToTheRepository() {
+
+        store.updateNames("organizationId-0", 10L, new ReadName("Aurélia Rochat", "Aurélia"));
+
+        verify(userRepository).updateNames("organizationId-0", 10L, "Aurélia Rochat", "Aurélia");
     }
 
     @Test

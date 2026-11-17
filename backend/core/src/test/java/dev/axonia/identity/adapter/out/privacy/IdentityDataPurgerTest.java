@@ -53,6 +53,7 @@ class IdentityDataPurgerTest extends PurgerTestSupport {
         assertThat(count("personal_access_token")).isZero();
         assertThat(count("agent_connection")).isZero();
         assertThat(count("agent_connection_token")).isZero();
+        assertThat(count("identity_name_pattern")).isZero();
     }
 
     @Test
@@ -126,6 +127,8 @@ class IdentityDataPurgerTest extends PurgerTestSupport {
                         + "created_at, updated_at, version) VALUES (:org, 'purger-test-user', 'Purger Test User', "
                         + "'purger-test@example.com', 'scim-purger-test-user', 'SYNCED', now(), now(), 0)",
                 Map.of("org", ORG));
+        jdbc.update("INSERT INTO identity_name_pattern (organization_id, position, pattern) "
+                + "VALUES (:org, 0, '{family}, {given}-PURGER')", Map.of("org", ORG));
 
         var groupId = jdbc.queryForObject(
                 "INSERT INTO directory_group (organization_id, scim_id, external_id, "
@@ -184,6 +187,9 @@ class IdentityDataPurgerTest extends PurgerTestSupport {
                         Map.of("org", ORG), Long.class);
             case "agent_connection_token" ->
                 jdbc.queryForObject("SELECT count(*) FROM agent_connection_token WHERE organization_id = :org",
+                        Map.of("org", ORG), Long.class);
+            case "identity_name_pattern" ->
+                jdbc.queryForObject("SELECT count(*) FROM identity_name_pattern WHERE organization_id = :org",
                         Map.of("org", ORG), Long.class);
             default -> throw new IllegalArgumentException("Unexpected org-scoped table: " + table);
         };

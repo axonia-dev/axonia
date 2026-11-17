@@ -31,7 +31,7 @@ public class IdentityPersonalDataFootprint implements PersonalDataFootprint {
     public List<TableFootprint> tables() {
 
         return List.of(identityUser(), personalAccessToken(), agentConnection(), agentConnectionToken(),
-                directoryGroupMember(), scimToken(), directoryGroup());
+                directoryGroupMember(), scimToken(), directoryGroup(), namePattern());
     }
 
     /**
@@ -56,6 +56,8 @@ public class IdentityPersonalDataFootprint implements PersonalDataFootprint {
         return TableFootprint.builder().table("identity_user").category(DataCategory.WHO_YOU_ARE).personal(List.of(
                 new ColumnFootprint("user_id", Classification.SUBJECT, Disposition.DELETE_ROW),
                 new ColumnFootprint("display_name", Classification.PERSONAL_CONTENT, Disposition.DELETE_ROW),
+                new ColumnFootprint("received_name", Classification.PERSONAL_CONTENT, Disposition.DELETE_ROW),
+                new ColumnFootprint("given_name", Classification.PERSONAL_CONTENT, Disposition.DELETE_ROW),
                 new ColumnFootprint("email", Classification.PERSONAL_CONTENT, Disposition.DELETE_ROW),
                 new ColumnFootprint("external_id", Classification.PERSONAL_CONTENT, Disposition.DELETE_ROW,
                         ExportTreatment.WITHHELD),
@@ -140,6 +142,13 @@ public class IdentityPersonalDataFootprint implements PersonalDataFootprint {
                 .personal(List.of()).notPersonal(Set.of("id", "organization_id", "token_hash", "label", "last_used_at",
                         "created_at", "updated_at", "version", "revoked_at", "expires_at"))
                 .build();
+    }
+
+    /** The name formats an Organization declared: configuration of the Organization, naming nobody. */
+    private TableFootprint namePattern() {
+
+        return TableFootprint.builder().table("identity_name_pattern").category(DataCategory.WHO_YOU_ARE)
+                .personal(List.of()).notPersonal(Set.of("organization_id", "position", "pattern")).build();
     }
 
     private TableFootprint directoryGroup() {

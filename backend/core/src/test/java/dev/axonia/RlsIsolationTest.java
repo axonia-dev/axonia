@@ -238,6 +238,31 @@ class RlsIsolationTest {
     }
 
     @Test
+    @IsolationProbe("identity_name_pattern")
+    void identityNamePatternIsOrganizationIsolated() throws Exception {
+        try (var c = asApp(); var s = c.createStatement()) {
+            // given a name pattern declared under 'default'
+            s.execute("SET app.current_org = 'default'");
+            s.execute("INSERT INTO identity_name_pattern (organization_id, position, pattern)"
+                    + " VALUES ('default', 0, '{family}, {given}-RLS')");
+            s.execute("SET app.current_org = 'acme'");
+
+            // when
+            try (var rs = s.executeQuery("SELECT count(*) FROM identity_name_pattern WHERE pattern LIKE '%-RLS'")) {
+                rs.next();
+
+                // then
+                assertThat(rs.getInt(1)).isZero(); // acme cannot see default's pattern
+            }
+            // and acme cannot delete default's pattern
+            assertThat(s.executeUpdate("DELETE FROM identity_name_pattern WHERE pattern LIKE '%-RLS'")).isZero();
+            // and acme cannot insert one under default's name (WITH CHECK denies it)
+            assertThatThrownBy(() -> s.execute("INSERT INTO identity_name_pattern (organization_id, position, pattern)"
+                    + " VALUES ('default', 1, '{family}, {given}-SNEAKY')")).hasMessageContaining("row-level security");
+        }
+    }
+
+    @Test
     @IsolationProbe("expertise_pause")
     void expertisePauseIsOrganizationIsolated() throws Exception {
         try (var c = asApp(); var s = c.createStatement()) {

@@ -41,6 +41,7 @@ public class IdentityDataPurger implements OrganizationDataPurger {
         jdbc.update("DELETE FROM agent_connection_token WHERE organization_id = :org", params);
         jdbc.update("DELETE FROM agent_connection WHERE organization_id = :org", params);
         jdbc.update("DELETE FROM identity_user WHERE organization_id = :org", params);
+        jdbc.update("DELETE FROM identity_name_pattern WHERE organization_id = :org", params);
     }
 
     /**

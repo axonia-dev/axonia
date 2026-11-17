@@ -92,10 +92,12 @@ public final class OpenSeed {
         jdbc.update("INSERT INTO learning_intent (organization_id, community_id, user_id, tag, declared_at) "
                 + "VALUES (:org, 1, 'layer3-user', 'layer3-tag', now())", Map.of("org", ORG));
         seedMentoring(communityId);
-        jdbc.update("INSERT INTO identity_user (organization_id, user_id, display_name, scim_id, arrival, "
-                + "avatar_media_key, avatar_override_key, created_at, updated_at, version) "
-                + "VALUES (:org, 'layer3-user', 'Layer 3 User', 'layer3-scim-id', 'SYNCED', "
+        jdbc.update("INSERT INTO identity_user (organization_id, user_id, display_name, received_name, given_name, "
+                + "scim_id, arrival, avatar_media_key, avatar_override_key, created_at, updated_at, version) "
+                + "VALUES (:org, 'layer3-user', 'Layer User', 'User, Layer-L3', 'Layer', 'layer3-scim-id', 'SYNCED', "
                 + "'avatars/layer3/user.jpg', 'avatars/layer3/own.png', now(), now(), 0)", Map.of("org", ORG));
+        jdbc.update("INSERT INTO identity_name_pattern (organization_id, position, pattern) "
+                + "VALUES (:org, 0, '{family}, {given}-L3')", Map.of("org", ORG));
         jdbc.update("INSERT INTO personal_access_token (organization_id, user_id, token_hash, name, scopes, "
                 + "created_at, updated_at, version) VALUES (:org, 'layer3-user', 'layer3-pat-hash', 'Layer 3 PAT', "
                 + "'read', now(), now(), 0)", Map.of("org", ORG));
