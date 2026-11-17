@@ -126,6 +126,12 @@ function CommunityShape({
         <>
           <PractitionerShape axes={shape.axes} />
           <Legend />
+          {!shape.axes.some((axis) => axis.reach !== null) && (
+            <p className="text-muted-foreground text-center text-xs">
+              Nothing drawn yet. Talks given, artifacts shared and topics
+              offered here draw the shape; marks never do.
+            </p>
+          )}
           {shape.unplacedWantToLearn.length > 0 && (
             <p className="text-muted-foreground text-center text-xs">
               Want to learn, not on the map:{" "}

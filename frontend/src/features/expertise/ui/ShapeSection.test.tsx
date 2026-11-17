@@ -204,6 +204,41 @@ describe("ShapeSection", () => {
     expect(screen.getByText("threat-modeling")).toHaveClass("inline-block");
   });
 
+  it("says what draws the shape when the member holds only marks here", () => {
+    render(
+      <ShapeSection
+        view={view({
+          areas: [],
+          declarations: [
+            {
+              tag: "kafka",
+              communityId: PLATFORM.id,
+              communityName: PLATFORM.name,
+              communitySlug: PLATFORM.slug,
+              hidden: false,
+              declaredAt: "2026-09-01T00:00:00Z",
+            },
+          ],
+        })}
+        page={PLATFORM}
+        lensId={ALL_COMMUNITIES}
+      />,
+    );
+    expect(screen.getByTestId("shape")).toHaveTextContent("kafka|-|d");
+    expect(
+      screen.getByText(
+        "Nothing drawn yet. Talks given, artifacts shared and topics offered here draw the shape; marks never do.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("adds no note once any evidence reaches an axis", () => {
+    render(
+      <ShapeSection view={view()} page={PLATFORM} lensId={ALL_COMMUNITIES} />,
+    );
+    expect(screen.queryByText(/^Nothing drawn yet/)).not.toBeInTheDocument();
+  });
+
   it("still draws when the learning read has failed", () => {
     givenLearning(undefined);
     render(
