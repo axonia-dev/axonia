@@ -18,15 +18,22 @@ import dev.axonia.identity.adapter.out.persistence.UserEntity;
 import dev.axonia.identity.adapter.out.persistence.UserRepository;
 import dev.axonia.identity.api.spi.MemberNamesGate;
 import dev.axonia.identity.application.MemberNameSettings.PreviewRow;
+import dev.axonia.identity.application.port.out.NamePatternLock;
 import dev.axonia.identity.domain.NamePatterns;
 import dev.axonia.identity.domain.UserArrival;
 import dev.axonia.shared.api.error.ForbiddenException;
+import dev.axonia.shared.api.error.ValidationException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.verify;
 
 /**
@@ -42,13 +49,14 @@ class MemberNameSettingsTest extends CoreJdbcTestSupport {
     private UserRepository userRepository;
 
     private final MemberNamesGate gate = mock(MemberNamesGate.class);
-    private final FixedNamePatterns patterns = new FixedNamePatterns();
+    private final FixedNamePatterns patterns = spy(new FixedNamePatterns());
+    private final NamePatternLock lock = mock(NamePatternLock.class);
     private MemberNameSettings sut;
 
     @BeforeEach
     void setUp() {
 
-        sut = new MemberNameSettings(gate, patterns, new JdbcUserStore(userRepository));
+        sut = new MemberNameSettings(gate, patterns, new JdbcUserStore(userRepository), lock);
         var jwt = Jwt.withTokenValue("tok").header("alg", "RS256").subject("admin").claim("org", ORG).build();
         SecurityContextHolder.setContext(new SecurityContextImpl(new JwtAuthenticationToken(jwt)));
         member("scim-octocat", "octocat");
@@ -79,6 +87,36 @@ class MemberNameSettingsTest extends CoreJdbcTestSupport {
         assertThat(stored("scim-octocat"))
                 .extracting(UserEntity::getDisplayName, UserEntity::getGivenName, UserEntity::getVersion)
                 .containsExactly("octocat", null, 0L);
+    }
+
+    @Test
+    void savingHoldsThePatternsExclusivelyBeforeReplacingThem() {
+
+        // when
+        sut.save(List.of(HOUSE_FORMAT));
+
+        // then
+        var order = inOrder(lock, patterns);
+        order.verify(lock).exclusive(ORG);
+        order.verify(patterns).replace(eq(ORG), any());
+        verifyNoMoreInteractions(lock);
+    }
+
+    @Test
+    void aGivenNameOnlyChangeIsListedFirstAndCounted() {
+
+        // given
+        member("scim-mary", "Mary Ann Smith");
+
+        // when
+        var rows = sut.preview(List.of("{given} {family}"));
+
+        // then
+        assertThat(rows).first().isEqualTo(
+                new PreviewRow("Jacquat, Jonathan-NORTHWIND", "Jacquat, Jonathan-NORTHWIND", "Jacquat,", 0));
+        assertThat(rows).contains(new PreviewRow("Mary Ann Smith", "Mary Ann Smith", "Mary", 0));
+        assertThat(rows).last().isEqualTo(new PreviewRow("octocat", "octocat", null, null));
+        assertThat(sut.save(List.of("{given} {family}"))).isEqualTo(3);
     }
 
     @Test
@@ -143,6 +181,7 @@ class MemberNameSettingsTest extends CoreJdbcTestSupport {
                 .isInstanceOfSatisfying(MemberNamesRefusedException.class, refusal -> {
                     assertThat(refusal.getCode()).isEqualTo("NAME_PATTERN_INVALID");
                     assertThat(refusal.getField()).isEqualTo("patterns[2]");
+                    assertThat(refusal.getCause()).isInstanceOf(ValidationException.class);
                 });
     }
 

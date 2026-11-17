@@ -2,6 +2,7 @@ package dev.axonia.identity.adapter.out.persistence;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import dev.axonia.CoreJdbcTestSupport;
 import dev.axonia.identity.domain.AvatarOverrideUpdate;
 import dev.axonia.identity.domain.AvatarSyncUpdate;
+import dev.axonia.identity.domain.ReadName;
 import dev.axonia.identity.domain.UserArrival;
 import dev.axonia.identity.domain.UserTimeZoneRow;
 import dev.axonia.identity.domain.UserUpsert;
@@ -148,8 +150,9 @@ class UserRepositoryTest extends CoreJdbcTestSupport {
         var id = userRepository.findByOrganizationIdAndUserId("default", entity.getUserId()).orElseThrow().getId();
 
         // when
-        userRepository.updateNames("default", id, "Anderson Alice", "Anderson");
-        userRepository.updateNames("acme", id, "Somebody Else", "Somebody");
+        userRepository.updateNames("default", Map.of(id, new ReadName("Anderson Alice", "Anderson")));
+        userRepository.updateNames("acme", Map.of(id, new ReadName("Somebody Else", "Somebody")));
+        userRepository.updateNames("default", Map.of());
 
         // then
         var actual = userRepository.findById(id).orElseThrow();

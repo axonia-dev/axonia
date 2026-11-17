@@ -11,7 +11,7 @@ public class MemberNamesRefusedException extends ValidationException {
 
     MemberNamesRefusedException(ValidationException refusal, String field) {
 
-        super(refusal.getCode(), refusal.getMessage());
+        super(refusal.getCode(), refusal.getMessage(), refusal);
         this.field = field;
     }
 }

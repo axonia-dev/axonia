@@ -24,8 +24,8 @@ public class UserEntity implements Entity {
      * The select list of every hand-written query that returns a member. Never {@code SELECT *}: a statement prepared
      * over every column fails on the release still serving once a migration drops one.
      */
-    static final String COLUMNS = "id, organization_id, user_id, display_name, received_name, given_name, email, active, external_id, scim_id,"
-            + " arrival, avatar_media_key, avatar_etag, avatar_synced_at, avatar_override_key, last_seen_at, signed_in,"
+    static final String COLUMNS = "id, organization_id, user_id, display_name, received_name, given_name, email,"
+            + " active, external_id, scim_id, arrival, avatar_media_key, avatar_etag, avatar_synced_at, avatar_override_key, last_seen_at, signed_in,"
             + " observed_time_zone, declared_time_zone, business_unit, department, team, created_at, updated_at,"
             + " version";
 

@@ -2,10 +2,17 @@ package dev.axonia.identity.application;
 
 import org.junit.jupiter.api.Test;
 
+import dev.axonia.identity.application.port.out.NamePatternLock;
+import dev.axonia.identity.application.port.out.NamePatternStore;
+import dev.axonia.identity.domain.NamePatterns;
 import dev.axonia.identity.domain.ReadName;
 import dev.axonia.identity.domain.UserAccount;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
 class MemberNamesTest {
 
@@ -32,6 +39,21 @@ class MemberNamesTest {
         var names = FixedNamePatterns.declaring("acme", "{family}, {given}-NORTHWIND");
 
         assertThat(names.read(ORG, RECEIVED)).isEqualTo(new ReadName(RECEIVED, null));
+    }
+
+    @Test
+    void holdsThePatternsSharedBeforeReadingThem() {
+
+        var store = mock(NamePatternStore.class);
+        var lock = mock(NamePatternLock.class);
+        when(store.find(ORG)).thenReturn(NamePatterns.NONE);
+
+        new MemberNames(store, lock).read(ORG, RECEIVED);
+
+        var order = inOrder(lock, store);
+        order.verify(lock).shared(ORG);
+        order.verify(store).find(ORG);
+        verifyNoMoreInteractions(lock);
     }
 
     @Test

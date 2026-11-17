@@ -2,6 +2,7 @@ package dev.axonia.identity.adapter.out.persistence;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
@@ -101,9 +102,11 @@ class JdbcUserStoreTest {
     @Test
     void updateNamesDelegatesToTheRepository() {
 
-        store.updateNames("organizationId-0", 10L, new ReadName("Aurélia Rochat", "Aurélia"));
+        var names = Map.of(10L, new ReadName("Aurélia Rochat", "Aurélia"));
 
-        verify(userRepository).updateNames("organizationId-0", 10L, "Aurélia Rochat", "Aurélia");
+        store.updateNames("organizationId-0", names);
+
+        verify(userRepository).updateNames("organizationId-0", names);
     }
 
     @Test

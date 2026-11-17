@@ -16,7 +16,7 @@ import dev.axonia.identity.domain.AvatarSyncUpdate;
 import dev.axonia.identity.domain.UserTimeZoneRow;
 import dev.axonia.identity.domain.UserUpsert;
 
-public interface UserRepository extends CrudRepository<UserEntity, Long>, UserSearchRepository {
+public interface UserRepository extends CrudRepository<UserEntity, Long>, UserSearchRepository, UserNameRepository {
 
     Optional<UserEntity> findByOrganizationIdAndUserId(String organizationId, String userId);
 
@@ -35,20 +35,6 @@ public interface UserRepository extends CrudRepository<UserEntity, Long>, UserSe
 
     @Query("SELECT " + UserEntity.COLUMNS + " FROM identity_user WHERE organization_id = :organizationId ORDER BY id")
     List<UserEntity> findAllByOrganizationId(@Param("organizationId") String organizationId);
-
-    /**
-     * Writes what the Organization's name patterns read out of a member's received name. A row that predates
-     * {@code received_name} keeps its current display name as the received one, before that is overwritten.
-     */
-    @Modifying
-    @Query("""
-            UPDATE identity_user
-            SET received_name = coalesce(received_name, display_name), display_name = :displayName,
-                given_name = :givenName, version = version + 1
-            WHERE organization_id = :organizationId AND id = :id
-            """)
-    void updateNames(@Param("organizationId") String organizationId, @Param("id") Long id,
-            @Param("displayName") String displayName, @Param("givenName") String givenName);
 
     Optional<UserEntity> findByOrganizationIdAndScimId(String organizationId, String scimId);
 

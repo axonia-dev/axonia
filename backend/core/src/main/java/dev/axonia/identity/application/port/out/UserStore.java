@@ -3,6 +3,7 @@ package dev.axonia.identity.application.port.out;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import dev.axonia.identity.domain.AvatarOverrideUpdate;
@@ -59,8 +60,11 @@ public interface UserStore {
 
     void attachSub(Long id, String userId, Instant seenAt);
 
-    /** Writes the shown and given name a name pattern read; keyed by row, since a member may hold no subject yet. */
-    void updateNames(String organizationId, Long id, ReadName name);
+    /**
+     * Writes the shown and given names a name pattern read, in one batch; keyed by row id, since a member may hold no
+     * subject yet.
+     */
+    void updateNames(String organizationId, Map<Long, ReadName> names);
 
     /** Race-safe just-in-time insert or refresh of one sign-in's profile. */
     void upsert(UserUpsert user, Instant seenAt);

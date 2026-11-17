@@ -12,4 +12,10 @@ public class ValidationException extends RuntimeException {
         super(message);
         this.code = code;
     }
+
+    public ValidationException(String code, String message, Throwable cause) {
+
+        super(message, cause);
+        this.code = code;
+    }
 }

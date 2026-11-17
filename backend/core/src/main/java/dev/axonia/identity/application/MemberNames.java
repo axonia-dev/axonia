@@ -1,8 +1,10 @@
 package dev.axonia.identity.application;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import dev.axonia.identity.application.port.out.NamePatternLock;
 import dev.axonia.identity.application.port.out.NamePatternStore;
 import dev.axonia.identity.domain.ReadName;
 import dev.axonia.identity.domain.UserAccount;
@@ -17,10 +19,16 @@ import lombok.RequiredArgsConstructor;
 public class MemberNames {
 
     private final NamePatternStore patterns;
+    private final NamePatternLock lock;
 
-    @Transactional(readOnly = true)
+    /**
+     * Holds the Organization's patterns shared for the rest of the writer's transaction before reading them, so a save
+     * cannot replace them between this read and the write that follows.
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
     public ReadName read(String organizationId, String receivedName) {
 
+        lock.shared(organizationId);
         return patterns.find(organizationId).read(receivedName);
     }
 

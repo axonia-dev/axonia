@@ -48,6 +48,18 @@ class IdentityPersonalDataExporterTest extends FootprintTestSupport {
     }
 
     @Test
+    void aRowWrittenBeforeTheReceivedNameExistedExportsItsShownNameAsReceived() {
+
+        seedEveryTableForBothMembers();
+
+        var fragment = exporter.export(new ExportScope.OneMember(ORG, TARGET));
+
+        assertThat(rowsOf(fragment, "identity_user")).singleElement()
+                .satisfies(row -> assertThat(row).containsEntry("received_name", row.get("display_name")))
+                .satisfies(row -> assertThat(row.get("received_name")).isNotNull());
+    }
+
+    @Test
     void organizationScopedExportCarriesEveryMembersRowsAndEveryAvatarMediaKey() {
 
         seedEveryTableForBothMembers();

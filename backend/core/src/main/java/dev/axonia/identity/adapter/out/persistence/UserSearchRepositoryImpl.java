@@ -48,7 +48,8 @@ class UserSearchRepositoryImpl implements UserSearchRepository {
             + " || coalesce(received_name,'') || ' ' || coalesce(email,''))";
 
     /** {@link UserSearch#nameOnly()}'s haystack: the shown and the received name, never the email. */
-    private static final String NAME_ONLY_HAYSTACK = "lower(coalesce(display_name,'') || ' ' || coalesce(received_name,''))";
+    private static final String NAME_ONLY_HAYSTACK = "lower(coalesce(display_name,'') || ' '"
+            + " || coalesce(received_name,''))";
 
     /**
      * Whitespace, plus the punctuation that surrounds a name in the places these queries come from: {@code "Dinant,

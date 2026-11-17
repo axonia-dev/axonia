@@ -19,7 +19,9 @@ public final class NamePattern {
     private static final String GIVEN = "given";
     private static final String FAMILY = "family";
     private static final Pattern PLACEHOLDER = Pattern.compile("\\{([^{}]*)}");
-    private static final Pattern WHITESPACE = Pattern.compile("\\s+");
+    private static final int FLAGS = Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.UNICODE_CHARACTER_CLASS;
+    private static final Pattern WHITESPACE = Pattern.compile("\\s+", Pattern.UNICODE_CHARACTER_CLASS);
+    private static final Pattern EDGE_WHITESPACE = Pattern.compile("^\\s+|\\s+$", Pattern.UNICODE_CHARACTER_CLASS);
 
     private final String text;
     private final Pattern compiled;
@@ -32,12 +34,11 @@ public final class NamePattern {
 
     public static NamePattern parse(String text) {
 
-        var trimmed = text == null ? "" : text.strip();
+        var trimmed = text == null ? "" : trimmed(text);
         if (trimmed.length() > MAX_LENGTH) {
             throw invalid("A name pattern holds at most " + MAX_LENGTH + " characters.");
         }
-        return new NamePattern(trimmed,
-                Pattern.compile(regexOf(trimmed), Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE));
+        return new NamePattern(trimmed, Pattern.compile(regexOf(trimmed), FLAGS));
     }
 
     public String text() {
@@ -54,9 +55,18 @@ public final class NamePattern {
         if (!match.matches()) {
             return Optional.empty();
         }
-        var given = match.group(GIVEN).strip();
-        var family = match.group(FAMILY).strip();
+        var given = trimmed(match.group(GIVEN));
+        var family = trimmed(match.group(FAMILY));
+        if (given.isEmpty() || family.isEmpty()) {
+            return Optional.empty();
+        }
         return Optional.of(new ReadName(given + " " + family, given));
+    }
+
+    /** {@link String#strip()} misses a no-break space, which directory exports often carry. */
+    private static String trimmed(String text) {
+
+        return EDGE_WHITESPACE.matcher(text).replaceAll("");
     }
 
     private static String regexOf(String text) {

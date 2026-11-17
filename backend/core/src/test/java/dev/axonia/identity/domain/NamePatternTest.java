@@ -48,6 +48,20 @@ class NamePatternTest {
     }
 
     @Test
+    void aPartMadeOnlyOfWhitespaceIsNoMatch() {
+
+        assertThat(HOUSE_FORMAT.read("Rochat,  -NORTHWIND")).isEmpty();
+        assertThat(NamePattern.parse("{given}-{family}").read("Aurélia- \u00A0")).isEmpty();
+    }
+
+    @Test
+    void aNoBreakSpaceCountsAsWhitespace() {
+
+        assertThat(HOUSE_FORMAT.read("\u00A0Rochat\u00A0,\u00A0Aurélia\u00A0-NORTHWIND\u00A0"))
+                .contains(new ReadName("Aurélia Rochat", "Aurélia"));
+    }
+
+    @Test
     void theEarlierPlaceholderTakesTheShortestMatch() {
 
         assertThat(NamePattern.parse("{given} {family}").read("Mary Ann Smith"))

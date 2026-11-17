@@ -66,9 +66,9 @@ public class IdentityPersonalDataExporter implements PersonalDataExporter {
 
     private ExportFragment organizationFragment(ExportScope.InOrganization scope) {
 
-        Map<String, Object> payload = Map.of("identity_user", rowsOf("identity_user", scope), "personal_access_token",
-                rowsOf("personal_access_token", scope), "agent_connection", rowsOf("agent_connection", scope),
-                "directory_group_member", directoryGroupMembers(scope));
+        Map<String, Object> payload = Map.of("identity_user", withReceivedNames(rowsOf("identity_user", scope)),
+                "personal_access_token", rowsOf("personal_access_token", scope), "agent_connection",
+                rowsOf("agent_connection", scope), "directory_group_member", directoryGroupMembers(scope));
         return new ExportFragment(IdentityExportFile.NAME, payload, mediaKeys(scope));
     }
 
@@ -76,6 +76,13 @@ public class IdentityPersonalDataExporter implements PersonalDataExporter {
 
         var query = ExportQueries.byOrganizationAndUser(footprint.table(table), "user_id", scope);
         return jdbc.queryForList(query.sql(), query.params());
+    }
+
+    /** A row written before {@code received_name} existed received the name it still shows. */
+    private static List<Map<String, Object>> withReceivedNames(List<Map<String, Object>> rows) {
+
+        rows.forEach(row -> row.putIfAbsent("received_name", row.get("display_name")));
+        return rows;
     }
 
     private List<Map<String, Object>> directoryGroupMembers(ExportScope.InOrganization scope) {

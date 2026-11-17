@@ -12,6 +12,7 @@ import dev.axonia.CoreWebMvcTest;
 import dev.axonia.identity.application.MemberNameSettings;
 import dev.axonia.identity.application.MemberNameSettings.PreviewRow;
 import dev.axonia.identity.api.spi.MemberNamesGate;
+import dev.axonia.identity.application.port.out.NamePatternLock;
 import dev.axonia.identity.application.port.out.NamePatternStore;
 import dev.axonia.identity.application.port.out.UserStore;
 import dev.axonia.identity.domain.NamePatterns;
@@ -67,7 +68,7 @@ class MemberNamesControllerTest extends ControllerTestSupport {
 
     /** The real validation, over collaborators it never reaches: a refused list is refused before any read. */
     private final MemberNameSettings validating = new MemberNameSettings(mock(MemberNamesGate.class),
-            mock(NamePatternStore.class), mock(UserStore.class));
+            mock(NamePatternStore.class), mock(UserStore.class), mock(NamePatternLock.class));
 
     @Test
     void aPreviewOfAnInvalidPatternIs400NamingThePatternAtFault() {

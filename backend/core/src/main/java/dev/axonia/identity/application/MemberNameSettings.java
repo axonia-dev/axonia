@@ -1,6 +1,7 @@
 package dev.axonia.identity.application;
 
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.stream.IntStream;
 
@@ -8,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import dev.axonia.identity.api.spi.MemberNamesGate;
+import dev.axonia.identity.application.port.out.NamePatternLock;
 import dev.axonia.identity.application.port.out.NamePatternStore;
 import dev.axonia.identity.application.port.out.UserStore;
 import dev.axonia.identity.domain.NamePattern;
@@ -36,14 +38,16 @@ public class MemberNameSettings {
     private final MemberNamesGate gate;
     private final NamePatternStore patternStore;
     private final UserStore users;
+    private final NamePatternLock lock;
 
     /** One member's name as a candidate list would read it; {@code matched} is the pattern's index, null for none. */
     @Builder
     public record PreviewRow(String received, String displayName, String givenName, Integer matched) {
 
+        /** A pattern that matches changes the member's name even when only a given name appears. */
         boolean changes() {
 
-            return !received.equals(displayName);
+            return matched != null;
         }
     }
 
@@ -64,23 +68,27 @@ public class MemberNameSettings {
                 .toList();
     }
 
-    /** Replaces the list and reads every member's name through it, in one transaction; answers how many changed. */
+    /**
+     * Replaces the list and reads every member's name through it, in one transaction holding the Organization's
+     * patterns exclusively, so no name writer reads the list this replaces; answers how many changed.
+     */
     @Transactional
     public int save(List<String> texts) {
 
         gate.requireWrite();
         var patterns = validated(texts);
         var organizationId = CurrentToken.organization();
+        lock.exclusive(organizationId);
         patternStore.replace(organizationId, patterns);
-        var changed = 0;
+        var changed = new HashMap<Long, ReadName>();
         for (var member : users.findAllByOrganizationId(organizationId)) {
             var name = patterns.read(member.receivedName());
             if (!name.equals(currentNameOf(member))) {
-                users.updateNames(organizationId, member.id(), name);
-                changed++;
+                changed.put(member.id(), name);
             }
         }
-        return changed;
+        users.updateNames(organizationId, changed);
+        return changed.size();
     }
 
     private static NamePatterns validated(List<String> texts) {

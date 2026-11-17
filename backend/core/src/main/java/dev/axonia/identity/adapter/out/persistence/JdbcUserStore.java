@@ -3,6 +3,7 @@ package dev.axonia.identity.adapter.out.persistence;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.data.domain.PageRequest;
@@ -128,8 +129,8 @@ public class JdbcUserStore implements UserStore {
 
     @Override
     @Transactional
-    public void updateNames(String organizationId, Long id, ReadName name) {
-        userRepository.updateNames(organizationId, id, name.displayName(), name.givenName());
+    public void updateNames(String organizationId, Map<Long, ReadName> names) {
+        userRepository.updateNames(organizationId, names);
     }
 
     @Override
