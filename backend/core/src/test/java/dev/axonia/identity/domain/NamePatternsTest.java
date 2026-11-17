@@ -3,8 +3,9 @@ package dev.axonia.identity.domain;
 import java.util.Collections;
 import java.util.List;
 
-import dev.axonia.shared.api.error.ValidationException;
 import org.junit.jupiter.api.Test;
+
+import dev.axonia.shared.api.error.ValidationException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

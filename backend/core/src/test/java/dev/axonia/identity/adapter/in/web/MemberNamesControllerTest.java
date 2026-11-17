@@ -9,9 +9,9 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import dev.axonia.ControllerTestSupport;
 import dev.axonia.CoreWebMvcTest;
+import dev.axonia.identity.api.spi.MemberNamesGate;
 import dev.axonia.identity.application.MemberNameSettings;
 import dev.axonia.identity.application.MemberNameSettings.PreviewRow;
-import dev.axonia.identity.api.spi.MemberNamesGate;
 import dev.axonia.identity.application.port.out.NamePatternLock;
 import dev.axonia.identity.application.port.out.NamePatternStore;
 import dev.axonia.identity.application.port.out.UserStore;
