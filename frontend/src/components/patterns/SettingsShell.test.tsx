@@ -145,6 +145,7 @@ describe("SettingsShell", () => {
       "Vocabulary",
       "Notifications",
       "Users",
+      "Member names",
       "Roles",
       "Group access",
       "Directory sync",

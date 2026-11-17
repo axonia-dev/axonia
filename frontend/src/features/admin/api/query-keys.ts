@@ -16,5 +16,8 @@ export const adminKeys = {
     [...adminKeys.all, "current-organization"] as const,
   scimTokens: () => [...adminKeys.all, "scim-tokens"] as const,
   roundupSettings: () => [...adminKeys.all, "roundup-settings"] as const,
+  memberNamePatterns: () => [...adminKeys.all, "member-name-patterns"] as const,
+  memberNamePreview: (patterns: ReadonlyArray<string>) =>
+    [...adminKeys.all, "member-name-preview", patterns] as const,
   roundupPreview: () => [...adminKeys.all, "roundup-preview"] as const,
 };

@@ -45,7 +45,7 @@ describe("SettingsOverview", () => {
   it("renders every section as a link built from the base", () => {
     renderOrganizationOverview();
     const links = screen.getAllByRole("link");
-    expect(links).toHaveLength(8);
+    expect(links).toHaveLength(9);
     expect(screen.getByRole("link", { name: /Users/ })).toHaveAttribute(
       "href",
       "/settings/organization/users",

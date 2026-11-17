@@ -5,6 +5,7 @@ import type {
   Role,
   RoleBinding,
 } from "@/features/admin/domain/admin-user";
+import type { MemberNamePreviewRow } from "@/features/admin/domain/member-names";
 import type { Page } from "@/lib/page";
 
 export interface GrantRoleBody {
@@ -47,4 +48,7 @@ export interface AdminGateway {
   createRole(body: CreateRoleBody): Promise<Role>;
   updateRole(id: number, body: UpdateRoleBody): Promise<Role>;
   deleteRole(id: number): Promise<void>;
+  getMemberNamePatterns(): Promise<string[]>;
+  previewMemberNames(patterns: string[]): Promise<MemberNamePreviewRow[]>;
+  saveMemberNamePatterns(patterns: string[]): Promise<number>;
 }

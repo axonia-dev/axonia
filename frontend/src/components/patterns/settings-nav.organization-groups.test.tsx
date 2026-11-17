@@ -157,6 +157,7 @@ describe("organizationSettingsGroups", () => {
     const [, peopleAccess] = organizationSettingsGroups("ENTERPRISE", []);
     expect(peopleAccess?.items.map((item) => item.label)).toEqual([
       "Users",
+      "Member names",
       "Roles",
       "Group access",
       "Directory sync",
@@ -172,6 +173,7 @@ describe("organizationSettingsGroups", () => {
     const [, peopleAccess] = organizationSettingsGroups("HUB", []);
     expect(peopleAccess?.items.map((item) => item.label)).toEqual([
       "Users",
+      "Member names",
       "Roles",
       "Directory sync",
     ]);

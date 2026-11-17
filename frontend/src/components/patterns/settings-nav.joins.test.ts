@@ -29,6 +29,7 @@ describe("a section that joins People & access", () => {
   it("sits after Group access and ahead of Directory sync", () => {
     expect(peopleAndAccess("ENTERPRISE")).toEqual([
       "Users",
+      "Member names",
       "Roles",
       "Group access",
       "Ledger",
@@ -40,6 +41,7 @@ describe("a section that joins People & access", () => {
   it("keeps its place for a Hub", () => {
     expect(peopleAndAccess("HUB")).toEqual([
       "Users",
+      "Member names",
       "Roles",
       "Ledger",
       "Directory sync",

@@ -49,6 +49,9 @@ vi.mock("@/features/recognition/api/use-reactions", () => ({
 vi.mock("@/features/admin/ui/GroupAccessPage", () => ({
   GroupAccessPage: () => <p>Group access page</p>,
 }));
+vi.mock("@/features/admin/ui/MemberNamesPage", () => ({
+  MemberNamesPage: () => <p>Member names page</p>,
+}));
 vi.mock("@/features/admin/ui/DirectorySyncPage", () => ({
   DirectorySyncPage: () => <p>Directory sync page</p>,
 }));
@@ -149,6 +152,7 @@ const ORGANIZATION_SECTION_DESTINATIONS: ReadonlyArray<
   ["general", "Tenant settings page"],
   ["notifications", "Organization notifications page"],
   ["users", "Users page"],
+  ["member-names", "Member names page"],
   ["roles", "Roles page"],
   ["group-access", "Group access page"],
   ["directory-sync", "Directory sync page"],

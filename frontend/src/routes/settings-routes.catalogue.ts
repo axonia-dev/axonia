@@ -2,6 +2,7 @@ import type { ComponentType } from "react";
 
 import { GROUP_ACCESS_PATH } from "@/components/patterns/settings-nav";
 import { DirectorySyncPage } from "@/features/admin/ui/DirectorySyncPage";
+import { MemberNamesPage } from "@/features/admin/ui/MemberNamesPage";
 import { OrganizationNotificationsPage } from "@/features/admin/ui/OrganizationNotificationsPage";
 import { TenantSettingsPage } from "@/features/admin/ui/TenantSettingsPage";
 import { UsersPage } from "@/features/admin/ui/UsersPage";
@@ -73,6 +74,7 @@ export const ORGANIZATION_SECTIONS: Record<string, ComponentType> = {
   general: TenantSettingsPage,
   notifications: OrganizationNotificationsPage,
   users: UsersPage,
+  "member-names": MemberNamesPage,
   "directory-sync": DirectorySyncPage,
   "data-export": DataExportPage,
 };

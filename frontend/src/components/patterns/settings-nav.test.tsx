@@ -66,7 +66,7 @@ describe("visibleGroups", () => {
       "Organization",
       "People & access",
     ]);
-    expect(labels(visible)).toEqual(["General", "Users"]);
+    expect(labels(visible)).toEqual(["General", "Users", "Member names"]);
   });
 
   it("keeps Roles for a caller who may only read roles, so the page's read-only view is reachable", () => {

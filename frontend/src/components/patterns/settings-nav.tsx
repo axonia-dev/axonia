@@ -5,6 +5,7 @@ import {
   Building2,
   Download,
   FolderSync,
+  IdCard,
   Network,
   ShieldCheck,
   Users,
@@ -146,6 +147,12 @@ export function organizationSettingsGroups(
           path: "users",
           label: "Users",
           icon: Users,
+          permissions: ["member:read"],
+        },
+        {
+          path: "member-names",
+          label: "Member names",
+          icon: IdCard,
           permissions: ["member:read"],
         },
         {

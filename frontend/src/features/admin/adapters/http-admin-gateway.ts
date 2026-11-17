@@ -15,6 +15,11 @@ import {
   roleBindingSchema,
   roleSchema,
 } from "@/features/admin/domain/admin-user";
+import {
+  memberNamePatternsSchema,
+  memberNamePreviewSchema,
+  memberNamesSavedSchema,
+} from "@/features/admin/domain/member-names";
 import { apiFetch, apiFetchVoid } from "@/lib/api-client";
 import { buildQuery as query } from "@/lib/query";
 
@@ -111,5 +116,26 @@ export const httpAdminGateway: AdminGateway = {
 
   async deleteRole(id: number) {
     await apiFetchVoid(`/axonia/roles/${id}`, { method: "DELETE" });
+  },
+
+  async getMemberNamePatterns() {
+    const data = await apiFetch<unknown>("/axonia/member-names");
+    return memberNamePatternsSchema.parse(data).patterns;
+  },
+
+  async previewMemberNames(patterns) {
+    const data = await apiFetch<unknown>("/axonia/member-names/preview", {
+      method: "POST",
+      body: JSON.stringify({ patterns }),
+    });
+    return memberNamePreviewSchema.parse(data).rows;
+  },
+
+  async saveMemberNamePatterns(patterns) {
+    const data = await apiFetch<unknown>("/axonia/member-names", {
+      method: "PUT",
+      body: JSON.stringify({ patterns }),
+    });
+    return memberNamesSavedSchema.parse(data).changed;
   },
 };
