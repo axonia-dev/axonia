@@ -2,6 +2,7 @@ package dev.axonia.mentoring.adapter.out.privacy;
 
 import java.sql.Date;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -118,6 +119,27 @@ class MentoringPersonalDataExporterTest extends FootprintTestSupport {
                         .containsEntry("mentor_user_id", NEIGHBOUR).containsEntry("mentee_user_id", THIRD));
         assertThat(rowsOf(fragment, "mentoring_words")).hasSize(3);
         assertThat(rowsOf(fragment, "mentoring_pairing")).allSatisfy(row -> assertThat(row).doesNotContainKey("role"));
+    }
+
+    @Test
+    void exportsAPairingsShowing() {
+
+        // given
+        jdbc.update("UPDATE mentoring_pairing SET visibility = 'ASKING', mentee_said_yes = true WHERE id = :id",
+                Map.of("id", mentoring));
+        jdbc.update("UPDATE mentoring_proposal SET pairs_shown = false WHERE message = 'Sent to the target'", Map.of());
+
+        // when
+        var fragment = exporter.export(new ExportScope.OneMember(ORG, TARGET));
+
+        // then
+        assertThat(rowsOf(fragment, "mentoring_pairing")).extracting(row -> row.get("role"),
+                row -> row.get("visibility"), row -> row.get("mentor_said_yes"), row -> row.get("mentee_said_yes"))
+                .containsExactlyInAnyOrder(tuple("MENTEE", "SHOWN", false, false),
+                        tuple("MENTOR", "ASKING", false, true));
+        assertThat(rowsOf(fragment, "mentoring_proposal"))
+                .extracting(row -> row.get("message"), row -> row.get("pairs_shown"))
+                .containsExactlyInAnyOrder(tuple("Sent by the target", true), tuple("Sent to the target", false));
     }
 
     @Test

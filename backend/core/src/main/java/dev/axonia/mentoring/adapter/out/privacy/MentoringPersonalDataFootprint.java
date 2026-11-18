@@ -20,6 +20,11 @@ import dev.axonia.shared.api.personaldata.TableFootprint;
  * through their pairing.
  *
  * <p>
+ * The community sees that an ongoing, shown pairing exists, who mentors whom and since when; everything inside it, its
+ * journal included, stays with its two people. Whether it shows, and each side's answer while it asks, are exported
+ * with the pairing, and a pairing with a side cleared is never shown.
+ *
+ * <p>
  * A member pointer naming the member is the one subject row a member's export leaves out on purpose: it sits in two
  * other people's private journal, and handing it over would reveal that their pairing exists. Erasure still deletes it.
  *
@@ -76,8 +81,9 @@ public class MentoringPersonalDataFootprint implements PersonalDataFootprint {
                 .personal(List.of(subject("mentor_user_id", Disposition.DELETE_ROW),
                         subject("mentee_user_id", Disposition.DELETE_ROW), content("message")))
                 .notPersonal(Set.of("id", "organization_id", "community_id", "proposed_by", "topics", "status",
-                        "created_at", "answered_at", "reopened_at"))
-                .exportedContext(Set.of("proposed_by", "topics", "status", "created_at", "answered_at", "reopened_at"))
+                        "created_at", "answered_at", "reopened_at", "pairs_shown"))
+                .exportedContext(Set.of("proposed_by", "topics", "status", "created_at", "answered_at", "reopened_at",
+                        "pairs_shown"))
                 .exportedLabels(Set.of(COMMUNITY_LABEL, ROLE_LABEL, DIRECTION_LABEL)).build();
     }
 
@@ -86,8 +92,10 @@ public class MentoringPersonalDataFootprint implements PersonalDataFootprint {
         return TableFootprint.builder().table(PAIRING).category(DataCategory.MENTORING)
                 .personal(List.of(subject("mentor_user_id", Disposition.CLEAR),
                         subject("mentee_user_id", Disposition.CLEAR)))
-                .notPersonal(Set.of("id", "organization_id", "community_id", "started_at", "ended_at", "end_reason"))
-                .exportedContext(Set.of("started_at", "ended_at", "end_reason"))
+                .notPersonal(Set.of("id", "organization_id", "community_id", "started_at", "ended_at", "end_reason",
+                        "visibility", "mentor_said_yes", "mentee_said_yes"))
+                .exportedContext(Set.of("started_at", "ended_at", "end_reason", "visibility", "mentor_said_yes",
+                        "mentee_said_yes"))
                 .exportedLabels(Set.of(COMMUNITY_LABEL, ROLE_LABEL)).build();
     }
 
