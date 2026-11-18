@@ -75,6 +75,29 @@ describe("NoteComposer", () => {
     );
   });
 
+  it("starts a new note with the planned topics ticked", async () => {
+    // given
+    const { write } = logbookHooks();
+    render(<NoteComposer journal={journal} topicIds={[1]} onDone={vi.fn()} />);
+
+    // when
+    await userEvent.type(
+      screen.getByRole("textbox", { name: "Note" }),
+      "Asked, not told.",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Add note" }));
+
+    // then
+    expect(screen.getByRole("button", { name: /Code review/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(write.addNote.mutate).toHaveBeenCalledWith(
+      { body: "Asked, not told.", meetingOn: "2026-11-16", topicIds: [1] },
+      expect.anything(),
+    );
+  });
+
   it("saves a changed note in place and closes once saved", async () => {
     // given
     const { write } = logbookHooks();

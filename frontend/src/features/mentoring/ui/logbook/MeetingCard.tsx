@@ -13,8 +13,9 @@ import { ROLE_INK } from "@/features/mentoring/ui/journal-people";
 import { JournalPointers } from "@/features/mentoring/ui/JournalPointers";
 import { FollowNote } from "@/features/mentoring/ui/logbook/follow-note";
 import type { Meeting } from "@/features/mentoring/ui/logbook/meetings";
-import { meetingDay } from "@/features/mentoring/ui/logbook/NextMeetingTicket";
 import { NoteComposer } from "@/features/mentoring/ui/logbook/NoteComposer";
+import { TopicChips } from "@/features/mentoring/ui/logbook/TopicChips";
+import { meetingDay } from "@/features/mentoring/ui/meeting-day";
 import { onFailure } from "@/features/mentoring/ui/notify-failure";
 import { PartnerFace, personName } from "@/features/mentoring/ui/PartnerFace";
 import { useSwapFocus } from "@/features/mentoring/ui/use-swap-focus";
@@ -198,31 +199,6 @@ function Half({
   );
 }
 
-function TopicChips({ journal, meeting }: Readonly<Omit<Props, "onAddNote">>) {
-  const named = meeting.topicIds
-    .map((id) => journal.topics.find((topic) => topic.id === id))
-    .filter((topic) => topic !== undefined);
-  if (named.length === 0) return null;
-  return (
-    <ul aria-label="Topics" className="flex flex-wrap gap-1.5">
-      {named.map((topic) => (
-        <li
-          key={topic.id}
-          className={cn(
-            "text-foreground inline-flex max-w-full items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold",
-            topic.state === "DONE"
-              ? "bg-[color-mix(in_srgb,var(--success)_22%,var(--surface))]"
-              : "bg-[color-mix(in_srgb,var(--warning)_20%,var(--surface))]",
-          )}
-        >
-          <span aria-hidden>✦</span>
-          <span className="truncate">{topic.label}</span>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 /** One meeting: the topics its notes name, and one half per person, the mentor's first. */
 export function MeetingCard({ journal, meeting, onAddNote }: Readonly<Props>) {
   return (
@@ -239,7 +215,7 @@ export function MeetingCard({ journal, meeting, onAddNote }: Readonly<Props>) {
           {meetingDay(meeting.on)}
         </span>
       </h3>
-      <TopicChips journal={journal} meeting={meeting} />
+      <TopicChips journal={journal} topicIds={meeting.topicIds} />
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Half
           journal={journal}

@@ -2,7 +2,10 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { Journal } from "@/features/mentoring/domain/mentoring";
+import type {
+  Journal,
+  PlannedMeeting,
+} from "@/features/mentoring/domain/mentoring";
 import { journalOf, noteOf, topicOf } from "@/features/mentoring/test-data";
 import { Logbook } from "@/features/mentoring/ui/logbook/Logbook";
 import { logbookHooks } from "@/test/logbook-view";
@@ -29,6 +32,15 @@ const notes = [
     topicIds: [7],
   }),
 ];
+
+function planned(
+  id: number,
+  on: string,
+  passed = false,
+  topicIds: number[] = [],
+): PlannedMeeting {
+  return { id, on, topicIds, plannedById: "u-1", plannedByName: "Ada", passed };
+}
 
 function show(overrides: Partial<Journal> = {}) {
   render(
@@ -133,22 +145,70 @@ describe("Logbook", () => {
     expect(screen.getByRole("textbox", { name: "Note" })).toHaveFocus();
   });
 
-  it("an ended journal has no composer and no ticket", () => {
+  it("a read-only journal shows no plan, no Today action and no owed cards", () => {
     // given
     logbookHooks();
 
     // when
-    show({ writable: false });
+    show({
+      writable: false,
+      meetings: [planned(4, "2026-11-12", true), planned(5, "2026-11-19")],
+    });
 
     // then
     expect(
       screen.queryByRole("button", { name: "Write a note" }),
     ).not.toBeInTheDocument();
-    expect(screen.queryByText("Set the next meeting")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Next meeting/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Today")).not.toBeInTheDocument();
+    expect(screen.queryByText("Passed")).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /Add a note/ }),
     ).not.toBeInTheDocument();
     expect(screen.getAllByText("No note")).toHaveLength(2);
+  });
+
+  it("splits the rail at Today: the plan above, owed and held meetings below", () => {
+    // given
+    logbookHooks();
+
+    // when
+    show({
+      meetings: [planned(4, "2026-11-09", true), planned(5, "2026-11-19")],
+    });
+
+    // then
+    const rows = [...document.querySelectorAll<HTMLElement>("li[data-rail]")];
+    expect(rows.map((row) => row.dataset.rail)).toEqual([
+      "ahead",
+      "today",
+      "met",
+      "owed",
+      "met",
+    ]);
+    expect(
+      within(rows[1]!).getByText("Monday 16 November"),
+    ).toBeInTheDocument();
+  });
+
+  it("write a note on today ticks today's planned topics", async () => {
+    // given
+    const { write } = logbookHooks();
+    show({ meetings: [planned(4, "2026-11-16", false, [7])] });
+
+    // when
+    await userEvent.click(screen.getByRole("button", { name: "Write a note" }));
+    await userEvent.type(
+      screen.getByRole("textbox", { name: "Note" }),
+      "Lag explained.",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Add note" }));
+
+    // then
+    expect(write.addNote.mutate).toHaveBeenCalledWith(
+      { body: "Lag explained.", meetingOn: "2026-11-16", topicIds: [7] },
+      expect.anything(),
+    );
   });
 
   it("says when no meeting has a note yet", () => {

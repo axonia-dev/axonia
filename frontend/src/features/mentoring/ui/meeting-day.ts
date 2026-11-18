@@ -22,3 +22,28 @@ export function monthOf(day: string): string {
 export function dayOfMonth(day: string): string {
   return String(Number(day.slice(8, 10)));
 }
+
+/** "Thu 19 Nov". */
+export function meetingDay(day: string): string {
+  return `${weekdayOf(day)} ${dayOfMonth(day)} ${monthOf(day)}`;
+}
+
+const LONG_WEEKDAY = new Intl.DateTimeFormat("en-GB", {
+  weekday: "long",
+  timeZone: "UTC",
+});
+
+const LONG_MONTH = new Intl.DateTimeFormat("en-GB", {
+  month: "long",
+  timeZone: "UTC",
+});
+
+/** "Thursday" for "2026-11-19". */
+export function longWeekdayOf(day: string): string {
+  return LONG_WEEKDAY.format(new Date(day));
+}
+
+/** "Thursday 19 November". */
+export function longDay(day: string): string {
+  return `${longWeekdayOf(day)} ${dayOfMonth(day)} ${LONG_MONTH.format(new Date(day))}`;
+}

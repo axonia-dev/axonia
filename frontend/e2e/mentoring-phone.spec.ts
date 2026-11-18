@@ -41,7 +41,8 @@ const pairing = {
   endedAt: null,
   stops: ["DONE", "IN_PROGRESS", "TODO"],
   nowTopic: "Kafka consumer groups",
-  nextMeeting: { on: "2026-11-19", passed: false },
+  nextMeeting: { on: "2026-11-09", passed: true },
+  laterPlanned: 2,
   meetings: 2,
   notes: 3,
   lastMetOn: "2026-11-12",
@@ -83,6 +84,15 @@ const note = (
   pointers: mine ? [longLink] : [],
 });
 
+const planned = (on: string, index: number) => ({
+  id: index + 1,
+  on,
+  topicIds: [1, 2, 3],
+  plannedById: "u-2",
+  plannedByName: "Bartholomew Montgomery-Whitfield",
+  passed: index === 0,
+});
+
 const journal = {
   pairing,
   writable: true,
@@ -103,12 +113,7 @@ const journal = {
     note(3, false, "2026-10-08", [1, 2]),
     note(4, true, "2026-11-12", [2]),
   ],
-  nextMeeting: {
-    on: "2026-11-19",
-    setById: "u-2",
-    setByName: "Bartholomew Montgomery-Whitfield",
-    passed: false,
-  },
+  meetings: ["2026-11-09", "2026-11-19", "2026-12-02"].map(planned),
   wordsWritten: false,
   canWriteWords: false,
   myWords: null,
@@ -230,6 +235,7 @@ const ended = (id: number, startedAt: string, endedAt: string) => ({
   endedAt,
   stops: ["DONE", "DONE"],
   nextMeeting: null,
+  laterPlanned: 0,
 });
 
 const myMentoring = {
@@ -251,6 +257,7 @@ const myMentoring = {
       stops: [],
       nowTopic: null,
       nextMeeting: null,
+      laterPlanned: 0,
       meetings: 0,
       notes: 0,
       lastMetOn: null,
