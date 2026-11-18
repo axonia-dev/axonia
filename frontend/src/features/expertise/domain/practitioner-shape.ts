@@ -32,12 +32,16 @@ export interface ShapeAxis {
 export type Shape =
   | { kind: "absent" }
   | { kind: "ungrouped" }
-  | { kind: "drawn"; axes: ShapeAxis[]; unplacedWantToLearn: string[] };
+  | {
+      kind: "drawn";
+      axes: ShapeAxis[];
+      offAxis: string[];
+      unplacedWantToLearn: string[];
+    };
 
 export interface ShapeInput {
   groups: readonly ShapeGroup[];
   drawnTags: readonly string[];
-  belowVocabularyFloor: boolean;
   optedOut: boolean;
   communityId: number;
   areas: readonly SelfArea[];
@@ -46,6 +50,8 @@ export interface ShapeInput {
 }
 
 const MIN_AXES = 3;
+/** Areas in no group earn an axis each only while the radar stays within this; groups are never capped. */
+const MAX_AXES = 12;
 export const ABSENT: Shape = { kind: "absent" };
 
 const REACH_ORDER: readonly ShapeReach[] = [
@@ -152,6 +158,12 @@ function marksSomething(axis: ShapeAxis): boolean {
   return axis.reach !== null || axis.declared || axis.wantsToLearn;
 }
 
+function heldIn(tags: readonly string[], h: Holdings): string[] {
+  return tags.filter(
+    (t) => h.reach.has(t) || h.declared.has(t) || h.wanted.has(t),
+  );
+}
+
 function ungroupedTags(input: ShapeInput): string[] {
   const grouped = new Set(input.groups.flatMap((g) => g.tags));
   const ungrouped = input.drawnTags.filter((t) => !grouped.has(t));
@@ -166,22 +178,32 @@ function unplaced(input: ShapeInput, wanted: Set<string>): string[] {
   return off;
 }
 
+/** Loose areas are axes while every axis fits; past that, the ones the member holds are named off the drawing. */
+function placed(
+  input: ShapeInput,
+  h: Holdings,
+): { axes: ShapeAxis[]; offAxis: string[] } | null {
+  const ungrouped = ungroupedTags(input);
+  const groupAxesOf = groupAxes(input.groups, h);
+  if (input.groups.length + ungrouped.length <= MAX_AXES) {
+    return { axes: [...groupAxesOf, ...areaAxes(ungrouped, h)], offAxis: [] };
+  }
+  if (input.groups.length < MIN_AXES) return null;
+  return { axes: groupAxesOf, offAxis: heldIn(ungrouped, h) };
+}
+
 /** One member's practice in one community, over the groups the map draws; evidence alone reaches, marks never do. */
 export function practitionerShape(input: ShapeInput): Shape {
   if (input.optedOut || !readsEveryTier(input)) return ABSENT;
   const holdings = holdingsOf(input);
   if (!holdsAnything(holdings)) return ABSENT;
-  const ungrouped = ungroupedTags(input);
-  if (ungrouped.length > 0 && !input.belowVocabularyFloor) {
-    return { kind: "ungrouped" };
-  }
-  const axes = [
-    ...groupAxes(input.groups, holdings),
-    ...areaAxes(ungrouped, holdings),
-  ];
+  const placement = placed(input, holdings);
+  if (placement === null) return { kind: "ungrouped" };
+  const { axes, offAxis } = placement;
   const unplacedWantToLearn = unplaced(input, holdings.wanted);
   const nothingToShow =
-    !axes.some(marksSomething) && unplacedWantToLearn.length === 0;
+    !axes.some(marksSomething) &&
+    offAxis.length + unplacedWantToLearn.length === 0;
   if (axes.length < MIN_AXES || nothingToShow) return ABSENT;
-  return { kind: "drawn", axes, unplacedWantToLearn };
+  return { kind: "drawn", axes, offAxis, unplacedWantToLearn };
 }

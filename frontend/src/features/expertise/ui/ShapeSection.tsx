@@ -5,6 +5,7 @@ import type { SelfView, TopicMap } from "@/features/expertise/domain/expertise";
 import {
   ABSENT,
   practitionerShape,
+  type Shape,
   type ShapeGroup,
 } from "@/features/expertise/domain/practitioner-shape";
 import {
@@ -18,7 +19,6 @@ import {
 } from "@/features/expertise/ui/named-area-grouping";
 import { PractitionerShape } from "@/features/expertise/ui/PractitionerShape";
 import { TIER_META } from "@/features/expertise/ui/tier-meta";
-import { MIN_VOCABULARY } from "@/features/expertise/ui/topic-neighbourhoods";
 import { useLearningPage } from "@/features/learning/api/use-learning";
 
 interface Props {
@@ -48,7 +48,6 @@ function shapeOf(
   return practitionerShape({
     groups: groupsFor(map.topics, map.links, map.namedAreas).map(shapeGroupOf),
     drawnTags: map.topics.map((t) => t.canonicalTag),
-    belowVocabularyFloor: map.topics.length < MIN_VOCABULARY,
     optedOut: view.optedOut,
     communityId,
     areas: view.areas,
@@ -85,6 +84,35 @@ function Legend() {
         Want to learn
       </span>
     </div>
+  );
+}
+
+/** An area named off the drawing may hold the member's evidence, so "nothing drawn" would deny it. */
+function nothingReached(shape: Extract<Shape, { kind: "drawn" }>): boolean {
+  return (
+    shape.offAxis.length === 0 &&
+    !shape.axes.some((axis) => axis.reach !== null)
+  );
+}
+
+function TagLine({
+  label,
+  tags,
+}: Readonly<{ label: string; tags: readonly string[] }>) {
+  if (tags.length === 0) return null;
+  return (
+    <p className="text-muted-foreground text-center text-xs">
+      {label}:{" "}
+      {tags.map((tag, index, all) => (
+        <Fragment key={tag}>
+          {index > 0 && " "}
+          {/* The comma rides inside, so a tag wrapped to the full width never leaves it alone on a line. */}
+          <span className="inline-block max-w-full wrap-anywhere">
+            {index < all.length - 1 ? `${tag},` : tag}
+          </span>
+        </Fragment>
+      ))}
+    </p>
   );
 }
 
@@ -126,26 +154,17 @@ function CommunityShape({
         <>
           <PractitionerShape axes={shape.axes} />
           <Legend />
-          {!shape.axes.some((axis) => axis.reach !== null) && (
+          {nothingReached(shape) && (
             <p className="text-muted-foreground text-center text-xs">
               Nothing drawn yet. Talks given, artifacts shared and topics
               offered here draw the shape; marks never do.
             </p>
           )}
-          {shape.unplacedWantToLearn.length > 0 && (
-            <p className="text-muted-foreground text-center text-xs">
-              Want to learn, not on the map:{" "}
-              {shape.unplacedWantToLearn.map((tag, index, all) => (
-                <Fragment key={tag}>
-                  {index > 0 && " "}
-                  {/* The comma rides inside, so a tag wrapped to the full width never leaves it alone on a line. */}
-                  <span className="inline-block max-w-full wrap-anywhere">
-                    {index < all.length - 1 ? `${tag},` : tag}
-                  </span>
-                </Fragment>
-              ))}
-            </p>
-          )}
+          <TagLine label="In no group" tags={shape.offAxis} />
+          <TagLine
+            label="Want to learn, not on the map"
+            tags={shape.unplacedWantToLearn}
+          />
         </>
       )}
     </section>

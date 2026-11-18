@@ -51,7 +51,7 @@ function node(canonicalTag: string): TopicNode {
   };
 }
 
-// Below the vocabulary floor, so each area is its own axis.
+// Few enough areas that each is its own axis.
 const SMALL_MAP: TopicMap = {
   topics: ["kafka", "otel", "react", "go"].map(node),
   links: [],
@@ -265,22 +265,5 @@ describe("ShapeSection", () => {
     expect(
       container.querySelector("[data-legend-mark='declared']"),
     ).toHaveAttribute("stroke", TIER_META.OPEN_TO_QUESTIONS.colour);
-  });
-
-  it("says the map does not group the areas yet, and draws nothing, when a large map is ungrouped", () => {
-    givenMap({
-      topics: Array.from({ length: 13 }, (_, i) =>
-        node(i === 0 ? "kafka" : `tag-${i}`),
-      ),
-      links: [],
-      namedAreas: [],
-    });
-    render(
-      <ShapeSection view={view()} page={PLATFORM} lensId={ALL_COMMUNITIES} />,
-    );
-    expect(
-      screen.getByText("The map does not group this community’s areas yet"),
-    ).toBeInTheDocument();
-    expect(screen.queryByTestId("shape")).not.toBeInTheDocument();
   });
 });

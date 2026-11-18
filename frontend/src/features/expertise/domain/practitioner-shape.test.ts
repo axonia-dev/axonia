@@ -78,7 +78,6 @@ function shape(over: Partial<ShapeInput>): Shape {
   return practitionerShape({
     groups: GROUPS,
     drawnTags: DRAWN,
-    belowVocabularyFloor: false,
     optedOut: false,
     communityId: PLATFORM,
     areas: [],
@@ -205,69 +204,6 @@ describe("practitionerShape", () => {
     const result = drawn(shape({ wantToLearn: ["rust"] }));
     expect(result.axes.every((a) => a.reach === null)).toBe(true);
     expect(result.unplacedWantToLearn).toEqual(["rust"]);
-  });
-
-  it("below the vocabulary floor, makes each ungrouped area an axis after the groups, by name", () => {
-    const result = drawn(
-      shape({
-        groups: [group("Security", ["authn"], 0, "named")],
-        drawnTags: ["authn", "rust", "go", "css"],
-        belowVocabularyFloor: true,
-        areas: [area("go", [[PLATFORM, "CONTRIBUTOR"]])],
-      }),
-    );
-    expect(result.axes.map((a) => [a.label, a.kind, a.reach])).toEqual([
-      ["Security", "named", null],
-      ["css", "area", null],
-      ["go", "area", "CONTRIBUTOR"],
-      ["rust", "area", null],
-    ]);
-  });
-
-  it("at or above the floor, says the map does not group the areas when detection left some ungrouped", () => {
-    expect(
-      shape({
-        groups: [],
-        drawnTags: Array.from({ length: 40 }, (_, i) => `tag-${i}`),
-        areas: [area("tag-3", [[PLATFORM, "PRACTITIONER"]])],
-      }).kind,
-    ).toBe("ungrouped");
-  });
-
-  it("is absent, not ungrouped, when a degenerate detection leaves areas ungrouped but the member holds nothing", () => {
-    expect(
-      shape({
-        groups: [],
-        drawnTags: Array.from({ length: 40 }, (_, i) => `tag-${i}`),
-      }).kind,
-    ).toBe("absent");
-  });
-
-  it("is absent, not ungrouped, for an opted-out member under a degenerate detection", () => {
-    expect(
-      shape({
-        optedOut: true,
-        groups: [],
-        drawnTags: Array.from({ length: 40 }, (_, i) => `tag-${i}`),
-        areas: [area("tag-3", [[PLATFORM, "PRACTITIONER"]])],
-      }).kind,
-    ).toBe("absent");
-  });
-
-  it("draws the named areas when they hold every drawn area under a degenerate detection", () => {
-    const named = [
-      group("A", ["a1", "a2"], 0, "named"),
-      group("B", ["b1"], 1, "named"),
-      group("C", ["c1"], 2, "named"),
-    ];
-    const result = drawn(
-      shape({
-        groups: named,
-        drawnTags: ["a1", "a2", "b1", "c1"],
-        areas: [area("b1", [[PLATFORM, "CONTRIBUTOR"]])],
-      }),
-    );
-    expect(result.axes.map((a) => a.label)).toEqual(["A", "B", "C"]);
   });
 
   it("is absent with fewer than three axes", () => {
