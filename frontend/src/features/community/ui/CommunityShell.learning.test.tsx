@@ -8,6 +8,9 @@ import { ThemeProvider } from "@/theme/ThemeProvider";
 
 // Split out of CommunityShell.test.tsx (300-line ceiling): the Learning rail entry.
 
+vi.mock("@/features/community/ui/VisitingBar", () => ({
+  VisitingFrame: (props: { children: unknown }) => props.children,
+}));
 vi.mock("@/features/community/api/use-communities", () => ({
   useCommunity: vi.fn(() => ({
     isLoading: false,

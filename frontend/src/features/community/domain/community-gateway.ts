@@ -10,6 +10,11 @@ import type {
 } from "@/features/community/domain/community";
 import type { CommunityKind } from "@/features/community/domain/community-kind";
 import type { ContributionPolicy } from "@/features/community/domain/contribution-policy";
+import type {
+  Lobby,
+  LobbyItem,
+  LobbyShelfKey,
+} from "@/features/community/domain/lobby";
 import type { ManagementPolicy } from "@/features/community/domain/management-policy";
 import type {
   CommunityRole,
@@ -20,13 +25,9 @@ import type { MentoringSettings } from "@/features/community/domain/mentoring-se
 import type { Page } from "@/features/community/domain/page";
 import type { ImageLimits } from "@/lib/fit-image";
 
-export type MembershipFilter = "JOINED" | "EXPLORE";
-
 export interface ListParams {
   page?: number;
   size?: number;
-  q?: string;
-  membership?: MembershipFilter;
 }
 
 export interface MemberListParams {
@@ -51,6 +52,13 @@ export const ASSET_LIMITS: Record<LookAndFeelAsset, ImageLimits> = {
 
 export interface CommunityGateway {
   list(params: ListParams): Promise<Page<CommunityListing>>;
+  lobby(): Promise<Lobby>;
+  lobbyShelf(
+    key: LobbyShelfKey,
+    page: number,
+    size: number,
+  ): Promise<Page<LobbyItem>>;
+  lobbySearch(q: string, page: number, size: number): Promise<Page<LobbyItem>>;
   getBySlug(slug: string): Promise<Community>;
   create(input: CommunityInput): Promise<Community>;
   update(slug: string, input: CommunityInput): Promise<Community>;

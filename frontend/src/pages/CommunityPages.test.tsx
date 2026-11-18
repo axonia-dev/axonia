@@ -17,8 +17,8 @@ beforeEach(() => {
   user = userEvent.setup({ delay: null });
 });
 
-vi.mock("@/features/community/ui/CommunityList", () => ({
-  CommunityList: () => <div>community-list</div>,
+vi.mock("@/features/community/ui/lobby/CommunityLobby", () => ({
+  CommunityLobby: () => <div>community-lobby</div>,
 }));
 vi.mock("@/features/community/ui/CommunityForm", () => ({
   CommunityForm: ({
@@ -69,7 +69,7 @@ describe("community pages", () => {
     );
 
     // then
-    expect(screen.getByText("community-list")).toBeInTheDocument();
+    expect(screen.getByText("community-lobby")).toBeInTheDocument();
   });
 
   it("CommunitiesPage hides the create CTA without community:create", () => {

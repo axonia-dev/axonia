@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { httpCommunityKindCalls } from "@/features/community/adapters/http-community-kinds";
+import { httpLobbyCalls } from "@/features/community/adapters/http-lobby";
 import { httpMentoringSettingsCalls } from "@/features/community/adapters/http-mentoring-settings";
 import type { ChatDestinationInput } from "@/features/community/domain/chat-destination";
 import {
@@ -20,7 +22,6 @@ import type {
   LookAndFeelAsset,
   MemberListParams,
 } from "@/features/community/domain/community-gateway";
-import { communityKindSchema } from "@/features/community/domain/community-kind";
 import type { ContributionPolicy } from "@/features/community/domain/contribution-policy";
 import { contributionPolicySchema } from "@/features/community/domain/contribution-policy";
 import type { ManagementPolicy } from "@/features/community/domain/management-policy";
@@ -36,10 +37,11 @@ import { buildQuery as query } from "@/lib/query";
 const communityPageSchema = pageSchema(communityListingSchema);
 const membershipPageSchema = pageSchema(membershipSchema);
 const creditablePersonListSchema = z.array(creditablePersonSchema);
-const communityKindListSchema = z.array(communityKindSchema);
 
 export const httpCommunityGateway: CommunityGateway = {
   ...httpMentoringSettingsCalls,
+  ...httpLobbyCalls,
+  ...httpCommunityKindCalls,
   async list(params: ListParams) {
     const data = await apiFetch<unknown>(
       `/axonia/communities${query({ ...params })}`,
@@ -76,35 +78,6 @@ export const httpCommunityGateway: CommunityGateway = {
       },
     );
     return communitySchema.parse(data);
-  },
-
-  async listKinds() {
-    const data = await apiFetch<unknown>("/axonia/community-kinds");
-    return communityKindListSchema.parse(data);
-  },
-
-  async createKind(label: string) {
-    const data = await apiFetch<unknown>("/axonia/community-kinds", {
-      method: "POST",
-      body: JSON.stringify({ label }),
-    });
-    return communityKindSchema.parse(data);
-  },
-
-  async renameKind(id: number, label: string) {
-    const data = await apiFetch<unknown>(`/axonia/community-kinds/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ label }),
-    });
-    return communityKindSchema.parse(data);
-  },
-
-  async deleteKind(id: number, reassignToId?: number) {
-    const suffix =
-      reassignToId === undefined ? "" : `?reassignTo=${reassignToId}`;
-    await apiFetchVoid(`/axonia/community-kinds/${id}${suffix}`, {
-      method: "DELETE",
-    });
   },
 
   async listMembers(slug: string, params: MemberListParams) {

@@ -15,6 +15,9 @@ const mentoring = vi.hoisted(() => ({
   member: true,
 }));
 
+vi.mock("@/features/community/ui/VisitingBar", () => ({
+  VisitingFrame: (props: { children: unknown }) => props.children,
+}));
 vi.mock("@/features/community/api/use-communities", () => ({
   useCommunity: vi.fn(() => ({
     isLoading: false,

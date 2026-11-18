@@ -112,4 +112,29 @@ public interface MembershipRepository
     /** The membership rows of a named set of members, for a listing ordered by something this table does not store. */
     List<MembershipEntity> findByOrganizationIdAndCommunityIdAndUserIdIn(String organizationId, Long communityId,
             Collection<String> userIds);
+
+    @Query("SELECT community_id, count(*) AS n FROM memberships WHERE organization_id = :organizationId GROUP BY 1")
+    List<CommunityTally> countMembersPerCommunity(@Param("organizationId") String organizationId);
+
+    @Query("""
+            SELECT community_id, count(*) AS n FROM memberships
+            WHERE organization_id = :organizationId AND joined_at >= :from AND joined_at < :to
+            GROUP BY 1
+            """)
+    List<CommunityTally> countJoinsPerCommunityWithin(@Param("organizationId") String organizationId,
+            @Param("from") Instant from, @Param("to") Instant to);
+
+    /** Up to {@code perCommunity} members of each community, the newest join first, ties broken by user id. */
+    @Query("""
+            SELECT community_id, user_id FROM (
+                SELECT community_id, user_id,
+                       row_number() OVER (PARTITION BY community_id ORDER BY joined_at DESC, user_id) AS position
+                FROM memberships
+                WHERE organization_id = :organizationId AND community_id IN (:communityIds)
+            ) ranked
+            WHERE position <= :perCommunity
+            ORDER BY community_id, position
+            """)
+    List<CommunityFace> findNewestMembers(@Param("organizationId") String organizationId,
+            @Param("communityIds") Collection<Long> communityIds, @Param("perCommunity") int perCommunity);
 }

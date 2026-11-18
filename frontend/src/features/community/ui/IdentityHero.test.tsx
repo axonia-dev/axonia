@@ -25,9 +25,6 @@ vi.mock("@/features/community/ui/HeroAmbientField", () => ({
   HeroAmbientField: () => null,
 }));
 
-vi.mock("@/features/community/ui/JoinAction", () => ({
-  JoinAction: () => <div>join-action</div>,
-}));
 vi.mock("@/features/community/ui/MembershipChip", () => ({
   MembershipChip: ({ role }: { role: string }) => <div>chip-{role}</div>,
 }));
@@ -150,14 +147,15 @@ describe("IdentityHero", () => {
     expect(screen.getByText("Patterns and practices.")).toBeInTheDocument();
   });
 
-  it("offers a visitor the join call-to-action and no menu at all", () => {
+  it("gives a visitor no footer at all: Join lives in the Visiting bar", () => {
     // when - a non-member: management access is derived from membership, so a
     // visitor can never have any
     renderHero();
 
     // then
-    expect(screen.getByText("join-action")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Join" })).toBeNull();
     expect(screen.queryByText("community-menu")).toBeNull();
+    expect(document.querySelector('[data-ceremony-part="footer"]')).toBeNull();
   });
 
   it("states membership rather than inviting the member to leave", () => {
@@ -166,7 +164,7 @@ describe("IdentityHero", () => {
 
     // then - no Leave button anywhere near the call-to-action slot
     expect(screen.getByText("chip-MEMBER")).toBeInTheDocument();
-    expect(screen.queryByText("join-action")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Join" })).toBeNull();
   });
 
   it("gives every member the menu, even one with no delegated access", () => {
@@ -190,19 +188,18 @@ describe("IdentityHero", () => {
     renderHero({ membership: undefined });
 
     // then
-    expect(screen.queryByText("join-action")).toBeNull();
+    expect(screen.queryByText("chip-MEMBER")).toBeNull();
     expect(screen.queryByText("community-menu")).toBeNull();
   });
 
-  it("falls back to Join when the membership query has failed, instead of a blank strip", () => {
+  it("treats a failed membership lookup as a visit, with no footer", () => {
     // when - data is undefined on both a loading AND a failed query; isError is
-    // what tells the two apart, and a failed lookup should not lock a visitor
-    // out of joining
+    // what tells the two apart, and the Visiting bar offers Join for it
     renderHero({ membership: undefined, isError: true });
 
     // then
-    expect(screen.getByText("join-action")).toBeInTheDocument();
     expect(screen.queryByText("community-menu")).toBeNull();
+    expect(document.querySelector('[data-ceremony-part="footer"]')).toBeNull();
   });
 
   it("marks an archived community", () => {

@@ -10,6 +10,7 @@ import {
   useMyMembership,
 } from "@/features/community/api/use-membership";
 import { IdentityHero } from "@/features/community/ui/IdentityHero";
+import { WithVisitingJoin } from "@/features/community/ui/visiting-join.test-helpers";
 import { useUsers } from "@/features/identity/api/use-users";
 import { communityFixture } from "@/test/community-fixture";
 
@@ -17,11 +18,6 @@ vi.mock("@/features/community/ui/HeroAmbientField", () => ({
   HeroAmbientField: () => null,
 }));
 
-vi.mock("@/features/community/ui/JoinAction", () => ({
-  JoinAction: ({ onJoined }: { onJoined?: () => void }) => (
-    <button onClick={onJoined}>Join</button>
-  ),
-}));
 vi.mock("@/features/community/ui/CommunityMenu", () => ({
   CommunityMenu: () => <button>community-menu</button>,
 }));
@@ -56,7 +52,9 @@ const community = communityFixture({ memberCount: 42 });
 function renderHero() {
   return render(
     <MemoryRouter>
-      <IdentityHero community={community} slug="backend-guild" />
+      <WithVisitingJoin>
+        <IdentityHero community={community} slug="backend-guild" />
+      </WithVisitingJoin>
     </MemoryRouter>,
   );
 }
@@ -204,7 +202,9 @@ describe("IdentityHero ceremonies", () => {
     } as never);
     rerender(
       <MemoryRouter>
-        <IdentityHero community={community} slug="backend-guild" />
+        <WithVisitingJoin>
+          <IdentityHero community={community} slug="backend-guild" />
+        </WithVisitingJoin>
       </MemoryRouter>,
     );
 

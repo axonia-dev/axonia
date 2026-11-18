@@ -66,10 +66,9 @@ describe("useCommunities", () => {
     });
 
     // when
-    const { result } = renderHook(
-      () => useCommunities({ page: 0, size: 20, q: "" }),
-      { wrapper },
-    );
+    const { result } = renderHook(() => useCommunities({ page: 0, size: 20 }), {
+      wrapper,
+    });
 
     // then
     await waitFor(() => expect(result.current.isSuccess).toBe(true));

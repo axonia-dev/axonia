@@ -36,6 +36,7 @@ import { CommunityIdentityChip } from "@/features/community/ui/CommunityIdentity
 import { CommunitySwitcher } from "@/features/community/ui/CommunitySwitcher";
 import { contentMaxWidthClass } from "@/features/community/ui/content-width";
 import { useCommunityNavAccess } from "@/features/community/ui/use-community-nav-access";
+import { VisitingFrame } from "@/features/community/ui/VisitingBar";
 import { AccountMenu } from "@/features/identity/ui/AccountMenu";
 import {
   useAssignOnboarding,
@@ -49,9 +50,8 @@ import { useVisitRecorder } from "@/features/onboarding/ui/use-visit-recorder";
 import { cn } from "@/lib/cn";
 import { failedToLoad } from "@/lib/failed-to-load";
 
-// Kept outside CommunityShell so the hub/enterprise branch doesn't add to the
-// component's own eslint `complexity` count; picks the switcher variant for
-// both the rail (collapsed known) and the mobile topbar (collapsed omitted).
+// Kept outside CommunityShell so the hub/enterprise branch stays out of its eslint `complexity`;
+// picks the switcher variant for the rail (collapsed known) and the mobile topbar (omitted).
 function communitySwitcher(
   isHub: boolean,
   community: Community,
@@ -64,9 +64,8 @@ function communitySwitcher(
   );
 }
 
-// Same reasoning as communitySwitcher: keeps the hub/enterprise branch out of
-// CommunityShell's complexity count. Hub orgs are flat - no "Communities"
-// root - so the community name is the first (and possibly only) crumb.
+// Same reasoning as communitySwitcher. Hub orgs are flat - no "Communities" root - so the
+// community name is the first (and possibly only) crumb.
 function breadcrumbItems({
   isHub,
   community,
@@ -291,7 +290,9 @@ export function CommunityShell() {
         mainStyle={MAIN_WASH}
       >
         <CrumbSetterProvider value={setCrumbs}>
-          <Outlet />
+          <VisitingFrame name={community.name} slug={slug}>
+            <Outlet />
+          </VisitingFrame>
         </CrumbSetterProvider>
       </AppShell>
     </div>

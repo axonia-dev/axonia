@@ -1,8 +1,13 @@
 package dev.axonia.community.adapter.out.persistence;
 
+import java.time.Instant;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -93,6 +98,37 @@ public class JdbcMembershipLedger implements MembershipLedger {
 
         return membershipRepository.findByOrganizationIdAndCommunityIdAndUserIdIn(organizationId, communityId, userIds)
                 .stream().map(JdbcMembershipLedger::toRecord).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<Long, Long> memberCounts(String organizationId) {
+
+        return tallies(membershipRepository.countMembersPerCommunity(organizationId));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<Long, Long> joinsWithin(String organizationId, Instant from, Instant to) {
+
+        return tallies(membershipRepository.countJoinsPerCommunityWithin(organizationId, from, to));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<Long, List<String>> newestMemberIds(String organizationId, Set<Long> communityIds, int perCommunity) {
+
+        if (communityIds.isEmpty()) {
+            return Map.of();
+        }
+        return membershipRepository.findNewestMembers(organizationId, communityIds, perCommunity).stream()
+                .collect(Collectors.groupingBy(CommunityFace::communityId, LinkedHashMap::new,
+                        Collectors.mapping(CommunityFace::userId, Collectors.toList())));
+    }
+
+    private static Map<Long, Long> tallies(List<CommunityTally> rows) {
+
+        return rows.stream().collect(Collectors.toMap(CommunityTally::communityId, CommunityTally::n));
     }
 
     @Override

@@ -16,6 +16,9 @@ import { ThemeProvider } from "@/theme/ThemeProvider";
 // stubs `useOnboarding` to `{ data: undefined }`, which keeps the assignment effect's condition
 // false throughout - none of them can tell a working guard from a deleted one. These stub the
 // one state the guard actually reacts to.
+vi.mock("@/features/community/ui/VisitingBar", () => ({
+  VisitingFrame: (props: { children: unknown }) => props.children,
+}));
 vi.mock("@/features/community/api/use-communities", () => ({
   useCommunity: vi.fn(() => ({
     isLoading: false,

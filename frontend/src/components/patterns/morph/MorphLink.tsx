@@ -53,7 +53,7 @@ function withIntent<E>(
   };
 }
 
-export function useMorphLinkProps(
+function useMorphLinkProps(
   to: string,
   {
     onIntent,

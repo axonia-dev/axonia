@@ -4,11 +4,16 @@ import type {
   ListParams,
   MemberListParams,
 } from "@/features/community/domain/community-gateway";
+import type { LobbyShelfKey } from "@/features/community/domain/lobby";
 
 export const communityKeys = {
   all: ["communities"] as const,
   lists: () => [...communityKeys.all, "list"] as const,
   list: (params: ListParams) => [...communityKeys.lists(), params] as const,
+  lobby: () => [...communityKeys.lists(), "lobby"] as const,
+  lobbyShelf: (key: LobbyShelfKey) =>
+    [...communityKeys.lobby(), "shelf", key] as const,
+  lobbySearch: (q: string) => [...communityKeys.lobby(), "search", q] as const,
   detail: (slug: string) => [...communityKeys.all, "detail", slug] as const,
   membersAll: (slug: string) =>
     [...communityKeys.detail(slug), "members"] as const,

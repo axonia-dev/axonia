@@ -7,6 +7,14 @@ import { useCommunityCrumbs } from "@/features/community/ui/community-chrome";
 import { CommunityShell } from "@/features/community/ui/CommunityShell";
 import { ThemeProvider } from "@/theme/ThemeProvider";
 
+vi.mock("@/features/community/ui/VisitingBar", () => ({
+  VisitingFrame: (props: { name: string; children: unknown }) => (
+    <>
+      <p>visiting-frame {props.name}</p>
+      {props.children}
+    </>
+  ),
+}));
 vi.mock("@/features/community/api/use-communities", () => ({
   useCommunity: vi.fn(() => ({
     isLoading: false,
@@ -130,6 +138,17 @@ function renderAtBeforeCrumb(path: string, routePath: string) {
 }
 
 describe("CommunityShell section ownership", () => {
+  it("frames every page with the Visiting bar, named after the community", () => {
+    // when
+    renderAt("/communities/backend-guild/sessions/41", "sessions/:sessionId");
+
+    // then
+    const frame = screen.getByText("visiting-frame Backend Guild");
+    expect(frame.compareDocumentPosition(screen.getByText("panel"))).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+  });
+
   // Both halves of one declaration, asserted together on purpose: a fix that
   // lands only the crumb leaves the rail saying the session is somewhere else,
   // which is the defect being closed here.

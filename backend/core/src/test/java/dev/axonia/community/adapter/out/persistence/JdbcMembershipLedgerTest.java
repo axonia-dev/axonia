@@ -3,6 +3,7 @@ package dev.axonia.community.adapter.out.persistence;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -19,6 +20,7 @@ import dev.axonia.community.domain.MembershipRecord;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @MockitoSettings
@@ -170,5 +172,16 @@ class JdbcMembershipLedgerTest {
         var captor = ArgumentCaptor.forClass(MembershipEntity.class);
         verify(membershipRepository).delete(captor.capture());
         assertThat(JdbcMembershipLedger.toRecord(captor.getValue())).isEqualTo(STORED);
+    }
+
+    @Test
+    void newestMemberIds_of_no_community_asks_nothing() {
+
+        // when
+        var actual = sut.newestMemberIds("default", Set.of(), 12);
+
+        // then
+        assertThat(actual).isEmpty();
+        verifyNoInteractions(membershipRepository);
     }
 }

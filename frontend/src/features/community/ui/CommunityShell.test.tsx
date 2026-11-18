@@ -7,6 +7,9 @@ import { SidebarProvider } from "@/components/patterns/SidebarProvider";
 import { useManagementAccess } from "@/features/community/api/use-management-access";
 import { CommunityShell } from "@/features/community/ui/CommunityShell";
 import { ThemeProvider } from "@/theme/ThemeProvider";
+vi.mock("@/features/community/ui/VisitingBar", () => ({
+  VisitingFrame: (props: { children: unknown }) => props.children,
+}));
 vi.mock("@/features/community/api/use-communities", () => ({
   useCommunity: vi.fn(() => ({
     isLoading: false,

@@ -8,6 +8,9 @@ import { CommunityShell } from "@/features/community/ui/CommunityShell";
 import { kindHue } from "@/lib/kind-hue";
 import { ThemeProvider } from "@/theme/ThemeProvider";
 
+vi.mock("@/features/community/ui/VisitingBar", () => ({
+  VisitingFrame: (props: { children: unknown }) => props.children,
+}));
 vi.mock("@/features/community/api/use-communities", () => ({
   useCommunity: vi.fn(),
   useCommunities: () => ({ data: { content: [] } }),

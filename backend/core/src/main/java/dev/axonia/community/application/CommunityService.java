@@ -21,7 +21,6 @@ import dev.axonia.community.api.CommunityIdentity;
 import dev.axonia.community.api.CommunityListing;
 import dev.axonia.community.api.CommunityRole;
 import dev.axonia.community.api.CommunityStatus;
-import dev.axonia.community.api.FocalPoint;
 import dev.axonia.community.api.MembershipFilter;
 import dev.axonia.community.application.port.out.CommunityKindStore;
 import dev.axonia.community.application.port.out.CommunitySearch;
@@ -238,8 +237,7 @@ public class CommunityService implements Communities {
 
     private Map<Long, String> kindLabels(String organizationId) {
 
-        return communityKindStore.listByLabel(organizationId).stream()
-                .collect(Collectors.toMap(CommunityKindRecord::getId, CommunityKindRecord::getLabel));
+        return CommunityListings.kindLabels(communityKindStore, organizationId);
     }
 
     private String uniqueSlug(String organizationId, String base) {
@@ -265,16 +263,6 @@ public class CommunityService implements Communities {
 
     private Community toCommunity(CommunityRecord e, long memberCount, String kindLabel) {
 
-        return Community.builder().id(e.getId()).slug(e.getSlug()).name(e.getName()).kindId(e.getKindId())
-                .kind(kindLabel).description(e.getDescription()).status(e.getStatus()).memberCount(memberCount)
-                .badgeUrl(resolve(e.getBadgeKey())).heroUrl(resolve(e.getHeroKey())).accentColor(e.getAccentColor())
-                .heroFocus(FocalPoint.fromColumns(e.getHeroFocusX(), e.getHeroFocusY()))
-                .badgeFocus(FocalPoint.fromColumns(e.getBadgeFocusX(), e.getBadgeFocusY())).createdAt(e.getCreatedAt())
-                .mentoringEnabled(e.isMentoringEnabled()).updatedAt(e.getUpdatedAt()).build();
-    }
-
-    private String resolve(String key) {
-
-        return Optional.ofNullable(key).map(mediaLinks::urlFor).orElse(null);
+        return CommunityListings.toCommunity(e, memberCount, kindLabel, mediaLinks);
     }
 }

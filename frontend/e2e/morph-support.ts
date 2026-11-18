@@ -1,8 +1,6 @@
 import type { Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 
-import { paged } from "./community-home";
-
 const PIXEL_PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
   "base64",
@@ -80,22 +78,6 @@ export async function noGroupsDuring(
       }),
   );
   expect(await morphsSeen(page)).toEqual([]);
-}
-
-/** The lobby lists its two sections from one path, told apart by the membership parameter. */
-export async function stubLobby(
-  page: Page,
-  sections: { joined: unknown[]; explore: unknown[] },
-): Promise<void> {
-  await page.route(
-    (url) => url.pathname === "/axonia/communities",
-    (route) => {
-      const { searchParams } = new URL(route.request().url());
-      const joined = searchParams.get("membership") === "JOINED";
-      const content = joined ? sections.joined : sections.explore;
-      return route.fulfill({ json: paged(content) });
-    },
-  );
 }
 
 export async function stubImages(page: Page): Promise<void> {

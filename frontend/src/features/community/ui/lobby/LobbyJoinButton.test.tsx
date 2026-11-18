@@ -5,7 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { handOffCeremony } from "@/features/community/api/ceremony-handoff";
 import { useJoin } from "@/features/community/api/use-membership";
-import { ExploreJoinButton } from "@/features/community/ui/ExploreJoinButton";
+import { LobbyDeparture } from "@/features/community/ui/lobby/lobby-departure";
+import { LobbyJoinButton } from "@/features/community/ui/lobby/LobbyJoinButton";
 import { ApiError } from "@/lib/api-client";
 
 vi.mock("@/features/community/api/use-membership", () => ({
@@ -33,13 +34,13 @@ function CommunityHome() {
   return <p>{dark ? "home under the curtain" : "home in plain sight"}</p>;
 }
 
-function renderButton() {
+function renderButton(onImage = false) {
   return render(
     <MemoryRouter initialEntries={["/communities"]}>
       <Routes>
         <Route
           path="/communities"
-          element={<ExploreJoinButton slug="backend-guild" />}
+          element={<LobbyJoinButton slug="backend-guild" onImage={onImage} />}
         />
         <Route path="/communities/:slug" element={<CommunityHome />} />
       </Routes>
@@ -58,7 +59,7 @@ afterEach(() => {
   document.querySelector("[data-ceremony-curtain]")?.remove();
 });
 
-describe("ExploreJoinButton", () => {
+describe("LobbyJoinButton", () => {
   it("joins when pressed", async () => {
     // given
     renderButton();
@@ -86,7 +87,39 @@ describe("ExploreJoinButton", () => {
     ).toBeInTheDocument();
   });
 
-  it("stays on the page and says why when the join fails", () => {
+  it("still enters the community when the join lands after its button is gone", async () => {
+    // given
+    const lobby = (shown: boolean) => (
+      <MemoryRouter initialEntries={["/communities"]}>
+        <Routes>
+          <Route
+            path="/communities"
+            element={
+              <LobbyDeparture>
+                {shown && <LobbyJoinButton slug="backend-guild" />}
+              </LobbyDeparture>
+            }
+          />
+          <Route path="/communities/:slug" element={<CommunityHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+    const { rerender } = render(lobby(true));
+    rerender(lobby(false));
+
+    // when
+    await act(async () => {
+      await onJoined?.();
+    });
+
+    // then
+    expect(handOffCeremony).toHaveBeenCalledWith("welcome", "backend-guild");
+    expect(
+      await screen.findByText("home under the curtain"),
+    ).toBeInTheDocument();
+  });
+
+  it("stays on the lobby and says why when the join fails", () => {
     // given
     mockJoin({
       isError: true,
@@ -103,6 +136,20 @@ describe("ExploreJoinButton", () => {
     expect(handOffCeremony).not.toHaveBeenCalled();
   });
 
+  it("says why in white over a hero image", () => {
+    // given
+    mockJoin({
+      isError: true,
+      error: new ApiError(409, "x", "ALREADY_MEMBER"),
+    });
+
+    // when
+    renderButton(true);
+
+    // then
+    expect(screen.getByRole("alert")).toHaveClass("text-white");
+  });
+
   it("cannot be pressed twice while joining", async () => {
     // given
     mockJoin({ isPending: true });
@@ -113,29 +160,5 @@ describe("ExploreJoinButton", () => {
 
     // then
     expect(mutate).not.toHaveBeenCalled();
-  });
-
-  it("shows a spinner and keeps the label while joining", () => {
-    // given
-    mockJoin({ isPending: true });
-
-    // when
-    renderButton();
-
-    // then
-    const button = screen.getByRole("button", { name: "Join" });
-    expect(button.querySelector("[data-button-spinner]")).not.toBeNull();
-  });
-
-  it("shows no spinner when idle", () => {
-    // when
-    renderButton();
-
-    // then
-    expect(
-      screen
-        .getByRole("button", { name: "Join" })
-        .querySelector("[data-button-spinner]"),
-    ).toBeNull();
   });
 });

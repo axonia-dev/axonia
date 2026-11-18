@@ -12,6 +12,9 @@ import { ThemeProvider } from "@/theme/ThemeProvider";
 // Split out of CommunityShell.test.tsx (300-line ceiling): the loading/error states
 // are a distinct concern from that file's rail/tab-bar coverage.
 
+vi.mock("@/features/community/ui/VisitingBar", () => ({
+  VisitingFrame: (props: { children: unknown }) => props.children,
+}));
 vi.mock("@/features/community/api/use-communities", () => ({
   useCommunity: vi.fn(),
   useCommunities: () => ({ data: { content: [] } }),

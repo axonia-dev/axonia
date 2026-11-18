@@ -31,12 +31,12 @@ import {
 import { CommunityHeroCard } from "@/features/community/ui/CommunityHeroCard";
 import { CommunityMenu } from "@/features/community/ui/CommunityMenu";
 import { HeroAmbientField } from "@/features/community/ui/HeroAmbientField";
-import { JoinAction } from "@/features/community/ui/JoinAction";
 import { MembershipChip } from "@/features/community/ui/MembershipChip";
 import {
   HERO_FACES_SHOWN,
   useHeroFaces,
 } from "@/features/community/ui/use-hero-faces";
+import { useRegisterVisitingJoin } from "@/features/community/ui/visiting-join-context";
 import { cn } from "@/lib/cn";
 import { useMediaQuery } from "@/lib/use-media-query";
 
@@ -52,34 +52,21 @@ function useShowInvite(inviteAccess: boolean, supplied: boolean): boolean {
   return supplied && inviteAccess && organization?.kind === "HUB";
 }
 
-/** The footer: what you are here, and the one quiet door out. A visitor is offered
- *  Join and nothing else; a member gets their standing and the menu that holds
- *  Leave. While the membership query is still open we commit to neither: showing a
- *  member a Join button would be a lie. `data` reads `undefined` for both a
- *  still-loading and a failed query, so `isError` is what tells them apart: a
- *  failed lookup falls back to Join rather than staying blank forever, since a
- *  visitor should not be locked out of joining by a transient failure. */
+/** The footer: a member's standing and the menu that holds Leave. While the membership query
+ *  is still open the row keeps its height, so a member's card does not grow once it answers. */
 function HeroFooter({
   community,
   slug,
   access,
-  onJoined,
 }: Readonly<{
   community: Community;
   slug: string;
   access: ManagementAccess;
-  onJoined: () => void;
 }>) {
-  const { data: membership, isError } = useMyMembership(slug);
+  const { data: membership } = useMyMembership(slug);
 
-  if (isError) {
-    return <JoinAction slug={slug} onJoined={onJoined} />;
-  }
-  if (membership === undefined) {
+  if (membership == null) {
     return <div className="h-9" />;
-  }
-  if (membership === null) {
-    return <JoinAction slug={slug} onJoined={onJoined} />;
   }
   return (
     <div className="flex min-h-9 items-center justify-between gap-3">
@@ -116,6 +103,15 @@ function useFocusFooterAfterJoin(
   };
 }
 
+/** A failed lookup counts as a visit, so the Visiting bar still offers Join; loading is neither. */
+function useMembershipStanding(slug: string): {
+  member: boolean;
+  visiting: boolean;
+} {
+  const { data, isError } = useMyMembership(slug);
+  return { member: data != null, visiting: isError || data === null };
+}
+
 /** A polite live region, filled one pass after it mounts so a screen reader hears it; a new `key` announces the same words again. */
 function Announcement({ text }: Readonly<{ text: string }>) {
   const shown = useDeferredValue(text, "");
@@ -149,7 +145,7 @@ function CeremonyBackdrop({
 }
 
 /**
- * The community's front door: the shared hero card with the primary Join call-to-action.
+ * The community's front door: the shared hero card. A join from the Visiting bar welcomes in place.
  * Self-serve hubs get a quiet share glyph in the card's top-right corner for whoever the
  * invite axis opens for. Management lives in the card's footer, next to the membership chip.
  */
@@ -164,25 +160,17 @@ export function IdentityHero({ community, slug }: Readonly<IdentityHeroProps>) {
   const playing = ceremony.active !== null;
   const morphId = liveMorphId(slug, ceremony.active);
   const reduced = useMediaQuery("(prefers-reduced-motion: reduce)");
-  const { data: membership } = useMyMembership(slug);
-  const markJoined = useFocusFooterAfterJoin(
-    hero,
-    !playing && membership != null,
-    playing,
-  );
-  const onJoined = () => {
+  const { member, visiting } = useMembershipStanding(slug);
+  const markJoined = useFocusFooterAfterJoin(hero, !playing && member, playing);
+  useRegisterVisitingJoin(() => {
     markJoined();
     ceremony.welcome();
-  };
+  }, playing);
 
   const meta = <MemberFacepile members={faces} max={HERO_FACES_SHOWN} />;
-  const footer = (
-    <HeroFooter
-      community={community}
-      slug={slug}
-      access={access}
-      onJoined={onJoined}
-    />
+  // A visitor's card has no footer: Join lives in the Visiting bar above the page.
+  const footer = visiting ? undefined : (
+    <HeroFooter community={community} slug={slug} access={access} />
   );
   const cornerControl = showInvite ? (
     <div className="absolute top-4 right-4">

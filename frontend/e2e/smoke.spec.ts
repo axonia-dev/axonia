@@ -8,20 +8,24 @@ const apiGlob = "**/axonia/**";
 test("root redirects into the global shell, light-first, with a working theme toggle", async ({
   page,
 }) => {
-  // given - a signed-in session and an empty communities directory, so the
+  // given - a signed-in session and an empty communities lobby, so the
   // redirect target renders without a real edge or backend behind it.
   await signedIn(page);
   await page.route(apiGlob, (route) =>
     route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({
-        content: [],
-        totalElements: 0,
-        totalPages: 1,
-        number: 0,
-        size: 50,
-      }),
+      body: JSON.stringify(
+        new URL(route.request().url()).pathname === "/axonia/lobby"
+          ? { billboard: [], shelves: [] }
+          : {
+              content: [],
+              totalElements: 0,
+              totalPages: 1,
+              number: 0,
+              size: 50,
+            },
+      ),
     }),
   );
   // Registered last so it answers the shell's own calls first; everything else
@@ -31,9 +35,9 @@ test("root redirects into the global shell, light-first, with a working theme to
   // when - open the root
   await page.goto("/");
 
-  // then — it redirects to the communities directory inside the global shell
+  // then — it redirects to the communities lobby inside the global shell
   await expect(
-    page.getByRole("heading", { name: /communities/i }),
+    page.getByRole("heading", { name: "Communities", exact: true }),
   ).toBeVisible();
   await expect(page.getByRole("img", { name: "Axonia" })).toBeVisible();
 

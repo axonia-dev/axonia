@@ -7,12 +7,17 @@ import { preloadHeroCeremony } from "@/features/community/ui/ceremony/lazy-cerem
 
 interface JoinActionProps {
   slug: string;
-  onJoined?: () => void;
+  onJoined?: (() => void | Promise<void>) | undefined;
+  size?: "sm" | "md";
 }
 
 /** The community's front door: the one call to action a visitor is offered. */
-export function JoinAction({ slug, onJoined }: Readonly<JoinActionProps>) {
-  const pressed = useRef<(() => void) | undefined>(undefined);
+export function JoinAction({
+  slug,
+  onJoined,
+  size = "md",
+}: Readonly<JoinActionProps>) {
+  const pressed = useRef<(() => void | Promise<void>) | undefined>(undefined);
   const join = useJoin(slug, () => pressed.current?.());
 
   useEffect(preloadHeroCeremony, []);
@@ -25,12 +30,12 @@ export function JoinAction({ slug, onJoined }: Readonly<JoinActionProps>) {
   };
 
   return (
-    <div className="flex flex-col gap-1">
-      <Button isPending={join.isPending} onPress={onPress}>
+    <div className="flex flex-col items-end gap-1">
+      <Button size={size} isPending={join.isPending} onPress={onPress}>
         Join
       </Button>
       {join.isError && (
-        <p role="alert" className="text-danger text-sm">
+        <p role="alert" className="text-danger text-right text-sm">
           {communityErrorMessage(join.error)}
         </p>
       )}

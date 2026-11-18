@@ -15,9 +15,6 @@ vi.mock("@/features/community/ui/HeroAmbientField", () => ({
   HeroAmbientField: () => null,
 }));
 
-vi.mock("@/features/community/ui/JoinAction", () => ({
-  JoinAction: () => <div>join-action</div>,
-}));
 vi.mock("@/features/community/ui/MembershipChip", () => ({
   MembershipChip: () => <div>membership-chip</div>,
 }));
