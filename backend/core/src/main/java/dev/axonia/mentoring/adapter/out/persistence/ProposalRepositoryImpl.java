@@ -23,15 +23,16 @@ public class ProposalRepositoryImpl implements ProposalRepository {
 
     private static final String SELECT = """
             SELECT p.id, p.community_id, p.mentor_user_id, p.mentee_user_id, p.proposed_by, p.topics, p.message,
-                   p.status, p.created_at, p.answered_at, p.reopened_at
+                   p.status, p.created_at, p.answered_at, p.reopened_at, p.pairs_shown
               FROM mentoring_proposal p
             """;
 
     private static final String INSERT_SQL = """
             INSERT INTO mentoring_proposal (organization_id, community_id, mentor_user_id, mentee_user_id, proposed_by,
-                                            topics, message, status, created_at, answered_at, reopened_at)
+                                            topics, message, status, created_at, answered_at, reopened_at,
+                                            pairs_shown)
             VALUES (:org, :communityId, :mentorId, :menteeId, :proposedBy, :topics, :message, :status, :createdAt,
-                    :answeredAt, :reopenedAt)
+                    :answeredAt, :reopenedAt, :pairsShown)
             RETURNING id
             """;
 
@@ -84,7 +85,8 @@ public class ProposalRepositoryImpl implements ProposalRepository {
             .menteeUserId(rs.getString("mentee_user_id")).proposedBy(Role.valueOf(rs.getString("proposed_by")))
             .topics(List.of((String[]) rs.getArray("topics").getArray())).message(rs.getString("message"))
             .status(ProposalStatus.valueOf(rs.getString("status"))).createdAt(Rows.instant(rs, "created_at"))
-            .answeredAt(Rows.instant(rs, "answered_at")).reopenedAt(Rows.instant(rs, "reopened_at")).build();
+            .answeredAt(Rows.instant(rs, "answered_at")).reopenedAt(Rows.instant(rs, "reopened_at"))
+            .pairsShown(rs.getBoolean("pairs_shown")).build();
 
     private final NamedParameterJdbcTemplate jdbc;
 
@@ -105,7 +107,8 @@ public class ProposalRepositoryImpl implements ProposalRepository {
                 .addValue("message", proposal.message()).addValue("status", proposal.status().name())
                 .addValue("createdAt", Rows.timestamp(proposal.createdAt()))
                 .addValue("answeredAt", Rows.timestamp(proposal.answeredAt()))
-                .addValue("reopenedAt", Rows.timestamp(proposal.reopenedAt()));
+                .addValue("reopenedAt", Rows.timestamp(proposal.reopenedAt()))
+                .addValue("pairsShown", proposal.pairsShown());
         return Objects.requireNonNull(jdbc.queryForObject(INSERT_SQL, params, Long.class));
     }
 

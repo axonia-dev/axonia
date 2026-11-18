@@ -16,19 +16,23 @@ import org.springframework.transaction.annotation.Transactional;
 import dev.axonia.mentoring.application.port.out.PairingRepository;
 import dev.axonia.mentoring.domain.EndReason;
 import dev.axonia.mentoring.domain.Pairing;
+import dev.axonia.mentoring.domain.Showing;
+import dev.axonia.mentoring.domain.Visibility;
 
 @Repository
 public class PairingRepositoryImpl implements PairingRepository {
 
     private static final String SELECT = """
-            SELECT p.id, p.community_id, p.mentor_user_id, p.mentee_user_id, p.started_at, p.ended_at, p.end_reason
+            SELECT p.id, p.community_id, p.mentor_user_id, p.mentee_user_id, p.started_at, p.ended_at, p.end_reason,
+                   p.visibility, p.mentor_said_yes, p.mentee_said_yes
               FROM mentoring_pairing p
             """;
 
     private static final String INSERT_SQL = """
             INSERT INTO mentoring_pairing (organization_id, community_id, mentor_user_id, mentee_user_id, started_at,
-                                           ended_at, end_reason)
-            VALUES (:org, :communityId, :mentorId, :menteeId, :startedAt, :endedAt, :endReason)
+                                           ended_at, end_reason, visibility, mentor_said_yes, mentee_said_yes)
+            VALUES (:org, :communityId, :mentorId, :menteeId, :startedAt, :endedAt, :endReason, :visibility,
+                    :mentorSaidYes, :menteeSaidYes)
             RETURNING id
             """;
 
@@ -46,6 +50,17 @@ public class PairingRepositoryImpl implements PairingRepository {
                AND (p.mentor_user_id = :userId OR p.mentee_user_id = :userId)
                AND (CAST(:communityId AS bigint) IS NULL OR p.community_id = :communityId)
              ORDER BY p.started_at DESC, p.id DESC
+            """;
+
+    private static final String SHOWN_IN_SQL = SELECT + """
+             WHERE p.organization_id = :org AND p.community_id = :communityId AND p.ended_at IS NULL
+               AND p.visibility = 'SHOWN' AND p.mentor_user_id IS NOT NULL AND p.mentee_user_id IS NOT NULL
+            """;
+
+    private static final String SAVE_SHOWING_SQL = """
+            UPDATE mentoring_pairing
+               SET visibility = :visibility, mentor_said_yes = :mentorSaidYes, mentee_said_yes = :menteeSaidYes
+             WHERE organization_id = :org AND id = :id
             """;
 
     private static final String ONGOING_AS_MENTOR_SQL = """
@@ -81,7 +96,10 @@ public class PairingRepositoryImpl implements PairingRepository {
     private static final RowMapper<Pairing> MAPPER = (rs, i) -> Pairing.builder().id(rs.getLong("id"))
             .communityId(rs.getLong("community_id")).mentorUserId(rs.getString("mentor_user_id"))
             .menteeUserId(rs.getString("mentee_user_id")).startedAt(Rows.instant(rs, "started_at"))
-            .endedAt(Rows.instant(rs, "ended_at")).endReason(endReason(rs.getString("end_reason"))).build();
+            .endedAt(Rows.instant(rs, "ended_at")).endReason(endReason(rs.getString("end_reason")))
+            .showing(new Showing(Visibility.valueOf(rs.getString("visibility")), rs.getBoolean("mentor_said_yes"),
+                    rs.getBoolean("mentee_said_yes")))
+            .build();
 
     private final NamedParameterJdbcTemplate jdbc;
 
@@ -99,7 +117,24 @@ public class PairingRepositoryImpl implements PairingRepository {
                 .addValue("startedAt", Rows.timestamp(pairing.startedAt()))
                 .addValue("endedAt", Rows.timestamp(pairing.endedAt()))
                 .addValue("endReason", pairing.endReason() == null ? null : pairing.endReason().name());
-        return Objects.requireNonNull(jdbc.queryForObject(INSERT_SQL, params, Long.class));
+        return Objects
+                .requireNonNull(jdbc.queryForObject(INSERT_SQL, withShowing(params, pairing.showing()), Long.class));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Pairing> shownIn(String org, long communityId) {
+
+        return jdbc.query(SHOWN_IN_SQL, new MapSqlParameterSource("org", org).addValue("communityId", communityId),
+                MAPPER);
+    }
+
+    @Override
+    @Transactional
+    public void saveShowing(String org, long pairingId, Showing showing) {
+
+        jdbc.update(SAVE_SHOWING_SQL,
+                withShowing(new MapSqlParameterSource("org", org).addValue("id", pairingId), showing));
     }
 
     @Override
@@ -183,5 +218,11 @@ public class PairingRepositoryImpl implements PairingRepository {
     private static EndReason endReason(String value) {
 
         return value == null ? null : EndReason.valueOf(value);
+    }
+
+    private static MapSqlParameterSource withShowing(MapSqlParameterSource params, Showing showing) {
+
+        return params.addValue("visibility", showing.visibility().name())
+                .addValue("mentorSaidYes", showing.mentorSaidYes()).addValue("menteeSaidYes", showing.menteeSaidYes());
     }
 }

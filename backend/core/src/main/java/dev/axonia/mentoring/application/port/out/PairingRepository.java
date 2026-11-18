@@ -7,6 +7,7 @@ import java.util.Optional;
 
 import dev.axonia.mentoring.domain.EndReason;
 import dev.axonia.mentoring.domain.Pairing;
+import dev.axonia.mentoring.domain.Showing;
 
 public interface PairingRepository {
 
@@ -34,6 +35,11 @@ public interface PairingRepository {
 
     /** Whether the user is, or was, on any pairing or any proposal in the organization. */
     boolean anyMentoringInvolving(String org, String userId);
+
+    /** The community's ongoing, shown pairings with both sides present, in no particular order. */
+    List<Pairing> shownIn(String org, long communityId);
+
+    void saveShowing(String org, long pairingId, Showing showing);
 
     /** Ends the pairing only while it is still ongoing; false when it had already ended. */
     boolean end(String org, long id, EndReason reason, Instant at);

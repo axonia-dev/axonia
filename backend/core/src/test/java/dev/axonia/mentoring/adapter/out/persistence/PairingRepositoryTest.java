@@ -10,6 +10,10 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 
 import dev.axonia.mentoring.domain.EndReason;
 import dev.axonia.mentoring.domain.Pairing;
+import dev.axonia.mentoring.domain.Role;
+import dev.axonia.mentoring.domain.ShowAnswer;
+import dev.axonia.mentoring.domain.Showing;
+import dev.axonia.mentoring.domain.Visibility;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -214,8 +218,8 @@ class PairingRepositoryTest extends MentoringRepositoryTestSupport {
         repo.end(ORG, repo.insert(ORG, pairing(community, "mia", "max").build()), EndReason.MENTOR, ENDED);
         jdbc.update("""
                 INSERT INTO mentoring_proposal (organization_id, community_id, mentor_user_id, mentee_user_id,
-                                                proposed_by, topics, message, status, created_at)
-                VALUES (:org, :community, 'lea', 'noah', 'MENTEE', ARRAY['Kafka'], 'Hello', 'OPEN', :at)
+                                                proposed_by, topics, message, status, created_at, pairs_shown)
+                VALUES (:org, :community, 'lea', 'noah', 'MENTEE', ARRAY['Kafka'], 'Hello', 'OPEN', :at, true)
                 """, new MapSqlParameterSource("org", ORG).addValue("community", community).addValue("at",
                 java.sql.Timestamp.from(ENDED)));
 
@@ -251,5 +255,84 @@ class PairingRepositoryTest extends MentoringRepositoryTestSupport {
 
         // then
         assertThat(actual).get().extracting(Pairing::menteeUserId).isNull();
+    }
+
+    @Test
+    void insertKeepsTheShowing() {
+
+        // given
+        var community = seedCommunity("platform");
+        var asking = new Showing(Visibility.ASKING, false, true);
+        var id = repo.insert(ORG, pairing(community, "mia", "max").showing(asking).build());
+
+        // when
+        var actual = repo.find(ORG, id);
+
+        // then
+        assertThat(actual).get().extracting(Pairing::showing).isEqualTo(asking);
+    }
+
+    @Test
+    void saveShowingStoresAnswers() {
+
+        // given
+        var community = seedCommunity("platform");
+        var id = repo.insert(ORG, pairing(community, "mia", "max").showing(Showing.ASKING).build());
+        var mentorSaidYes = Showing.ASKING.answer(Role.MENTOR, ShowAnswer.YES);
+
+        // when
+        repo.saveShowing(ORG, id, mentorSaidYes);
+
+        // then
+        assertThat(repo.find(ORG, id)).get().extracting(Pairing::showing).isEqualTo(mentorSaidYes);
+    }
+
+    @Test
+    void saveShowingTouchesOnlyThePairingOfTheOrganization() {
+
+        // given
+        var community = seedCommunity("platform");
+        var id = repo.insert(ORG, pairing(community, "mia", "max").showing(Showing.ASKING).build());
+
+        // when
+        repo.saveShowing("other-org", id, Showing.PRIVATE);
+
+        // then
+        assertThat(repo.find(ORG, id)).get().extracting(Pairing::showing).isEqualTo(Showing.ASKING);
+    }
+
+    @Test
+    void shownInListsOngoingShownPairingsOfTheCommunityOnly() {
+
+        // given
+        var community = seedCommunity("platform");
+        var elsewhere = seedCommunity("data");
+        var shown = repo.insert(ORG, pairing(community, "mia", "max").build());
+        repo.insert(ORG, pairing(community, "mia", "lea").showing(Showing.ASKING).build());
+        repo.insert(ORG, pairing(community, "mia", "zoe").showing(Showing.PRIVATE).build());
+        repo.insert(ORG, pairing(community, "noah", "max").endedAt(ENDED).endReason(EndReason.MENTOR).build());
+        repo.insert(ORG, pairing(elsewhere, "mia", "max").build());
+
+        // when
+        var actual = repo.shownIn(ORG, community);
+
+        // then
+        assertThat(actual).containsExactly(pairing(community, "mia", "max").id(shown).build());
+        assertThat(repo.shownIn("other-org", community)).isEmpty();
+    }
+
+    @Test
+    void shownInSkipsAClearedSide() {
+
+        // given
+        var community = seedCommunity("platform");
+        repo.insert(ORG, pairing(community, "mia", null).build());
+        repo.insert(ORG, pairing(community, null, "max").build());
+
+        // when
+        var actual = repo.shownIn(ORG, community);
+
+        // then
+        assertThat(actual).isEmpty();
     }
 }

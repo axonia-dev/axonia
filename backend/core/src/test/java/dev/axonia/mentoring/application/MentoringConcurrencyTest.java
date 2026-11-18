@@ -60,6 +60,7 @@ import dev.axonia.mentoring.domain.PlannedMeeting;
 import dev.axonia.mentoring.domain.Proposal;
 import dev.axonia.mentoring.domain.ProposalStatus;
 import dev.axonia.mentoring.domain.Role;
+import dev.axonia.mentoring.domain.Showing;
 import dev.axonia.mentoring.domain.Topic;
 import dev.axonia.mentoring.domain.TopicState;
 import dev.axonia.shared.api.error.ConflictException;
@@ -180,7 +181,7 @@ class MentoringConcurrencyTest extends CoreJdbcTestSupport {
     private long ongoingPairing() {
 
         return pairings.insert(ORG, Pairing.builder().communityId(COMMUNITY).mentorUserId(MENTOR).menteeUserId(MENTEE)
-                .startedAt(NOW.minusSeconds(3600)).build());
+                .startedAt(NOW.minusSeconds(3600)).showing(Showing.SHOWN).build());
     }
 
     @Test

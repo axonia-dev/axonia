@@ -83,12 +83,12 @@ final class ExportLeakFixtures {
         var params = Map.<String, Object>of("org", organizationId, "communityId", communityId, "target", TARGET,
                 "neighbour", NEIGHBOUR);
         jdbc.update("INSERT INTO mentoring_proposal (organization_id, community_id, mentor_user_id, mentee_user_id, "
-                + "proposed_by, topics, message, status, created_at, answered_at) VALUES (:org, :communityId, "
-                + ":neighbour, :target, 'MENTEE', ARRAY['Retries']::varchar[], 'Could we talk?', 'ACCEPTED', now(), "
-                + "now())", params);
+                + "proposed_by, topics, message, status, created_at, answered_at, pairs_shown) VALUES (:org, "
+                + ":communityId, :neighbour, :target, 'MENTEE', ARRAY['Retries']::varchar[], 'Could we talk?', "
+                + "'ACCEPTED', now(), now(), true)", params);
         var pairingId = jdbc.queryForObject("INSERT INTO mentoring_pairing (organization_id, community_id, "
-                + "mentor_user_id, mentee_user_id, started_at) VALUES (:org, :communityId, :neighbour, :target, now()) "
-                + "RETURNING id", params, Long.class);
+                + "mentor_user_id, mentee_user_id, started_at, visibility) VALUES (:org, :communityId, :neighbour, "
+                + ":target, now(), 'SHOWN') " + "RETURNING id", params, Long.class);
         var pairing = Map.<String, Object>of("org", organizationId, "pairingId", pairingId, "target", TARGET,
                 "neighbour", NEIGHBOUR);
         var topicId = jdbc.queryForObject("INSERT INTO mentoring_topic (organization_id, pairing_id, label, state, "

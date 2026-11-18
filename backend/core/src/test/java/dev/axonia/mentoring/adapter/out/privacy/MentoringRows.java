@@ -44,8 +44,8 @@ final class MentoringRows {
     void proposal(long communityId, String mentorId, String menteeId, String message) {
 
         jdbc.update("INSERT INTO mentoring_proposal (organization_id, community_id, mentor_user_id, mentee_user_id, "
-                + "proposed_by, topics, message, status, created_at) VALUES (:org, :communityId, :mentor, :mentee, "
-                + "'MENTEE', ARRAY['Kafka', 'Feedback']::varchar[], :message, 'OPEN', now())",
+                + "proposed_by, topics, message, status, created_at, pairs_shown) VALUES (:org, :communityId, :mentor, "
+                + ":mentee, 'MENTEE', ARRAY['Kafka', 'Feedback']::varchar[], :message, 'OPEN', now(), true)",
                 Map.of("org", org, "communityId", communityId, "mentor", mentorId, "mentee", menteeId, "message",
                         message));
     }
@@ -58,8 +58,8 @@ final class MentoringRows {
         params.put("mentor", mentorId);
         params.put("mentee", menteeId);
         return jdbc.queryForObject("INSERT INTO mentoring_pairing (organization_id, community_id, mentor_user_id, "
-                + "mentee_user_id, started_at) VALUES (:org, :communityId, :mentor, :mentee, now()) RETURNING id",
-                params, Long.class);
+                + "mentee_user_id, started_at, visibility) VALUES (:org, :communityId, :mentor, :mentee, now(), 'SHOWN') "
+                + "RETURNING id", params, Long.class);
     }
 
     long topic(long pairingId, String label) {

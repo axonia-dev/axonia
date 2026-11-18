@@ -37,6 +37,7 @@ import dev.axonia.mentoring.domain.Pairing;
 import dev.axonia.mentoring.domain.Proposal;
 import dev.axonia.mentoring.domain.ProposalStatus;
 import dev.axonia.mentoring.domain.Role;
+import dev.axonia.mentoring.domain.Showing;
 import dev.axonia.mentoring.domain.Topic;
 import dev.axonia.shared.api.error.ConflictException;
 
@@ -142,7 +143,7 @@ class ProposalServiceJdbcTest extends CoreJdbcTestSupport {
 
         // given: another acceptance paired the two after this one's check read no pairing
         pairings.insert(ORG, Pairing.builder().communityId(COMMUNITY).mentorUserId("mia").menteeUserId("max")
-                .startedAt(NOW.minusSeconds(5)).build());
+                .startedAt(NOW.minusSeconds(5)).showing(Showing.SHOWN).build());
         var proposal = proposeToMia(NOW.minusSeconds(60));
         var racing = mock(PairingRepository.class, delegatesTo(pairings));
         doReturn(List.of()).when(racing).ongoingInvolving(any(), any(), any());

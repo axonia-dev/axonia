@@ -8,6 +8,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 import dev.axonia.CoreJdbcTestSupport;
 import dev.axonia.mentoring.domain.Pairing;
+import dev.axonia.mentoring.domain.Showing;
 
 /** Seeds the community, directory rows and memberships the mentoring repositories read; the baseline seeds nothing. */
 abstract class MentoringRepositoryTestSupport extends CoreJdbcTestSupport {
@@ -53,6 +54,6 @@ abstract class MentoringRepositoryTestSupport extends CoreJdbcTestSupport {
     protected static Pairing.PairingBuilder pairing(long communityId, String mentor, String mentee) {
 
         return Pairing.builder().communityId(communityId).mentorUserId(mentor).menteeUserId(mentee)
-                .startedAt(java.time.Instant.parse("2026-10-01T09:00:00Z"));
+                .startedAt(java.time.Instant.parse("2026-10-01T09:00:00Z")).showing(Showing.SHOWN);
     }
 }

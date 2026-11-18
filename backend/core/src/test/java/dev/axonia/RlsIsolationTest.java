@@ -896,11 +896,13 @@ class RlsIsolationTest {
     void mentoringProposalIsOrganizationIsolated() throws Exception {
         assertRowIsolated("mentoring_proposal", "mentor_user_id = 'rls-mentor'",
                 "INSERT INTO mentoring_proposal (organization_id, community_id, mentor_user_id, mentee_user_id,"
-                        + " proposed_by, topics, message, status, created_at)"
-                        + " VALUES ('default', 1, 'rls-mentor', 'rls-mentee', 'MENTOR', '{}', 'hi', 'OPEN', now())",
+                        + " proposed_by, topics, message, status, created_at, pairs_shown)"
+                        + " VALUES ('default', 1, 'rls-mentor', 'rls-mentee', 'MENTOR', '{}', 'hi', 'OPEN', now(),"
+                        + " true)",
                 "INSERT INTO mentoring_proposal (organization_id, community_id, mentor_user_id, mentee_user_id,"
-                        + " proposed_by, topics, message, status, created_at)"
-                        + " VALUES ('default', 1, 'rls-sneaky', 'rls-mentee', 'MENTOR', '{}', 'hi', 'OPEN', now())");
+                        + " proposed_by, topics, message, status, created_at, pairs_shown)"
+                        + " VALUES ('default', 1, 'rls-sneaky', 'rls-mentee', 'MENTOR', '{}', 'hi', 'OPEN', now(),"
+                        + " true)");
     }
 
     @Test
@@ -908,9 +910,9 @@ class RlsIsolationTest {
     void mentoringPairingIsOrganizationIsolated() throws Exception {
         assertRowIsolated("mentoring_pairing", "mentor_user_id = 'rls-mentor'",
                 "INSERT INTO mentoring_pairing (organization_id, community_id, mentor_user_id, mentee_user_id,"
-                        + " started_at) VALUES ('default', 1, 'rls-mentor', 'rls-mentee', now())",
+                        + " started_at, visibility) VALUES ('default', 1, 'rls-mentor', 'rls-mentee', now(), 'SHOWN')",
                 "INSERT INTO mentoring_pairing (organization_id, community_id, mentor_user_id, mentee_user_id,"
-                        + " started_at) VALUES ('default', 1, 'rls-sneaky', 'rls-mentee', now())");
+                        + " started_at, visibility) VALUES ('default', 1, 'rls-sneaky', 'rls-mentee', now(), 'SHOWN')");
     }
 
     @Test
@@ -1010,7 +1012,8 @@ class RlsIsolationTest {
 
     private static String mentoringPairing(int id) {
         return "INSERT INTO mentoring_pairing (id, organization_id, community_id, mentor_user_id, mentee_user_id,"
-                + " started_at) VALUES (" + id + ", 'default', 1, 'rls-mentor', 'rls-mentee-" + id + "', now());";
+                + " started_at, visibility) VALUES (" + id + ", 'default', 1, 'rls-mentor', 'rls-mentee-" + id
+                + "', now(), 'SHOWN');";
     }
 
     /** The fixture and row are written under 'default'; 'acme' must not see, delete or insert beside them. */

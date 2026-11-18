@@ -162,11 +162,11 @@ public final class OpenSeed {
                 + "mentee_limit, looking_for_mentor, updated_at) VALUES (:org, :communityId, :user, true, 2, false, "
                 + "now())", params);
         jdbc.update("INSERT INTO mentoring_proposal (organization_id, community_id, mentor_user_id, mentee_user_id, "
-                + "proposed_by, topics, message, status, created_at) VALUES (:org, :communityId, :user, :user, "
-                + "'MENTEE', ARRAY['Kafka']::varchar[], 'Layer 3 message', 'OPEN', now())", params);
+                + "proposed_by, topics, message, status, created_at, pairs_shown) VALUES (:org, :communityId, :user, "
+                + ":user, 'MENTEE', ARRAY['Kafka']::varchar[], 'Layer 3 message', 'OPEN', now(), true)", params);
         var pairingId = jdbc.queryForObject("INSERT INTO mentoring_pairing (organization_id, community_id, "
-                + "mentor_user_id, mentee_user_id, started_at) VALUES (:org, :communityId, :user, :user, now()) "
-                + "RETURNING id", params, Long.class);
+                + "mentor_user_id, mentee_user_id, started_at, visibility) VALUES (:org, :communityId, :user, :user, "
+                + "now(), 'SHOWN') " + "RETURNING id", params, Long.class);
         var pairing = Map.<String, Object>of("org", ORG, "pairingId", pairingId, "user", USER);
         var topicId = jdbc.queryForObject(
                 "INSERT INTO mentoring_topic (organization_id, pairing_id, label, state, "

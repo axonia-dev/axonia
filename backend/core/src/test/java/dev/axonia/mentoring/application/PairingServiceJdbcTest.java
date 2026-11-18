@@ -32,6 +32,7 @@ import dev.axonia.mentoring.domain.Pairing;
 import dev.axonia.mentoring.domain.Proposal;
 import dev.axonia.mentoring.domain.ProposalStatus;
 import dev.axonia.mentoring.domain.Role;
+import dev.axonia.mentoring.domain.Showing;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -77,7 +78,7 @@ class PairingServiceJdbcTest extends CoreJdbcTestSupport {
     private long pair(long community, String mentor, String mentee) {
 
         return pairings.insert(ORG, Pairing.builder().communityId(community).mentorUserId(mentor).menteeUserId(mentee)
-                .startedAt(NOW.minusSeconds(3600)).build());
+                .startedAt(NOW.minusSeconds(3600)).showing(Showing.SHOWN).build());
     }
 
     private long propose(long community, String mentor, String mentee, Role by) {

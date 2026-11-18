@@ -39,6 +39,23 @@ class ProposalRepositoryTest extends MentoringRepositoryTestSupport {
     }
 
     @Test
+    void insertKeepsPairsShown() {
+
+        // given
+        var community = seedCommunity("platform");
+        var id = repo.insert(ORG,
+                proposal(community, "mia", "max", List.of(), EARLY).toBuilder().pairsShown(true).build());
+
+        // when
+        var actual = repo.find(ORG, id);
+
+        // then
+        assertThat(actual).get().extracting(Proposal::pairsShown).isEqualTo(true);
+        assertThat(repo.find(ORG, repo.insert(ORG, proposal(community, "mia", "lea", List.of(), EARLY)))).get()
+                .extracting(Proposal::pairsShown).isEqualTo(false);
+    }
+
+    @Test
     void findIsEmptyForAnUnknownId() {
 
         assertThat(repo.find(ORG, 424242L)).isEmpty();

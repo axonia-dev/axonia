@@ -229,11 +229,12 @@ public final class ErasureSweepFixtures {
                         + "looking_for_mentor, updated_at) VALUES (:org, :communityId, :user, false, true, now())",
                 params);
         jdbc.update("INSERT INTO mentoring_proposal (organization_id, community_id, mentor_user_id, mentee_user_id, "
-                + "proposed_by, topics, message, status, created_at) VALUES (:org, :communityId, :owner, :user, "
-                + "'MENTEE', ARRAY['Retries']::varchar[], 'Could we talk about retries?', 'OPEN', now())", params);
+                + "proposed_by, topics, message, status, created_at, pairs_shown) VALUES (:org, :communityId, :owner, "
+                + ":user, 'MENTEE', ARRAY['Retries']::varchar[], 'Could we talk about retries?', 'OPEN', now(), "
+                + "true)", params);
         var pairingId = jdbc.queryForObject("INSERT INTO mentoring_pairing (organization_id, community_id, "
-                + "mentor_user_id, mentee_user_id, started_at) VALUES (:org, :communityId, :owner, :user, now()) "
-                + "RETURNING id", params, Long.class);
+                + "mentor_user_id, mentee_user_id, started_at, visibility) VALUES (:org, :communityId, :owner, :user, "
+                + "now(), 'SHOWN') " + "RETURNING id", params, Long.class);
         var pairing = Map.<String, Object>of("org", organizationId, "pairingId", pairingId, "user", userId, "owner",
                 OWNER);
         var topicId = jdbc.queryForObject("INSERT INTO mentoring_topic (organization_id, pairing_id, label, state, "
@@ -264,8 +265,8 @@ public final class ErasureSweepFixtures {
         jdbc.update("INSERT INTO mentoring_words (pairing_id, organization_id, body, written_at) "
                 + "VALUES (:pairingId, :org, 'Patient and clear.', now())", pairing);
         jdbc.update("INSERT INTO mentoring_pairing (organization_id, community_id, mentor_user_id, mentee_user_id, "
-                + "started_at, ended_at, end_reason) VALUES (:org, :communityId, :user, NULL, now(), now(), 'MENTEE')",
-                params);
+                + "started_at, ended_at, end_reason, visibility) VALUES (:org, :communityId, :user, NULL, now(), now(), "
+                + "'MENTEE', 'SHOWN')", params);
         jdbc.update("INSERT INTO communication_expired_message (organization_id, message_type, subject_ref, "
                 + "pending_count, sent_count, suppressed_count, unreachable_count, abandoned_count, expired_at) "
                 + "VALUES (:org, 'mentoring_proposal', :subject, 0, 1, 0, 0, 0, now())",
