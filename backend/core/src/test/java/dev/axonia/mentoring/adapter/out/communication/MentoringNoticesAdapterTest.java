@@ -16,9 +16,11 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import dev.axonia.communication.api.CommunicationPort;
 import dev.axonia.communication.api.MessageType;
 import dev.axonia.communication.api.OutboundMessage;
+import dev.axonia.mentoring.application.port.out.MentoringNotices.MeetingNotice;
 import dev.axonia.mentoring.application.port.out.MentoringNotices.MeetingReminder;
 import dev.axonia.mentoring.domain.MentoringGuild;
 import dev.axonia.mentoring.domain.Pairing;
+import dev.axonia.mentoring.domain.PlannedMeeting;
 import dev.axonia.mentoring.domain.Proposal;
 import dev.axonia.mentoring.domain.ProposalStatus;
 import dev.axonia.mentoring.domain.Role;
@@ -209,17 +211,26 @@ class MentoringNoticesAdapterTest {
                 .containsEntry("sessionTitle", "Words from Noah");
     }
 
-    @Test
-    void theMeetingNoticeNamesTheDateAndNoNote() {
+    private static final Instant PLANNED_AT = Instant.parse("2026-11-16T10:00:00.123Z");
 
-        // given
-        var setAt = Instant.parse("2026-11-16T10:00:00.123Z");
-        var pairing = Pairing.builder().id(90L).communityId(7L).mentorUserId("mia").menteeUserId("noah")
-                .startedAt(Instant.parse("2026-11-01T09:00:00Z")).nextMeetingOn(LocalDate.parse("2026-11-19"))
-                .nextMeetingSetBy("noah").nextMeetingSetAt(setAt).build();
+    private static PlannedMeeting meeting(LocalDate on) {
+
+        return PlannedMeeting.builder().id(12L).pairingId(90L).on(on).topicIds(List.of(3L, 7L)).plannedBy("noah")
+                .plannedAt(PLANNED_AT).build();
+    }
+
+    private static MeetingNotice.MeetingNoticeBuilder notice(LocalDate on) {
+
+        return MeetingNotice.builder().pairing(pairing()).meeting(meeting(on))
+                .guild(new MentoringGuild("platform", "Platform")).byName("Noah").firstTopic("Kafka basics")
+                .recipientId("mia");
+    }
+
+    @Test
+    void aPlannedMeetingIsToldWithItsDayAndFirstTopic() {
 
         // when
-        adapter.meetingSet(pairing, new MentoringGuild("platform", "Platform"), "Noah", "mia");
+        adapter.meetingPlanned(notice(LocalDate.parse("2026-11-26")).build());
 
         // then
         var actual = sent();
@@ -227,10 +238,50 @@ class MentoringNoticesAdapterTest {
         assertThat(actual.inAppOnly()).isTrue();
         assertThat(actual.recipientUserIds()).containsExactly("mia");
         assertThat(actual.aboutUserId()).isEqualTo("noah");
-        assertThat(actual.subjectRef()).isEqualTo("pairing:90@" + setAt.toEpochMilli() + ":noah");
+        assertThat(actual.subjectRef()).isEqualTo("meeting:12@" + PLANNED_AT.toEpochMilli() + ":noah");
         assertThat(actual.facts()).containsOnlyKeys("sender", "sessionTitle", "line", "mentoringUrl")
-                .containsEntry("sessionTitle", "Next meeting set by Noah").containsEntry("line", "Thursday 19 November")
+                .containsEntry("sessionTitle", "Meeting planned by Noah")
+                .containsEntry("line", "Thursday 26 November · Kafka basics")
                 .containsEntry("mentoringUrl", "https://axonia.example/communities/platform/me/mentoring/90");
+    }
+
+    @Test
+    void aMeetingWithoutTopicsIsToldByItsDayAlone() {
+
+        // when
+        adapter.meetingPlanned(notice(LocalDate.parse("2026-11-26")).firstTopic(null).build());
+
+        // then
+        assertThat(sent().facts()).containsEntry("line", "Thursday 26 November");
+    }
+
+    @Test
+    void aMovedMeetingIsToldAsMoved() {
+
+        // when
+        adapter.meetingMoved(notice(LocalDate.parse("2026-12-03")).build());
+
+        // then
+        var actual = sent();
+        assertThat(actual.type()).isEqualTo(MessageType.MENTORING_MEETING_SET);
+        assertThat(actual.subjectRef()).isEqualTo("meeting:12@" + PLANNED_AT.toEpochMilli() + ":noah");
+        assertThat(actual.facts()).containsEntry("sessionTitle", "Meeting moved by Noah").containsEntry("line",
+                "Thursday 3 December · Kafka basics");
+    }
+
+    @ParameterizedTest
+    @CsvSource({"1, true", "0, false"})
+    void withdrawingAMeetingNoticeTakesBackThatPlanningsAlone(int withdrawn, boolean expected) {
+
+        // given
+        when(communication.withdrawPending(MessageType.MENTORING_MEETING_SET,
+                "meeting:12@" + PLANNED_AT.toEpochMilli() + ":noah")).thenReturn(withdrawn);
+
+        // when
+        var actual = adapter.withdrawMeetingNotice(meeting(LocalDate.parse("2026-11-26")));
+
+        // then
+        assertThat(actual).isEqualTo(expected);
     }
 
     @Test

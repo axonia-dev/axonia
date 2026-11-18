@@ -1230,11 +1230,15 @@
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
-		mentoring.domain.Proposal: its topics List, built once per proposal and handed straight to the
-		repository and the read model. Same case as LearningPage above: exclusion, not List.copyOf.
+		mentoring.domain.Proposal and PlannedMeeting: their topics List, built once per proposal or meeting and
+		handed straight to the repository and the read model. Same case as LearningPage above: exclusion, not
+		List.copyOf.
 	-->
 	<Match>
-		<Class name="dev.axonia.mentoring.domain.Proposal"/>
+		<Or>
+			<Class name="dev.axonia.mentoring.domain.Proposal"/>
+			<Class name="dev.axonia.mentoring.domain.PlannedMeeting"/>
+		</Or>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
@@ -1246,7 +1250,7 @@
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>
 	<!--
-		mentoring.api.MentoringPage, DirectoryPerson, ProposalView, MyMentoring, ProposeRequest, Journal, TopicView, NoteView, NoteRequest and PairingSummary: read-model and request records
+		mentoring.api.MentoringPage, DirectoryPerson, ProposalView, MyMentoring, ProposeRequest, Journal, TopicView, NoteView, NoteRequest, PairingSummary, MeetingRequest and PlannedMeetingView: read-model and request records
 		with List components, built once per request and serialized straight out or read straight in. Same case as
 		LearningPage above.
 	-->
@@ -1262,6 +1266,8 @@
 			<Class name="dev.axonia.mentoring.api.NoteView"/>
 			<Class name="dev.axonia.mentoring.api.NoteRequest"/>
 			<Class name="dev.axonia.mentoring.api.PairingSummary"/>
+			<Class name="dev.axonia.mentoring.api.MeetingRequest"/>
+			<Class name="dev.axonia.mentoring.api.PlannedMeetingView"/>
 		</Or>
 		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
 	</Match>

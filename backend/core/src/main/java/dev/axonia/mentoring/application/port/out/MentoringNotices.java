@@ -2,6 +2,7 @@ package dev.axonia.mentoring.application.port.out;
 
 import dev.axonia.mentoring.domain.MentoringGuild;
 import dev.axonia.mentoring.domain.Pairing;
+import dev.axonia.mentoring.domain.PlannedMeeting;
 import dev.axonia.mentoring.domain.Proposal;
 import lombok.Builder;
 
@@ -31,11 +32,26 @@ public interface MentoringNotices {
     /** In the panel, to the mentor. */
     void wordsReceived(Pairing pairing, MentoringGuild guild, String menteeName);
 
-    /** In the panel, to {@code recipientId}: the pairing as just written, naming its next meeting's day. */
-    void meetingSet(Pairing pairing, MentoringGuild guild, String setByName, String recipientId);
+    /** In the panel, to the notice's recipient: a meeting just planned, by its day and first topic. */
+    void meetingPlanned(MeetingNotice notice);
+
+    /** In the panel, to the notice's recipient: a planned meeting just moved to another day. */
+    void meetingMoved(MeetingNotice notice);
+
+    /**
+     * Takes back the meeting's planned or moved notice while it still waits in the outbox, matched by that very
+     * planning; true when it was taken back, false when it may already have been read.
+     */
+    boolean withdrawMeetingNotice(PlannedMeeting meeting);
 
     /** Reminds {@code recipientId} of the pairing's next meeting, the day before it. */
     void meetingReminder(MeetingReminder reminder);
+
+    /** {@code firstTopic} is null for a meeting naming no topic. */
+    @Builder
+    record MeetingNotice(Pairing pairing, PlannedMeeting meeting, MentoringGuild guild, String byName,
+            String firstTopic, String recipientId) {
+    }
 
     @Builder
     record MeetingReminder(String organizationId, Pairing pairing, MentoringGuild guild, String partnerName,

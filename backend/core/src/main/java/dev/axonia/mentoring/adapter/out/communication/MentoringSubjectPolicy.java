@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import dev.axonia.communication.api.MessageType;
 import dev.axonia.communication.api.spi.MessageSubjectPolicy;
 import dev.axonia.mentoring.application.port.out.CommunityAccess;
+import dev.axonia.mentoring.application.port.out.MeetingRepository;
 import dev.axonia.mentoring.application.port.out.PairingRepository;
 import dev.axonia.mentoring.application.port.out.PersonDirectory;
 import dev.axonia.mentoring.application.port.out.ProposalRepository;
@@ -22,10 +23,12 @@ import lombok.RequiredArgsConstructor;
 /**
  * The mentoring notices' answers to the delivery gate, judged again at delivery. A proposal answered, withdrawn or
  * lapsed since is owed no notice, and its receiver must still be in the guild, and so is a reopening; a decline is owed
- * its "not this time" while the proposal stays declined by that answer, a next meeting's notice while that very setting
- * is the pairing's, and its reminder while that day is still the pairing's next meeting. A pairing notice is owed while
- * the pairing exists, to anyone still in the organization: a pairing belongs to its two people, not to the guild.
- * Asking for words is retired, so an ask still waiting in the outbox is owed nothing; panel entries still render.
+ * its "not this time" while the proposal stays declined by that answer, a planned or moved meeting's notice while that
+ * very planning stands and its pairing is ongoing, and a reminder while that day is still the pairing's next meeting. A
+ * meeting notice from before meetings were planned one by one names the pairing, and is owed nothing. A pairing notice
+ * is owed while the pairing exists, to anyone still in the organization: a pairing belongs to its two people, not to
+ * the guild. Asking for words is retired, so an ask still waiting in the outbox is owed nothing; panel entries still
+ * render.
  */
 @Component("mentoringSubjectPolicy")
 @RequiredArgsConstructor
@@ -33,6 +36,7 @@ class MentoringSubjectPolicy implements MessageSubjectPolicy {
 
     private final ProposalRepository proposals;
     private final PairingRepository pairings;
+    private final MeetingRepository meetings;
     private final CommunityAccess communityAccess;
     private final PersonDirectory personDirectory;
     private final Clock clock;
@@ -63,8 +67,10 @@ class MentoringSubjectPolicy implements MessageSubjectPolicy {
                     .filter(proposal -> MentoringWindows.isOpen(proposal, clock.instant())).isPresent();
         }
         if (MessageType.MENTORING_MEETING_SET.equals(type)) {
-            return pairings.find(organizationId, subject.id()).filter(pairing -> isTheMeetingSet(pairing, subject))
-                    .isPresent();
+            return subject.kind() == MentoringSubject.Kind.MEETING && meetings.find(organizationId, subject.id())
+                    .filter(meeting -> String.valueOf(meeting.plannedAt().toEpochMilli()).equals(subject.occasion()))
+                    .flatMap(meeting -> pairings.find(organizationId, meeting.pairingId()))
+                    .filter(pairing -> pairing.endedAt() == null).isPresent();
         }
         if (MessageType.MENTORING_MEETING_REMINDER.equals(type)) {
             return pairings.find(organizationId, subject.id()).filter(pairing -> isTheMeetingReminded(pairing, subject))
@@ -85,13 +91,6 @@ class MentoringSubjectPolicy implements MessageSubjectPolicy {
 
         return pairing.endedAt() == null && pairing.nextMeetingOn() != null
                 && pairing.nextMeetingOn().toString().equals(subject.occasion());
-    }
-
-    /** A date set since, or cleared, or a pairing ended, supersedes the notice. */
-    private static boolean isTheMeetingSet(Pairing pairing, MentoringSubject subject) {
-
-        return pairing.endedAt() == null && pairing.nextMeetingSetAt() != null
-                && String.valueOf(pairing.nextMeetingSetAt().toEpochMilli()).equals(subject.occasion());
     }
 
     @Override

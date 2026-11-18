@@ -15,6 +15,7 @@ import dev.axonia.mentoring.application.port.out.MentoringNotices;
 import dev.axonia.mentoring.domain.MentoringGuild;
 import dev.axonia.mentoring.domain.MentoringSubject;
 import dev.axonia.mentoring.domain.Pairing;
+import dev.axonia.mentoring.domain.PlannedMeeting;
 import dev.axonia.mentoring.domain.Proposal;
 import dev.axonia.shared.api.text.Initials;
 import dev.axonia.shared.api.web.OrganizationLinks;
@@ -29,8 +30,8 @@ import lombok.RequiredArgsConstructor;
  * topics and a decline's its first topic, since the panel already shows the guild as the entry's community. Every link
  * opens My mentoring or the journal inside that guild, where the notice came from, rather than the cross-community
  * page. No notice carries a proposal's message or a mentee's words: only the two people read those, where they wrote
- * them. A decline and a reopening carry their moment in the subject, so a proposal declined, reopened and declined
- * again is told each time, and a decline still waiting is withdrawn alone.
+ * them. A decline, a reopening and a meeting's planning carry their moment in the subject, so a proposal declined,
+ * reopened and declined again is told each time, and a decline or a planning still waiting is withdrawn alone.
  */
 @Component("mentoringNoticesAdapter")
 @RequiredArgsConstructor
@@ -60,6 +61,8 @@ public class MentoringNoticesAdapter implements MentoringNotices {
 
     /** A meeting's day as a notice names it, "Thursday 19 November". */
     static final DateTimeFormatter DAY = DateTimeFormatter.ofPattern("EEEE d MMMM", Locale.ENGLISH);
+
+    private static final String TOPIC_AFTER_DAY = " · ";
 
     private final CommunicationPort communication;
     private final PublicUrls publicUrls;
@@ -125,13 +128,37 @@ public class MentoringNoticesAdapter implements MentoringNotices {
     }
 
     @Override
-    public void meetingSet(Pairing pairing, MentoringGuild guild, String setByName, String recipientId) {
+    public void meetingPlanned(MeetingNotice notice) {
 
-        var occasion = String.valueOf(pairing.nextMeetingSetAt().toEpochMilli());
-        inApp(MessageType.MENTORING_MEETING_SET,
-                MentoringSubject.pairing(pairing.id(), occasion, pairing.nextMeetingSetBy()), recipientId,
-                facts(guild, "Next meeting set by " + setByName, DAY.format(pairing.nextMeetingOn()),
-                        journalUrl(guild, pairing)));
+        meetingNotice(notice, "Meeting planned by ");
+    }
+
+    @Override
+    public void meetingMoved(MeetingNotice notice) {
+
+        meetingNotice(notice, "Meeting moved by ");
+    }
+
+    @Override
+    public boolean withdrawMeetingNotice(PlannedMeeting meeting) {
+
+        return communication.withdrawPending(MessageType.MENTORING_MEETING_SET, thePlanning(meeting).ref()) > 0;
+    }
+
+    private void meetingNotice(MeetingNotice notice, String headline) {
+
+        var meeting = notice.meeting();
+        var day = DAY.format(meeting.on());
+        var line = notice.firstTopic() == null ? day : day + TOPIC_AFTER_DAY + notice.firstTopic();
+        inApp(MessageType.MENTORING_MEETING_SET, thePlanning(meeting), notice.recipientId(),
+                facts(notice.guild(), headline + notice.byName(), line, journalUrl(notice.guild(), notice.pairing())));
+    }
+
+    /** A meeting's subject names its planning's moment, so a move or a removal reaches that planning's notice alone. */
+    private static MentoringSubject thePlanning(PlannedMeeting meeting) {
+
+        return MentoringSubject.meeting(meeting.id(), String.valueOf(meeting.plannedAt().toEpochMilli()),
+                meeting.plannedBy());
     }
 
     @Override

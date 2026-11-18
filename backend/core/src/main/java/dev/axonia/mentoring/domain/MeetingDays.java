@@ -37,18 +37,6 @@ public final class MeetingDays {
         return requested;
     }
 
-    /** The next meeting is today or later. */
-    public static LocalDate upcoming(LocalDate on, LocalDate today) {
-
-        if (on == null) {
-            throw new ValidationException("field_invalid", "The next meeting needs a day");
-        }
-        if (on.isBefore(today)) {
-            throw new ValidationException("MENTORING_MEETING_PAST", "The next meeting is today or later");
-        }
-        return on;
-    }
-
     /**
      * True from 09:00 on the day before the meeting, in the person's zone, and only for a date set before that day: a
      * date set for tomorrow or today is reminded of by nobody.

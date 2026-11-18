@@ -5,11 +5,14 @@ import java.time.LocalDate;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import dev.axonia.ControllerTestSupport;
 import dev.axonia.CoreWebMvcTest;
 import dev.axonia.mentoring.api.Journal;
+import dev.axonia.mentoring.api.MeetingRequest;
 import dev.axonia.mentoring.api.MentoringPresence;
 import dev.axonia.mentoring.api.MyMentoring;
 import dev.axonia.mentoring.api.NextMeetingDay;
@@ -17,6 +20,7 @@ import dev.axonia.mentoring.api.NextMeetingView;
 import dev.axonia.mentoring.api.NoteRequest;
 import dev.axonia.mentoring.api.NoteView;
 import dev.axonia.mentoring.api.PairingSummary;
+import dev.axonia.mentoring.api.PlannedMeetingView;
 import dev.axonia.mentoring.api.PointerRequest;
 import dev.axonia.mentoring.api.PointerView;
 import dev.axonia.mentoring.api.ProposalView;
@@ -25,7 +29,7 @@ import dev.axonia.mentoring.api.TopicRequest;
 import dev.axonia.mentoring.api.TopicView;
 import dev.axonia.mentoring.api.WordsView;
 import dev.axonia.mentoring.application.JournalService;
-import dev.axonia.mentoring.application.NextMeetingService;
+import dev.axonia.mentoring.application.MeetingPlanService;
 import dev.axonia.mentoring.application.PairingService;
 import dev.axonia.mentoring.application.ProposalService;
 import dev.axonia.mentoring.application.WordsService;
@@ -50,7 +54,7 @@ class MyMentoringControllerTest extends ControllerTestSupport {
     @MockitoBean
     private WordsService wordsService;
     @MockitoBean
-    private NextMeetingService nextMeetingService;
+    private MeetingPlanService meetingPlanService;
 
     @Test
     void acceptingAnswersThePairingTheFrontendParses() {
@@ -296,7 +300,95 @@ class MyMentoringControllerTest extends ControllerTestSupport {
     }
 
     @Test
-    void nextMeetingRoutes() {
+    void planningAMeetingAnswersCreatedWithTheMeeting() {
+
+        // given
+        when(meetingPlanService.plan(90L, new MeetingRequest(LocalDate.parse("2026-11-26"), List.of(3L, 7L))))
+                .thenReturn(
+                        PlannedMeetingView.builder().id(12L).on(LocalDate.parse("2026-11-26")).topicIds(List.of(3L, 7L))
+                                .plannedById("u1").plannedByName("Noah Brandt").passed(false).build());
+
+        // when
+        var actual = mvc.post().uri("/axonia/mentoring/pairings/{id}/meetings", 90).contentType("application/json")
+                .content("""
+                        {"on": "2026-11-26", "topicIds": [3, 7]}
+                        """).exchange();
+
+        // then
+        actual.assertThat().hasStatus(201).bodyJson().isStrictlyEqualTo("""
+                {"id": 12, "on": "2026-11-26", "topicIds": [3, 7], "plannedById": "u1",
+                 "plannedByName": "Noah Brandt", "passed": false}
+                """);
+    }
+
+    @Test
+    void changingAndRemovingAMeetingAnswerNoContent() {
+
+        // when
+        var changed = mvc.put().uri("/axonia/mentoring/pairings/{id}/meetings/{meetingId}", 90, 12)
+                .contentType("application/json").content("""
+                        {"on": "2026-12-03", "topicIds": [7]}
+                        """).exchange();
+        var removed = mvc.delete().uri("/axonia/mentoring/pairings/{id}/meetings/{meetingId}", 90, 12).exchange();
+
+        // then
+        changed.assertThat().hasStatus(204);
+        removed.assertThat().hasStatus(204);
+        verify(meetingPlanService).change(90L, 12L, new MeetingRequest(LocalDate.parse("2026-12-03"), List.of(7L)));
+        verify(meetingPlanService).remove(90L, 12L);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"MENTORING_MEETING_PAST, 400", "MENTORING_MEETING_TOO_FAR, 400", "MENTORING_MEETING_TOPICS, 400"})
+    void aDayOrTopicsOutOfBoundsAreABadRequestWithTheirCode(String code, int status) {
+
+        // given
+        doThrow(new ValidationException(code, "Refused")).when(meetingPlanService).change(90L, 12L,
+                new MeetingRequest(LocalDate.parse("2026-11-01"), List.of()));
+
+        // when
+        var actual = mvc.put().uri("/axonia/mentoring/pairings/{id}/meetings/{meetingId}", 90, 12)
+                .contentType("application/json").content("""
+                        {"on": "2026-11-01", "topicIds": []}
+                        """).exchange();
+
+        // then
+        actual.assertThat().hasStatus(status).bodyJson().extractingPath("$.code").isEqualTo(code);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"MENTORING_MEETING_TAKEN", "MENTORING_MEETING_LIMIT", "MENTORING_MEETING_PASSED"})
+    void aTakenDayAFullPlanOrAPassedMeetingIsAConflictWithItsCode(String code) {
+
+        // given
+        when(meetingPlanService.plan(90L, new MeetingRequest(LocalDate.parse("2026-11-26"), List.of())))
+                .thenThrow(new ConflictException(code, "Refused"));
+
+        // when
+        var actual = mvc.post().uri("/axonia/mentoring/pairings/{id}/meetings", 90).contentType("application/json")
+                .content("""
+                        {"on": "2026-11-26", "topicIds": []}
+                        """).exchange();
+
+        // then
+        actual.assertThat().hasStatus(409).bodyJson().extractingPath("$.code").isEqualTo(code);
+    }
+
+    @Test
+    void aMeetingOfAnotherPairingIsNotFound() {
+
+        // given
+        doThrow(new NotFoundException("No such meeting")).when(meetingPlanService).remove(90L, 12L);
+
+        // when
+        var actual = mvc.delete().uri("/axonia/mentoring/pairings/{id}/meetings/{meetingId}", 90, 12).exchange();
+
+        // then
+        actual.assertThat().hasStatus(404);
+    }
+
+    @Test
+    void theNextMeetingRoutesAreGone() {
 
         // when
         var set = mvc.put().uri("/axonia/mentoring/pairings/{id}/next-meeting", 90).contentType("application/json")
@@ -306,27 +398,8 @@ class MyMentoringControllerTest extends ControllerTestSupport {
         var cleared = mvc.delete().uri("/axonia/mentoring/pairings/{id}/next-meeting", 90).exchange();
 
         // then
-        set.assertThat().hasStatus(204);
-        cleared.assertThat().hasStatus(204);
-        verify(nextMeetingService).set(90L, LocalDate.parse("2026-11-19"));
-        verify(nextMeetingService).clear(90L);
-    }
-
-    @Test
-    void aDateBeforeTodayIsABadRequestWithItsCode() {
-
-        // given
-        doThrow(new ValidationException("MENTORING_MEETING_PAST", "The next meeting is today or later"))
-                .when(nextMeetingService).set(90L, LocalDate.parse("2026-11-01"));
-
-        // when
-        var actual = mvc.put().uri("/axonia/mentoring/pairings/{id}/next-meeting", 90).contentType("application/json")
-                .content("""
-                        {"on": "2026-11-01"}
-                        """).exchange();
-
-        // then
-        actual.assertThat().hasStatus(400).bodyJson().extractingPath("$.code").isEqualTo("MENTORING_MEETING_PAST");
+        assertThat(set.getResponse().getStatus()).isIn(404, 405);
+        assertThat(cleared.getResponse().getStatus()).isIn(404, 405);
     }
 
     @Test

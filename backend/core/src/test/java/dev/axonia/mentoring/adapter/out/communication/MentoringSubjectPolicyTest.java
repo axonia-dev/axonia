@@ -15,11 +15,13 @@ import org.mockito.junit.jupiter.MockitoSettings;
 
 import dev.axonia.communication.api.MessageType;
 import dev.axonia.mentoring.application.port.out.CommunityAccess;
+import dev.axonia.mentoring.application.port.out.MeetingRepository;
 import dev.axonia.mentoring.application.port.out.PairingRepository;
 import dev.axonia.mentoring.application.port.out.PersonDirectory;
 import dev.axonia.mentoring.application.port.out.ProposalRepository;
 import dev.axonia.mentoring.domain.MentoringSubject;
 import dev.axonia.mentoring.domain.Pairing;
+import dev.axonia.mentoring.domain.PlannedMeeting;
 import dev.axonia.mentoring.domain.Proposal;
 import dev.axonia.mentoring.domain.ProposalStatus;
 import dev.axonia.mentoring.domain.Role;
@@ -39,6 +41,8 @@ class MentoringSubjectPolicyTest {
     @Mock
     private PairingRepository pairings;
     @Mock
+    private MeetingRepository meetings;
+    @Mock
     private CommunityAccess communityAccess;
     @Mock
     private PersonDirectory personDirectory;
@@ -48,7 +52,7 @@ class MentoringSubjectPolicyTest {
     @BeforeEach
     void setUp() {
 
-        policy = new MentoringSubjectPolicy(proposals, pairings, communityAccess, personDirectory,
+        policy = new MentoringSubjectPolicy(proposals, pairings, meetings, communityAccess, personDirectory,
                 Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
@@ -80,37 +84,67 @@ class MentoringSubjectPolicyTest {
                 .nextMeetingOn(LocalDate.parse("2026-11-19")).nextMeetingSetBy("noah").nextMeetingSetAt(setAt);
     }
 
-    private static String meetingRef(Instant setAt) {
+    private static PlannedMeeting plannedAt(Instant at) {
 
-        return MentoringSubject.pairing(90L, String.valueOf(setAt.toEpochMilli()), "noah").ref();
+        return PlannedMeeting.builder().id(12L).pairingId(90L).on(LocalDate.parse("2026-11-26")).topicIds(List.of())
+                .plannedBy("noah").plannedAt(at).build();
+    }
+
+    private static String meetingRef(Instant plannedAt) {
+
+        return MentoringSubject.meeting(12L, String.valueOf(plannedAt.toEpochMilli()), "noah").ref();
     }
 
     @Test
-    void aMeetingNoticeIsOwedWhileThatDateIsThePairings() {
+    void aMeetingNoticeIsOwedWhileThatPlanningStands() {
 
         // given
-        when(pairings.find(ORG, 90L)).thenReturn(Optional.of(meetingSetAt(NOW).build()));
+        when(meetings.find(ORG, 12L)).thenReturn(Optional.of(plannedAt(NOW)));
+        when(pairings.find(ORG, 90L)).thenReturn(Optional.of(meetingSetAt(null).build()));
 
         // when / then
         assertThat(policy.isEnabledFor(ORG, MessageType.MENTORING_MEETING_SET, meetingRef(NOW))).isTrue();
     }
 
     @Test
-    void aSupersededOrClearedMeetingIsOwedNothing() {
+    void aMovedOrRemovedMeetingSupersedesItsNotice() {
 
         // given
-        var later = NOW.plusSeconds(60);
-        when(pairings.find(ORG, 90L)).thenReturn(Optional.of(meetingSetAt(later).build()));
-        when(pairings.find(ORG, 91L))
-                .thenReturn(Optional.of(meetingSetAt(null).id(91L).nextMeetingOn(null).nextMeetingSetBy(null).build()));
-        when(pairings.find(ORG, 92L)).thenReturn(Optional.empty());
+        when(meetings.find(ORG, 12L)).thenReturn(Optional.of(plannedAt(NOW.plusSeconds(60))));
+        when(meetings.find(ORG, 13L)).thenReturn(Optional.empty());
+        lenient().when(pairings.find(ORG, 90L)).thenReturn(Optional.of(meetingSetAt(null).build()));
 
         // when / then
         assertThat(policy.isEnabledFor(ORG, MessageType.MENTORING_MEETING_SET, meetingRef(NOW))).isFalse();
         assertThat(policy.isEnabledFor(ORG, MessageType.MENTORING_MEETING_SET,
-                MentoringSubject.pairing(91L, String.valueOf(NOW.toEpochMilli()), "noah").ref())).isFalse();
+                MentoringSubject.meeting(13L, String.valueOf(NOW.toEpochMilli()), "noah").ref())).isFalse();
+    }
+
+    @Test
+    void anEndedOrPurgedPairingsMeetingIsOwedNothing() {
+
+        // given
+        when(meetings.find(ORG, 12L)).thenReturn(Optional.of(plannedAt(NOW)));
+        when(meetings.find(ORG, 14L))
+                .thenReturn(Optional.of(plannedAt(NOW).toBuilder().id(14L).pairingId(94L).build()));
+        when(pairings.find(ORG, 90L)).thenReturn(Optional.of(meetingSetAt(null).endedAt(NOW.plusSeconds(5)).build()));
+        when(pairings.find(ORG, 94L)).thenReturn(Optional.empty());
+
+        // when / then
+        assertThat(policy.isEnabledFor(ORG, MessageType.MENTORING_MEETING_SET, meetingRef(NOW))).isFalse();
         assertThat(policy.isEnabledFor(ORG, MessageType.MENTORING_MEETING_SET,
-                MentoringSubject.pairing(92L, String.valueOf(NOW.toEpochMilli()), "noah").ref())).isFalse();
+                MentoringSubject.meeting(14L, String.valueOf(NOW.toEpochMilli()), "noah").ref())).isFalse();
+    }
+
+    @Test
+    void aLegacyPairingSubjectMeetingNoticeIsOwedNothing() {
+
+        // given
+        lenient().when(pairings.find(ORG, 90L)).thenReturn(Optional.of(meetingSetAt(NOW).build()));
+
+        // when / then
+        assertThat(policy.isEnabledFor(ORG, MessageType.MENTORING_MEETING_SET,
+                MentoringSubject.pairing(90L, String.valueOf(NOW.toEpochMilli()), "noah").ref())).isFalse();
     }
 
     private static String reminderRef(String day) {
@@ -153,16 +187,6 @@ class MentoringSubjectPolicyTest {
         // when / then
         assertThat(policy.isEnabledFor(ORG, MessageType.MENTORING_MEETING_REMINDER, reminderRef("2026-11-19")))
                 .isFalse();
-    }
-
-    @Test
-    void anEndedPairingsMeetingIsOwedNothing() {
-
-        // given
-        when(pairings.find(ORG, 90L)).thenReturn(Optional.of(meetingSetAt(NOW).endedAt(NOW.plusSeconds(5)).build()));
-
-        // when / then
-        assertThat(policy.isEnabledFor(ORG, MessageType.MENTORING_MEETING_SET, meetingRef(NOW))).isFalse();
     }
 
     @Test

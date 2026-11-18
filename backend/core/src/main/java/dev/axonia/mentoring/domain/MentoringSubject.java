@@ -1,11 +1,11 @@
 package dev.axonia.mentoring.domain;
 
 /**
- * What a mentoring notice is about: a proposal or a pairing, the occasion that tells two notices of one kind apart, and
- * the member the notice names, written {@code proposal:<id>:<aboutUserId>} or {@code pairing:<id>:<aboutUserId>}, with
- * {@code @<occasion>} after the id when there is one. The occasion is an epoch millisecond or an ISO date, so it never
- * holds a colon. The member is whatever follows the second colon, so their erasure finds every notice about them by its
- * suffix.
+ * What a mentoring notice is about: a proposal, a pairing or a planned meeting, the occasion that tells two notices of
+ * one kind apart, and the member the notice names, written {@code proposal:<id>:<aboutUserId>},
+ * {@code pairing:<id>:<aboutUserId>} or {@code meeting:<id>:<aboutUserId>}, with {@code @<occasion>} after the id when
+ * there is one. The occasion is an epoch millisecond or an ISO date, so it never holds a colon. The member is whatever
+ * follows the second colon, so their erasure finds every notice about them by its suffix.
  */
 public record MentoringSubject(Kind kind, long id, String occasion, String aboutUserId) {
 
@@ -14,7 +14,7 @@ public record MentoringSubject(Kind kind, long id, String occasion, String about
     private static final char OCCASION = '@';
 
     public enum Kind {
-        PROPOSAL("proposal"), PAIRING("pairing");
+        PROPOSAL("proposal"), PAIRING("pairing"), MEETING("meeting");
 
         private final String prefix;
 
@@ -52,6 +52,11 @@ public record MentoringSubject(Kind kind, long id, String occasion, String about
     public static MentoringSubject pairing(long id, String occasion, String aboutUserId) {
 
         return new MentoringSubject(Kind.PAIRING, id, occasion, aboutUserId);
+    }
+
+    public static MentoringSubject meeting(long id, String occasion, String aboutUserId) {
+
+        return new MentoringSubject(Kind.MEETING, id, occasion, aboutUserId);
     }
 
     public static MentoringSubject parse(String ref) {

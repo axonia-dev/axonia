@@ -58,24 +58,6 @@ class MeetingDaysTest {
     }
 
     @Test
-    void todayAndLaterAreUpcoming() {
-
-        // when / then
-        assertThat(MeetingDays.upcoming(TODAY, TODAY)).isEqualTo(TODAY);
-        assertThat(MeetingDays.upcoming(MEETING, TODAY)).isEqualTo(MEETING);
-    }
-
-    @Test
-    void yesterdayIsNotUpcoming() {
-
-        // when / then
-        assertThatThrownBy(() -> MeetingDays.upcoming(TODAY.minusDays(1), TODAY))
-                .isInstanceOf(ValidationException.class).hasFieldOrPropertyWithValue("code", "MENTORING_MEETING_PAST");
-        assertThatThrownBy(() -> MeetingDays.upcoming(null, TODAY)).isInstanceOf(ValidationException.class)
-                .hasFieldOrPropertyWithValue("code", "field_invalid");
-    }
-
-    @Test
     void reminderDueOnlyFromNineTheDayBefore() {
 
         // when / then

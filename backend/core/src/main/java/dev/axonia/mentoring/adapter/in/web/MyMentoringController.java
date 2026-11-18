@@ -15,18 +15,19 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import dev.axonia.mentoring.api.Journal;
+import dev.axonia.mentoring.api.MeetingRequest;
 import dev.axonia.mentoring.api.MentoringPresence;
 import dev.axonia.mentoring.api.MyMentoring;
-import dev.axonia.mentoring.api.NextMeetingRequest;
 import dev.axonia.mentoring.api.NoteRequest;
 import dev.axonia.mentoring.api.PairingSummary;
+import dev.axonia.mentoring.api.PlannedMeetingView;
 import dev.axonia.mentoring.api.PointerRequest;
 import dev.axonia.mentoring.api.TopicPlacement;
 import dev.axonia.mentoring.api.TopicRequest;
 import dev.axonia.mentoring.api.WordsRequest;
 import dev.axonia.mentoring.api.WordsView;
 import dev.axonia.mentoring.application.JournalService;
-import dev.axonia.mentoring.application.NextMeetingService;
+import dev.axonia.mentoring.application.MeetingPlanService;
 import dev.axonia.mentoring.application.PairingService;
 import dev.axonia.mentoring.application.ProposalService;
 import dev.axonia.mentoring.application.WordsService;
@@ -42,7 +43,7 @@ class MyMentoringController {
     private final PairingService pairingService;
     private final JournalService journalService;
     private final WordsService wordsService;
-    private final NextMeetingService nextMeetingService;
+    private final MeetingPlanService meetingPlanService;
 
     @GetMapping("/me")
     MyMentoring mine() {
@@ -159,18 +160,25 @@ class MyMentoringController {
         journalService.removePointer(id, pointerId);
     }
 
-    @PutMapping("/pairings/{id}/next-meeting")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    void setNextMeeting(@PathVariable long id, @RequestBody NextMeetingRequest request) {
+    @PostMapping("/pairings/{id}/meetings")
+    @ResponseStatus(HttpStatus.CREATED)
+    PlannedMeetingView planMeeting(@PathVariable long id, @RequestBody MeetingRequest request) {
 
-        nextMeetingService.set(id, request.on());
+        return meetingPlanService.plan(id, request);
     }
 
-    @DeleteMapping("/pairings/{id}/next-meeting")
+    @PutMapping("/pairings/{id}/meetings/{meetingId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    void clearNextMeeting(@PathVariable long id) {
+    void changeMeeting(@PathVariable long id, @PathVariable long meetingId, @RequestBody MeetingRequest request) {
 
-        nextMeetingService.clear(id);
+        meetingPlanService.change(id, meetingId, request);
+    }
+
+    @DeleteMapping("/pairings/{id}/meetings/{meetingId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void removeMeeting(@PathVariable long id, @PathVariable long meetingId) {
+
+        meetingPlanService.remove(id, meetingId);
     }
 
     @PutMapping("/pairings/{id}/words")

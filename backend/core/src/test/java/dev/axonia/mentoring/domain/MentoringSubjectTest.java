@@ -36,6 +36,21 @@ class MentoringSubjectTest {
     }
 
     @Test
+    void aMeetingRefRoundTrips() {
+
+        // given
+        var subject = MentoringSubject.meeting(12L, "1794844318000", "noah");
+
+        // when
+        var actual = MentoringSubject.parse(subject.ref());
+
+        // then
+        assertThat(subject.ref()).isEqualTo("meeting:12@1794844318000:noah");
+        assertThat(actual).isEqualTo(new MentoringSubject(MentoringSubject.Kind.MEETING, 12L, "1794844318000", "noah"));
+        assertThat(subject.ref()).endsWith(MentoringSubject.aboutSuffix("noah"));
+    }
+
+    @Test
     void roundTripsAnOccasion() {
 
         // given
