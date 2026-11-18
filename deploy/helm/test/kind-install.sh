@@ -100,8 +100,10 @@ echo "[kind] first install"
 install install
 first_key="$(settings_key)"
 [ "$(printf '%s' "$first_key" | base64 --decode | wc -c | tr -d ' ')" = 32 ] || fail "the generated settings key is not 32 bytes"
-"$kubectl" --namespace "$namespace" logs deployment/axonia-backend | grep -q "Founded Organization kind" ||
-	fail "the backend is ready but never logged its founding"
+# The founding runs once the application is ready, a moment after the readiness probe first passes.
+founded() { "$kubectl" --namespace "$namespace" logs deployment/axonia-backend | grep -q "Founded Organization kind"; }
+for _ in $(seq 30); do founded && break; sleep 2; done
+founded || fail "the backend is ready but never logged its founding"
 
 echo "[kind] the backend's user, its media volume, and both read-only root filesystems"
 [ "$("$kubectl" --namespace "$namespace" exec deployment/axonia-backend -- id -u)" = 10001 ] || fail "the backend does not run as 10001"
