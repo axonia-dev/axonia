@@ -69,7 +69,7 @@ fi
 documented="$(grep -E '^\| ' "$docs" | cut -d'|' -f2 | grep -oE '`[A-Z][A-Z0-9_]*`' | tr -d '`' | sort -u)"
 stale=""
 for name in $documented; do
-	printf '%s\n' "$names" | grep -qx "$name" || stale="$stale $name"
+	grep -qx "$name" <<<"$names" || stale="$stale $name"
 done
 
 if [ -n "$stale" ]; then
