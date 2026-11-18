@@ -196,7 +196,7 @@ describe("ProposeDialog", () => {
   });
 
   it.each([
-    ["MENTEE" as const, "Ask Ada for mentoring", "Ask for mentoring"],
+    ["MENTEE" as const, "Ask for mentoring from Ada", "Ask for mentoring"],
     ["MENTOR" as const, "Offer mentoring to Ada", "Offer mentoring"],
   ])("as %s is titled %s", (asRole, title, send) => {
     // when

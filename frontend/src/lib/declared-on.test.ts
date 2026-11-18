@@ -49,12 +49,27 @@ describe("monthName", () => {
     expect(actual).toBe("Nov 2025");
   });
 
-  it("judges the current year in UTC", () => {
+  it("reads the month's own year in UTC", () => {
     // when
     const actual = monthName("2026-01-01T00:30:00Z", NOW);
 
     // then
     expect(actual).toBe("Jan");
+  });
+});
+
+describe("monthName on New Year's Eve", () => {
+  // 18:00 on 31 Dec 2026 for a viewer in the pinned zone, already 2027 in UTC.
+  const EVE = new Date("2027-01-01T02:00:00Z");
+
+  it("judges the current year by the viewer's own clock", () => {
+    // when
+    const december = monthName("2026-12-01", EVE);
+    const january = monthName("2027-01-01", EVE);
+
+    // then
+    expect(december).toBe("Dec");
+    expect(january).toBe("Jan 2027");
   });
 });
 

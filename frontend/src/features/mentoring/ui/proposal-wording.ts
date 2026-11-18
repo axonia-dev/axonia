@@ -5,7 +5,7 @@ export function proposalWording(asRole: MentoringRole) {
   return asRole === "MENTEE"
     ? {
         label: "Ask for mentoring",
-        named: (name: string) => `Ask ${name} for mentoring`,
+        named: (name: string) => `Ask for mentoring from ${name}`,
       }
     : {
         label: "Offer mentoring",

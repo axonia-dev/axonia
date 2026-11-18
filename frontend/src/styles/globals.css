@@ -31,6 +31,8 @@
   /* A mentoring pair's two voices, kept apart from the community accent that repaints primary. */
   --mentor: #6e3ceb;
   --mentee: #de3b78;
+  /* Bare --mentee is a fill; as 11px text on a surface it needs this deeper shade to hold 4.5:1. */
+  --mentee-ink: #c32c66;
 
   --success: #1f9d63;
   --success-foreground: #ffffff;
@@ -164,6 +166,7 @@
   --secondary-foreground: #1a0e14;
   --mentor: #9b6bff;
   --mentee: #ff5c97;
+  --mentee-ink: var(--mentee);
 
   --success: #37b47b;
   --success-foreground: #0e1a14;
@@ -257,6 +260,7 @@
   --color-secondary-foreground: var(--secondary-foreground);
   --color-mentor: var(--mentor);
   --color-mentee: var(--mentee);
+  --color-mentee-ink: var(--mentee-ink);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);

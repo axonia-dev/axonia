@@ -11,7 +11,7 @@ import { useNow } from "@/lib/use-wake-at";
 
 const ROLE = {
   MENTOR: { label: "Mentor", ink: "text-mentor" },
-  MENTEE: { label: "Mentee", ink: "text-mentee" },
+  MENTEE: { label: "Mentee", ink: "text-mentee-ink" },
 } as const;
 
 function Side({
@@ -22,8 +22,8 @@ function Side({
   return (
     <div
       className={cn(
-        "flex min-w-0 flex-1 items-center gap-2",
-        mentee && "flex-row-reverse text-right",
+        "flex min-w-0 items-center gap-2 sm:flex-1",
+        mentee && "sm:flex-row-reverse sm:text-right",
       )}
     >
       <PartnerFace
@@ -48,12 +48,13 @@ function Side({
   );
 }
 
+/** Stacked on a phone, so each name has the row's width; side by side from `sm` up. */
 function Row({ pairing, now }: Readonly<{ pairing: ShownPairing; now: Date }>) {
   return (
-    <li className="border-border bg-surface flex items-center gap-2.5 rounded-2xl border px-3.5 py-2.5 sm:gap-4">
+    <li className="border-border bg-surface flex flex-col gap-1.5 rounded-2xl border px-3.5 py-2.5 sm:flex-row sm:items-center sm:gap-4">
       <Side as="MENTOR" person={pairing.mentor} />
-      <div className="text-muted-foreground flex flex-none flex-col items-center">
-        <ArrowRight aria-hidden className="size-4" />
+      <div className="text-muted-foreground flex flex-none items-center gap-1.5 pl-2.5 sm:flex-col sm:gap-0 sm:pl-0">
+        <ArrowRight aria-hidden className="size-4 rotate-90 sm:rotate-0" />
         <span className="text-[11px] whitespace-nowrap">
           since {monthName(pairing.startedOn, now)}
         </span>

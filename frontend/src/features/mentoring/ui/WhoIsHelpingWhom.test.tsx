@@ -25,7 +25,7 @@ describe("WhoIsHelpingWhom", () => {
       /Mentor.*Ana Keller.*since Oct.*Mentee.*Dan Ilić/,
     );
     expect(within(row!).getByText("Mentor")).toHaveClass("text-mentor");
-    expect(within(row!).getByText("Mentee")).toHaveClass("text-mentee");
+    expect(within(row!).getByText("Mentee")).toHaveClass("text-mentee-ink");
   });
 
   it("adds the year to a pairing begun in another year", () => {

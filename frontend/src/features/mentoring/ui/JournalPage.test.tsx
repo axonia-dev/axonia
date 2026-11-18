@@ -2,6 +2,7 @@ import { screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useIsDelegated } from "@/auth/delegated-session";
+import { journal } from "@/features/mentoring/test-data";
 import { hooks, show } from "@/test/journal-page-view";
 
 vi.mock("@/auth/delegated-session", () => ({ useIsDelegated: vi.fn() }));
@@ -118,5 +119,24 @@ describe("JournalPage", () => {
         "Only the two people in this pairing see this journal. It is part of the organization’s data export.",
       ),
     ).toBeInTheDocument();
+  });
+
+  it("adds nothing about the community once a shown pairing has ended", () => {
+    // given
+    hooks();
+
+    // when
+    show({
+      pairing: { ...journal.pairing, endedAt: "2026-11-17T10:00:00Z" },
+      showing: { visibility: "SHOWN", iSaidYes: true },
+    });
+
+    // then
+    expect(
+      screen.getByText(
+        "Only the two people in this pairing see this journal. It is part of the organization’s data export.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Members of the community/)).toBeNull();
   });
 });

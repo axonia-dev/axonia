@@ -62,7 +62,7 @@ test("the Mentoring page fits a phone, long areas, the limit and long pairings i
   // then
   await expect(
     browser.getByRole("button", {
-      name: "Ask Bartholomew Montgomery-Whitfield for mentoring",
+      name: "Ask for mentoring from Bartholomew Montgomery-Whitfield",
     }),
   ).toBeVisible();
   await expect(

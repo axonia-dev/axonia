@@ -58,8 +58,8 @@ export function declaredMonth(iso: string): string {
   return withThreeLetterMonth(MONTH_YEAR_UTC, iso);
 }
 
-/** "Sep" in the current year and "Sep 2025" before it, the month of the instant in UTC. */
+/** "Sep" in the viewer's current year and "Sep 2025" in any other, the month of the instant in UTC. */
 export function monthName(iso: string, now: Date): string {
-  const sameYear = new Date(iso).getUTCFullYear() === now.getUTCFullYear();
+  const sameYear = new Date(iso).getUTCFullYear() === now.getFullYear();
   return withThreeLetterMonth(sameYear ? MONTH_UTC : MONTH_YEAR_UTC, iso);
 }

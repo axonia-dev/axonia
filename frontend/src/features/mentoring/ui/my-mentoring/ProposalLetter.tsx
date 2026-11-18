@@ -148,7 +148,7 @@ export function ProposalLetter({
             {accept}
           </Button>
         </div>
-        <p className="text-ink-sepia/80 text-xs">{SHOWN_ONCE_ACCEPTED}</p>
+        <p className="text-ink-sepia text-xs">{SHOWN_ONCE_ACCEPTED}</p>
       </div>
     </li>
   );

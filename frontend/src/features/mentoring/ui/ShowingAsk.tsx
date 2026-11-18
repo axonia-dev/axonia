@@ -28,11 +28,15 @@ function partnerFirstName(journal: Journal): string {
   );
 }
 
-function Ask({
-  title,
-  lines,
-  children,
-}: Readonly<{ title: string; lines: string[]; children: ReactNode }>) {
+interface AskProps {
+  title: string;
+  lines: string[];
+  /** A line under the buttons. */
+  note?: string;
+  children: ReactNode;
+}
+
+function Ask({ title, lines, note, children }: Readonly<AskProps>) {
   const titleId = useId();
   return (
     <section
@@ -53,6 +57,11 @@ function Ask({
         ))}
       </div>
       <div className="ml-auto flex flex-wrap gap-2">{children}</div>
+      {note !== undefined && (
+        <p className="text-muted-foreground w-full text-right text-xs">
+          {note}
+        </p>
+      )}
     </section>
   );
 }
@@ -98,6 +107,7 @@ export function ShowingAsk({ journal }: Readonly<{ journal: Journal }>) {
         wouldSee(journal, selfName),
         "The journal stays private to the pair.",
       ]}
+      note="Keep private cannot be undone."
     >
       <Button
         variant="outline"

@@ -67,6 +67,9 @@ describe("ShowingAsk", () => {
     expect(
       screen.getByText("The journal stays private to the pair."),
     ).toBeInTheDocument();
+    expect(
+      screen.getByText("Keep private cannot be undone."),
+    ).toBeInTheDocument();
 
     // when
     await userEvent.click(screen.getByRole("button", { name: button }));
@@ -119,6 +122,9 @@ describe("ShowingAsk", () => {
 
     // then
     expect(answering.mutate).toHaveBeenCalledWith("UNSAID", expect.anything());
+    expect(
+      screen.queryByText("Keep private cannot be undone."),
+    ).not.toBeInTheDocument();
   });
 
   it("waits for the partner's full name when no given name is known", () => {

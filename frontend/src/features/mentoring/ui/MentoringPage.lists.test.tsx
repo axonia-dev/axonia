@@ -59,7 +59,9 @@ describe("the Mentoring page lists", () => {
     expect(screen.getByText("Ada")).toBeInTheDocument();
     expect(screen.getByText("kafka")).toBeInTheDocument();
     expect(screen.getByText("Grace")).toBeInTheDocument();
-    const ask = screen.getByRole("button", { name: "Ask Ada for mentoring" });
+    const ask = screen.getByRole("button", {
+      name: "Ask for mentoring from Ada",
+    });
     expect(ask).toHaveTextContent("Ask for mentoring");
     const offer = screen.getByRole("button", {
       name: "Offer mentoring to Grace",
@@ -80,7 +82,7 @@ describe("the Mentoring page lists", () => {
     // then
     expect(screen.getByText("Me")).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /for mentoring$/ }),
+      screen.queryByRole("button", { name: /^(Ask for|Offer) mentoring/ }),
     ).not.toBeInTheDocument();
   });
 
@@ -97,7 +99,7 @@ describe("the Mentoring page lists", () => {
     // then
     expect(screen.getByText("Proposal sent")).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /for mentoring$/ }),
+      screen.queryByRole("button", { name: /^(Ask for|Offer) mentoring/ }),
     ).not.toBeInTheDocument();
   });
 
