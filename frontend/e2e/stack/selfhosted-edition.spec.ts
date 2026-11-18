@@ -27,7 +27,9 @@ test("the Owner signs in, starts a community and finds it listed, on a reload to
   await expect(
     page.getByRole("heading", { level: 1, name: "Communities" }),
   ).toBeVisible();
-  await expect(page.getByText("No communities yet")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Start a community here" }),
+  ).toBeVisible();
 
   await page.getByRole("link", { name: "Start a community" }).click();
   await page.getByRole("textbox", { name: "Name" }).fill(COMMUNITY);
@@ -42,7 +44,7 @@ test("the Owner signs in, starts a community and finds it listed, on a reload to
   ).toBeVisible();
   await page.goto("/communities");
   await expect(
-    page.getByRole("link", { name: new RegExp(COMMUNITY) }),
+    page.getByRole("article", { name: COMMUNITY }).first(),
   ).toBeVisible();
 });
 
@@ -69,7 +71,7 @@ test("a person outside the owner group sees the community and no way to start on
 
   await expect(page).toHaveURL(`${EDGE}/communities`);
   await expect(
-    page.getByRole("link", { name: new RegExp(COMMUNITY) }),
+    page.getByRole("article", { name: COMMUNITY }).first(),
   ).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Start a community" }),

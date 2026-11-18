@@ -9,6 +9,7 @@ import type { LobbyItem } from "@/features/community/domain/lobby";
 import { LobbyShelfRow } from "@/features/community/ui/lobby/LobbyShelfRow";
 import { useUsers } from "@/features/identity/api/use-users";
 import { lobbyItem } from "@/test/lobby-fixture";
+import { inQueryClient } from "@/test/query-client";
 
 vi.mock("@/features/community/api/use-lobby", () => ({
   useLobbyShelf: vi.fn(),
@@ -68,7 +69,7 @@ function row(key: "JOINED" | "GROWING", first: LobbyItem[]) {
 }
 
 function renderRow(key: "JOINED" | "GROWING", first: LobbyItem[]) {
-  return render(row(key, first));
+  return render(row(key, first), inQueryClient());
 }
 
 function cardNames(): string[] {

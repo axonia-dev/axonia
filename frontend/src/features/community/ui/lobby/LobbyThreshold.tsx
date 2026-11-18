@@ -17,6 +17,7 @@ import {
   accentVariables,
   communityHue,
 } from "@/features/community/ui/community-accent";
+import { LobbyArt } from "@/features/community/ui/lobby/lobby-art";
 import { useLobbyMorphId } from "@/features/community/ui/lobby/lobby-morph";
 import {
   LatelyInside,
@@ -25,7 +26,6 @@ import {
   WhoIsHere,
 } from "@/features/community/ui/lobby/lobby-threshold-sections";
 import { OpenLink } from "@/features/community/ui/lobby/LobbyBillboardSlide";
-import { LobbyArt } from "@/features/community/ui/lobby/LobbyCard";
 import { LobbyJoinButton } from "@/features/community/ui/lobby/LobbyJoinButton";
 import { useLobbyFaces } from "@/features/community/ui/lobby/use-lobby-faces";
 import { cn } from "@/lib/cn";

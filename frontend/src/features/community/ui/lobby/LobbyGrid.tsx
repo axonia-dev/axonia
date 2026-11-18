@@ -2,7 +2,6 @@ import { type ReactNode, useId } from "react";
 
 import { EmptyState } from "@/components/patterns/EmptyState";
 import { LoadFailed } from "@/components/patterns/LoadFailed";
-import { Skeleton } from "@/components/ui/Skeleton";
 import { useLobbySearch } from "@/features/community/api/use-lobby";
 import type { LobbyItem } from "@/features/community/domain/lobby";
 import { SHELF_LABELS } from "@/features/community/ui/lobby/lobby-copy";
@@ -15,8 +14,8 @@ import {
   useShelfPages,
 } from "@/features/community/ui/lobby/lobby-paging";
 import {
-  type GrowFrom,
   LobbyCard,
+  LobbyCardSkeleton,
 } from "@/features/community/ui/lobby/LobbyCard";
 import { useLoadMore } from "@/features/community/ui/lobby/use-load-more";
 import {
@@ -56,7 +55,7 @@ export function CardSkeletons({
   return (
     <div data-testid="lobby-card-skeletons" className={className ?? GRID}>
       {Array.from({ length: count }, (_, i) => (
-        <Skeleton key={i} className="aspect-video w-full rounded-lg" />
+        <LobbyCardSkeleton key={i} />
       ))}
     </div>
   );
@@ -67,13 +66,6 @@ function useColumns(): number {
   const small = useMediaQuery("(min-width: 40rem)");
   if (wide) return 4;
   return small ? 2 : 1;
-}
-
-/** The edge a card grows from, so the outer columns stay inside the page. */
-function growFromColumn(index: number, columns: number): GrowFrom {
-  const column = index % columns;
-  if (column === 0) return "top-left";
-  return column === columns - 1 ? "top-right" : "top";
 }
 
 function LobbyGrid({
@@ -108,9 +100,7 @@ function LobbyGrid({
               faces={faces}
               onOpenThreshold={onOpenThreshold}
               showRole={item.role !== null}
-              growFrom={growFromColumn(i, columns)}
               place={{ list, index: i }}
-              preview={columns > 1}
             />
           </li>
         ))}

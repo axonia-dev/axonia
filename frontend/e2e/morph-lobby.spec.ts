@@ -29,7 +29,10 @@ const communityGroups = ["banner", "badge", "name"].map((part) =>
 const cardGroups = ["banner", "name"].map((part) =>
   group(part, `community-${SLUG}`),
 );
-async function visitLobby(page: Page): Promise<void> {
+async function visitLobby(
+  page: Page,
+  role: string | null = "ORGANIZER",
+): Promise<void> {
   await recordMorphs(page);
   await stubReads(page, {
     ...shellOfCommunity,
@@ -42,7 +45,7 @@ async function visitLobby(page: Page): Promise<void> {
         key: "OTHERS",
         items: [
           ...lobbyItems(100, 14, { role: "MEMBER" }),
-          lobbyItem({ ...pictured, role: "ORGANIZER" }),
+          lobbyItem({ ...pictured, role }),
         ],
       },
     ],
@@ -52,15 +55,7 @@ async function visitLobby(page: Page): Promise<void> {
 }
 
 const tileOf = (page: Page) =>
-  page.getByRole("button", { name: community.name }).first();
-
-/** A lobby card opens the community's threshold, and its Open link goes in. */
-async function openFromThreshold(page: Page): Promise<void> {
-  await page
-    .getByRole("dialog", { name: community.name })
-    .getByRole("link", { name: "Open" })
-    .click();
-}
+  page.getByRole("link", { name: community.name }).first();
 const heroHeading = (page: Page) =>
   page.getByRole("heading", { name: community.name });
 
@@ -73,7 +68,7 @@ const mainScrollTop = (page: Page) =>
  * route-fulfilled read under a loaded parallel run can take longer, and the app then rightly
  * navigates without morphing. Pointing first is what a reader does, and it starts the same reads.
  */
-test("a lobby card's threshold opens into its hero, and back replays the morph into the card", async ({
+test("a joined lobby card opens into its hero in one click, and back replays the morph into the card", async ({
   page,
 }) => {
   // given
@@ -81,18 +76,32 @@ test("a lobby card's threshold opens into its hero, and back replays the morph i
   const tile = tileOf(page);
   await tile.scrollIntoViewIfNeeded();
   expect(await mainScrollTop(page)).toBeGreaterThan(0);
-  await tile.click();
 
-  // when / then
-  await groupsDuring(page, () => openFromThreshold(page), communityGroups);
+  // when / then - a card wears no badge, so its banner and name are what morph, out and back
+  await groupsDuring(page, () => tile.click(), cardGroups);
   await expect(page).toHaveURL(`/communities/${SLUG}`);
   await expect(heroHeading(page)).toBeVisible();
 
-  // when / then - a card wears no badge, so its banner and name are what morph back
+  // when / then
   await groupsDuring(page, () => page.goBack(), cardGroups);
   await expect(page).toHaveURL("/communities");
   await expect(tile).toBeInViewport();
   expect(await mainScrollTop(page)).toBeGreaterThan(0);
+});
+
+test("an unjoined card's threshold peeks inside through the morph", async ({
+  page,
+}) => {
+  // given
+  await visitLobby(page, null);
+  await page.getByRole("button", { name: community.name }).first().click();
+  const peek = page
+    .getByRole("dialog", { name: community.name })
+    .getByRole("link", { name: "Peek inside" });
+
+  // when / then
+  await groupsDuring(page, () => peek.click(), communityGroups);
+  await expect(page).toHaveURL(`/communities/${SLUG}`);
 });
 
 test("Open on a joined billboard slide morphs out of the slide, and back into it", async ({
@@ -162,7 +171,7 @@ test("joining from a lobby threshold plays the welcome and never morphs", async 
   await stubImages(page);
   await page.goto("/communities");
   const stage = page.locator("[data-ceremony-stage]");
-  await tileOf(page).click();
+  await page.getByRole("button", { name: community.name }).click();
 
   // when / then
   await noGroupsDuring(
@@ -192,12 +201,11 @@ test("reduced motion opens the hero without a morph", async ({ page }) => {
   // given
   await page.emulateMedia({ reducedMotion: "reduce" });
   await visitLobby(page);
-  await tileOf(page).click();
 
   // when / then
   await noGroupsDuring(
     page,
-    () => openFromThreshold(page),
+    () => tileOf(page).click(),
     () => expect(heroHeading(page)).toBeVisible(),
   );
 });

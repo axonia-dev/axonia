@@ -154,9 +154,26 @@ test.describe("at a desk", () => {
       await expect(
         page
           .getByRole("region", { name: shelf })
-          .getByRole("button", { name: card }),
+          .getByRole("article", { name: card }),
       ).toBeVisible();
     }
+  });
+
+  test("a joined card opens its community in one click, with no threshold", async ({
+    page,
+  }) => {
+    // given
+    await visitLobby(page);
+
+    // when
+    await page
+      .getByRole("region", { name: "Joined" })
+      .getByRole("link", { name: "Frontend Guild" })
+      .click();
+
+    // then
+    await expect(page).toHaveURL("/communities/frontend-guild");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
   });
 
   test("a card opens its threshold, and Escape hands focus back to the card", async ({

@@ -8,6 +8,7 @@ import { Button, buttonClass } from "@/components/ui/Button";
 import { useSeedCommunityDetail } from "@/features/community/api/seed-community-detail";
 import type { LobbyItem } from "@/features/community/domain/lobby";
 import { accentVariables } from "@/features/community/ui/community-accent";
+import { LiveDot, LobbyArt } from "@/features/community/ui/lobby/lobby-art";
 import {
   CREATE_HERO,
   lobbyEyebrow,
@@ -17,7 +18,6 @@ import {
   useLobbyMorphId,
   useShowSlide,
 } from "@/features/community/ui/lobby/lobby-morph";
-import { LiveDot, LobbyArt } from "@/features/community/ui/lobby/LobbyCard";
 import { LobbyJoinButton } from "@/features/community/ui/lobby/LobbyJoinButton";
 import type { LobbyFaces } from "@/features/community/ui/lobby/use-lobby-faces";
 import { cn } from "@/lib/cn";
@@ -128,20 +128,22 @@ export function LobbyBillboardSlide({
           {joined ? (
             <OpenLink item={item} />
           ) : (
-            <LobbyJoinButton
-              slug={item.slug}
-              size="md"
-              onImage
-              className={BIG}
-            />
+            <>
+              <LobbyJoinButton
+                slug={item.slug}
+                size="md"
+                onImage
+                className={BIG}
+              />
+              <Button
+                variant="ghost"
+                onPress={() => onOpenThreshold(item)}
+                className={cn(BIG, GLASS)}
+              >
+                Peek inside
+              </Button>
+            </>
           )}
-          <Button
-            variant="ghost"
-            onPress={() => onOpenThreshold(item)}
-            className={cn(BIG, GLASS)}
-          >
-            Peek inside
-          </Button>
         </div>
       </div>
     </div>

@@ -60,7 +60,7 @@ describe("LobbyBillboardSlide", () => {
     ).toBeInTheDocument();
   });
 
-  it("offers Open in place of Join for a joined community", () => {
+  it("offers only Open for a joined community, with no Join and no peek", () => {
     // when
     renderSlide(lobbyItem({ role: "MEMBER" }));
 
@@ -70,6 +70,7 @@ describe("LobbyBillboardSlide", () => {
       "/communities/community-1",
     );
     expect(screen.queryByRole("button", { name: "Join" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Peek inside" })).toBeNull();
   });
 
   it("opens the threshold from Peek inside", async () => {

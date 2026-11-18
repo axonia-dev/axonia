@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -116,67 +116,6 @@ describe("LobbyShelfGrid", () => {
     expect(
       screen.getByRole("button", { name: "Community 2" }),
     ).toBeInTheDocument();
-  });
-});
-
-describe("a grid's cards", () => {
-  function renderGrid(count: number) {
-    const shelf = Array.from({ length: count }, (_, i) =>
-      lobbyItem({ id: i + 1 }),
-    );
-    vi.mocked(useLobbyShelf).mockReturnValue({
-      data: { pages: [{ items: shelf, hasMore: false }], pageParams: [0] },
-      hasNextPage: false,
-      isFetchingNextPage: false,
-      isFetchNextPageError: false,
-      fetchNextPage,
-    } as never);
-    render(
-      <MemoryRouter>
-        <LobbyShelfGrid
-          shelf={{ key: "OTHERS", items: shelf, hasMore: false }}
-          faces={() => []}
-          onOpenThreshold={vi.fn()}
-        />
-      </MemoryRouter>,
-    );
-  }
-
-  function growth(name: string): HTMLElement | null {
-    return screen.getByRole("button", { name }).parentElement;
-  }
-
-  it("grow inward from the outer columns, so none leaves the page", () => {
-    // when
-    renderGrid(5);
-
-    // then
-    expect(growth("Community 1")).toHaveClass("origin-top-left");
-    expect(growth("Community 2")).toHaveClass("origin-top");
-    expect(growth("Community 4")).toHaveClass("origin-top-right");
-    expect(growth("Community 5")).toHaveClass("origin-top-left");
-  });
-
-  it("open no preview in a single column, where a grown card would cross the gutter", () => {
-    // given
-    window.matchMedia = (query: string) =>
-      ({
-        matches: false,
-        media: query,
-        addEventListener: () => {},
-        removeEventListener: () => {},
-      }) as unknown as MediaQueryList;
-    renderGrid(2);
-    const card = screen
-      .getByRole("button", { name: "Community 1" })
-      .closest("[data-preview]");
-    if (card === null) throw new Error("no card");
-
-    // when
-    fireEvent.pointerEnter(card, { pointerType: "mouse" });
-
-    // then
-    expect(card).toHaveAttribute("data-preview", "closed");
   });
 });
 

@@ -1,10 +1,13 @@
 import {
   createContext,
   type ReactNode,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
+  useState,
 } from "react";
+import { flushSync } from "react-dom";
 
 import { communityMorphId } from "@/components/patterns/morph/MorphPart";
 
@@ -23,7 +26,18 @@ export interface MorphClaims {
   lists: ReadonlyArray<readonly [string, readonly string[]]>;
 }
 
-function ownerOf(claims: MorphClaims, slug: string): string | null {
+/** The surface a community is being left from: it wears the names for the morph out. */
+interface Leaving {
+  slug: string;
+  surface: string;
+}
+
+function ownerOf(
+  claims: MorphClaims,
+  leaving: Leaving | null,
+  slug: string,
+): string | null {
+  if (leaving?.slug === slug) return leaving.surface;
   if (claims.threshold === slug) return "threshold";
   if (claims.slide === slug) return "slide";
   for (const [list, slugs] of claims.lists) {
@@ -42,17 +56,20 @@ function keyOf(surface: MorphSurface): string {
 interface LobbyMorphValue {
   owns: (slug: string, surface: MorphSurface) => boolean;
   showSlide: (slug: string) => void;
+  leave: (slug: string, surface: MorphSurface) => void;
 }
 
 const LobbyMorph = createContext<LobbyMorphValue>({
   owns: () => true,
   showSlide: () => undefined,
+  leave: () => undefined,
 });
 
 /**
  * One community, one set of morph names: a view transition aborts on a name worn twice, and the
  * same community can sit on the billboard, on several shelves and in its threshold at once. The
- * open threshold wears them, else the slide on show, else the first card in render order.
+ * surface being left from wears them, else the open threshold, else the slide on show, else the
+ * first card in render order.
  */
 export function LobbyMorphClaims({
   claims,
@@ -63,13 +80,18 @@ export function LobbyMorphClaims({
   onShowSlide: (slug: string) => void;
   children: ReactNode;
 }>) {
+  const [leaving, setLeaving] = useState<Leaving | null>(null);
+  const leave = useCallback((slug: string, surface: MorphSurface) => {
+    flushSync(() => setLeaving({ slug, surface: keyOf(surface) }));
+  }, []);
   const value = useMemo(
     () => ({
       owns: (slug: string, surface: MorphSurface) =>
-        ownerOf(claims, slug) === keyOf(surface),
+        ownerOf(claims, leaving, slug) === keyOf(surface),
       showSlide: onShowSlide,
+      leave,
     }),
-    [claims, onShowSlide],
+    [claims, leaving, onShowSlide, leave],
   );
   return <LobbyMorph value={value}>{children}</LobbyMorph>;
 }
@@ -90,4 +112,19 @@ export function useShowSlide(slug: string, active: boolean): void {
   useEffect(() => {
     if (active) showSlide(slug);
   }, [active, slug, showSlide]);
+}
+
+/**
+ * Hands the community's morph names to this surface before it navigates, so the morph leaves
+ * from the card clicked rather than from another copy of it; the names land before the old view
+ * is captured.
+ */
+export function useLeaveFrom(
+  slug: string,
+  surface: MorphSurface | null,
+): () => void {
+  const { leave } = useContext(LobbyMorph);
+  return useCallback(() => {
+    if (surface !== null) leave(slug, surface);
+  }, [leave, slug, surface]);
 }

@@ -57,7 +57,7 @@ async function renderLobby(lobby: Lobby) {
     </MemoryRouter>,
     inQueryClient(),
   );
-  await screen.findAllByRole("button", { name: "Kafka Circle" });
+  await screen.findAllByText("Kafka Circle");
 }
 
 /** Every morph name worn on the page, the dialog's portal included. */
@@ -125,6 +125,37 @@ describe("the lobby's morph names", () => {
     const names = wornNames();
     expect(names).toEqual([...new Set(names)]);
     expect(wearer(BANNER)?.closest('[role="dialog"]')).not.toBeNull();
+  });
+
+  it("move to the joined card clicked, so the community opens out of it", async () => {
+    // given - a joined community first on Sessions this week, then on Growing fast
+    const joined = { ...shared, role: "MEMBER" as const };
+    await renderLobby(
+      lobbyFixture({
+        billboard: [lobbyItem({ id: 8 })],
+        shelves: [
+          { key: "THIS_WEEK", items: [joined], hasMore: false },
+          {
+            key: "GROWING",
+            items: [lobbyItem({ id: 10 }), joined],
+            hasMore: false,
+          },
+        ],
+      }),
+    );
+    const shelf = screen.getByRole("region", { name: "Growing fast" });
+
+    // when
+    await userEvent.click(
+      within(shelf).getByRole("link", { name: "Kafka Circle" }),
+    );
+
+    // then
+    const names = wornNames();
+    expect(names).toEqual([...new Set(names)]);
+    expect(
+      within(shelf).getByRole("article", { name: "Kafka Circle" }),
+    ).toContainElement(wearer(BANNER) as HTMLElement);
   });
 
   it("fall to the first card in render order when the billboard does not show the community", async () => {

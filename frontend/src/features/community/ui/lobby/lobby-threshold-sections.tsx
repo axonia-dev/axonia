@@ -3,12 +3,12 @@ import type { ReactNode } from "react";
 
 import { MemberFacepile } from "@/components/patterns/MemberFacepile";
 import type { LobbyItem } from "@/features/community/domain/lobby";
+import { LiveDot } from "@/features/community/ui/lobby/lobby-art";
 import {
   NOTHING_SCHEDULED,
   sessionName,
   sessionWhen,
 } from "@/features/community/ui/lobby/lobby-copy";
-import { LiveDot } from "@/features/community/ui/lobby/LobbyCard";
 import type { LobbyFaces } from "@/features/community/ui/lobby/use-lobby-faces";
 import { pluralWord } from "@/lib/plural";
 

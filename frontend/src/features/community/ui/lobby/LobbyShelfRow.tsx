@@ -2,7 +2,6 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/Button";
-import { Skeleton } from "@/components/ui/Skeleton";
 import type { LobbyItem } from "@/features/community/domain/lobby";
 import { SHELF_LABELS } from "@/features/community/ui/lobby/lobby-copy";
 import {
@@ -12,8 +11,10 @@ import {
   type Shelf,
   useShelfPages,
 } from "@/features/community/ui/lobby/lobby-paging";
-import type { GrowFrom } from "@/features/community/ui/lobby/LobbyCard";
-import { LobbyCard } from "@/features/community/ui/lobby/LobbyCard";
+import {
+  LobbyCard,
+  LobbyCardSkeleton,
+} from "@/features/community/ui/lobby/LobbyCard";
 import { ShelfHeading } from "@/features/community/ui/lobby/LobbyGrid";
 import { useLoadMore } from "@/features/community/ui/lobby/use-load-more";
 import type { LobbyFaces } from "@/features/community/ui/lobby/use-lobby-faces";
@@ -31,8 +32,7 @@ interface RowProps {
   paging: Paging;
 }
 
-/** Below the first breakpoint a shelf is a strip that scrolls with snap and loads at its end. Its
- *  cards open no preview: a strip clips anything that grows, and a phone has no hover anyway. */
+/** Below the first breakpoint a shelf is a strip that scrolls with snap and loads at its end. */
 function ScrollingRow({
   headingId,
   label,
@@ -55,7 +55,7 @@ function ScrollingRow({
       <ShelfHeading id={headingId} label={label} />
       <ul
         ref={strip}
-        className="relative -mx-6 flex snap-x snap-mandatory scroll-px-6 [scrollbar-width:none] gap-3 overflow-x-auto overscroll-x-contain px-6 pb-1 [&::-webkit-scrollbar]:hidden"
+        className="relative -mx-6 flex snap-x snap-mandatory scroll-px-6 [scrollbar-width:none] gap-3 overflow-x-auto overscroll-x-contain px-6 pt-1 pb-3 [&::-webkit-scrollbar]:hidden"
       >
         {items.map((item, index) => (
           <li key={item.id} className="w-3/4 flex-none snap-start sm:w-2/5">
@@ -65,7 +65,6 @@ function ScrollingRow({
               faces={faces}
               onOpenThreshold={onOpenThreshold}
               showRole={showRole}
-              preview={false}
             />
           </li>
         ))}
@@ -101,18 +100,13 @@ function usePagedWindow(count: number, perView: number, paging: Paging) {
   };
 }
 
-/** From the first breakpoint up, a shelf shows a window of cards and pages with its arrows,
- *  leaving each card room to grow over its neighbours without a scroll box clipping it. */
+/** From the first breakpoint up, a shelf shows a window of cards and pages with its arrows. */
 function PagedRow(props: Readonly<RowProps & { perView: number }>) {
   const { headingId, label, items, faces, onOpenThreshold, showRole, perView } =
     props;
   const windowed = usePagedWindow(items.length, perView, props.paging);
   const visible = items.slice(windowed.start, windowed.start + perView);
   const waiting = Math.max(0, perView - visible.length);
-  const growFrom = (i: number): GrowFrom => {
-    if (i === 0) return "top-left";
-    return i === perView - 1 ? "top-right" : "top";
-  };
   return (
     <>
       <ShelfHeading id={headingId} label={label}>
@@ -152,7 +146,6 @@ function PagedRow(props: Readonly<RowProps & { perView: number }>) {
               faces={faces}
               onOpenThreshold={onOpenThreshold}
               showRole={showRole}
-              growFrom={growFrom(i)}
               place={{ list: props.list, index: windowed.start + i }}
             />
           </li>
@@ -160,7 +153,7 @@ function PagedRow(props: Readonly<RowProps & { perView: number }>) {
         {props.paging.isFetchingNextPage &&
           Array.from({ length: waiting }, (_, i) => (
             <li key={`waiting-${i}`}>
-              <Skeleton className="aspect-video w-full rounded-lg" />
+              <LobbyCardSkeleton />
             </li>
           ))}
       </ul>
