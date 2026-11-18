@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { usePropose } from "@/features/mentoring/api/use-mentoring";
+import type { MentoringRole } from "@/features/mentoring/domain/mentoring";
 import { ProposeDialog } from "@/features/mentoring/ui/ProposeDialog";
 import { ApiError } from "@/lib/api-client";
 import { mutation } from "@/test/mentoring-page-view";
@@ -17,13 +18,13 @@ const person = {
   areas: ["kafka", "testing"],
 };
 
-function open() {
+function open(asRole: MentoringRole = "MENTEE") {
   const onOpenChange = vi.fn();
   render(
     <ProposeDialog
       slug="platform"
       person={person}
-      asRole="MENTEE"
+      asRole={asRole}
       isOpen
       onOpenChange={onOpenChange}
     />,
@@ -53,7 +54,9 @@ describe("ProposeDialog", () => {
       screen.getByRole("textbox", { name: "Message" }),
       "Happy to pair up?",
     );
-    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Ask for mentoring" }),
+    );
 
     // then
     expect(screen.getByText("Topics (2 of 5)")).toBeInTheDocument();
@@ -79,7 +82,9 @@ describe("ProposeDialog", () => {
     );
 
     // then
-    expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Ask for mentoring" }),
+    ).toBeDisabled();
   });
 
   it("names the field Topic until a first topic is added", async () => {
@@ -114,7 +119,9 @@ describe("ProposeDialog", () => {
       screen.getByRole("textbox", { name: "Message" }),
       "Hi",
     );
-    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Ask for mentoring" }),
+    );
 
     // then
     expect(propose.mutate).toHaveBeenCalledWith(
@@ -135,7 +142,9 @@ describe("ProposeDialog", () => {
     );
 
     // then
-    expect(screen.getByRole("button", { name: "Send" })).toBeEnabled();
+    expect(
+      screen.getByRole("button", { name: "Ask for mentoring" }),
+    ).toBeEnabled();
   });
 
   it("refuses a sixth topic", async () => {
@@ -157,7 +166,9 @@ describe("ProposeDialog", () => {
     // then
     expect(screen.getByText("Topics (5 of 5)")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add topic" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Ask for mentoring" }),
+    ).toBeDisabled();
     expect(screen.getByRole("button", { name: "kafka" })).toHaveAttribute(
       "aria-pressed",
       "false",
@@ -181,6 +192,23 @@ describe("ProposeDialog", () => {
     // then
     expect(
       screen.getByText("This mentor has no room for another mentee right now."),
+    ).toBeInTheDocument();
+  });
+
+  it.each([
+    ["MENTEE" as const, "Ask Ada for mentoring", "Ask for mentoring"],
+    ["MENTOR" as const, "Offer mentoring to Ada", "Offer mentoring"],
+  ])("as %s is titled %s", (asRole, title, send) => {
+    // when
+    open(asRole);
+
+    // then
+    expect(screen.getByRole("heading", { name: title })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: send })).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Once accepted, the pairing shows on the community’s Mentoring page.",
+      ),
     ).toBeInTheDocument();
   });
 });

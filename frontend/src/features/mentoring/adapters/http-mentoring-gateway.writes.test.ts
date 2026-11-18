@@ -93,6 +93,11 @@ describe("writes", () => {
       () => g.removeMeeting(11, 12),
       sends("DELETE", "/pairings/11/meetings/12"),
     ],
+    [
+      "answerShowing",
+      () => g.answerShowing(11, "YES"),
+      sends("PUT", "/pairings/11/showing", { answer: "YES" }),
+    ],
   ])("%s sends its request", async (_name, call, expected) => {
     // given
     const fetchSpy = vi

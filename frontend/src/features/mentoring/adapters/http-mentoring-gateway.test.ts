@@ -4,10 +4,13 @@ import { httpMentoringGateway } from "@/features/mentoring/adapters/http-mentori
 import {
   availability,
   journal,
+  journalOf,
   mine,
   page,
+  pageOf,
   pairing,
   proposal,
+  shownPairingOf,
   words,
 } from "@/features/mentoring/test-data";
 import { bodyOf, jsonResponse, stubFetchJson, urlOf } from "@/test/fetch";
@@ -34,6 +37,12 @@ describe("reads", () => {
       "/axonia/communities/platform/mentoring",
       page,
     ],
+    [
+      "page with who is helping whom",
+      () => httpMentoringGateway.page("platform"),
+      "/axonia/communities/platform/mentoring",
+      pageOf({ pairings: [shownPairingOf()] }),
+    ],
     ["mine", () => httpMentoringGateway.mine(), "/axonia/mentoring/me", mine],
     [
       "presence",
@@ -46,6 +55,12 @@ describe("reads", () => {
       () => httpMentoringGateway.journal(11),
       "/axonia/mentoring/pairings/11",
       journal,
+    ],
+    [
+      "journal asking to be shown",
+      () => httpMentoringGateway.journal(11),
+      "/axonia/mentoring/pairings/11",
+      journalOf({ showing: { visibility: "ASKING", iSaidYes: true } }),
     ],
     [
       "myWords",

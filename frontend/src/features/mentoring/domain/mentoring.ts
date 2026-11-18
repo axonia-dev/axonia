@@ -25,6 +25,22 @@ export const directoryPersonSchema = z.object({
 
 export type DirectoryPerson = z.infer<typeof directoryPersonSchema>;
 
+const pairedPersonSchema = z.object({
+  userId: z.string(),
+  displayName: z.string(),
+  avatarUrl: z.string().nullable(),
+});
+
+/** An ongoing pairing its two people agreed to show, as every member of the community sees it. */
+export const shownPairingSchema = z.object({
+  id: z.number().int(),
+  mentor: pairedPersonSchema,
+  mentee: pairedPersonSchema,
+  /** The pairing's first day, a calendar day. */
+  startedOn: z.string(),
+});
+export type ShownPairing = z.infer<typeof shownPairingSchema>;
+
 export const mentoringPageSchema = z.object({
   archived: z.boolean(),
   mine: availabilitySchema,
@@ -33,6 +49,8 @@ export const mentoringPageSchema = z.object({
   canMentorOn: z.array(z.string()),
   wantsToGrowIn: z.array(z.string()),
   guidedStart: z.boolean(),
+  /** In the server's neutral order, by mentor then mentee name. */
+  pairings: z.array(shownPairingSchema),
 });
 export type MentoringPage = z.infer<typeof mentoringPageSchema>;
 
@@ -141,6 +159,13 @@ export const plannedMeetingSchema = z.object({
 });
 export type PlannedMeeting = z.infer<typeof plannedMeetingSchema>;
 
+/** Whether the community sees the pairing: Shown and Private are final, Asking waits on both people. */
+export const showingSchema = z.object({
+  visibility: z.enum(["SHOWN", "ASKING", "PRIVATE"]),
+  iSaidYes: z.boolean(),
+});
+export type Showing = z.infer<typeof showingSchema>;
+
 export const journalSchema = z.object({
   pairing: pairingSummarySchema,
   writable: z.boolean(),
@@ -154,6 +179,7 @@ export const journalSchema = z.object({
   wordsWritten: z.boolean(),
   canWriteWords: z.boolean(),
   myWords: z.string().nullable(),
+  showing: showingSchema,
 });
 export type Journal = z.infer<typeof journalSchema>;
 

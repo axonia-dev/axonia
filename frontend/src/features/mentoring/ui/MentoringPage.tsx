@@ -15,6 +15,7 @@ import {
 } from "@/features/mentoring/ui/AvailabilityDoors";
 import { DirectoryList } from "@/features/mentoring/ui/DirectoryList";
 import { GuidedStart, PEOPLE_ID } from "@/features/mentoring/ui/GuidedStart";
+import { WhoIsHelpingWhom } from "@/features/mentoring/ui/WhoIsHelpingWhom";
 import { ApiError } from "@/lib/api-client";
 
 const NOT_A_MEMBER = "Mentoring is open to members of this community.";
@@ -91,6 +92,7 @@ function Directory({
           }
           proposerRole="MENTOR"
         />
+        <WhoIsHelpingWhom pairings={page.pairings} />
       </div>
     </>
   );
@@ -120,7 +122,7 @@ function Body({ slug }: Readonly<{ slug: string }>) {
   return <Directory slug={slug} page={page.data} />;
 }
 
-/** The member's two doors, or a first visit's guided start, then who is taking mentees and who is looking for a mentor. */
+/** The member's two doors, or a first visit's guided start, then who is taking mentees, who is looking for a mentor, and who is helping whom. */
 export function MentoringPage() {
   const { slug = "" } = useParams();
   const delegated = useIsDelegated();

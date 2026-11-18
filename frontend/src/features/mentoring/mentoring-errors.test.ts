@@ -25,6 +25,10 @@ describe("mentoringErrorMessage", () => {
     ],
     ["MENTORING_PROPOSAL_CLOSED", "This proposal is no longer open."],
     ["MENTORING_PAIRING_ENDED", "This mentoring has ended."],
+    [
+      "MENTORING_SHOWING_SETTLED",
+      "This pairing is already shown or kept private.",
+    ],
     ["MENTORING_WORDS_CLOSED", "Words are closed for this pairing."],
     ["MENTORING_WORDS_NOT_YET", "Words open once the mentoring ends."],
     [

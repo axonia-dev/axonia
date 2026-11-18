@@ -1,7 +1,13 @@
 import { expect, test } from "@playwright/test";
 
-import { E2E_USER_ID } from "./api";
-import { community, shellOfCommunity, SLUG, stubReads } from "./community-home";
+import { SLUG, stubReads } from "./community-home";
+import {
+  journal,
+  LONG_AREA,
+  mentoringShell,
+  pairing,
+  person,
+} from "./mentoring-phone-fixtures";
 import { overflowing } from "./overflow";
 
 // A phone, emulated as a phone - see mobile-layout.spec.ts for why this is the one width that matters.
@@ -11,118 +17,10 @@ test.use({
   hasTouch: true,
 });
 
-const LONG_AREA = "infrastructureascodewithterraformandkubernetes";
-
-const mentoringShell: Record<string, unknown> = {
-  ...shellOfCommunity,
-  [`/axonia/communities/${SLUG}`]: { ...community, mentoringEnabled: true },
-};
-
-const person = (userId: string, displayName: string) => ({
-  userId,
-  displayName,
-  avatarUrl: null,
-  areas: [LONG_AREA, "observability", "kafka"],
-  proposable: true,
-  proposalState: null,
-  proposalsOpenOn: null,
-});
-
-const pairing = {
-  id: 11,
-  communitySlug: SLUG,
-  communityName: community.name,
-  myRole: "MENTOR",
-  partnerId: "u-2",
-  partnerName: "Bartholomew Montgomery-Whitfield",
-  partnerGivenName: null,
-  partnerAvatarUrl: null,
-  startedAt: "2026-09-02T10:00:00Z",
-  endedAt: null,
-  stops: ["DONE", "IN_PROGRESS", "TODO"],
-  nowTopic: "Kafka consumer groups",
-  nextMeeting: { on: "2026-11-09", passed: true },
-  laterPlanned: 2,
-  meetings: 2,
-  notes: 3,
-  lastMetOn: "2026-11-12",
-};
-
-const longLink = {
-  id: 5,
-  kind: "LINK",
-  title: null,
-  href: "https://example.test/a/very/long/address/that/keeps/going/on",
-  available: true,
-};
-
-const topic = (id: number, label: string, state: string, position = 0) => ({
-  id,
-  label,
-  area: LONG_AREA,
-  state,
-  position,
-  pointers: id === 1 ? [longLink] : [],
-});
-
-const note = (
-  id: number,
-  mine: boolean,
-  meetingOn: string,
-  topicIds: number[],
-) => ({
-  id,
-  authorId: mine ? E2E_USER_ID : "u-2",
-  authorName: mine ? "Gabriel D. (Vader)" : "Bartholomew Montgomery-Whitfield",
-  authorAvatarUrl: null,
-  mine,
-  body: "First hour: how to say what landed and what did not, with a word long enough to wrap: postmortemfacilitationchecklist.",
-  meetingOn,
-  topicIds,
-  writtenAt: `${meetingOn}T11:00:00Z`,
-  editedAt: mine ? `${meetingOn}T12:00:00Z` : null,
-  pointers: mine ? [longLink] : [],
-});
-
-const planned = (on: string, index: number) => ({
-  id: index + 1,
-  on,
-  topicIds: [1, 2, 3],
-  plannedById: "u-2",
-  plannedByName: "Bartholomew Montgomery-Whitfield",
-  passed: index === 0,
-});
-
-const journal = {
-  pairing,
-  writable: true,
-  today: "2026-11-16",
-  startedOn: "2026-09-02",
-  topics: [
-    topic(
-      1,
-      "Running a blameless postmortem after a production incident",
-      "DONE",
-    ),
-    topic(2, "Kafka consumer groups", "IN_PROGRESS"),
-    topic(3, "Writing an RFC", "TODO"),
-    topic(4, "Talking to stakeholders", "TODO", 1),
-  ],
-  notes: [
-    note(2, true, "2026-10-08", [1]),
-    note(3, false, "2026-10-08", [1, 2]),
-    note(4, true, "2026-11-12", [2]),
-  ],
-  meetings: ["2026-11-09", "2026-11-19", "2026-12-02"].map(planned),
-  wordsWritten: false,
-  canWriteWords: false,
-  myWords: null,
-};
-
-test("the Mentoring page fits a phone, long areas and the limit included", async ({
+test("the Mentoring page fits a phone, long areas, the limit and long pairings included", async ({
   page: browser,
 }) => {
-  // given - a mentor taking mentees with a limit, and people on both sides
+  // given - a mentor taking mentees with a limit, people on both sides, and pairings with long names
   await stubReads(browser, {
     ...mentoringShell,
     [`/axonia/communities/${SLUG}/mentoring`]: {
@@ -133,6 +31,28 @@ test("the Mentoring page fits a phone, long areas and the limit included", async
       canMentorOn: [LONG_AREA, "observability"],
       wantsToGrowIn: [LONG_AREA, "kafka"],
       guidedStart: false,
+      pairings: [
+        {
+          id: 21,
+          mentor: {
+            userId: "u-2",
+            displayName: "Bartholomew Montgomery-Whitfield",
+            avatarUrl: null,
+          },
+          mentee: {
+            userId: "u-4",
+            displayName: "Maximiliana Konstantinopoulou-Abernathy",
+            avatarUrl: null,
+          },
+          startedOn: "2025-09-02",
+        },
+        {
+          id: 22,
+          mentor: { userId: "u-5", displayName: "Ana", avatarUrl: null },
+          mentee: { userId: "u-3", displayName: "Ada", avatarUrl: null },
+          startedOn: "2026-10-06",
+        },
+      ],
     },
   });
 
@@ -141,7 +61,15 @@ test("the Mentoring page fits a phone, long areas and the limit included", async
 
   // then
   await expect(
-    browser.getByRole("button", { name: "Propose mentoring" }).first(),
+    browser.getByRole("button", {
+      name: "Ask Bartholomew Montgomery-Whitfield for mentoring",
+    }),
+  ).toBeVisible();
+  await expect(
+    browser.getByRole("button", { name: "Offer mentoring to Ada" }),
+  ).toBeVisible();
+  await expect(
+    browser.getByText("Maximiliana Konstantinopoulou-Abernathy"),
   ).toBeVisible();
   expect(await overflowing(browser)).toEqual([]);
 });
@@ -156,13 +84,14 @@ function showJournal(browser: Parameters<typeof stubReads>[0]) {
 test("a journal fits a phone, its trail, board and logbook included", async ({
   page: browser,
 }) => {
-  // given - an ongoing journal with long topics, long links and notes on two meeting days
+  // given - an ongoing journal with long topics, long links, notes on two meeting days, and the ask
   await showJournal(browser);
 
   // when
   await browser.goto(`/communities/${SLUG}/me/mentoring/11`);
 
   // then
+  await expect(browser.getByRole("button", { name: "Show it" })).toBeVisible();
   await expect(
     browser.getByRole("list", { name: "Trail" }).getByRole("button").first(),
   ).toBeVisible();

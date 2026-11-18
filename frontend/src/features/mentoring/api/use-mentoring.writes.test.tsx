@@ -16,6 +16,7 @@ import {
   useAnswerProposal,
   useJournalWrite,
   useOpenWords,
+  useShowing,
   useWords,
 } from "@/features/mentoring/api/use-mentoring";
 import { ApiError } from "@/lib/api-client";
@@ -34,6 +35,7 @@ vi.mock("@/features/mentoring/adapters/http-mentoring-gateway", () => ({
     takeBackWords: vi.fn(),
     openWords: vi.fn(),
     answer: vi.fn(),
+    answerShowing: vi.fn(),
   },
 }));
 
@@ -179,6 +181,31 @@ describe("useOpenWords", () => {
     await waitFor(() => expect(gateway.openWords).toHaveBeenCalledWith(11));
     await waitFor(() =>
       expect(invalidatedKeys(invalidate)).toEqual([mentoringKeys.words()]),
+    );
+  });
+});
+
+describe("useShowing", () => {
+  it("answers the ask and refreshes the journal and the guild's page", async () => {
+    // given
+    gateway.answerShowing.mockResolvedValue(undefined);
+    const invalidate = vi.spyOn(client, "invalidateQueries");
+    const { result } = renderHook(() => useShowing(11, "platform"), {
+      wrapper,
+    });
+
+    // when
+    result.current.mutate("YES");
+
+    // then
+    await waitFor(() =>
+      expect(gateway.answerShowing).toHaveBeenCalledWith(11, "YES"),
+    );
+    await waitFor(() =>
+      expect(invalidatedKeys(invalidate)).toEqual([
+        mentoringKeys.journal(11),
+        mentoringKeys.page("platform"),
+      ]),
     );
   });
 });

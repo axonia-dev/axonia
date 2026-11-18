@@ -18,6 +18,7 @@ vi.mock("@/features/mentoring/api/use-mentoring", () => ({
   useJournalWrite: vi.fn(),
   useMeetingPlan: vi.fn(),
   useWords: vi.fn(),
+  useShowing: vi.fn(),
 }));
 
 beforeEach(() => {

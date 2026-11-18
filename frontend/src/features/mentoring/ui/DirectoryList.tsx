@@ -9,6 +9,7 @@ import type {
   MentoringRole,
 } from "@/features/mentoring/domain/mentoring";
 import { PartnerFace, personName } from "@/features/mentoring/ui/PartnerFace";
+import { proposalWording } from "@/features/mentoring/ui/proposal-wording";
 import { ProposeDialog } from "@/features/mentoring/ui/ProposeDialog";
 import { cn } from "@/lib/cn";
 import { dayAndMonth } from "@/lib/declared-on";
@@ -75,17 +76,21 @@ function declinedRecently(person: Person): boolean {
   return person.proposalState === "DECLINED_RECENTLY";
 }
 
+interface ActionProps {
+  slug: string;
+  person: Person;
+  proposerRole: MentoringRole;
+  canPropose: boolean;
+  onPropose: () => void;
+}
+
 function Action({
   slug,
   person,
+  proposerRole,
   canPropose,
   onPropose,
-}: Readonly<{
-  slug: string;
-  person: Person;
-  canPropose: boolean;
-  onPropose: () => void;
-}>) {
+}: Readonly<ActionProps>) {
   if (person.proposalState === "PROPOSAL_RECEIVED") {
     return (
       <Link
@@ -106,9 +111,15 @@ function Action({
     );
   }
   if (!canPropose || !person.proposable) return null;
+  const { label, named } = proposalWording(proposerRole);
   return (
-    <Button variant="secondary" size="sm" onPress={onPropose}>
-      Propose mentoring
+    <Button
+      variant="secondary"
+      size="sm"
+      aria-label={named(personName(person.displayName))}
+      onPress={onPropose}
+    >
+      {label}
     </Button>
   );
 }
@@ -156,6 +167,7 @@ function PersonCard({
           <Action
             slug={slug}
             person={person}
+            proposerRole={proposerRole}
             canPropose={canPropose}
             onPropose={() => setOpen(true)}
           />

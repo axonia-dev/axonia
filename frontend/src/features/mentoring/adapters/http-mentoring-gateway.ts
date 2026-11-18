@@ -121,6 +121,9 @@ export const httpMentoringGateway: MentoringGateway = {
   removeMeeting: (id, meetingId) =>
     apiFetchVoid(`${pairing(id)}/meetings/${meetingId}`, json("DELETE")),
 
+  answerShowing: (id, answer) =>
+    apiFetchVoid(`${pairing(id)}/showing`, json("PUT", { answer })),
+
   async myWords() {
     return wordsListSchema.parse(await apiFetch<unknown>(`${ROOT}/me/words`));
   },

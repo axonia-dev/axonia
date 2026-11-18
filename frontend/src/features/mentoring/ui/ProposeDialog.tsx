@@ -12,6 +12,10 @@ import { usePropose } from "@/features/mentoring/api/use-mentoring";
 import type { MentoringRole } from "@/features/mentoring/domain/mentoring";
 import { mentoringErrorMessage } from "@/features/mentoring/mentoring-errors";
 import { personName } from "@/features/mentoring/ui/PartnerFace";
+import {
+  proposalWording,
+  SHOWN_ONCE_ACCEPTED,
+} from "@/features/mentoring/ui/proposal-wording";
 
 const MAX_TOPICS = 5;
 const MAX_TOPIC_LENGTH = 80;
@@ -155,6 +159,7 @@ function ProposeForm({
         maxLength={MAX_MESSAGE_LENGTH}
         rows={4}
       />
+      <p className="text-muted-foreground text-xs">{SHOWN_ONCE_ACCEPTED}</p>
       <FormError
         error={propose.error}
         message={mentoringErrorMessage(propose.error)}
@@ -164,7 +169,7 @@ function ProposeForm({
           Cancel
         </Button>
         <Button isDisabled={!canSend || propose.isPending} onPress={send}>
-          Send
+          {proposalWording(asRole).label}
         </Button>
       </DialogFooter>
     </div>
@@ -181,7 +186,9 @@ export function ProposeDialog({
     <Dialog
       isOpen={isOpen}
       onOpenChange={onOpenChange}
-      title={`Propose mentoring to ${personName(form.person.displayName)}`}
+      title={proposalWording(form.asRole).named(
+        personName(form.person.displayName),
+      )}
     >
       <ProposeForm {...form} close={() => onOpenChange(false)} />
     </Dialog>

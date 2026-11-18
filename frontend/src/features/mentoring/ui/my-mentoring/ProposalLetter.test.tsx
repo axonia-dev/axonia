@@ -47,6 +47,18 @@ describe("ProposalLetter", () => {
     ).toBeInTheDocument();
   });
 
+  it("tells before accepting that the pairing shows on the Mentoring page", () => {
+    // when
+    letter(proposalOf());
+
+    // then
+    expect(
+      screen.getByText(
+        "Once accepted, the pairing shows on the community’s Mentoring page.",
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("carries the message and the topics", () => {
     // when
     letter(proposalOf({ topics: ["Kafka", "On-call habits"] }));

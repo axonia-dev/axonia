@@ -50,6 +50,9 @@ export interface MeetingInput {
 
 export type ProposalAnswer = "accept" | "decline" | "withdraw" | "reopen";
 
+/** Yes, keep private, or take a yes back while the partner has not answered. */
+export type ShowingAnswer = "YES" | "NO" | "UNSAID";
+
 export interface MentoringGateway {
   page(slug: string): Promise<MentoringPage>;
   setAvailability(
@@ -93,4 +96,5 @@ export interface MentoringGateway {
   ): Promise<void>;
   removeMeeting(pairingId: number, meetingId: number): Promise<void>;
   myWords(): Promise<Words[]>;
+  answerShowing(pairingId: number, answer: ShowingAnswer): Promise<void>;
 }

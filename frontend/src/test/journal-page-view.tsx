@@ -8,6 +8,7 @@ import {
   useJournal,
   useJournalWrite,
   useMeetingPlan,
+  useShowing,
   useWords,
 } from "@/features/mentoring/api/use-mentoring";
 import type { Journal } from "@/features/mentoring/domain/mentoring";
@@ -47,9 +48,11 @@ export function hooks() {
     write: mutation(),
     takeBack: mutation(),
   } as never);
+  const showing = mutation();
+  vi.mocked(useShowing).mockReturnValue(showing as never);
   const end = mutation();
   vi.mocked(useEndPairing).mockReturnValue(end as never);
-  return { write, end };
+  return { write, end, showing };
 }
 
 export function show(overrides: Partial<Journal> = {}) {

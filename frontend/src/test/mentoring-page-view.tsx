@@ -22,6 +22,7 @@ const EMPTY_PAGE: MentoringPageData = {
   canMentorOn: [],
   wantsToGrowIn: [],
   guidedStart: false,
+  pairings: [],
 };
 
 export function page(overrides: Partial<MentoringPageData>) {

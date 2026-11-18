@@ -21,6 +21,7 @@ import { partnerRole } from "@/features/mentoring/ui/journal-people";
 import { Logbook } from "@/features/mentoring/ui/logbook/Logbook";
 import { pairingDates } from "@/features/mentoring/ui/mentoring-dates";
 import { PartnerFace, personName } from "@/features/mentoring/ui/PartnerFace";
+import { ShowingAsk } from "@/features/mentoring/ui/ShowingAsk";
 import { JournalTrail } from "@/features/mentoring/ui/trail/JournalTrail";
 import { TrailStats } from "@/features/mentoring/ui/trail/TrailStats";
 import { ApiError } from "@/lib/api-client";
@@ -107,6 +108,17 @@ function Trail({
   );
 }
 
+const ONLY_THE_TWO = "Only the two people in this pairing see this journal.";
+const IN_THE_EXPORT = "It is part of the organization’s data export.";
+
+function privacyLine(journal: Journal): string {
+  const shown =
+    journal.showing.visibility === "SHOWN" && journal.pairing.endedAt === null;
+  return shown
+    ? `${ONLY_THE_TWO} Members of the community see only that the pairing exists. ${IN_THE_EXPORT}`
+    : `${ONLY_THE_TWO} ${IN_THE_EXPORT}`;
+}
+
 function Body({ journal }: Readonly<{ journal: Journal }>) {
   const writable = journal.writable;
   const [focusTopicId, setFocusTopicId] = useState<number | null>(null);
@@ -120,10 +132,8 @@ function Body({ journal }: Readonly<{ journal: Journal }>) {
         canEnd={writable && journal.pairing.endedAt === null}
         onEnded={() => setPostcard(mentee)}
       />
-      <p className="text-muted-foreground text-sm">
-        Only the two people in this pairing see this journal. It is part of the
-        organization’s data export.
-      </p>
+      <p className="text-muted-foreground text-sm">{privacyLine(journal)}</p>
+      <ShowingAsk journal={journal} />
       <Trail journal={journal} onOpenTopic={setFocusTopicId} />
       <TopicBoard
         journal={journal}

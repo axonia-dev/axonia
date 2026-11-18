@@ -12,6 +12,7 @@ vi.mock("@/features/mentoring/api/use-mentoring", () => ({
   useJournalWrite: vi.fn(),
   useMeetingPlan: vi.fn(),
   useWords: vi.fn(),
+  useShowing: vi.fn(),
 }));
 
 beforeEach(() => {
@@ -80,5 +81,42 @@ describe("JournalPage", () => {
       screen.getByRole("region", { name: "In progress" }),
     ).toHaveTextContent("Giving feedback");
     expect(screen.getByRole("region", { name: "Done" })).toBeInTheDocument();
+  });
+
+  it("adds that the community sees a shown pairing exists", () => {
+    // given
+    hooks();
+
+    // when
+    show({ showing: { visibility: "SHOWN", iSaidYes: true } });
+
+    // then
+    expect(
+      screen.getByText(
+        "Only the two people in this pairing see this journal. Members of the community see only that the pairing exists. It is part of the organization’s data export.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("asks above the trail whether to show a pairing begun in private", () => {
+    // given
+    hooks();
+
+    // when
+    show({ showing: { visibility: "ASKING", iSaidYes: false } });
+
+    // then
+    const ask = screen.getByRole("heading", {
+      name: "Show this pairing on the Mentoring page?",
+    });
+    const trail = screen.getByRole("region", { name: "Trail of the pairing" });
+    expect(
+      ask.compareDocumentPosition(trail) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Only the two people in this pairing see this journal. It is part of the organization’s data export.",
+      ),
+    ).toBeInTheDocument();
   });
 });

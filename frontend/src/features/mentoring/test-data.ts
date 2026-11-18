@@ -9,6 +9,7 @@ import type {
   PlannedMeeting,
   Pointer,
   Proposal,
+  ShownPairing,
   Topic,
   Words,
 } from "@/features/mentoring/domain/mentoring";
@@ -43,6 +44,19 @@ export function pageOf(overrides: Partial<MentoringPage> = {}): MentoringPage {
     canMentorOn: ["kafka"],
     wantsToGrowIn: ["testing"],
     guidedStart: false,
+    pairings: [],
+    ...overrides,
+  };
+}
+
+export function shownPairingOf(
+  overrides: Partial<ShownPairing> = {},
+): ShownPairing {
+  return {
+    id: 21,
+    mentor: { userId: "u-4", displayName: "Ana Keller", avatarUrl: null },
+    mentee: { userId: "u-5", displayName: "Dan Ilić", avatarUrl: null },
+    startedOn: "2026-10-06",
     ...overrides,
   };
 }
@@ -157,6 +171,7 @@ export function journalOf(overrides: Partial<Journal> = {}): Journal {
     wordsWritten: false,
     canWriteWords: true,
     myWords: null,
+    showing: { visibility: "PRIVATE", iSaidYes: false },
     ...overrides,
   };
 }

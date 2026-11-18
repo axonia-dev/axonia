@@ -57,6 +57,7 @@ describe("the journal schema", () => {
       wordsWritten: false,
       canWriteWords: false,
       myWords: null,
+      showing: { visibility: "ASKING", iSaidYes: true },
     };
 
     // when

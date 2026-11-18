@@ -26,6 +26,10 @@ const REFUSALS = new Map([
   ],
   ["MENTORING_PROPOSAL_CLOSED", "This proposal is no longer open."],
   ["MENTORING_PAIRING_ENDED", "This mentoring has ended."],
+  [
+    "MENTORING_SHOWING_SETTLED",
+    "This pairing is already shown or kept private.",
+  ],
   ["MENTORING_WORDS_CLOSED", WORDS_CLOSED],
   ["MENTORING_WORDS_NOT_YET", "Words open once the mentoring ends."],
   ["MENTORING_MEETING_DAY", MEETING_DAY_RANGE],

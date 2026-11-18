@@ -17,6 +17,7 @@ import type {
   PointerInput,
   ProposalAnswer,
   ProposalInput,
+  ShowingAnswer,
   TopicInput,
   TopicPlacement,
 } from "@/features/mentoring/domain/mentoring-gateway";
@@ -278,5 +279,13 @@ export function useOpenWords() {
   return useRefreshing(
     (pairingId: number) => gateway.openWords(pairingId),
     () => [mentoringKeys.words()],
+  );
+}
+
+/** An answer changes the journal's ask and, once both said yes, the community's section. */
+export function useShowing(pairingId: number, communitySlug: string) {
+  return useRefreshing(
+    (answer: ShowingAnswer) => gateway.answerShowing(pairingId, answer),
+    () => [mentoringKeys.journal(pairingId), mentoringKeys.page(communitySlug)],
   );
 }
