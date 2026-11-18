@@ -3,9 +3,13 @@ import { useRef, useState } from "react";
 import { FormError } from "@/components/patterns/FormError";
 import { Button } from "@/components/ui/Button";
 import { DatePicker } from "@/components/ui/DatePicker";
-import { useNextMeeting } from "@/features/mentoring/api/use-mentoring";
-import type { Journal } from "@/features/mentoring/domain/mentoring";
+import { useMeetingPlan } from "@/features/mentoring/api/use-mentoring";
+import type {
+  Journal,
+  PlannedMeeting,
+} from "@/features/mentoring/domain/mentoring";
 import { mentoringErrorMessage } from "@/features/mentoring/mentoring-errors";
+import { leadingMeeting } from "@/features/mentoring/ui/leading-meeting";
 import {
   dayOfMonth,
   monthOf,
@@ -20,7 +24,7 @@ interface Props {
   onWriteNotes: (meetingOn: string) => void;
 }
 
-type NextMeeting = NonNullable<Journal["nextMeeting"]>;
+type NextMeeting = PlannedMeeting;
 
 export function meetingDay(day: string): string {
   return `${weekdayOf(day)} ${dayOfMonth(day)} ${monthOf(day)}`;
@@ -31,18 +35,21 @@ const TICKET =
 
 function DayPicker({
   journal,
+  meeting,
   initial,
   submitLabel,
   onSaved,
   onCancel,
 }: Readonly<{
   journal: Journal;
+  meeting: NextMeeting | null;
   initial: string;
   submitLabel: string;
   onSaved: () => void;
   onCancel?: () => void;
 }>) {
-  const { set } = useNextMeeting(journal.pairing.id);
+  const { plan, change } = useMeetingPlan(journal.pairing.id);
+  const set = meeting === null ? plan : change;
   const [day, setDay] = useState(initial);
   return (
     <div className="flex flex-col gap-2">
@@ -59,7 +66,13 @@ function DayPicker({
         />
         <Button
           isDisabled={day === "" || set.isPending}
-          onPress={() => set.mutate(day, { onSuccess: onSaved })}
+          onPress={() => {
+            const input = { on: day, topicIds: meeting?.topicIds ?? [] };
+            if (meeting === null) plan.mutate(input, { onSuccess: onSaved });
+            else {
+              change.mutate({ id: meeting.id, input }, { onSuccess: onSaved });
+            }
+          }}
         >
           {submitLabel}
         </Button>
@@ -101,7 +114,7 @@ function Ticket({
   onCleared: () => void;
   onWriteNotes: (meetingOn: string) => void;
 }>) {
-  const { clear } = useNextMeeting(journal.pairing.id);
+  const { remove } = useMeetingPlan(journal.pairing.id);
   return (
     <div className={TICKET}>
       <Stub on={next.on} />
@@ -115,7 +128,7 @@ function Ticket({
           )}
         </p>
         <p className="text-muted-foreground text-xs">
-          Set by {personName(next.setByName, next.setById)}
+          Set by {personName(next.plannedByName, next.plannedById)}
         </p>
         <div className="-ml-2 flex flex-wrap gap-1">
           {next.passed && (
@@ -129,9 +142,9 @@ function Ticket({
           <Button
             variant="ghost"
             size="sm"
-            isDisabled={clear.isPending}
+            isDisabled={remove.isPending}
             onPress={() =>
-              clear.mutate(undefined, {
+              remove.mutate(next.id, {
                 onSuccess: onCleared,
                 onError: onFailure,
               })
@@ -164,7 +177,7 @@ function landingIn(box: HTMLElement | null, want: Landing): HTMLElement | null {
 export function NextMeetingTicket({ journal, onWriteNotes }: Readonly<Props>) {
   const [changing, setChanging] = useState(false);
   const box = useRef<HTMLDivElement>(null);
-  const next = journal.nextMeeting;
+  const next = leadingMeeting(journal);
   const focusOn = useFollowFocus(`${next?.on}|${changing}`, (want: Landing) =>
     landingIn(box.current, want),
   );
@@ -180,6 +193,7 @@ export function NextMeetingTicket({ journal, onWriteNotes }: Readonly<Props>) {
           </p>
           <DayPicker
             journal={journal}
+            meeting={null}
             initial={journal.today}
             submitLabel="Set"
             onSaved={() => focusOn("Change")}
@@ -195,6 +209,7 @@ export function NextMeetingTicket({ journal, onWriteNotes }: Readonly<Props>) {
       return (
         <DayPicker
           journal={journal}
+          meeting={next}
           initial={next.passed ? journal.today : next.on}
           submitLabel="Save"
           onSaved={close}

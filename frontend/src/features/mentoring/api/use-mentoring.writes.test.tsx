@@ -15,7 +15,6 @@ import { mentoringKeys } from "@/features/mentoring/api/query-keys";
 import {
   useAnswerProposal,
   useJournalWrite,
-  useNextMeeting,
   useOpenWords,
   useWords,
 } from "@/features/mentoring/api/use-mentoring";
@@ -34,8 +33,6 @@ vi.mock("@/features/mentoring/adapters/http-mentoring-gateway", () => ({
     writeWords: vi.fn(),
     takeBackWords: vi.fn(),
     openWords: vi.fn(),
-    setNextMeeting: vi.fn(),
-    clearNextMeeting: vi.fn(),
     answer: vi.fn(),
   },
 }));
@@ -162,44 +159,6 @@ describe("useWords", () => {
           mentoringKeys.journal(11),
           mentoringKeys.mine(),
           mentoringKeys.words(),
-        ]),
-      );
-    },
-  );
-});
-
-type Meeting = ReturnType<typeof useNextMeeting>;
-
-describe("useNextMeeting", () => {
-  it.each([
-    {
-      act: (m: Meeting) => m.set.mutate("2026-11-19"),
-      method: () => gateway.setNextMeeting,
-      args: [11, "2026-11-19"],
-    },
-    {
-      act: (m: Meeting) => m.clear.mutate(),
-      method: () => gateway.clearNextMeeting,
-      args: [11],
-    },
-  ])(
-    "refreshes the journal and My mentoring",
-    async ({ act, method, args }) => {
-      // given
-      vi.mocked(method()).mockResolvedValue(undefined);
-      const invalidate = vi.spyOn(client, "invalidateQueries");
-      const { result } = renderHook(() => useNextMeeting(11), { wrapper });
-
-      // when
-      act(result.current);
-
-      // then
-      await waitFor(() => expect(vi.mocked(method())).toHaveBeenCalled());
-      expect(vi.mocked(method()).mock.calls[0]).toEqual(args);
-      await waitFor(() =>
-        expect(invalidatedKeys(invalidate)).toEqual([
-          mentoringKeys.journal(11),
-          mentoringKeys.mine(),
         ]),
       );
     },

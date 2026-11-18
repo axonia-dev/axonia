@@ -74,6 +74,7 @@ export const pairingSummarySchema = z.object({
   stops: z.array(topicStateSchema),
   nowTopic: z.string().nullable(),
   nextMeeting: z.object({ on: z.string(), passed: z.boolean() }).nullable(),
+  laterPlanned: z.number().int(),
   meetings: z.number().int(),
   notes: z.number().int(),
   lastMetOn: z.string().nullable(),
@@ -130,12 +131,15 @@ export const noteSchema = z.object({
 export type Topic = z.infer<typeof topicSchema>;
 export type Note = z.infer<typeof noteSchema>;
 
-export const nextMeetingSchema = z.object({
+export const plannedMeetingSchema = z.object({
+  id: z.number().int(),
   on: z.string(),
-  setById: z.string(),
-  setByName: z.string(),
+  topicIds: z.array(z.number().int()),
+  plannedById: z.string().nullable(),
+  plannedByName: z.string(),
   passed: z.boolean(),
 });
+export type PlannedMeeting = z.infer<typeof plannedMeetingSchema>;
 
 export const journalSchema = z.object({
   pairing: pairingSummarySchema,
@@ -145,7 +149,8 @@ export const journalSchema = z.object({
   startedOn: z.string(),
   topics: z.array(topicSchema),
   notes: z.array(noteSchema),
-  nextMeeting: nextMeetingSchema.nullable(),
+  /** Every meeting not yet held, passed and upcoming, day ascending. */
+  meetings: z.array(plannedMeetingSchema),
   wordsWritten: z.boolean(),
   canWriteWords: z.boolean(),
   myWords: z.string().nullable(),

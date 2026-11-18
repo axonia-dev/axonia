@@ -3,7 +3,7 @@ import { vi } from "vitest";
 import { useMe } from "@/features/identity/api/use-me";
 import {
   useJournalWrite,
-  useNextMeeting,
+  useMeetingPlan,
 } from "@/features/mentoring/api/use-mentoring";
 
 /** Shared by the logbook suites; each declares its own `vi.mock` of the hook modules, this only feeds them. */
@@ -23,9 +23,9 @@ export function logbookHooks() {
     addPointer: mutation(),
     removePointer: mutation(),
   };
-  const meeting = { set: mutation(), clear: mutation() };
+  const meeting = { plan: mutation(), change: mutation(), remove: mutation() };
   vi.mocked(useJournalWrite).mockReturnValue(write as never);
-  vi.mocked(useNextMeeting).mockReturnValue(meeting as never);
+  vi.mocked(useMeetingPlan).mockReturnValue(meeting as never);
   vi.mocked(useMe).mockReturnValue({
     data: { id: "u-2", displayName: "Noah", avatarUrl: null },
   } as never);

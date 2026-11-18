@@ -6,6 +6,7 @@ import {
   notesBy,
   ROLE_INK,
 } from "@/features/mentoring/ui/journal-people";
+import { leadingMeeting } from "@/features/mentoring/ui/leading-meeting";
 import {
   dayOfMonth,
   monthOf,
@@ -50,7 +51,7 @@ function SplitBar({ journal }: Readonly<{ journal: Journal }>) {
 }
 
 function NextMeeting({ journal }: Readonly<{ journal: Journal }>) {
-  const next = journal.nextMeeting;
+  const next = leadingMeeting(journal);
   if (next === null) return null;
   return (
     <li className="col-span-2 flex grow items-center gap-2.5 rounded-2xl bg-[color-mix(in_srgb,var(--warning)_16%,var(--surface))] py-2 pr-3.5 pl-2">

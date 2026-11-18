@@ -6,6 +6,7 @@ import type {
   MentoringRole,
   MyMentoring,
   PairingSummary,
+  PlannedMeeting,
   Proposal,
   TopicState,
   Words,
@@ -40,6 +41,11 @@ export interface PointerInput {
   topicId: number | null;
   noteId: number | null;
   url: string;
+}
+
+export interface MeetingInput {
+  on: string;
+  topicIds: number[];
 }
 
 export type ProposalAnswer = "accept" | "decline" | "withdraw" | "reopen";
@@ -79,7 +85,12 @@ export interface MentoringGateway {
   takeBackWords(pairingId: number): Promise<void>;
   /** The mentor opened the envelope of a mentee's words. */
   openWords(pairingId: number): Promise<void>;
-  setNextMeeting(pairingId: number, on: string): Promise<void>;
-  clearNextMeeting(pairingId: number): Promise<void>;
+  planMeeting(pairingId: number, input: MeetingInput): Promise<PlannedMeeting>;
+  changeMeeting(
+    pairingId: number,
+    meetingId: number,
+    input: MeetingInput,
+  ): Promise<void>;
+  removeMeeting(pairingId: number, meetingId: number): Promise<void>;
   myWords(): Promise<Words[]>;
 }

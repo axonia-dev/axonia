@@ -9,7 +9,7 @@ import { logbookHooks } from "@/test/logbook-view";
 vi.mock("@/features/identity/api/use-me", () => ({ useMe: vi.fn() }));
 vi.mock("@/features/mentoring/api/use-mentoring", () => ({
   useJournalWrite: vi.fn(),
-  useNextMeeting: vi.fn(),
+  useMeetingPlan: vi.fn(),
 }));
 
 const journal = journalOf({

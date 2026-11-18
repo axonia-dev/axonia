@@ -28,6 +28,14 @@ const REFUSALS = new Map([
   ["MENTORING_WORDS_NOT_YET", "Words open once the mentoring ends."],
   ["MENTORING_MEETING_DAY", MEETING_DAY_RANGE],
   ["MENTORING_MEETING_PAST", "Pick today or a later day."],
+  ["MENTORING_MEETING_TOO_FAR", "Pick a day within a year."],
+  ["MENTORING_MEETING_TOPICS", "A meeting names at most five topics."],
+  ["MENTORING_MEETING_TAKEN", "A meeting is already planned for that day."],
+  [
+    "MENTORING_MEETING_LIMIT",
+    "Twelve meetings are planned already. Remove one first.",
+  ],
+  ["MENTORING_MEETING_PASSED", "This meeting has passed."],
   ["MENTORING_TOO_LONG", "That is too long. Shorten it and try again."],
   ["MENTORING_JOURNAL_FULL", "This journal is full. Remove something first."],
 ]);

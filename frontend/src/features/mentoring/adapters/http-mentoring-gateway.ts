@@ -6,6 +6,7 @@ import {
   mentoringPageSchema,
   myMentoringSchema,
   pairingSummarySchema,
+  plannedMeetingSchema,
   presenceSchema,
   proposalSchema,
   wordsSchema,
@@ -108,10 +109,17 @@ export const httpMentoringGateway: MentoringGateway = {
   takeBackWords: (id) => apiFetchVoid(`${pairing(id)}/words`, json("DELETE")),
   openWords: (id) => apiFetchVoid(`${pairing(id)}/words/open`, json("POST")),
 
-  setNextMeeting: (id, on) =>
-    apiFetchVoid(`${pairing(id)}/next-meeting`, json("PUT", { on })),
-  clearNextMeeting: (id) =>
-    apiFetchVoid(`${pairing(id)}/next-meeting`, json("DELETE")),
+  async planMeeting(id, input) {
+    const data = await apiFetch<unknown>(
+      `${pairing(id)}/meetings`,
+      json("POST", input),
+    );
+    return plannedMeetingSchema.parse(data);
+  },
+  changeMeeting: (id, meetingId, input) =>
+    apiFetchVoid(`${pairing(id)}/meetings/${meetingId}`, json("PUT", input)),
+  removeMeeting: (id, meetingId) =>
+    apiFetchVoid(`${pairing(id)}/meetings/${meetingId}`, json("DELETE")),
 
   async myWords() {
     return wordsListSchema.parse(await apiFetch<unknown>(`${ROOT}/me/words`));

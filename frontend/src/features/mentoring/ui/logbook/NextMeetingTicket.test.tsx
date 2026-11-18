@@ -11,13 +11,15 @@ import { logbookHooks } from "@/test/logbook-view";
 vi.mock("@/features/identity/api/use-me", () => ({ useMe: vi.fn() }));
 vi.mock("@/features/mentoring/api/use-mentoring", () => ({
   useJournalWrite: vi.fn(),
-  useNextMeeting: vi.fn(),
+  useMeetingPlan: vi.fn(),
 }));
 
 const next = {
+  id: 8,
   on: "2026-11-19",
-  setById: "u-1",
-  setByName: "Ada",
+  topicIds: [3],
+  plannedById: "u-1",
+  plannedByName: "Ada",
   passed: false,
 };
 
@@ -46,8 +48,8 @@ describe("NextMeetingTicket", () => {
 
     // then
     expect(screen.getByText("Set the next meeting")).toBeInTheDocument();
-    expect(meeting.set.mutate).toHaveBeenCalledWith(
-      "2026-11-16",
+    expect(meeting.plan.mutate).toHaveBeenCalledWith(
+      { on: "2026-11-16", topicIds: [] },
       expect.anything(),
     );
   });
@@ -55,7 +57,7 @@ describe("NextMeetingTicket", () => {
   it("changes and clears a date already set", async () => {
     // given
     const { meeting } = logbookHooks();
-    show({ nextMeeting: next });
+    show({ meetings: [next] });
     expect(screen.getByText("Next meeting Thu 19 Nov")).toBeInTheDocument();
     expect(screen.getByText("Set by Ada")).toBeInTheDocument();
 
@@ -67,9 +69,9 @@ describe("NextMeetingTicket", () => {
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
     // then
-    expect(meeting.clear.mutate).toHaveBeenCalled();
-    expect(meeting.set.mutate).toHaveBeenCalledWith(
-      "2026-11-20",
+    expect(meeting.remove.mutate).toHaveBeenCalledWith(8, expect.anything());
+    expect(meeting.change.mutate).toHaveBeenCalledWith(
+      { id: 8, input: { on: "2026-11-20", topicIds: [3] } },
       expect.anything(),
     );
   });
@@ -78,7 +80,7 @@ describe("NextMeetingTicket", () => {
     // given
     logbookHooks();
     const onWriteNotes = show({
-      nextMeeting: { ...next, on: "2026-11-12", passed: true },
+      meetings: [{ ...next, on: "2026-11-12", passed: true }],
     });
 
     // when
@@ -94,7 +96,7 @@ describe("NextMeetingTicket", () => {
   it("shows MENTORING_MEETING_PAST as its line", () => {
     // given
     const { meeting } = logbookHooks();
-    Object.assign(meeting.set, {
+    Object.assign(meeting.plan, {
       error: new ApiError(
         400,
         "The next meeting is today or later",
@@ -116,7 +118,7 @@ describe("NextMeetingTicket", () => {
     logbookHooks();
 
     // when
-    show({ writable: false, nextMeeting: next });
+    show({ writable: false, meetings: [next] });
 
     // then
     expect(screen.queryByText(/Next meeting/)).not.toBeInTheDocument();
@@ -126,7 +128,7 @@ describe("NextMeetingTicket", () => {
   it("keeps focus as the ticket and its picker swap", async () => {
     // given
     logbookHooks();
-    show({ nextMeeting: next });
+    show({ meetings: [next] });
 
     // when
     await userEvent.click(screen.getByRole("button", { name: "Change" }));
@@ -141,10 +143,10 @@ describe("NextMeetingTicket", () => {
   it("lands on Set once the next meeting is cleared", async () => {
     // given
     const { meeting } = logbookHooks();
-    meeting.clear.mutate.mockImplementation(
+    meeting.remove.mutate.mockImplementation(
       (_: unknown, options: { onSuccess: () => void }) => options.onSuccess(),
     );
-    const journal = journalOf({ startedOn: "2026-09-02", nextMeeting: next });
+    const journal = journalOf({ startedOn: "2026-09-02", meetings: [next] });
     const { rerender } = render(
       <NextMeetingTicket journal={journal} onWriteNotes={vi.fn()} />,
     );
@@ -154,7 +156,7 @@ describe("NextMeetingTicket", () => {
     // when
     rerender(
       <NextMeetingTicket
-        journal={{ ...journal, nextMeeting: null }}
+        journal={{ ...journal, meetings: [] }}
         onWriteNotes={vi.fn()}
       />,
     );

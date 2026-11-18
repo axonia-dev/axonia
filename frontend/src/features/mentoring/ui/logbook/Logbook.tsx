@@ -2,6 +2,7 @@ import { NotebookPen } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 
 import type { Journal } from "@/features/mentoring/domain/mentoring";
+import { leadingMeeting } from "@/features/mentoring/ui/leading-meeting";
 import {
   FollowNote,
   type MovedNote,
@@ -146,7 +147,7 @@ export function Logbook({ journal }: Readonly<{ journal: Journal }>) {
       <FollowNote.Provider value={followNote}>
         <ol className="flex flex-col">
           {journal.writable && (
-            <RailRow on={journal.nextMeeting?.on} dot="ahead">
+            <RailRow on={leadingMeeting(journal)?.on} dot="ahead">
               <div className="flex flex-col gap-3">
                 <NextMeetingTicket journal={journal} onWriteNotes={write} />
                 <Composer

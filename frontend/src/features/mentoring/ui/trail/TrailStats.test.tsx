@@ -54,12 +54,16 @@ describe("TrailStats", () => {
         journal={journalOf({
           notes: [],
           topics: [topicOf({ id: 1, state: "DONE" }), topicOf({ id: 2 })],
-          nextMeeting: {
-            on: "2026-11-19",
-            setById: "u-1",
-            setByName: "Ada",
-            passed: false,
-          },
+          meetings: [
+            {
+              id: 8,
+              on: "2026-11-19",
+              topicIds: [],
+              plannedById: "u-1",
+              plannedByName: "Ada",
+              passed: false,
+            },
+          ],
         })}
       />,
     );
@@ -76,12 +80,16 @@ describe("TrailStats", () => {
     render(
       <TrailStats
         journal={journalOf({
-          nextMeeting: {
-            on: "2026-11-12",
-            setById: "u-1",
-            setByName: "Ada",
-            passed: true,
-          },
+          meetings: [
+            {
+              id: 8,
+              on: "2026-11-12",
+              topicIds: [],
+              plannedById: "u-1",
+              plannedByName: "Ada",
+              passed: true,
+            },
+          ],
         })}
       />,
     );

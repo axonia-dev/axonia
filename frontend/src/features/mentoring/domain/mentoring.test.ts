@@ -6,10 +6,10 @@ import {
   journalSchema,
   mentoringPageSchema,
   myMentoringSchema,
-  nextMeetingSchema,
   noteSchema,
   pairingSummarySchema,
   placeTopic,
+  plannedMeetingSchema,
   pointerSchema,
   proposalSchema,
   roleSchema,
@@ -24,7 +24,6 @@ import {
   page,
   pageOf,
   pairing,
-  pairingOf,
   personOf,
   pointerOf,
   proposal,
@@ -54,63 +53,20 @@ describe("the mentoring schemas", () => {
     ["journal", journalSchema, journal],
     ["words", wordsSchema, words],
     [
-      "next meeting",
-      nextMeetingSchema,
-      { on: "2026-11-19", setById: "u-2", setByName: "Bob", passed: false },
+      "planned meeting",
+      plannedMeetingSchema,
+      {
+        id: 12,
+        on: "2026-11-26",
+        topicIds: [3, 7],
+        plannedById: "u-2",
+        plannedByName: "Bob",
+        passed: false,
+      },
     ],
   ])("parses a %s as the backend sends it", (_name, schema, payload) => {
     // when
     const actual = schema.parse(payload);
-
-    // then
-    expect(actual).toEqual(payload);
-  });
-
-  it("parses the journal of the pinned contract", () => {
-    // given
-    const payload = {
-      pairing: pairingOf({ stops: ["DONE"] }),
-      writable: true,
-      today: "2026-11-16",
-      startedOn: "2026-09-02",
-      topics: [
-        {
-          id: 3,
-          label: "Code review habits",
-          area: "code-review",
-          state: "IN_PROGRESS",
-          position: 0,
-          pointers: [],
-        },
-      ],
-      notes: [
-        {
-          id: 9,
-          authorId: "u-1",
-          authorName: "Alice",
-          authorAvatarUrl: null,
-          mine: true,
-          body: "Met.",
-          meetingOn: "2026-11-12",
-          topicIds: [3],
-          writtenAt: "2026-11-12T10:00:00Z",
-          editedAt: null,
-          pointers: [],
-        },
-      ],
-      nextMeeting: {
-        on: "2026-11-19",
-        setById: "u-2",
-        setByName: "Bob",
-        passed: false,
-      },
-      wordsWritten: false,
-      canWriteWords: false,
-      myWords: null,
-    };
-
-    // when
-    const actual = journalSchema.parse(payload);
 
     // then
     expect(actual).toEqual(payload);
@@ -164,6 +120,7 @@ describe("the mentoring schemas", () => {
           ...pairing,
           nowTopic: "Giving feedback",
           nextMeeting: { on: "2026-11-19", passed: false },
+          laterPlanned: 3,
           meetings: 2,
           notes: 3,
           lastMetOn: "2026-11-12",

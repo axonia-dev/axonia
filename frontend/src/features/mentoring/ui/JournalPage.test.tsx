@@ -10,7 +10,7 @@ vi.mock("@/features/mentoring/api/use-mentoring", () => ({
   useJournal: vi.fn(),
   useEndPairing: vi.fn(),
   useJournalWrite: vi.fn(),
-  useNextMeeting: vi.fn(),
+  useMeetingPlan: vi.fn(),
   useWords: vi.fn(),
 }));
 

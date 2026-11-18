@@ -81,14 +81,17 @@ describe("writes", () => {
       sends("POST", "/pairings/11/words/open"),
     ],
     [
-      "setNextMeeting",
-      () => g.setNextMeeting(11, "2026-11-19"),
-      sends("PUT", "/pairings/11/next-meeting", { on: "2026-11-19" }),
+      "changeMeeting",
+      () => g.changeMeeting(11, 12, { on: "2026-11-26", topicIds: [3, 7] }),
+      sends("PUT", "/pairings/11/meetings/12", {
+        on: "2026-11-26",
+        topicIds: [3, 7],
+      }),
     ],
     [
-      "clearNextMeeting",
-      () => g.clearNextMeeting(11),
-      sends("DELETE", "/pairings/11/next-meeting"),
+      "removeMeeting",
+      () => g.removeMeeting(11, 12),
+      sends("DELETE", "/pairings/11/meetings/12"),
     ],
   ])("%s sends its request", async (_name, call, expected) => {
     // given
@@ -106,5 +109,46 @@ describe("writes", () => {
     if (expected.body === undefined) expect(init?.body).toBeUndefined();
     else expect(bodyOf(fetchSpy)).toEqual(expected.body);
     expect(actual).toBeUndefined();
+  });
+
+  it("planMeeting posts the day and topics and parses the meeting back", async () => {
+    // given
+    const meeting = {
+      id: 12,
+      on: "2026-11-26",
+      topicIds: [3, 7],
+      plannedById: "u1",
+      plannedByName: "Noah Brandt",
+      passed: false,
+    };
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(jsonResponse(meeting, 201));
+
+    // when
+    const actual = await g.planMeeting(11, {
+      on: "2026-11-26",
+      topicIds: [3, 7],
+    });
+
+    // then
+    const [url, init] = fetchSpy.mock.calls[0] ?? [];
+    expect(urlOf(url)).toContain("/axonia/mentoring/pairings/11/meetings");
+    expect(init?.method).toBe("POST");
+    expect(bodyOf(fetchSpy)).toEqual({ on: "2026-11-26", topicIds: [3, 7] });
+    expect(actual).toEqual(meeting);
+  });
+
+  it("planMeeting refuses a meeting that is not the contract", async () => {
+    // given
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({ id: 12, on: "2026-11-26" }, 201),
+    );
+
+    // when
+    const actual = g.planMeeting(11, { on: "2026-11-26", topicIds: [] });
+
+    // then
+    await expect(actual).rejects.toThrow();
   });
 });

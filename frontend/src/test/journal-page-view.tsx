@@ -7,7 +7,7 @@ import {
   useEndPairing,
   useJournal,
   useJournalWrite,
-  useNextMeeting,
+  useMeetingPlan,
   useWords,
 } from "@/features/mentoring/api/use-mentoring";
 import type { Journal } from "@/features/mentoring/domain/mentoring";
@@ -38,9 +38,10 @@ export function hooks() {
   };
   vi.mocked(useJournalWrite).mockReturnValue(write as never);
   vi.mocked(useMe).mockReturnValue({ data: undefined } as never);
-  vi.mocked(useNextMeeting).mockReturnValue({
-    set: mutation(),
-    clear: mutation(),
+  vi.mocked(useMeetingPlan).mockReturnValue({
+    plan: mutation(),
+    change: mutation(),
+    remove: mutation(),
   } as never);
   vi.mocked(useWords).mockReturnValue({
     write: mutation(),

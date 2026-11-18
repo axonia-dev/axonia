@@ -1,13 +1,9 @@
-import {
-  type QueryKey,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useIsDelegated } from "@/auth/delegated-session";
 import { httpMentoringGateway } from "@/features/mentoring/adapters/http-mentoring-gateway";
 import { mentoringKeys } from "@/features/mentoring/api/query-keys";
+import { useRefreshing } from "@/features/mentoring/api/use-refreshing";
 import {
   type Availability,
   type Journal,
@@ -16,6 +12,7 @@ import {
   placeTopic,
 } from "@/features/mentoring/domain/mentoring";
 import type {
+  MeetingInput,
   NoteInput,
   PointerInput,
   ProposalAnswer,
@@ -83,25 +80,6 @@ export function useHasMentoring(): boolean {
     retry: retryUnlessRefused,
   });
   return data?.inAMentoringGuild === true;
-}
-
-/** A mutation that refreshes the given keys once it settles: a refusal (an ended pairing, a closed proposal) means the shown state is stale too. */
-function useRefreshing<TVariables, TResult>(
-  mutationFn: (variables: TVariables) => Promise<TResult>,
-  keys: (variables: TVariables) => QueryKey[],
-  onSuccess?: (result: TResult) => void,
-) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn,
-    ...(onSuccess === undefined ? {} : { onSuccess }),
-    onSettled: (_result, _error, variables) =>
-      Promise.all(
-        keys(variables).map((queryKey) =>
-          queryClient.invalidateQueries({ queryKey }),
-        ),
-      ),
-  });
 }
 
 /** A switch or a step shows at once, before the server answers, and goes back if refused. */
@@ -275,15 +253,23 @@ export function useWords(pairingId: number) {
   };
 }
 
-/** The date sits on the journal, and My mentoring's cards show it too. */
-export function useNextMeeting(pairingId: number) {
+/** The plan sits on the journal, and My mentoring's cards show its leading meeting too. */
+export function useMeetingPlan(pairingId: number) {
   const keys = () => [mentoringKeys.journal(pairingId), mentoringKeys.mine()];
   return {
-    set: useRefreshing(
-      (on: string) => gateway.setNextMeeting(pairingId, on),
+    plan: useRefreshing(
+      (input: MeetingInput) => gateway.planMeeting(pairingId, input),
       keys,
     ),
-    clear: useRefreshing(() => gateway.clearNextMeeting(pairingId), keys),
+    change: useRefreshing(
+      ({ id, input }: { id: number; input: MeetingInput }) =>
+        gateway.changeMeeting(pairingId, id, input),
+      keys,
+    ),
+    remove: useRefreshing(
+      (id: number) => gateway.removeMeeting(pairingId, id),
+      keys,
+    ),
   };
 }
 
