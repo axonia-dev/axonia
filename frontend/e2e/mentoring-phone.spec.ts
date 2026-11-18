@@ -35,6 +35,7 @@ const pairing = {
   myRole: "MENTOR",
   partnerId: "u-2",
   partnerName: "Bartholomew Montgomery-Whitfield",
+  partnerGivenName: null,
   partnerAvatarUrl: null,
   startedAt: "2026-09-02T10:00:00Z",
   endedAt: null,
