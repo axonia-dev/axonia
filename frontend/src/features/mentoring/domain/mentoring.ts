@@ -32,7 +32,7 @@ const pairedPersonSchema = z.object({
 });
 
 /** An ongoing pairing its two people agreed to show, as every member of the community sees it. */
-export const shownPairingSchema = z.object({
+const shownPairingSchema = z.object({
   id: z.number().int(),
   mentor: pairedPersonSchema,
   mentee: pairedPersonSchema,
@@ -160,7 +160,7 @@ export const plannedMeetingSchema = z.object({
 export type PlannedMeeting = z.infer<typeof plannedMeetingSchema>;
 
 /** Whether the community sees the pairing: Shown and Private are final, Asking waits on both people. */
-export const showingSchema = z.object({
+const showingSchema = z.object({
   visibility: z.enum(["SHOWN", "ASKING", "PRIVATE"]),
   iSaidYes: z.boolean(),
 });
