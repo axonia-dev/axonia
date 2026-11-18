@@ -10,9 +10,9 @@ import dev.axonia.shared.api.error.ConflictException;
 import dev.axonia.shared.api.error.ValidationException;
 
 /**
- * What a pairing's plan of meetings allows: one meeting a day, a day from today to a year ahead, a few board topics
- * each, and twelve meetings ahead at most. A meeting no note has held is upcoming from its day on and owed notes after
- * it; a held one has left the plan.
+ * What a pairing's plan of meetings allows: one meeting a day on a day with no notes yet, from today to a year ahead, a
+ * few board topics each, and twelve meetings ahead at most. A meeting no note has held is upcoming from its day on and
+ * owed notes after it; a held one has left the plan.
  */
 public final class MeetingPlan {
 
@@ -21,8 +21,6 @@ public final class MeetingPlan {
     public static final int MAX_TOPICS = 5;
 
     public static final int WINDOW_DAYS = 366;
-
-    private static final String TOPICS = "MENTORING_MEETING_TOPICS";
 
     private MeetingPlan() {
     }
@@ -64,6 +62,14 @@ public final class MeetingPlan {
         return (int) meetings.stream().filter(m -> isUpcoming(m, today)).count();
     }
 
+    /** A day the pair already wrote notes for has been met; it is not planned again. */
+    public static void requireNoNotes(List<Note> notes, LocalDate day) {
+
+        if (notes.stream().anyMatch(n -> n.meetingOn().equals(day))) {
+            throw new ConflictException("MENTORING_MEETING_HELD", "That day already has its notes.");
+        }
+    }
+
     public static void requireFree(List<PlannedMeeting> meetings, LocalDate day) {
 
         if (meetings.stream().anyMatch(m -> m.on().equals(day))) {
@@ -89,10 +95,11 @@ public final class MeetingPlan {
 
         var topics = requested == null ? List.<Long>of() : requested.stream().distinct().toList();
         if (topics.size() > MAX_TOPICS) {
-            throw new ValidationException(TOPICS, "A meeting names at most five topics.");
+            throw new ValidationException("MENTORING_MEETING_TOPICS", "A meeting names at most five topics.");
         }
         if (!board.containsAll(topics)) {
-            throw new ValidationException(TOPICS, "A meeting names topics of its own journal.");
+            throw new ValidationException("MENTORING_MEETING_TOPIC_GONE",
+                    "A topic of this meeting is no longer on the board.");
         }
         return topics;
     }

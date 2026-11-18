@@ -342,7 +342,8 @@ class MyMentoringControllerTest extends ControllerTestSupport {
     }
 
     @ParameterizedTest
-    @CsvSource({"MENTORING_MEETING_PAST, 400", "MENTORING_MEETING_TOO_FAR, 400", "MENTORING_MEETING_TOPICS, 400"})
+    @CsvSource({"MENTORING_MEETING_PAST, 400", "MENTORING_MEETING_TOO_FAR, 400", "MENTORING_MEETING_TOPICS, 400",
+            "MENTORING_MEETING_TOPIC_GONE, 400"})
     void aDayOrTopicsOutOfBoundsAreABadRequestWithTheirCode(String code, int status) {
 
         // given
@@ -360,7 +361,8 @@ class MyMentoringControllerTest extends ControllerTestSupport {
     }
 
     @ParameterizedTest
-    @CsvSource({"MENTORING_MEETING_TAKEN", "MENTORING_MEETING_LIMIT", "MENTORING_MEETING_PASSED"})
+    @CsvSource({"MENTORING_MEETING_TAKEN", "MENTORING_MEETING_LIMIT", "MENTORING_MEETING_PASSED",
+            "MENTORING_MEETING_HELD"})
     void aTakenDayAFullPlanOrAPassedMeetingIsAConflictWithItsCode(String code) {
 
         // given

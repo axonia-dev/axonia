@@ -34,6 +34,7 @@ import dev.axonia.mentoring.application.port.out.PersonDirectory;
 import dev.axonia.mentoring.domain.EndReason;
 import dev.axonia.mentoring.domain.MentoringGuild;
 import dev.axonia.mentoring.domain.MentoringPerson;
+import dev.axonia.mentoring.domain.Note;
 import dev.axonia.mentoring.domain.Pairing;
 import dev.axonia.mentoring.domain.PlannedMeeting;
 import dev.axonia.mentoring.domain.Topic;
@@ -172,6 +173,32 @@ class MeetingPlanServiceTest {
     }
 
     @Test
+    void aDayWithNotesIsRefusedAsHeldBeforeTaken() {
+
+        // given: today holds a held meeting, and a later day a note no meeting planned
+        store(pairing().build(), meeting(1L, TODAY).held(true).build(), meeting(2L, THURSDAY).build());
+        when(journal.notesOf(ORG, PAIRING)).thenReturn(List.of(note(TODAY), note(THURSDAY.plusDays(2))));
+
+        // when / then
+        assertThatThrownBy(() -> service.plan(PAIRING, new MeetingRequest(TODAY, List.of())))
+                .isInstanceOf(ConflictException.class).hasFieldOrPropertyWithValue("code", "MENTORING_MEETING_HELD")
+                .hasMessage("That day already has its notes.");
+        assertThatThrownBy(() -> service.change(PAIRING, 2L, new MeetingRequest(TODAY, List.of())))
+                .isInstanceOf(ConflictException.class).hasFieldOrPropertyWithValue("code", "MENTORING_MEETING_HELD");
+        assertThatThrownBy(() -> service.change(PAIRING, 2L, new MeetingRequest(THURSDAY.plusDays(2), List.of())))
+                .isInstanceOf(ConflictException.class).hasFieldOrPropertyWithValue("code", "MENTORING_MEETING_HELD");
+        verify(meetings, never()).insert(any(), any());
+        verify(meetings, never()).update(any(), any());
+        verifyNoInteractions(notices);
+    }
+
+    private static Note note(LocalDate on) {
+
+        return Note.builder().id(on.toEpochDay()).pairingId(PAIRING).authorUserId(MIA).body("Met").meetingOn(on)
+                .writtenAt(NOW).build();
+    }
+
+    @Test
     void aDayAlreadyPlannedIsRefused() {
 
         // given
@@ -227,10 +254,10 @@ class MeetingPlanServiceTest {
         // when / then
         assertThatThrownBy(() -> service.plan(PAIRING, new MeetingRequest(THURSDAY.plusDays(7), List.of(3L, 404L))))
                 .isInstanceOf(ValidationException.class)
-                .hasFieldOrPropertyWithValue("code", "MENTORING_MEETING_TOPICS");
+                .hasFieldOrPropertyWithValue("code", "MENTORING_MEETING_TOPIC_GONE");
         assertThatThrownBy(() -> service.change(PAIRING, 1L, new MeetingRequest(THURSDAY, List.of(404L))))
                 .isInstanceOf(ValidationException.class)
-                .hasFieldOrPropertyWithValue("code", "MENTORING_MEETING_TOPICS");
+                .hasFieldOrPropertyWithValue("code", "MENTORING_MEETING_TOPIC_GONE");
         verify(meetings, never()).insert(any(), any());
         verify(meetings, never()).update(any(), any());
     }

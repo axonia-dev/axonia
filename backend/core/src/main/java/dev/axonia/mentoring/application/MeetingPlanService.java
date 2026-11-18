@@ -61,6 +61,7 @@ public class MeetingPlanService {
         var board = journal.topicsOf(party.org(), pairingId);
         var topicIds = MeetingPlan.topics(request.topicIds(), ids(board));
         var planned = meetings.meetingsOf(party.org(), pairingId);
+        MeetingPlan.requireNoNotes(journal.notesOf(party.org(), pairingId), day);
         MeetingPlan.requireFree(planned, day);
         MeetingPlan.requireRoom(planned, today);
         var meeting = PlannedMeeting.builder().pairingId(pairingId).on(day).topicIds(topicIds).plannedBy(party.me())
@@ -86,6 +87,7 @@ public class MeetingPlanService {
         var changed = meeting.toBuilder().topicIds(MeetingPlan.topics(request.topicIds(), ids(board)));
         var moved = !day.equals(meeting.on());
         if (moved) {
+            MeetingPlan.requireNoNotes(journal.notesOf(party.org(), pairingId), day);
             MeetingPlan.requireFree(meetings.meetingsOf(party.org(), pairingId), day);
             changed.on(day).plannedBy(party.me()).plannedAt(now());
         }
