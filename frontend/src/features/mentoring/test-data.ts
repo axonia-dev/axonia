@@ -53,7 +53,6 @@ export function shownPairingOf(
   overrides: Partial<ShownPairing> = {},
 ): ShownPairing {
   return {
-    id: 21,
     mentor: { userId: "u-4", displayName: "Ana Keller", avatarUrl: null },
     mentee: { userId: "u-5", displayName: "Dan Ilić", avatarUrl: null },
     startedOn: "2026-10-06",
@@ -76,6 +75,7 @@ export function proposalOf(overrides: Partial<Proposal> = {}): Proposal {
     createdAt: "2026-11-16T10:00:00Z",
     reopenableUntil: null,
     lapsesOn: null,
+    pairsShown: true,
     ...overrides,
   };
 }

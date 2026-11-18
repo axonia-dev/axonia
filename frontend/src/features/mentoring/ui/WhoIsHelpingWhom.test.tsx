@@ -34,7 +34,10 @@ describe("WhoIsHelpingWhom", () => {
       <WhoIsHelpingWhom
         pairings={[
           shownPairingOf({ startedOn: "2025-12-31" }),
-          shownPairingOf({ id: 22, startedOn: "2026-01-01" }),
+          shownPairingOf({
+            mentee: { userId: "u-7", displayName: "Eva Roth", avatarUrl: null },
+            startedOn: "2026-01-01",
+          }),
         ]}
       />,
     );
@@ -51,7 +54,6 @@ describe("WhoIsHelpingWhom", () => {
         pairings={[
           shownPairingOf(),
           shownPairingOf({
-            id: 22,
             mentor: {
               userId: "u-6",
               displayName: "Carl Brun",

@@ -210,7 +210,8 @@ class ProposalServiceTest {
                 new MentoringGuild("platform", "Platform"), "Max");
         assertThat(actual).isEqualTo(ProposalView.builder().id(PROPOSAL).communitySlug(SLUG).communityName("Platform")
                 .proposedBy("MENTEE").partnerId(MENTOR).partnerName("Mia").topics(List.of("Kafka", "Giving feedback"))
-                .message("Hello").status("OPEN").createdAt(TODAY).lapsesOn(LocalDate.parse("2026-12-16")).build());
+                .message("Hello").status("OPEN").createdAt(TODAY).lapsesOn(LocalDate.parse("2026-12-16"))
+                .pairsShown(true).build());
     }
 
     @Test

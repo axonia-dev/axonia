@@ -15,3 +15,6 @@ export function proposalWording(asRole: MentoringRole) {
 
 export const SHOWN_ONCE_ACCEPTED =
   "Once accepted, the pairing shows on the community’s Mentoring page.";
+
+export const ASKED_ONCE_ACCEPTED =
+  "Once accepted, both people are asked whether the pairing shows on the Mentoring page.";

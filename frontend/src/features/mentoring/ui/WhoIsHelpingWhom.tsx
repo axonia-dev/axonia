@@ -77,7 +77,11 @@ export function WhoIsHelpingWhom({
       </h2>
       <ul className="flex flex-col gap-2">
         {pairings.map((pairing) => (
-          <Row key={pairing.id} pairing={pairing} now={now} />
+          <Row
+            key={`${pairing.mentor.userId}:${pairing.mentee.userId}`}
+            pairing={pairing}
+            now={now}
+          />
         ))}
       </ul>
     </section>

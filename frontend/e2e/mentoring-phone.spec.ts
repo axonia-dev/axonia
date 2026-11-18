@@ -33,7 +33,6 @@ test("the Mentoring page fits a phone, long areas, the limit and long pairings i
       guidedStart: false,
       pairings: [
         {
-          id: 21,
           mentor: {
             userId: "u-2",
             displayName: "Bartholomew Montgomery-Whitfield",
@@ -47,7 +46,6 @@ test("the Mentoring page fits a phone, long areas, the limit and long pairings i
           startedOn: "2025-09-02",
         },
         {
-          id: 22,
           mentor: { userId: "u-5", displayName: "Ana", avatarUrl: null },
           mentee: { userId: "u-3", displayName: "Ada", avatarUrl: null },
           startedOn: "2026-10-06",
@@ -152,6 +150,7 @@ const proposed = (id: number, proposedBy: string, partnerName: string) => ({
   createdAt: "2026-11-12T10:00:00Z",
   reopenableUntil: null,
   lapsesOn: "2026-12-12",
+  pairsShown: true,
 });
 
 const ended = (id: number, startedAt: string, endedAt: string) => ({

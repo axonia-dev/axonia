@@ -626,10 +626,10 @@ class MentoringReadsTest {
         // then
         var firstDay = LocalDate.parse("2026-11-01");
         assertThat(actual.pairings()).containsExactly(
-                new ShownPairing(2L, face("ben"), new DirectoryFace("Ana", "Ana", "avatar/Ana"), firstDay),
-                new ShownPairing(4L, face("ben"), face("ana"), firstDay),
-                new ShownPairing(1L, face("ben"), face("max"), firstDay),
-                new ShownPairing(3L, face("zoe"), face("ana"), firstDay));
+                new ShownPairing(face("ben"), new DirectoryFace("Ana", "Ana", "avatar/Ana"), firstDay),
+                new ShownPairing(face("ben"), face("ana"), firstDay),
+                new ShownPairing(face("ben"), face("max"), firstDay),
+                new ShownPairing(face("zoe"), face("ana"), firstDay));
         verify(personDirectory, times(1)).resolve(anyCollection());
     }
 
@@ -644,7 +644,7 @@ class MentoringReadsTest {
 
         // then
         assertThat(actual.pairings())
-                .containsExactly(new ShownPairing(1L, face("lea"), face(ME), LocalDate.parse("2026-11-16")));
+                .containsExactly(new ShownPairing(face("lea"), face(ME), LocalDate.parse("2026-11-16")));
     }
 
     @Test
@@ -659,6 +659,7 @@ class MentoringReadsTest {
         // then
         assertThat(actual.mine()).isEqualTo(new Availability(false, null, false));
         assertThat(actual.guidedStart()).isTrue();
-        assertThat(actual.pairings()).extracting(ShownPairing::id).containsExactly(1L);
+        assertThat(actual.pairings()).extracting(p -> p.mentor().userId(), p -> p.mentee().userId())
+                .containsExactly(tuple("lea", "max"));
     }
 }

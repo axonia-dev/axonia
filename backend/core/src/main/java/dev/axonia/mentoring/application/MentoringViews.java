@@ -47,7 +47,8 @@ final class MentoringViews {
                 .proposedBy(proposal.proposedBy().name()).partnerId(partner.userId()).partnerName(partner.displayName())
                 .partnerAvatarUrl(partner.avatarUrl()).topics(proposal.topics()).message(proposal.message())
                 .status(MentoringWindows.isLapsed(proposal, now) ? LAPSED : proposal.status().name())
-                .createdAt(proposal.createdAt()).lapsesOn(lapsesOn(proposal, at)).build();
+                .createdAt(proposal.createdAt()).lapsesOn(lapsesOn(proposal, at)).pairsShown(proposal.pairsShown())
+                .build();
     }
 
     /** The caller's day on which an open proposal lapses, counted from its last opening; null once it is closed. */

@@ -5,7 +5,10 @@ import type { Proposal } from "@/features/mentoring/domain/mentoring";
 import type { ProposalAnswer } from "@/features/mentoring/domain/mentoring-gateway";
 import { HAND } from "@/features/mentoring/ui/handwriting";
 import { personName } from "@/features/mentoring/ui/PartnerFace";
-import { SHOWN_ONCE_ACCEPTED } from "@/features/mentoring/ui/proposal-wording";
+import {
+  ASKED_ONCE_ACCEPTED,
+  SHOWN_ONCE_ACCEPTED,
+} from "@/features/mentoring/ui/proposal-wording";
 import { cn } from "@/lib/cn";
 
 interface Props {
@@ -148,7 +151,9 @@ export function ProposalLetter({
             {accept}
           </Button>
         </div>
-        <p className="text-ink-sepia text-xs">{SHOWN_ONCE_ACCEPTED}</p>
+        <p className="text-ink-sepia text-xs">
+          {proposal.pairsShown ? SHOWN_ONCE_ACCEPTED : ASKED_ONCE_ACCEPTED}
+        </p>
       </div>
     </li>
   );

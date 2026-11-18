@@ -114,18 +114,17 @@ public class MentoringReads {
                 .pairings(shownPairings(shown, people, zone)).build();
     }
 
-    /** By mentor name, then mentee name, then the people's ids, then the pairing's: a neutral order, never a tally. */
+    /** By mentor name, then mentee name, then the people's ids: a neutral order, never a tally. */
     private static List<ShownPairing> shownPairings(List<Pairing> shown, Map<String, MentoringPerson> people,
             ZoneId zone) {
 
         return shown.stream()
-                .map(p -> new ShownPairing(p.id(), face(people.get(p.mentorUserId())),
-                        face(people.get(p.menteeUserId())), MeetingDays.dayOf(p.startedAt(), zone)))
+                .map(p -> new ShownPairing(face(people.get(p.mentorUserId())), face(people.get(p.menteeUserId())),
+                        MeetingDays.dayOf(p.startedAt(), zone)))
                 .sorted(Comparator
                         .comparing((ShownPairing p) -> p.mentor().displayName(), String.CASE_INSENSITIVE_ORDER)
                         .thenComparing(p -> p.mentee().displayName(), String.CASE_INSENSITIVE_ORDER)
-                        .thenComparing(p -> p.mentor().userId()).thenComparing(p -> p.mentee().userId())
-                        .thenComparingLong(ShownPairing::id))
+                        .thenComparing(p -> p.mentor().userId()).thenComparing(p -> p.mentee().userId()))
                 .toList();
     }
 

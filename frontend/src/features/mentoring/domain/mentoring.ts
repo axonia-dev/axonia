@@ -33,7 +33,6 @@ const pairedPersonSchema = z.object({
 
 /** An ongoing pairing its two people agreed to show, as every member of the community sees it. */
 const shownPairingSchema = z.object({
-  id: z.number().int(),
   mentor: pairedPersonSchema,
   mentee: pairedPersonSchema,
   /** The pairing's first day, a calendar day. */
@@ -70,6 +69,8 @@ export const proposalSchema = z.object({
   reopenableUntil: z.string().nullable(),
   /** The caller's day on which an open proposal lapses; null in every other state. */
   lapsesOn: z.string().nullable(),
+  /** Whether accepting pairs shown; false for an older proposal, whose pairing asks both people first. */
+  pairsShown: z.boolean(),
 });
 export type ProposalStatus = Proposal["status"];
 export type Proposal = z.infer<typeof proposalSchema>;

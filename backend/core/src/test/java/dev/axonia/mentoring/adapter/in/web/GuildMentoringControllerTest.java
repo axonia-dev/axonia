@@ -46,7 +46,7 @@ class GuildMentoringControllerTest extends ControllerTestSupport {
                 .mentees(List.of(new DirectoryPerson("u2", "Ana", "a.png", List.of(), false, "DECLINED_RECENTLY",
                         LocalDate.parse("2026-12-16"))))
                 .canMentorOn(List.of("kafka", "helm")).wantsToGrowIn(List.of()).guidedStart(false)
-                .pairings(List.of(new ShownPairing(9L, new DirectoryFace("u1", "Lea", null),
+                .pairings(List.of(new ShownPairing(new DirectoryFace("u1", "Lea", null),
                         new DirectoryFace("u3", "Max", "m.png"), LocalDate.parse("2026-11-01"))))
                 .build());
 
@@ -63,7 +63,7 @@ class GuildMentoringControllerTest extends ControllerTestSupport {
                               "proposable": false, "proposalState": "DECLINED_RECENTLY",
                               "proposalsOpenOn": "2026-12-16"}],
                  "canMentorOn": ["kafka", "helm"], "wantsToGrowIn": [], "guidedStart": false,
-                 "pairings": [{"id": 9, "mentor": {"userId": "u1", "displayName": "Lea", "avatarUrl": null},
+                 "pairings": [{"mentor": {"userId": "u1", "displayName": "Lea", "avatarUrl": null},
                                "mentee": {"userId": "u3", "displayName": "Max", "avatarUrl": "m.png"},
                                "startedOn": "2026-11-01"}]}
                 """);
@@ -118,10 +118,11 @@ class GuildMentoringControllerTest extends ControllerTestSupport {
 
         // given
         var request = new ProposeRequest("u1", "MENTEE", List.of("Kafka"), "Hello");
-        when(proposalService.propose("platform", request)).thenReturn(ProposalView.builder().id(40L)
-                .communitySlug("platform").communityName("Platform").proposedBy("MENTEE").partnerId("u1")
-                .partnerName("Lea").topics(List.of("Kafka")).message("Hello").status("OPEN")
-                .createdAt(Instant.parse("2026-11-16T10:00:00Z")).lapsesOn(LocalDate.parse("2026-12-16")).build());
+        when(proposalService.propose("platform", request))
+                .thenReturn(ProposalView.builder().id(40L).communitySlug("platform").communityName("Platform")
+                        .proposedBy("MENTEE").partnerId("u1").partnerName("Lea").topics(List.of("Kafka"))
+                        .message("Hello").status("OPEN").createdAt(Instant.parse("2026-11-16T10:00:00Z"))
+                        .lapsesOn(LocalDate.parse("2026-12-16")).pairsShown(true).build());
 
         // when
         var actual = mvc.post().uri("/axonia/communities/{slug}/mentoring/proposals", "platform")
@@ -135,7 +136,7 @@ class GuildMentoringControllerTest extends ControllerTestSupport {
                 {"id": 40, "communitySlug": "platform", "communityName": "Platform", "proposedBy": "MENTEE",
                  "partnerId": "u1", "partnerName": "Lea", "partnerAvatarUrl": null, "topics": ["Kafka"],
                  "message": "Hello", "status": "OPEN", "createdAt": "2026-11-16T10:00:00Z",
-                 "reopenableUntil": null, "lapsesOn": "2026-12-16"}
+                 "reopenableUntil": null, "lapsesOn": "2026-12-16", "pairsShown": true}
                 """);
     }
 }

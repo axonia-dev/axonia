@@ -49,7 +49,7 @@ describe("ProposalLetter", () => {
 
   it("tells before accepting that the pairing shows on the Mentoring page", () => {
     // when
-    letter(proposalOf());
+    letter(proposalOf({ pairsShown: true }));
 
     // then
     expect(
@@ -57,6 +57,22 @@ describe("ProposalLetter", () => {
         "Once accepted, the pairing shows on the community’s Mentoring page.",
       ),
     ).toBeInTheDocument();
+    expect(screen.queryByText(/both people are asked/)).not.toBeInTheDocument();
+  });
+
+  it("tells before accepting an older proposal that both people are asked first", () => {
+    // when
+    letter(proposalOf({ pairsShown: false }));
+
+    // then
+    expect(
+      screen.getByText(
+        "Once accepted, both people are asked whether the pairing shows on the Mentoring page.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/the pairing shows on the community’s/),
+    ).not.toBeInTheDocument();
   });
 
   it("carries the message and the topics", () => {

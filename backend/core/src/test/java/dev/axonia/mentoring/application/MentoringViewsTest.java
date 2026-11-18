@@ -126,6 +126,16 @@ class MentoringViewsTest {
     }
 
     @Test
+    void aProposalSaysWhetherAcceptingItPairsShown() {
+
+        var at = new CallerTime(SENT, ZURICH);
+        var open = proposal(ProposalStatus.OPEN);
+
+        assertThat(view(open.toBuilder().pairsShown(true).build(), at).pairsShown()).isTrue();
+        assertThat(view(open.toBuilder().pairsShown(false).build(), at).pairsShown()).isFalse();
+    }
+
+    @Test
     void lapsesOnIsNullOnceClosed() {
 
         var at = new CallerTime(SENT.plus(Duration.ofDays(1)), ZURICH);

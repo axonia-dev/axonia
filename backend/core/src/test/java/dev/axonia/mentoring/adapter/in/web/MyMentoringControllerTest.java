@@ -158,9 +158,10 @@ class MyMentoringControllerTest extends ControllerTestSupport {
                 .proposedBy("MENTEE").partnerId("u1").partnerName("Lea").topics(List.of("Kafka")).message("Hello")
                 .status("OPEN").createdAt(Instant.parse("2026-11-16T10:00:00Z")).lapsesOn(LocalDate.parse("2026-12-16"))
                 .build();
+        var older = received.toBuilder().id(41L).pairsShown(false).build();
         when(pairingService.mine()).thenReturn(MyMentoring.builder().today(LocalDate.parse("2026-11-17"))
-                .inAMentoringGuild(true).received(List.of(received)).sent(List.of()).ongoing(List.of(ongoing))
-                .ended(List.of()).build());
+                .inAMentoringGuild(true).received(List.of(received.toBuilder().pairsShown(true).build()))
+                .sent(List.of(older)).ongoing(List.of(ongoing)).ended(List.of()).build());
 
         // when
         var actual = mvc.get().uri("/axonia/mentoring/me").exchange();
@@ -172,8 +173,12 @@ class MyMentoringControllerTest extends ControllerTestSupport {
                                "proposedBy": "MENTEE", "partnerId": "u1", "partnerName": "Lea",
                                "partnerAvatarUrl": null, "topics": ["Kafka"], "message": "Hello", "status": "OPEN",
                                "createdAt": "2026-11-16T10:00:00Z", "reopenableUntil": null,
-                               "lapsesOn": "2026-12-16"}],
-                 "sent": [],
+                               "lapsesOn": "2026-12-16", "pairsShown": true}],
+                 "sent": [{"id": 41, "communitySlug": "platform", "communityName": "Platform",
+                           "proposedBy": "MENTEE", "partnerId": "u1", "partnerName": "Lea",
+                           "partnerAvatarUrl": null, "topics": ["Kafka"], "message": "Hello", "status": "OPEN",
+                           "createdAt": "2026-11-16T10:00:00Z", "reopenableUntil": null,
+                           "lapsesOn": "2026-12-16", "pairsShown": false}],
                  "ongoing": [{"id": 90, "communitySlug": "platform", "communityName": "Platform", "myRole": "MENTEE",
                               "partnerId": null, "partnerName": "Deleted member", "partnerGivenName": null,
                               "partnerAvatarUrl": null,
