@@ -10,10 +10,13 @@ import { cn } from "@/lib/cn";
 type Dot = "ahead" | "today" | "owed" | "met";
 
 const DOT = new Map<Dot, string>([
-  ["ahead", "bg-surface border-warning border-2 border-dashed"],
-  ["today", "bg-foreground"],
-  ["owed", "bg-surface border-warning border-2"],
-  ["met", "bg-warning"],
+  [
+    "ahead",
+    "top-4 -left-[9px] size-4 bg-surface border-warning border-2 border-dashed",
+  ],
+  ["today", "top-[19px] -left-[6px] size-2.5 bg-foreground"],
+  ["owed", "top-4 -left-[9px] size-4 bg-surface border-warning border-2"],
+  ["met", "top-4 -left-[9px] size-4 bg-warning"],
 ]);
 
 function When({ on }: Readonly<{ on?: string | undefined }>) {
@@ -50,7 +53,7 @@ export function RailRow({
         <span
           aria-hidden
           className={cn(
-            "absolute top-4 -left-[9px] size-4 rounded-full shadow-[0_0_0_4px_var(--surface)]",
+            "absolute rounded-full shadow-[0_0_0_4px_var(--surface)]",
             DOT.get(dot),
           )}
         />

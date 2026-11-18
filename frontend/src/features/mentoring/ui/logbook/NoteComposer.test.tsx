@@ -75,27 +75,46 @@ describe("NoteComposer", () => {
     );
   });
 
-  it("starts a new note with the planned topics ticked", async () => {
+  it("ticks the topics planned for the day picked until they are chosen by hand", async () => {
     // given
-    const { write } = logbookHooks();
-    render(<NoteComposer journal={journal} topicIds={[1]} onDone={vi.fn()} />);
+    logbookHooks();
+    const planned = (id: number, on: string, topicIds: number[]) => ({
+      id,
+      on,
+      topicIds,
+      plannedById: "u-1",
+      plannedByName: "Ada",
+      passed: on < "2026-11-16",
+    });
+    render(
+      <NoteComposer
+        journal={{
+          ...journal,
+          meetings: [
+            planned(4, "2026-11-12", [2]),
+            planned(5, "2026-11-16", [1]),
+          ],
+        }}
+        onDone={vi.fn()}
+      />,
+    );
+    const pressed = () =>
+      screen
+        .getAllByRole("button", { pressed: true })
+        .map((toggle) => toggle.textContent);
+    expect(pressed()).toEqual(["✦Code review"]);
 
     // when
-    await userEvent.type(
-      screen.getByRole("textbox", { name: "Note" }),
-      "Asked, not told.",
-    );
-    await userEvent.click(screen.getByRole("button", { name: "Add note" }));
+    await userEvent.click(segment(/^day/i));
+    await userEvent.keyboard("{ArrowDown}{ArrowDown}{ArrowDown}{ArrowDown}");
+    const onThePassedDay = pressed();
+    await userEvent.click(screen.getByRole("button", { name: /Code review/ }));
+    await userEvent.click(segment(/^day/i));
+    await userEvent.keyboard("{ArrowUp}");
 
     // then
-    expect(screen.getByRole("button", { name: /Code review/ })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    expect(write.addNote.mutate).toHaveBeenCalledWith(
-      { body: "Asked, not told.", meetingOn: "2026-11-16", topicIds: [1] },
-      expect.anything(),
-    );
+    expect(onThePassedDay).toEqual(["✦Kafka"]);
+    expect(pressed()).toEqual(["✦Code review", "✦Kafka"]);
   });
 
   it("saves a changed note in place and closes once saved", async () => {

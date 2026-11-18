@@ -2,11 +2,13 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type {
-  Journal,
-  PlannedMeeting,
-} from "@/features/mentoring/domain/mentoring";
-import { journalOf, noteOf, topicOf } from "@/features/mentoring/test-data";
+import type { Journal } from "@/features/mentoring/domain/mentoring";
+import {
+  journalOf,
+  noteOf,
+  plannedOf,
+  topicOf,
+} from "@/features/mentoring/test-data";
 import { Logbook } from "@/features/mentoring/ui/logbook/Logbook";
 import { logbookHooks } from "@/test/logbook-view";
 
@@ -32,15 +34,6 @@ const notes = [
     topicIds: [7],
   }),
 ];
-
-function planned(
-  id: number,
-  on: string,
-  passed = false,
-  topicIds: number[] = [],
-): PlannedMeeting {
-  return { id, on, topicIds, plannedById: "u-1", plannedByName: "Ada", passed };
-}
 
 function show(overrides: Partial<Journal> = {}) {
   render(
@@ -152,7 +145,10 @@ describe("Logbook", () => {
     // when
     show({
       writable: false,
-      meetings: [planned(4, "2026-11-12", true), planned(5, "2026-11-19")],
+      meetings: [
+        plannedOf({ id: 4, on: "2026-11-12", passed: true }),
+        plannedOf({ id: 5 }),
+      ],
     });
 
     // then
@@ -174,7 +170,10 @@ describe("Logbook", () => {
 
     // when
     show({
-      meetings: [planned(4, "2026-11-09", true), planned(5, "2026-11-19")],
+      meetings: [
+        plannedOf({ id: 4, on: "2026-11-09", passed: true }),
+        plannedOf({ id: 5 }),
+      ],
     });
 
     // then
@@ -194,7 +193,7 @@ describe("Logbook", () => {
   it("write a note on today ticks today's planned topics", async () => {
     // given
     const { write } = logbookHooks();
-    show({ meetings: [planned(4, "2026-11-16", false, [7])] });
+    show({ meetings: [plannedOf({ id: 4, on: "2026-11-16", topicIds: [7] })] });
 
     // when
     await userEvent.click(screen.getByRole("button", { name: "Write a note" }));
@@ -277,5 +276,25 @@ describe("Logbook", () => {
     expect(
       meeting(/^Meeting 1 Fri 6 Nov/).getByRole("button", { name: "Edit" }),
     ).toHaveFocus();
+  });
+
+  it("opens either the note composer or the meeting editor, never both", async () => {
+    // given
+    logbookHooks();
+    show({ meetings: [plannedOf({ id: 5 })] });
+
+    // when
+    await userEvent.click(screen.getByRole("button", { name: "Write a note" }));
+    await userEvent.click(screen.getByRole("button", { name: "Change" }));
+    const afterChange = screen.queryByRole("textbox", { name: "Note" });
+    await userEvent.click(screen.getByRole("button", { name: "Write a note" }));
+
+    // then
+    expect(afterChange).not.toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Note" })).toHaveFocus();
+    expect(screen.getAllByRole("group", { name: /Meeting day/ })).toHaveLength(
+      1,
+    );
+    expect(screen.getByRole("button", { name: "Change" })).toBeInTheDocument();
   });
 });

@@ -7,6 +7,7 @@ import { useJournalWrite } from "@/features/mentoring/api/use-mentoring";
 import type { Journal, Note } from "@/features/mentoring/domain/mentoring";
 import type { NoteInput } from "@/features/mentoring/domain/mentoring-gateway";
 import { MEETING_DAY_RANGE } from "@/features/mentoring/mentoring-errors";
+import { plannedTopicsOn } from "@/features/mentoring/ui/logbook/plan";
 import { TopicToggles } from "@/features/mentoring/ui/logbook/TopicToggles";
 import { onFailure } from "@/features/mentoring/ui/notify-failure";
 
@@ -16,36 +17,18 @@ interface Props {
   journal: Journal;
   /** The meeting the note is about; today when none is given. */
   meetingOn?: string;
-  /** The topics a new note starts with ticked. */
-  topicIds?: number[];
   /** A note of one's own to change rather than a new one. */
   note?: Note;
   /** Called with what was saved, or with nothing on Cancel. */
   onDone: (saved?: NoteInput) => void;
 }
 
-interface Draft {
-  note: Note | undefined;
-  meetingOn: string | undefined;
-  topicIds: number[] | undefined;
-}
-
-function draftOf(
-  journal: Journal,
-  { note, meetingOn, topicIds }: Draft,
-): NoteInput {
+/** A note to change starts from itself; a new one from the day asked for, its topics left to the plan. */
+function startOf(journal: Journal, note?: Note, meetingOn?: string) {
   if (note !== undefined) {
-    return {
-      body: note.body,
-      meetingOn: note.meetingOn,
-      topicIds: note.topicIds,
-    };
+    return { body: note.body, day: note.meetingOn, topicIds: note.topicIds };
   }
-  return {
-    body: "",
-    meetingOn: meetingOn ?? journal.today,
-    topicIds: topicIds ?? [],
-  };
+  return { body: "", day: meetingOn ?? journal.today, topicIds: undefined };
 }
 
 function withinPairing(day: string, journal: Journal): boolean {
@@ -56,15 +39,16 @@ function withinPairing(day: string, journal: Journal): boolean {
 export function NoteComposer({
   journal,
   meetingOn,
-  topicIds: ticked,
   note,
   onDone,
 }: Readonly<Props>) {
   const write = useJournalWrite(journal.pairing.id);
-  const draft = draftOf(journal, { note, meetingOn, topicIds: ticked });
-  const [body, setBody] = useState(draft.body);
-  const [day, setDay] = useState(draft.meetingOn ?? journal.today);
-  const [topicIds, setTopicIds] = useState(draft.topicIds);
+  const start = startOf(journal, note, meetingOn);
+  const [body, setBody] = useState(start.body);
+  const [day, setDay] = useState(start.day);
+  const [chosen, setChosen] = useState(start.topicIds);
+  // A new note follows the plan of the day picked until its topics are chosen by hand.
+  const topicIds = chosen ?? plannedTopicsOn(journal, day);
   const pending = write.addNote.isPending || write.updateNote.isPending;
   const dayValid = withinPairing(day, journal);
   const ready = body.trim() !== "" && dayValid && !pending;
@@ -100,7 +84,7 @@ export function NoteComposer({
       <TopicToggles
         journal={journal}
         selected={topicIds}
-        onChange={setTopicIds}
+        onChange={setChosen}
       />
       <div className="flex justify-end gap-2">
         <Button variant="ghost" onPress={() => onDone()} isDisabled={pending}>

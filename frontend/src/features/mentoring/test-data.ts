@@ -6,6 +6,7 @@ import type {
   MyMentoring,
   Note,
   PairingSummary,
+  PlannedMeeting,
   Pointer,
   Proposal,
   Topic,
@@ -126,6 +127,20 @@ export function noteOf(overrides: Partial<Note> = {}): Note {
     writtenAt: "2026-11-16T11:00:00Z",
     editedAt: null,
     pointers: [],
+    ...overrides,
+  };
+}
+
+export function plannedOf(
+  overrides: Partial<PlannedMeeting> = {},
+): PlannedMeeting {
+  return {
+    id: 8,
+    on: "2026-11-19",
+    topicIds: [],
+    plannedById: "u-1",
+    plannedByName: "Ada",
+    passed: false,
     ...overrides,
   };
 }

@@ -6,6 +6,7 @@ import {
   notesBy,
   ROLE_INK,
 } from "@/features/mentoring/ui/journal-people";
+import { upcomingOf } from "@/features/mentoring/ui/logbook/plan";
 import {
   dayOfMonth,
   monthOf,
@@ -50,9 +51,9 @@ function SplitBar({ journal }: Readonly<{ journal: Journal }>) {
 }
 
 function NextMeeting({ journal }: Readonly<{ journal: Journal }>) {
-  const [next, ...later] = journal.meetings;
+  const [next] = journal.meetings;
   if (next === undefined) return null;
-  const upcomingLater = later.length;
+  const upcomingLater = upcomingOf(journal).length - (next.passed ? 0 : 1);
   return (
     <li className="col-span-2 flex grow items-center gap-2.5 rounded-2xl bg-[color-mix(in_srgb,var(--warning)_16%,var(--surface))] py-2 pr-3.5 pl-2">
       <span

@@ -8,12 +8,11 @@ import {
 import { MeetingCard } from "@/features/mentoring/ui/logbook/MeetingCard";
 import { meetingsOf } from "@/features/mentoring/ui/logbook/meetings";
 import { OwedMeetingCard } from "@/features/mentoring/ui/logbook/OwedMeetingCard";
+import { behindOf, owedOf } from "@/features/mentoring/ui/logbook/plan";
 import {
-  behindOf,
-  owedOf,
-  upcomingOf,
-} from "@/features/mentoring/ui/logbook/plan";
-import { PlanAhead } from "@/features/mentoring/ui/logbook/PlanAhead";
+  type Editing,
+  PlanAhead,
+} from "@/features/mentoring/ui/logbook/PlanAhead";
 import { RailRow } from "@/features/mentoring/ui/logbook/RailRow";
 import {
   type Compose,
@@ -42,15 +41,23 @@ function writeNoteLanding(removedOn: string): HTMLElement | null {
 /** The pair's logbook as a rail split at Today: the plan above, the meetings that passed below. */
 export function Logbook({ journal }: Readonly<{ journal: Journal }>) {
   const [compose, setCompose] = useState<Compose | null>(null);
+  const [editing, setEditing] = useState<Editing>(null);
   const followNote = useFollowFocus(journal.notes, movedNoteLanding);
   const landOnWrite = useFollowFocus(journal.meetings, writeNoteLanding);
   const held = meetingsOf(journal);
   const behind = behindOf(journal.writable ? owedOf(journal) : [], held);
-  const write = (on?: string) =>
+  // The note composer and the meeting editor are never open together.
+  const write = (on?: string) => {
+    setEditing(null);
     setCompose((current) => ({
       ...(on === undefined ? {} : { on }),
       asked: (current?.asked ?? 0) + 1,
     }));
+  };
+  const edit = (next: Editing) => {
+    setEditing(next);
+    if (next !== null) setCompose(null);
+  };
   return (
     <section aria-labelledby="journal-logbook" className="flex flex-col gap-3">
       <h2
@@ -63,8 +70,12 @@ export function Logbook({ journal }: Readonly<{ journal: Journal }>) {
         <ol className="flex flex-col">
           {journal.writable && (
             <>
-              <RailRow on={upcomingOf(journal)[0]?.on} dot="ahead">
-                <PlanAhead journal={journal} />
+              <RailRow dot="ahead">
+                <PlanAhead
+                  journal={journal}
+                  editing={editing}
+                  onEditing={edit}
+                />
               </RailRow>
               <TodayMarker
                 journal={journal}

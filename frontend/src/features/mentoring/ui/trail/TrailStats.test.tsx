@@ -120,6 +120,36 @@ describe("TrailStats", () => {
     ).toBeInTheDocument();
   });
 
+  it("counts only upcoming meetings as more planned, owed ones aside", () => {
+    // given
+    const owed = (id: number, on: string) => ({
+      id,
+      on,
+      topicIds: [],
+      plannedById: "u-1",
+      plannedByName: "Ada",
+      passed: true,
+    });
+
+    // when
+    render(
+      <TrailStats
+        journal={journalOf({
+          meetings: [
+            owed(1, "2026-11-05"),
+            owed(2, "2026-11-12"),
+            { ...owed(3, "2026-11-26"), passed: false },
+          ],
+        })}
+      />,
+    );
+
+    // then
+    expect(
+      screen.getByText("Thu 5 Nov · passed · 1 more planned"),
+    ).toBeInTheDocument();
+  });
+
   it("says when the next meeting has passed", () => {
     // when
     render(

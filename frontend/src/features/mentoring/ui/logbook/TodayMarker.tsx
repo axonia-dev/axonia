@@ -3,7 +3,6 @@ import { useEffect, useRef } from "react";
 
 import type { Journal } from "@/features/mentoring/domain/mentoring";
 import { NoteComposer } from "@/features/mentoring/ui/logbook/NoteComposer";
-import { plannedTopicsOn } from "@/features/mentoring/ui/logbook/plan";
 import { RailRow } from "@/features/mentoring/ui/logbook/RailRow";
 import { longDay } from "@/features/mentoring/ui/meeting-day";
 
@@ -20,6 +19,11 @@ interface Props {
   onClose: () => void;
 }
 
+function focusLost(): boolean {
+  const active = document.activeElement;
+  return active === null || active === document.body;
+}
+
 /** Focus enters the composer as it opens and returns to Write a note as it closes. */
 function useComposerFocus(compose: Compose | null) {
   const box = useRef<HTMLDivElement>(null);
@@ -27,7 +31,7 @@ function useComposerFocus(compose: Compose | null) {
   const wasOpen = useRef(false);
   useEffect(() => {
     if (compose === null) {
-      if (wasOpen.current) trigger.current?.focus();
+      if (wasOpen.current && focusLost()) trigger.current?.focus();
       wasOpen.current = false;
       return;
     }
@@ -76,7 +80,6 @@ export function TodayMarker({
               key={`${on}-${compose.asked}`}
               journal={journal}
               meetingOn={on}
-              topicIds={plannedTopicsOn(journal, on)}
               onDone={onClose}
             />
           </div>

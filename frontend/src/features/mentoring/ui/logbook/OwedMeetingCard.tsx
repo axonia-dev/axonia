@@ -1,4 +1,5 @@
 import { Ellipsis, Pencil, Trash2 } from "lucide-react";
+import { useId } from "react";
 import type { Key } from "react-aria-components";
 
 import { MenuButton, MenuItem } from "@/components/ui/Menu";
@@ -28,7 +29,7 @@ export function OwedMeetingCard({
 }: Readonly<Props>) {
   const { remove } = useMeetingPlan(journal.pairing.id);
   const day = longDay(meeting.on);
-  const titleId = `owed-${meeting.on}`;
+  const titleId = useId();
 
   function act(key: Key) {
     if (key === "note") onAddNote(meeting.on);

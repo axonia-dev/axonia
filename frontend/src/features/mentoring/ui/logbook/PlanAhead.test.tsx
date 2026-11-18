@@ -1,5 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type {
@@ -7,7 +8,10 @@ import type {
   PlannedMeeting,
 } from "@/features/mentoring/domain/mentoring";
 import { journalOf, topicOf } from "@/features/mentoring/test-data";
-import { PlanAhead } from "@/features/mentoring/ui/logbook/PlanAhead";
+import {
+  type Editing,
+  PlanAhead,
+} from "@/features/mentoring/ui/logbook/PlanAhead";
 import { logbookHooks } from "@/test/logbook-view";
 
 vi.mock("@/features/identity/api/use-me", () => ({ useMe: vi.fn() }));
@@ -32,6 +36,13 @@ const soonest = planned({ id: 8, on: "2026-11-19", topicIds: [3] });
 const later = planned({ id: 9, on: "2026-12-10", topicIds: [7] });
 const last = planned({ id: 10, on: "2027-01-07" });
 
+function Plan({ journal }: Readonly<{ journal: Journal }>) {
+  const [editing, setEditing] = useState<Editing>(null);
+  return (
+    <PlanAhead journal={journal} editing={editing} onEditing={setEditing} />
+  );
+}
+
 function journalWith(overrides: Partial<Journal> = {}): Journal {
   return journalOf({
     startedOn: "2026-09-02",
@@ -45,7 +56,7 @@ function journalWith(overrides: Partial<Journal> = {}): Journal {
 }
 
 function show(overrides: Partial<Journal> = {}) {
-  return render(<PlanAhead journal={journalWith(overrides)} />);
+  return render(<Plan journal={journalWith(overrides)} />);
 }
 
 function onSuccessAnswers(mutate: ReturnType<typeof vi.fn>, value?: unknown) {
@@ -179,7 +190,7 @@ describe("PlanAhead", () => {
       planned({ id: 11, on: "2026-11-30" }),
     );
     const journal = journalWith({ meetings: [soonest] });
-    const { rerender } = render(<PlanAhead journal={journal} />);
+    const { rerender } = render(<Plan journal={journal} />);
     await userEvent.click(
       screen.getByRole("button", { name: "Plan a meeting" }),
     );
@@ -190,7 +201,7 @@ describe("PlanAhead", () => {
 
     // when
     rerender(
-      <PlanAhead
+      <Plan
         journal={{
           ...journal,
           meetings: [soonest, planned({ id: 11, on: "2026-11-30" })],
@@ -209,14 +220,60 @@ describe("PlanAhead", () => {
     const { meeting } = logbookHooks();
     onSuccessAnswers(meeting.remove.mutate);
     const journal = journalWith({ meetings: [soonest] });
-    const { rerender } = render(<PlanAhead journal={journal} />);
+    const { rerender } = render(<Plan journal={journal} />);
     await userEvent.click(screen.getByRole("button", { name: "Remove" }));
     (document.activeElement as HTMLElement).blur();
 
     // when
-    rerender(<PlanAhead journal={{ ...journal, meetings: [] }} />);
+    rerender(<Plan journal={{ ...journal, meetings: [] }} />);
 
     // then
+    expect(
+      screen.getByRole("button", { name: "Plan a meeting" }),
+    ).toHaveFocus();
+  });
+
+  it("keeps an open editor's draft when its meeting moves from ticket to Then", async () => {
+    // given
+    logbookHooks();
+    const journal = journalWith({ meetings: [soonest, later] });
+    const { rerender } = render(<Plan journal={journal} />);
+    await userEvent.click(screen.getByRole("button", { name: "Change" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Giving feedback" }),
+    );
+
+    // when
+    const sooner = planned({ id: 12, on: "2026-11-17" });
+    rerender(
+      <Plan journal={{ ...journal, meetings: [sooner, soonest, later] }} />,
+    );
+
+    // then
+    expect(
+      screen.getByText("Next meeting Tuesday 17 November"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Giving feedback" }),
+    ).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("closes the editor of a meeting the partner removed and lands on Plan a meeting", async () => {
+    // given
+    logbookHooks();
+    const journal = journalWith({ meetings: [soonest, later] });
+    const { rerender } = render(<Plan journal={journal} />);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Change Thursday 10 December" }),
+    );
+
+    // when
+    rerender(<Plan journal={{ ...journal, meetings: [soonest] }} />);
+
+    // then
+    expect(
+      screen.queryByRole("button", { name: "Save" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Plan a meeting" }),
     ).toHaveFocus();
