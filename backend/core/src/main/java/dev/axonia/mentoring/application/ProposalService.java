@@ -30,6 +30,7 @@ import dev.axonia.mentoring.domain.Proposal;
 import dev.axonia.mentoring.domain.ProposalRules;
 import dev.axonia.mentoring.domain.ProposalStatus;
 import dev.axonia.mentoring.domain.Role;
+import dev.axonia.mentoring.domain.Showing;
 import dev.axonia.shared.api.error.ConflictException;
 import dev.axonia.shared.api.error.ForbiddenException;
 import dev.axonia.shared.api.error.NotFoundException;
@@ -82,7 +83,7 @@ public class ProposalService {
         var now = now();
         var draft = Proposal.builder().communityId(community.id()).mentorUserId(asRole == Role.MENTOR ? me : to)
                 .menteeUserId(asRole == Role.MENTOR ? to : me).proposedBy(asRole).topics(topics).message(message)
-                .status(ProposalStatus.OPEN).createdAt(now);
+                .status(ProposalStatus.OPEN).createdAt(now).pairsShown(true);
         PairHold.of(proposals.between(org, community.id(), me, to), me, now).requireMayPropose();
         var unsaved = draft.build();
         var proposal = draft.id(proposals.insert(org, unsaved)).build();
@@ -116,7 +117,8 @@ public class ProposalService {
             throw closed();
         }
         var draft = Pairing.builder().communityId(community.id()).mentorUserId(proposal.mentorUserId())
-                .menteeUserId(proposal.menteeUserId()).startedAt(now);
+                .menteeUserId(proposal.menteeUserId()).startedAt(now)
+                .showing(proposal.pairsShown() ? Showing.SHOWN : Showing.ASKING);
         var pairing = draft.id(insert(org, draft.build())).build();
         proposals.withdrawOthersBetween(org, proposal, now);
         var trail = firstTopics.seed(org, community, pairing, proposal.topics());

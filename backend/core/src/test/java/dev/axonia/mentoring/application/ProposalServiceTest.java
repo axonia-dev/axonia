@@ -51,6 +51,7 @@ import dev.axonia.mentoring.domain.Pairing;
 import dev.axonia.mentoring.domain.Proposal;
 import dev.axonia.mentoring.domain.ProposalStatus;
 import dev.axonia.mentoring.domain.Role;
+import dev.axonia.mentoring.domain.Showing;
 import dev.axonia.mentoring.domain.Topic;
 import dev.axonia.mentoring.domain.TopicState;
 import dev.axonia.shared.api.error.ConflictException;
@@ -183,7 +184,7 @@ class ProposalServiceTest {
 
         return Proposal.builder().id(PROPOSAL).communityId(COMMUNITY).mentorUserId(mentor).menteeUserId(mentee)
                 .proposedBy(proposedBy).topics(List.of("Kafka", "Giving feedback")).message("Hello")
-                .status(ProposalStatus.OPEN).createdAt(NOW.minus(Duration.ofDays(2)));
+                .status(ProposalStatus.OPEN).createdAt(NOW.minus(Duration.ofDays(2))).pairsShown(true);
     }
 
     /** {@code ME} receives a proposal from {@code MENTEE}, as their mentor. */
@@ -203,7 +204,7 @@ class ProposalServiceTest {
         verify(proposals).insert(eq(ORG), stored.capture());
         var expected = Proposal.builder().communityId(COMMUNITY).mentorUserId(MENTOR).menteeUserId(ME)
                 .proposedBy(Role.MENTEE).topics(List.of("Kafka", "Giving feedback")).message("Hello")
-                .status(ProposalStatus.OPEN).createdAt(TODAY);
+                .status(ProposalStatus.OPEN).createdAt(TODAY).pairsShown(true);
         assertThat(stored.getValue()).isEqualTo(expected.build());
         verify(notices, times(1)).proposed(ORG, expected.id(PROPOSAL).build(),
                 new MentoringGuild("platform", "Platform"), "Max");
@@ -529,13 +530,55 @@ class ProposalServiceTest {
                 .myRole("MENTOR").partnerId(MENTEE).partnerName("Noah").startedAt(TODAY)
                 .stops(List.of("TODO", "TODO", "TODO")).build());
         verify(pairings).insert(ORG, Pairing.builder().communityId(COMMUNITY).mentorUserId(ME).menteeUserId(MENTEE)
-                .startedAt(TODAY).build());
+                .startedAt(TODAY).showing(Showing.SHOWN).build());
         verify(proposals).answer(ORG, PROPOSAL, ProposalStatus.ACCEPTED, TODAY);
         var topics = ArgumentCaptor.forClass(Topic.class);
         verify(journal, times(3)).insertTopic(eq(ORG), topics.capture());
         assertThat(topics.getAllValues()).containsExactly(topic("Giving feedback", null, 0), topic("Kafka", "kafka", 1),
                 topic("Event Sourcing", "es", 2));
         verify(vocabulary).shareLock(ORG, COMMUNITY);
+    }
+
+    @Test
+    void proposeMarksTheProposalAsPairingShown() {
+
+        // when
+        service.propose(SLUG, request(MENTEE, Role.MENTOR));
+
+        // then
+        var stored = ArgumentCaptor.forClass(Proposal.class);
+        verify(proposals).insert(eq(ORG), stored.capture());
+        assertThat(stored.getValue().pairsShown()).isTrue();
+    }
+
+    @Test
+    void acceptPairsShownFromANewProposal() {
+
+        // given
+        receive(proposal(ME, MENTEE, Role.MENTEE).build());
+
+        // when
+        service.accept(PROPOSAL);
+
+        // then
+        var stored = ArgumentCaptor.forClass(Pairing.class);
+        verify(pairings).insert(eq(ORG), stored.capture());
+        assertThat(stored.getValue().showing()).isEqualTo(Showing.SHOWN);
+    }
+
+    @Test
+    void acceptPairsAskingFromAnOlderProposal() {
+
+        // given: sent, or declined and reopened, under the promise of privacy
+        receive(proposal(ME, MENTEE, Role.MENTEE).pairsShown(false).build());
+
+        // when
+        service.accept(PROPOSAL);
+
+        // then
+        var stored = ArgumentCaptor.forClass(Pairing.class);
+        verify(pairings).insert(eq(ORG), stored.capture());
+        assertThat(stored.getValue().showing()).isEqualTo(Showing.ASKING);
     }
 
     @Test

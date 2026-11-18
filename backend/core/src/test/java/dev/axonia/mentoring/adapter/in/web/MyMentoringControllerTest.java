@@ -31,7 +31,9 @@ import dev.axonia.mentoring.application.JournalService;
 import dev.axonia.mentoring.application.MeetingPlanService;
 import dev.axonia.mentoring.application.PairingService;
 import dev.axonia.mentoring.application.ProposalService;
+import dev.axonia.mentoring.application.ShowingService;
 import dev.axonia.mentoring.application.WordsService;
+import dev.axonia.mentoring.domain.ShowAnswer;
 import dev.axonia.shared.api.error.ConflictException;
 import dev.axonia.shared.api.error.NotFoundException;
 import dev.axonia.shared.api.error.ValidationException;
@@ -39,6 +41,7 @@ import dev.axonia.shared.api.error.ValidationException;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @CoreWebMvcTest(controllers = MyMentoringController.class)
@@ -54,6 +57,8 @@ class MyMentoringControllerTest extends ControllerTestSupport {
     private WordsService wordsService;
     @MockitoBean
     private MeetingPlanService meetingPlanService;
+    @MockitoBean
+    private ShowingService showingService;
 
     @Test
     void acceptingAnswersThePairingTheFrontendParses() {
@@ -485,5 +490,50 @@ class MyMentoringControllerTest extends ControllerTestSupport {
                   "endedAt": null, "body": "Thank you", "writtenAt": "2026-11-16T10:00:00Z",
                   "openedAt": "2026-11-16T11:00:00Z"}]
                 """);
+    }
+
+    @Test
+    void answersTheShowingAsk() {
+
+        // when
+        var actual = mvc.put().uri("/axonia/mentoring/pairings/{id}/showing", 11).contentType("application/json")
+                .content("""
+                        {"answer": "YES"}
+                        """).exchange();
+
+        // then
+        actual.assertThat().hasStatus(204);
+        verify(showingService).answer(11L, ShowAnswer.YES);
+    }
+
+    @Test
+    void anUnknownShowingAnswerIsABadRequest() {
+
+        // when
+        var actual = mvc.put().uri("/axonia/mentoring/pairings/{id}/showing", 11).contentType("application/json")
+                .content("""
+                        {"answer": "MAYBE"}
+                        """).exchange();
+
+        // then
+        actual.assertThat().hasStatus(400);
+        verifyNoInteractions(showingService);
+    }
+
+    @Test
+    void aSettledShowingIsAConflictWithItsCode() {
+
+        // given
+        doThrow(new ConflictException("MENTORING_SHOWING_SETTLED", "Settled")).when(showingService).answer(11L,
+                ShowAnswer.NO);
+
+        // when
+        var actual = mvc.put().uri("/axonia/mentoring/pairings/{id}/showing", 11).contentType("application/json")
+                .content("""
+                        {"answer": "NO"}
+                        """).exchange();
+
+        // then
+        actual.assertThat().hasStatus(409).bodyJson().extractingPath("$.code").isEqualTo("MENTORING_SHOWING_SETTLED");
     }
 }

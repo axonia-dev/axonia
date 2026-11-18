@@ -30,6 +30,7 @@ import dev.axonia.mentoring.application.JournalService;
 import dev.axonia.mentoring.application.MeetingPlanService;
 import dev.axonia.mentoring.application.PairingService;
 import dev.axonia.mentoring.application.ProposalService;
+import dev.axonia.mentoring.application.ShowingService;
 import dev.axonia.mentoring.application.WordsService;
 import lombok.RequiredArgsConstructor;
 
@@ -44,6 +45,7 @@ class MyMentoringController {
     private final JournalService journalService;
     private final WordsService wordsService;
     private final MeetingPlanService meetingPlanService;
+    private final ShowingService showingService;
 
     @GetMapping("/me")
     MyMentoring mine() {
@@ -179,6 +181,13 @@ class MyMentoringController {
     void removeMeeting(@PathVariable long id, @PathVariable long meetingId) {
 
         meetingPlanService.remove(id, meetingId);
+    }
+
+    @PutMapping("/pairings/{id}/showing")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void answerShowing(@PathVariable long id, @RequestBody ShowingRequest request) {
+
+        showingService.answer(id, request.answer());
     }
 
     @PutMapping("/pairings/{id}/words")
