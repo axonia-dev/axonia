@@ -42,6 +42,7 @@ import {
 } from "@/features/mentoring/ui/board/Sticker";
 import { TopicDialog } from "@/features/mentoring/ui/board/TopicDialog";
 import { notesNaming } from "@/features/mentoring/ui/journal-people";
+import { plannedDayOf } from "@/features/mentoring/ui/logbook/plan";
 import { onFailure } from "@/features/mentoring/ui/notify-failure";
 import { useFollowFocus } from "@/features/mentoring/ui/use-follow-focus";
 import { cn } from "@/lib/cn";
@@ -105,6 +106,7 @@ function Column({
               topic={topic}
               index={index}
               noteCount={notesNaming(journal, topic.id).length}
+              plannedOn={plannedDayOf(journal, topic.id)}
               writable={journal.writable}
               celebrate={board.celebrating === topic.id}
               found={board.found === topic.id}
@@ -276,6 +278,7 @@ export function TopicBoard(props: Readonly<Props>) {
             <StickerGhost
               topic={dragged}
               noteCount={notesNaming(journal, dragged.id).length}
+              plannedOn={plannedDayOf(journal, dragged.id)}
             />
           )}
         </DragOverlay>

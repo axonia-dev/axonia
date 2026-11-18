@@ -32,21 +32,27 @@ function noDateLine(lastMetOn: string | null): MeetingLine {
   return { big: "No date set", small, tone: "warning" };
 }
 
+function withLaterPlanned(small: string, laterPlanned: number): string {
+  return laterPlanned > 0 ? `${small} · ${laterPlanned} more planned` : small;
+}
+
 /** The headline of an ongoing pairing: when the two meet next, or what is owed. */
 export function nextMeetingLine(
   pairing: PairingSummary,
   today: string,
 ): MeetingLine {
-  const { nextMeeting } = pairing;
+  const { nextMeeting, laterPlanned } = pairing;
   if (nextMeeting === null) return noDateLine(pairing.lastMetOn);
   const day = WEEKDAY_AND_DAY.format(new Date(nextMeeting.on));
   if (nextMeeting.passed) {
-    return { big: day, small: "notes to write", tone: "warning" };
+    const small = withLaterPlanned("notes to write", laterPlanned);
+    return { big: day, small, tone: "warning" };
   }
   const kind = pairing.notes === 0 ? "first meeting" : "next meeting";
   const days = daysBetween(today, nextMeeting.on);
-  if (days <= 0) return { big: "Today", small: kind, tone: "plain" };
-  return { big: day, small: `${kind} · ${inDays(days)}`, tone: "plain" };
+  const when = days <= 0 ? kind : `${kind} · ${inDays(days)}`;
+  const small = withLaterPlanned(when, laterPlanned);
+  return { big: days <= 0 ? "Today" : day, small, tone: "plain" };
 }
 
 export function lapseLine(lapsesOn: string, today: string): string {

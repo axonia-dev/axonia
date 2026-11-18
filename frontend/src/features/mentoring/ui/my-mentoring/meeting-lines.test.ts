@@ -58,6 +58,40 @@ describe("nextMeetingLine", () => {
     expect(actual).toEqual({ big, small, tone: "plain" });
   });
 
+  it("theStripLineAddsLaterPlanned", () => {
+    // given
+    const pairing = meetingOn("2026-11-25", { laterPlanned: 2 });
+
+    // when
+    const actual = nextMeetingLine(pairing, TODAY);
+
+    // then
+    expect(actual).toEqual({
+      big: "Wed 25",
+      small: "next meeting · in 8 days · 2 more planned",
+      tone: "plain",
+    });
+  });
+
+  it("anOwedMeetingStillLeadsMyMentoring", () => {
+    // given
+    const pairing = pairingOf({
+      nextMeeting: { on: "2026-11-12", passed: true },
+      laterPlanned: 1,
+      notes: 3,
+    });
+
+    // when
+    const actual = nextMeetingLine(pairing, TODAY);
+
+    // then
+    expect(actual).toEqual({
+      big: "Thu 12",
+      small: "notes to write · 1 more planned",
+      tone: "warning",
+    });
+  });
+
   it("asks for the notes of a meeting that has passed, in the warning ink", () => {
     // given
     const pairing = pairingOf({

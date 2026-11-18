@@ -23,6 +23,14 @@ export function plannedTopicsOn(journal: Journal, day: string): number[] {
   return journal.meetings.find((meeting) => meeting.on === day)?.topicIds ?? [];
 }
 
+/** The soonest upcoming day that names the topic, or null. */
+export function plannedDayOf(journal: Journal, topicId: number): string | null {
+  return (
+    upcomingOf(journal).find((meeting) => meeting.topicIds.includes(topicId))
+      ?.on ?? null
+  );
+}
+
 /** The last day a meeting can be planned for. */
 export function latestPlannableDay(today: string): string {
   const day = new Date(today);

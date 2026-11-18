@@ -67,6 +67,39 @@ describe("JournalTrail", () => {
     expect(onOpenTopic).toHaveBeenCalledWith(2);
   });
 
+  it("aTopicPlannedAheadShowsItsDayOnTheTrail", () => {
+    // given
+    const planned = (id: number, on: string, topicIds: number[]) => ({
+      id,
+      on,
+      topicIds,
+      plannedById: "u-1",
+      plannedByName: "Ada",
+      passed: false,
+    });
+    const ahead = journalOf({
+      topics: [todo, doing, done],
+      meetings: [
+        planned(1, "2026-11-26", [3]),
+        planned(2, "2026-12-03", [3, 2]),
+      ],
+    });
+
+    // when
+    render(<JournalTrail journal={ahead} onOpenTopic={vi.fn()} />);
+
+    // then
+    expect(
+      screen.getByRole("button", { name: /^Writing an RFC/ }),
+    ).toHaveTextContent("26 Nov");
+    expect(
+      screen.getByRole("button", { name: /^Code review/ }),
+    ).toHaveTextContent("3 Dec");
+    expect(
+      screen.getByRole("button", { name: /^Testing strategy/ }),
+    ).not.toHaveTextContent("Nov");
+  });
+
   it("shows a stop's notes on focus", async () => {
     // given
     render(<JournalTrail journal={journal} onOpenTopic={vi.fn()} />);

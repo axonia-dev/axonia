@@ -75,6 +75,51 @@ describe("TrailStats", () => {
     expect(screen.queryByTestId("notes-split")).not.toBeInTheDocument();
   });
 
+  it("theTileShowsTheOwedMeetingElseTheSoonestAndCountsTheRest", () => {
+    // given
+    const planned = (id: number, on: string, passed = false) => ({
+      id,
+      on,
+      topicIds: [],
+      plannedById: "u-1",
+      plannedByName: "Ada",
+      passed,
+    });
+
+    // when
+    const upcoming = render(
+      <TrailStats
+        journal={journalOf({
+          meetings: [
+            planned(1, "2026-11-19"),
+            planned(2, "2026-11-26"),
+            planned(3, "2026-12-03"),
+          ],
+        })}
+      />,
+    );
+
+    // then
+    expect(screen.getByText("Next meeting")).toBeInTheDocument();
+    expect(screen.getByText("Thu 19 Nov · 2 more planned")).toBeInTheDocument();
+
+    // when
+    upcoming.unmount();
+    render(
+      <TrailStats
+        journal={journalOf({
+          meetings: [planned(1, "2026-11-12", true), planned(2, "2026-11-26")],
+        })}
+      />,
+    );
+
+    // then
+    expect(screen.getByText("Last meeting")).toBeInTheDocument();
+    expect(
+      screen.getByText("Thu 12 Nov · passed · 1 more planned"),
+    ).toBeInTheDocument();
+  });
+
   it("says when the next meeting has passed", () => {
     // when
     render(

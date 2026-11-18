@@ -9,6 +9,7 @@ import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import type { Topic, TopicState } from "@/features/mentoring/domain/mentoring";
 import { Confetti } from "@/features/mentoring/ui/board/Confetti";
 import { plural } from "@/features/mentoring/ui/journal-people";
+import { PlannedDay } from "@/features/mentoring/ui/PlannedDay";
 import { cn } from "@/lib/cn";
 import { useMediaQuery } from "@/lib/use-media-query";
 
@@ -31,6 +32,7 @@ export interface StickerProps {
   topic: Topic;
   index: number;
   noteCount: number;
+  plannedOn: string | null;
   writable: boolean;
   celebrate: boolean;
   found: boolean;
@@ -127,11 +129,13 @@ function Grip({
 function Face({
   topic,
   noteCount,
+  plannedOn,
   grip,
   onOpen,
 }: Readonly<{
   topic: Topic;
   noteCount: number;
+  plannedOn: string | null;
   grip: ReactNode;
   onOpen: () => void;
 }>) {
@@ -152,6 +156,7 @@ function Face({
       <div className="flex flex-wrap items-center gap-2">
         {topic.area !== null && <AreaTag area={topic.area} />}
         <Counts notes={noteCount} links={topic.pointers.length} />
+        <PlannedDay day={plannedOn} />
       </div>
     </>
   );
@@ -196,6 +201,7 @@ export function Sticker(props: Readonly<StickerProps>) {
       <Face
         topic={topic}
         noteCount={props.noteCount}
+        plannedOn={props.plannedOn}
         onOpen={props.onOpen}
         grip={
           writable && (
@@ -226,7 +232,8 @@ export function Sticker(props: Readonly<StickerProps>) {
 export function StickerGhost({
   topic,
   noteCount,
-}: Readonly<{ topic: Topic; noteCount: number }>) {
+  plannedOn,
+}: Readonly<{ topic: Topic; noteCount: number; plannedOn: string | null }>) {
   const done = topic.state === "DONE";
   return (
     <div
@@ -248,6 +255,7 @@ export function StickerGhost({
       <Face
         topic={topic}
         noteCount={noteCount}
+        plannedOn={plannedOn}
         grip={null}
         onOpen={() => undefined}
       />

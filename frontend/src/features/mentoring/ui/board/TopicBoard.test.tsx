@@ -87,6 +87,37 @@ describe("TopicBoard", () => {
     expect(stickersIn("In progress")).not.toContain("Kafka");
   });
 
+  it("aTopicPlannedAheadShowsItsDayOnTheBoard", () => {
+    // given
+    boardHooks();
+    const planned = (id: number, on: string, topicIds: number[]) => ({
+      id,
+      on,
+      topicIds,
+      plannedById: "u-1",
+      plannedByName: "Ada",
+      passed: false,
+    });
+
+    // when
+    render(
+      boardOf({
+        meetings: [
+          planned(1, "2026-11-26", [1]),
+          planned(2, "2026-12-03", [1, 3]),
+        ],
+      }),
+    );
+
+    // then
+    const kafkaSticker = screen.getByText("Kafka").closest("li")!;
+    const reviewSticker = screen.getByText("Code review").closest("li")!;
+    const rfcSticker = screen.getByText("Writing an RFC").closest("li")!;
+    expect(kafkaSticker).toHaveTextContent("26 Nov");
+    expect(reviewSticker).toHaveTextContent("3 Dec");
+    expect(rfcSticker).not.toHaveTextContent("Nov");
+  });
+
   it("shows the notes and links count", () => {
     // given
     boardHooks();

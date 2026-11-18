@@ -15,6 +15,8 @@ import {
   plural,
   ROLE_INK,
 } from "@/features/mentoring/ui/journal-people";
+import { plannedDayOf } from "@/features/mentoring/ui/logbook/plan";
+import { PlannedDay } from "@/features/mentoring/ui/PlannedDay";
 import type {
   Point,
   TrailLayout,
@@ -191,6 +193,7 @@ export function TrailStop({
           <span className="text-muted-foreground text-[11px] leading-tight whitespace-nowrap">
             {meta}
           </span>
+          <PlannedDay day={plannedDayOf(journal, topic.id)} />
         </span>
       </AriaButton>
       <StopCard
