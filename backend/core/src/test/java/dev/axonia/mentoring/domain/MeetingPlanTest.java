@@ -135,4 +135,22 @@ class MeetingPlanTest {
         assertThatThrownBy(() -> MeetingPlan.topics(List.of(1L, 99L), board)).isInstanceOf(ValidationException.class)
                 .hasFieldOrPropertyWithValue("code", "MENTORING_MEETING_TOPICS");
     }
+
+    @Test
+    void theEarliestOwedMeetingLeadsThenTheSoonestUpcoming() {
+
+        // given
+        var heldEarlier = meeting(1L, TODAY.minusDays(9), true);
+        var owed = meeting(2L, TODAY.minusDays(2), false);
+        var earlierOwed = meeting(3L, TODAY.minusDays(4), false);
+        var later = meeting(4L, TODAY.plusDays(7), false);
+        var soonest = meeting(5L, TODAY, false);
+
+        // when / then
+        assertThat(MeetingPlan.leading(List.of(heldEarlier, owed, earlierOwed, later, soonest), TODAY))
+                .contains(earlierOwed);
+        assertThat(MeetingPlan.leading(List.of(heldEarlier, later, soonest), TODAY)).contains(soonest);
+        assertThat(MeetingPlan.leading(List.of(heldEarlier), TODAY)).isEmpty();
+        assertThat(MeetingPlan.upcoming(List.of(heldEarlier, owed, later, soonest), TODAY)).isEqualTo(2);
+    }
 }

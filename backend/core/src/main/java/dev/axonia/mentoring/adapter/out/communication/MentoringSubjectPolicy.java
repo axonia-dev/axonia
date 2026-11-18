@@ -2,6 +2,7 @@ package dev.axonia.mentoring.adapter.out.communication;
 
 import java.time.Clock;
 import java.util.Set;
+import java.util.function.Predicate;
 
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,7 +16,7 @@ import dev.axonia.mentoring.application.port.out.PersonDirectory;
 import dev.axonia.mentoring.application.port.out.ProposalRepository;
 import dev.axonia.mentoring.domain.MentoringSubject;
 import dev.axonia.mentoring.domain.MentoringWindows;
-import dev.axonia.mentoring.domain.Pairing;
+import dev.axonia.mentoring.domain.PlannedMeeting;
 import dev.axonia.mentoring.domain.Proposal;
 import dev.axonia.mentoring.domain.ProposalStatus;
 import lombok.RequiredArgsConstructor;
@@ -24,11 +25,11 @@ import lombok.RequiredArgsConstructor;
  * The mentoring notices' answers to the delivery gate, judged again at delivery. A proposal answered, withdrawn or
  * lapsed since is owed no notice, and its receiver must still be in the guild, and so is a reopening; a decline is owed
  * its "not this time" while the proposal stays declined by that answer, a planned or moved meeting's notice while that
- * very planning stands and its pairing is ongoing, and a reminder while that day is still the pairing's next meeting. A
- * meeting notice from before meetings were planned one by one names the pairing, and is owed nothing. A pairing notice
- * is owed while the pairing exists, to anyone still in the organization: a pairing belongs to its two people, not to
- * the guild. Asking for words is retired, so an ask still waiting in the outbox is owed nothing; panel entries still
- * render.
+ * very planning stands and its pairing is ongoing, and a reminder while its meeting stays on that day, unheld, in an
+ * ongoing pairing. A meeting notice or reminder from before meetings were planned one by one names the pairing, and is
+ * owed nothing. A pairing notice is owed while the pairing exists, to anyone still in the organization: a pairing
+ * belongs to its two people, not to the guild. Asking for words is retired, so an ask still waiting in the outbox is
+ * owed nothing; panel entries still render.
  */
 @Component("mentoringSubjectPolicy")
 @RequiredArgsConstructor
@@ -67,14 +68,12 @@ class MentoringSubjectPolicy implements MessageSubjectPolicy {
                     .filter(proposal -> MentoringWindows.isOpen(proposal, clock.instant())).isPresent();
         }
         if (MessageType.MENTORING_MEETING_SET.equals(type)) {
-            return subject.kind() == MentoringSubject.Kind.MEETING && meetings.find(organizationId, subject.id())
-                    .filter(meeting -> String.valueOf(meeting.plannedAt().toEpochMilli()).equals(subject.occasion()))
-                    .flatMap(meeting -> pairings.find(organizationId, meeting.pairingId()))
-                    .filter(pairing -> pairing.endedAt() == null).isPresent();
+            return isOwedOfAnOngoingPairing(organizationId, subject,
+                    meeting -> MeetingNoticeKind.namesThePlanning(meeting, subject.occasion()));
         }
         if (MessageType.MENTORING_MEETING_REMINDER.equals(type)) {
-            return pairings.find(organizationId, subject.id()).filter(pairing -> isTheMeetingReminded(pairing, subject))
-                    .isPresent();
+            return isOwedOfAnOngoingPairing(organizationId, subject,
+                    meeting -> !meeting.held() && meeting.on().toString().equals(subject.occasion()));
         }
         return pairings.find(organizationId, subject.id()).isPresent();
     }
@@ -86,11 +85,13 @@ class MentoringSubjectPolicy implements MessageSubjectPolicy {
                 || String.valueOf(proposal.answeredAt().toEpochMilli()).equals(subject.occasion()));
     }
 
-    /** A reminder is owed while the pairing is ongoing and the reminded day is still its next meeting. */
-    private static boolean isTheMeetingReminded(Pairing pairing, MentoringSubject subject) {
+    /** A meeting notice is owed while its meeting stands as the subject names it and its pairing is ongoing. */
+    private boolean isOwedOfAnOngoingPairing(String organizationId, MentoringSubject subject,
+            Predicate<PlannedMeeting> standsAsNamed) {
 
-        return pairing.endedAt() == null && pairing.nextMeetingOn() != null
-                && pairing.nextMeetingOn().toString().equals(subject.occasion());
+        return subject.kind() == MentoringSubject.Kind.MEETING && meetings.find(organizationId, subject.id())
+                .filter(standsAsNamed).flatMap(meeting -> pairings.find(organizationId, meeting.pairingId()))
+                .filter(pairing -> pairing.endedAt() == null).isPresent();
     }
 
     @Override

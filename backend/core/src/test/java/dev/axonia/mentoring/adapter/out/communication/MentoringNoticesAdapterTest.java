@@ -238,7 +238,7 @@ class MentoringNoticesAdapterTest {
         assertThat(actual.inAppOnly()).isTrue();
         assertThat(actual.recipientUserIds()).containsExactly("mia");
         assertThat(actual.aboutUserId()).isEqualTo("noah");
-        assertThat(actual.subjectRef()).isEqualTo("meeting:12@" + PLANNED_AT.toEpochMilli() + ":noah");
+        assertThat(actual.subjectRef()).isEqualTo("meeting:12@planned-" + PLANNED_AT.toEpochMilli() + ":noah");
         assertThat(actual.facts()).containsOnlyKeys("sender", "sessionTitle", "line", "mentoringUrl")
                 .containsEntry("sessionTitle", "Meeting planned by Noah")
                 .containsEntry("line", "Thursday 26 November · Kafka basics")
@@ -264,21 +264,36 @@ class MentoringNoticesAdapterTest {
         // then
         var actual = sent();
         assertThat(actual.type()).isEqualTo(MessageType.MENTORING_MEETING_SET);
-        assertThat(actual.subjectRef()).isEqualTo("meeting:12@" + PLANNED_AT.toEpochMilli() + ":noah");
+        assertThat(actual.subjectRef()).isEqualTo("meeting:12@moved-" + PLANNED_AT.toEpochMilli() + ":noah");
         assertThat(actual.facts()).containsEntry("sessionTitle", "Meeting moved by Noah").containsEntry("line",
                 "Thursday 3 December · Kafka basics");
     }
 
     @ParameterizedTest
     @CsvSource({"1, true", "0, false"})
-    void withdrawingAMeetingNoticeTakesBackThatPlanningsAlone(int withdrawn, boolean expected) {
+    void withdrawingAPlannedNoticeTakesBackThatPlanningsAlone(int withdrawn, boolean expected) {
 
         // given
         when(communication.withdrawPending(MessageType.MENTORING_MEETING_SET,
-                "meeting:12@" + PLANNED_AT.toEpochMilli() + ":noah")).thenReturn(withdrawn);
+                "meeting:12@planned-" + PLANNED_AT.toEpochMilli() + ":noah")).thenReturn(withdrawn);
 
         // when
-        var actual = adapter.withdrawMeetingNotice(meeting(LocalDate.parse("2026-11-26")));
+        var actual = adapter.withdrawMeetingPlanned(meeting(LocalDate.parse("2026-11-26")));
+
+        // then
+        assertThat(actual).isEqualTo(expected);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"1, true", "0, false"})
+    void withdrawingAMovedNoticeTakesBackThatMoveAlone(int withdrawn, boolean expected) {
+
+        // given
+        when(communication.withdrawPending(MessageType.MENTORING_MEETING_SET,
+                "meeting:12@moved-" + PLANNED_AT.toEpochMilli() + ":noah")).thenReturn(withdrawn);
+
+        // when
+        var actual = adapter.withdrawMeetingMoved(meeting(LocalDate.parse("2026-11-26")));
 
         // then
         assertThat(actual).isEqualTo(expected);
@@ -287,14 +302,10 @@ class MentoringNoticesAdapterTest {
     @Test
     void eachSideIsRemindedOfTheDayByMailAndInThePanel() {
 
-        // given
-        var pairing = Pairing.builder().id(90L).communityId(7L).mentorUserId("mia").menteeUserId("noah")
-                .startedAt(Instant.parse("2026-11-01T09:00:00Z")).nextMeetingOn(LocalDate.parse("2026-11-19"))
-                .nextMeetingSetBy("noah").nextMeetingSetAt(Instant.parse("2026-11-16T10:00:00Z")).build();
-
         // when
-        adapter.meetingReminder(MeetingReminder.builder().organizationId("acme").pairing(pairing)
-                .guild(new MentoringGuild("platform", "Platform")).partnerName("Mia").recipientId("noah").build());
+        adapter.meetingReminder(MeetingReminder.builder().organizationId("acme").pairing(pairing())
+                .meeting(meeting(LocalDate.parse("2026-11-19"))).guild(new MentoringGuild("platform", "Platform"))
+                .partnerName("Mia").recipientId("noah").build());
 
         // then
         var actual = sent();
@@ -303,11 +314,25 @@ class MentoringNoticesAdapterTest {
         assertThat(actual.inAppOnly()).isFalse();
         assertThat(actual.recipientUserIds()).containsExactly("noah");
         assertThat(actual.aboutUserId()).isEqualTo("mia");
-        assertThat(actual.subjectRef()).isEqualTo("pairing:90@2026-11-19:mia");
+        assertThat(actual.subjectRef()).isEqualTo("meeting:12@2026-11-19:mia");
         assertThat(actual.facts()).containsOnlyKeys("sender", "sessionTitle", "line", "mentoringUrl", "partner")
                 .containsEntry("sessionTitle", "Mentoring tomorrow with Mia")
                 .containsEntry("line", "Thursday 19 November").containsEntry("partner", "Mia")
                 .containsEntry("mentoringUrl", "https://axonia.example/communities/platform/me/mentoring/90?org=acme");
+    }
+
+    @Test
+    void theMentorIsRemindedAboutTheMentee() {
+
+        // when
+        adapter.meetingReminder(MeetingReminder.builder().organizationId("acme").pairing(pairing())
+                .meeting(meeting(LocalDate.parse("2026-11-19"))).guild(new MentoringGuild("platform", "Platform"))
+                .partnerName("Noah").recipientId("mia").build());
+
+        // then
+        var actual = sent();
+        assertThat(actual.aboutUserId()).isEqualTo("noah");
+        assertThat(actual.subjectRef()).isEqualTo("meeting:12@2026-11-19:noah");
     }
 
     @Test

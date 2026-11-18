@@ -15,8 +15,9 @@ import dev.axonia.shared.api.personaldata.TableFootprint;
 /**
  * What mentoring holds about a member. Availability and proposals exist only to describe the people on them, so they go
  * whole. A pairing belongs to both of its people, so erasing one clears their side and the other keeps the pairing, its
- * topics and their own notes; the notes the erased person wrote and every pointer naming them go, and a next meeting
- * they set is cleared. Topics carry no person of their own and are exported through their pairing.
+ * topics and their own notes; the notes the erased person wrote and every pointer naming them go, the upcoming meetings
+ * they planned go, and who planned any other meeting is cleared. Topics carry no person of their own and are exported
+ * through their pairing.
  *
  * <p>
  * A member pointer naming the member is the one subject row a member's export leaves out on purpose: it sits in two
@@ -84,12 +85,9 @@ public class MentoringPersonalDataFootprint implements PersonalDataFootprint {
 
         return TableFootprint.builder().table(PAIRING).category(DataCategory.MENTORING)
                 .personal(List.of(subject("mentor_user_id", Disposition.CLEAR),
-                        subject("mentee_user_id", Disposition.CLEAR),
-                        subject("next_meeting_set_by", Disposition.CLEAR)))
-                .notPersonal(Set.of("id", "organization_id", "community_id", "started_at", "ended_at", "end_reason",
-                        "next_meeting_on", "next_meeting_set_at"))
-                .exportedContext(
-                        Set.of("started_at", "ended_at", "end_reason", "next_meeting_on", "next_meeting_set_at"))
+                        subject("mentee_user_id", Disposition.CLEAR)))
+                .notPersonal(Set.of("id", "organization_id", "community_id", "started_at", "ended_at", "end_reason"))
+                .exportedContext(Set.of("started_at", "ended_at", "end_reason"))
                 .exportedLabels(Set.of(COMMUNITY_LABEL, ROLE_LABEL)).build();
     }
 

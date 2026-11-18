@@ -1,7 +1,9 @@
 package dev.axonia.mentoring.domain;
 
 import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import dev.axonia.shared.api.error.ConflictException;
@@ -49,6 +51,19 @@ public final class MeetingPlan {
         return !meeting.held() && meeting.on().isBefore(today);
     }
 
+    /** The meeting a glance at the plan leads with: the earliest passed one owed notes, else the soonest upcoming. */
+    public static Optional<PlannedMeeting> leading(List<PlannedMeeting> meetings, LocalDate today) {
+
+        var byDay = Comparator.comparing(PlannedMeeting::on);
+        return meetings.stream().filter(m -> isOwed(m, today)).min(byDay)
+                .or(() -> meetings.stream().filter(m -> isUpcoming(m, today)).min(byDay));
+    }
+
+    public static int upcoming(List<PlannedMeeting> meetings, LocalDate today) {
+
+        return (int) meetings.stream().filter(m -> isUpcoming(m, today)).count();
+    }
+
     public static void requireFree(List<PlannedMeeting> meetings, LocalDate day) {
 
         if (meetings.stream().anyMatch(m -> m.on().equals(day))) {
@@ -58,7 +73,7 @@ public final class MeetingPlan {
 
     public static void requireRoom(List<PlannedMeeting> meetings, LocalDate today) {
 
-        if (meetings.stream().filter(m -> isUpcoming(m, today)).count() >= MAX_AHEAD) {
+        if (upcoming(meetings, today) >= MAX_AHEAD) {
             throw new ConflictException("MENTORING_MEETING_LIMIT",
                     "Twelve meetings are planned already. Remove one first.");
         }

@@ -3,6 +3,7 @@ package dev.axonia.mentoring.adapter.out.communication;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.HashMap;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -15,6 +16,7 @@ import dev.axonia.communication.configuration.MailTemplateConfig;
 import dev.axonia.mentoring.application.port.out.MentoringNotices.MeetingReminder;
 import dev.axonia.mentoring.domain.MentoringGuild;
 import dev.axonia.mentoring.domain.Pairing;
+import dev.axonia.mentoring.domain.PlannedMeeting;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -29,8 +31,9 @@ class MentoringMeetingReminderMailTest {
         new MentoringNoticesAdapter(communication, () -> "https://axonia.example").meetingReminder(MeetingReminder
                 .builder().organizationId("acme")
                 .pairing(Pairing.builder().id(90L).communityId(7L).mentorUserId("mia").menteeUserId("noah")
-                        .startedAt(Instant.parse("2026-11-01T09:00:00Z")).nextMeetingOn(LocalDate.parse("2026-11-19"))
-                        .nextMeetingSetBy("noah").nextMeetingSetAt(Instant.parse("2026-11-16T10:00:00Z")).build())
+                        .startedAt(Instant.parse("2026-11-01T09:00:00Z")).build())
+                .meeting(PlannedMeeting.builder().id(12L).pairingId(90L).on(LocalDate.parse("2026-11-19"))
+                        .topicIds(List.of()).plannedBy("noah").plannedAt(Instant.parse("2026-11-16T10:00:00Z")).build())
                 .guild(new MentoringGuild("platform", "Platform")).partnerName("Noah").recipientId("mia").build());
         var message = ArgumentCaptor.forClass(OutboundMessage.class);
         verify(communication).enqueue(message.capture());

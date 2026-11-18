@@ -4,8 +4,9 @@ package dev.axonia.mentoring.domain;
  * What a mentoring notice is about: a proposal, a pairing or a planned meeting, the occasion that tells two notices of
  * one kind apart, and the member the notice names, written {@code proposal:<id>:<aboutUserId>},
  * {@code pairing:<id>:<aboutUserId>} or {@code meeting:<id>:<aboutUserId>}, with {@code @<occasion>} after the id when
- * there is one. The occasion is an epoch millisecond or an ISO date, so it never holds a colon. The member is whatever
- * follows the second colon, so their erasure finds every notice about them by its suffix.
+ * there is one. The occasion is an epoch millisecond, an ISO date, or a meeting notice's kind and epoch millisecond, so
+ * it never holds a colon. The member is whatever follows the second colon, so their erasure finds every notice about
+ * them by its suffix.
  */
 public record MentoringSubject(Kind kind, long id, String occasion, String aboutUserId) {
 

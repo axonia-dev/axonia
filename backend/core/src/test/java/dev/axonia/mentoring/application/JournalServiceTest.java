@@ -26,9 +26,9 @@ import org.mockito.quality.Strictness;
 
 import dev.axonia.expertise.api.CommunityAreas;
 import dev.axonia.mentoring.api.NextMeetingDay;
-import dev.axonia.mentoring.api.NextMeetingView;
 import dev.axonia.mentoring.api.NoteRequest;
 import dev.axonia.mentoring.api.NoteView;
+import dev.axonia.mentoring.api.PlannedMeetingView;
 import dev.axonia.mentoring.api.PointerRequest;
 import dev.axonia.mentoring.api.PointerView;
 import dev.axonia.mentoring.api.TopicPlacement;
@@ -37,6 +37,7 @@ import dev.axonia.mentoring.api.TopicView;
 import dev.axonia.mentoring.application.port.out.CommunityAccess;
 import dev.axonia.mentoring.application.port.out.CurrentUser;
 import dev.axonia.mentoring.application.port.out.JournalRepository;
+import dev.axonia.mentoring.application.port.out.MeetingRepository;
 import dev.axonia.mentoring.application.port.out.MemberClocks;
 import dev.axonia.mentoring.application.port.out.OrganizationContext;
 import dev.axonia.mentoring.application.port.out.PairingRepository;
@@ -49,6 +50,7 @@ import dev.axonia.mentoring.domain.MentoringCommunity;
 import dev.axonia.mentoring.domain.MentoringPerson;
 import dev.axonia.mentoring.domain.Note;
 import dev.axonia.mentoring.domain.Pairing;
+import dev.axonia.mentoring.domain.PlannedMeeting;
 import dev.axonia.mentoring.domain.Pointer;
 import dev.axonia.mentoring.domain.PointerKind;
 import dev.axonia.mentoring.domain.PointerTarget;
@@ -103,6 +105,8 @@ class JournalServiceTest {
     @Mock
     private JournalRepository journal;
     @Mock
+    private MeetingRepository meetings;
+    @Mock
     private Vocabulary vocabulary;
     @Mock
     private WordsRepository words;
@@ -146,8 +150,8 @@ class JournalServiceTest {
     private JournalService serviceAt(Instant now) {
 
         var clock = Clock.fixed(now, ZoneOffset.UTC);
-        var reads = new JournalReads(communityAccess, journal, words, pointerTitles, personDirectory, memberClocks,
-                clock);
+        var reads = new JournalReads(communityAccess, journal, meetings, words, pointerTitles, personDirectory,
+                memberClocks, clock);
         return new JournalService(new PairingParties(organizationContext, currentUser, pairings), communityAccess,
                 journal, vocabulary, reads, memberClocks, publicUrls, clock);
     }
@@ -583,33 +587,76 @@ class JournalServiceTest {
         assertThat(actual.startedOn()).isEqualTo(LocalDate.parse("2026-11-01"));
     }
 
+    private static PlannedMeeting.PlannedMeetingBuilder meeting(long id, LocalDate on, String plannedBy) {
+
+        return PlannedMeeting.builder().id(id).pairingId(PAIRING).on(on).topicIds(List.of()).plannedBy(plannedBy)
+                .plannedAt(TODAY.minus(Duration.ofDays(2)));
+    }
+
     @Test
-    void theJournalCarriesTheNextMeetingAndWhetherItPassed() {
+    void theJournalCarriesEveryMeetingNotHeldAndWhetherItPassed() {
 
         // given
-        store(pairing(PLATFORM, MIA, ME).nextMeetingOn(DAY.plusDays(3)).nextMeetingSetBy(MIA).nextMeetingSetAt(TODAY)
-                .build());
+        store(pairing(PLATFORM, MIA, ME).build());
+        when(meetings.meetingsOf(ORG, PAIRING)).thenReturn(List.of(meeting(1L, DAY.minusDays(1), ME).build(),
+                meeting(2L, DAY.plusDays(3), MIA).topicIds(List.of(4L, 7L)).build(),
+                meeting(3L, DAY.plusDays(10), null).build()));
 
         // when
-        var upcoming = service.journal(PAIRING).nextMeeting();
-        store(pairing(PLATFORM, MIA, ME).nextMeetingOn(DAY.minusDays(1)).nextMeetingSetBy(ME).nextMeetingSetAt(TODAY)
-                .build());
-        var passed = service.journal(PAIRING).nextMeeting();
-        store(pairing(PLATFORM, MIA, ME).build());
-        var none = service.journal(PAIRING).nextMeeting();
+        var actual = service.journal(PAIRING);
 
         // then
-        assertThat(upcoming).isEqualTo(new NextMeetingView(DAY.plusDays(3), MIA, "Mia", false));
-        assertThat(passed).isEqualTo(new NextMeetingView(DAY.minusDays(1), ME, "Max", true));
-        assertThat(none).isNull();
+        assertThat(actual.meetings()).containsExactly(
+                PlannedMeetingView.builder().id(1L).on(DAY.minusDays(1)).topicIds(List.of()).plannedById(ME)
+                        .plannedByName("Max").passed(true).build(),
+                PlannedMeetingView.builder().id(2L).on(DAY.plusDays(3)).topicIds(List.of(4L, 7L)).plannedById(MIA)
+                        .plannedByName("Mia").passed(false).build(),
+                PlannedMeetingView.builder().id(3L).on(DAY.plusDays(10)).topicIds(List.of()).plannedById(null)
+                        .plannedByName("Deleted member").passed(false).build());
+        assertThat(actual.pairing().nextMeeting()).isEqualTo(new NextMeetingDay(DAY.minusDays(1), true));
+        assertThat(actual.pairing().laterPlanned()).isEqualTo(2);
+    }
+
+    @Test
+    void aMeetingWithANoteOnItsDayIsHeldAndLeavesThePlan() {
+
+        // given
+        store(pairing(PLATFORM, MIA, ME).build());
+        when(journal.notesOf(ORG, PAIRING)).thenReturn(List.of(note(1L, ME)));
+        when(meetings.meetingsOf(ORG, PAIRING)).thenReturn(List.of(meeting(1L, DAY, MIA).held(true).build(),
+                meeting(2L, DAY.plusDays(7), MIA).build(), meeting(3L, DAY.plusDays(14), ME).build()));
+
+        // when
+        var actual = service.journal(PAIRING);
+
+        // then
+        assertThat(actual.meetings()).extracting(PlannedMeetingView::id).containsExactly(2L, 3L);
+        assertThat(actual.pairing().nextMeeting()).isEqualTo(new NextMeetingDay(DAY.plusDays(7), false));
+        assertThat(actual.pairing().laterPlanned()).isEqualTo(1);
+    }
+
+    @Test
+    void anEndedPairingShowsNoPlan() {
+
+        // given
+        store(pairing(PLATFORM, MIA, ME).endedAt(NOW.minusSeconds(5)).endReason(EndReason.MENTOR).build());
+        when(meetings.meetingsOf(ORG, PAIRING)).thenReturn(List.of(meeting(1L, DAY.minusDays(1), ME).build()));
+
+        // when
+        var actual = service.journal(PAIRING);
+
+        // then
+        assertThat(actual.meetings()).isEmpty();
+        assertThat(actual.pairing().nextMeeting()).isNull();
+        assertThat(actual.pairing().laterPlanned()).isZero();
     }
 
     @Test
     void theJournalsPairingGlancesAtTheTopicsAndNotesItLoads() {
 
         // given
-        store(pairing(PLATFORM, MIA, ME).nextMeetingOn(DAY.plusDays(3)).nextMeetingSetBy(MIA).nextMeetingSetAt(TODAY)
-                .build());
+        store(pairing(PLATFORM, MIA, ME).build());
+        when(meetings.meetingsOf(ORG, PAIRING)).thenReturn(List.of(meeting(1L, DAY.plusDays(3), MIA).build()));
         when(journal.topicsOf(ORG, PAIRING)).thenReturn(List.of(topic(1L, "Kafka", null, 0),
                 placed(topic(4L, "Giving feedback", null, 0), TopicState.IN_PROGRESS),
                 placed(topic(7L, "Docker", null, 0), TopicState.DONE)));
@@ -628,6 +675,7 @@ class JournalServiceTest {
         assertThat(actual.lastMetOn()).isEqualTo(DAY);
         verify(journal, never()).trailsOf(any(), any());
         verify(journal, never()).tallyOf(any(), any());
+        verify(meetings, never()).meetingsOf(any(), anyCollection());
     }
 
     @Test

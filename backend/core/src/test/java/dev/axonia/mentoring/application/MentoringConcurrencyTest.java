@@ -37,6 +37,7 @@ import dev.axonia.mentoring.application.port.out.AvailabilityRepository;
 import dev.axonia.mentoring.application.port.out.CommunityAccess;
 import dev.axonia.mentoring.application.port.out.CurrentUser;
 import dev.axonia.mentoring.application.port.out.JournalRepository;
+import dev.axonia.mentoring.application.port.out.MeetingRepository;
 import dev.axonia.mentoring.application.port.out.MemberClocks;
 import dev.axonia.mentoring.application.port.out.MentoringNotices;
 import dev.axonia.mentoring.application.port.out.OrganizationContext;
@@ -140,8 +141,8 @@ class MentoringConcurrencyTest extends CoreJdbcTestSupport {
     private JournalService journalService() {
 
         var clocks = utc();
-        var reads = new JournalReads(communityAccess, journal, mock(WordsRepository.class), mock(PointerTitles.class),
-                personDirectory, clocks, clock);
+        var reads = new JournalReads(communityAccess, journal, mock(MeetingRepository.class),
+                mock(WordsRepository.class), mock(PointerTitles.class), personDirectory, clocks, clock);
         var publicUrls = mock(PublicUrls.class);
         when(publicUrls.publicBaseUrl()).thenReturn("https://acme.example.test");
         return new JournalService(new PairingParties(organizationContext, currentUser, pairings), communityAccess,
@@ -158,8 +159,8 @@ class MentoringConcurrencyTest extends CoreJdbcTestSupport {
     private PairingService pairingService() {
 
         return new PairingService(organizationContext, currentUser, communityAccess, pairings, proposals,
-                mock(JournalRepository.class), availabilities, personDirectory, mock(MentoringNotices.class), utc(),
-                clock);
+                mock(JournalRepository.class), mock(MeetingRepository.class), availabilities, personDirectory,
+                mock(MentoringNotices.class), utc(), clock);
     }
 
     private long ongoingPairing() {

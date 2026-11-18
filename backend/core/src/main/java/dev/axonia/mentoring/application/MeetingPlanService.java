@@ -35,7 +35,8 @@ import lombok.RequiredArgsConstructor;
  * The meetings a pairing plans. Either person plans, moves, re-topics or removes one, every rule read in their own
  * today and decided under the pairing's row lock. A meeting planned or moved tells the partner; a topic change or a
  * removal tells nobody, and a removal or a move takes back a notice still waiting, so the partner never learns of a
- * meeting already gone and hears of a meeting moved before its first notice left as planned.
+ * meeting already gone, hears of a meeting moved before its first notice left as planned, and of one moved again before
+ * the last move's notice left as moved once.
  */
 @Service
 @RequiredArgsConstructor
@@ -103,7 +104,8 @@ public class MeetingPlanService {
             throw noSuchMeeting();
         }
         meetings.delete(party.org(), pairingId, meetingId);
-        notices.withdrawMeetingNotice(meeting);
+        notices.withdrawMeetingPlanned(meeting);
+        notices.withdrawMeetingMoved(meeting);
     }
 
     private PlannedMeeting meetingOf(Party party, long meetingId) {
@@ -117,12 +119,16 @@ public class MeetingPlanService {
         return new NotFoundException("No such meeting");
     }
 
-    /** A move before the plan's notice left withdraws it and announces the plan anew, on its new day. */
+    /**
+     * A move before the plan's notice left withdraws it and announces the plan anew, on its new day; a move before an
+     * earlier move's notice left withdraws that one and stays a move, since the partner already heard of the plan.
+     */
     private void announceMove(PlannedMeeting before, MeetingNotice notice) {
 
-        if (notices.withdrawMeetingNotice(before)) {
+        if (notices.withdrawMeetingPlanned(before)) {
             notices.meetingPlanned(notice);
         } else {
+            notices.withdrawMeetingMoved(before);
             notices.meetingMoved(notice);
         }
     }

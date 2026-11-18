@@ -28,6 +28,7 @@ import dev.axonia.mentoring.application.port.out.AvailabilityRepository;
 import dev.axonia.mentoring.application.port.out.CommunityAccess;
 import dev.axonia.mentoring.application.port.out.CurrentUser;
 import dev.axonia.mentoring.application.port.out.JournalRepository;
+import dev.axonia.mentoring.application.port.out.MeetingRepository;
 import dev.axonia.mentoring.application.port.out.MemberClocks;
 import dev.axonia.mentoring.application.port.out.MentoringNotices;
 import dev.axonia.mentoring.application.port.out.OrganizationContext;
@@ -40,6 +41,7 @@ import dev.axonia.mentoring.domain.MentoringGuild;
 import dev.axonia.mentoring.domain.MentoringPerson;
 import dev.axonia.mentoring.domain.NoteTally;
 import dev.axonia.mentoring.domain.Pairing;
+import dev.axonia.mentoring.domain.PlannedMeeting;
 import dev.axonia.mentoring.domain.Proposal;
 import dev.axonia.mentoring.domain.ProposalStatus;
 import dev.axonia.mentoring.domain.Role;
@@ -87,6 +89,8 @@ class PairingServiceTest {
     @Mock
     private JournalRepository journal;
     @Mock
+    private MeetingRepository meetings;
+    @Mock
     private AvailabilityRepository availabilities;
     @Mock
     private PersonDirectory personDirectory;
@@ -108,7 +112,7 @@ class PairingServiceTest {
         when(communityAccess.guildOf(ORG, PLATFORM)).thenReturn(new MentoringGuild("platform", "Platform"));
         when(communityAccess.guildOf(ORG, DATA)).thenReturn(new MentoringGuild("data", "Data"));
         when(personDirectory.isPresent(ORG, ME)).thenReturn(true);
-        when(memberClocks.zoneOf(ORG, ME)).thenReturn(ZoneOffset.UTC);
+        when(memberClocks.zoneOf(eq(ORG), any())).thenReturn(ZoneOffset.UTC);
         when(pairings.end(eq(ORG), anyLong(), any(), any())).thenReturn(true);
         when(personDirectory.shortName(eq(ORG), any())).thenAnswer(inv -> name(inv.getArgument(1)));
         when(personDirectory.resolve(anyCollection())).thenAnswer(inv -> {
@@ -117,7 +121,7 @@ class PairingServiceTest {
                     .collect(Collectors.toMap(id -> id, id -> new MentoringPerson(id, name(id), null, null)));
         });
         service = new PairingService(organizationContext, currentUser, communityAccess, pairings, proposals, journal,
-                availabilities, personDirectory, notices, memberClocks, Clock.fixed(NOW, ZoneOffset.UTC));
+                meetings, availabilities, personDirectory, notices, memberClocks, Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
     private static String name(String id) {
@@ -154,6 +158,42 @@ class PairingServiceTest {
         verify(pairings).end(ORG, 91L, EndReason.MENTOR, TODAY);
         verify(notices).ended(asMentee, new MentoringGuild("platform", "Platform"), "Max", MIA);
         verify(notices).ended(asMentor, new MentoringGuild("platform", "Platform"), "Max", MIA);
+    }
+
+    @Test
+    void endingRemovesUpcomingMeetingsAndKeepsPassedOnes() {
+
+        // given: 10:00 UTC on the 16th is already the 17th in Kiritimati, still the 15th in Pago Pago
+        store(pairing(90L, PLATFORM, MIA, ME).build());
+        when(memberClocks.zoneOf(ORG, ME)).thenReturn(ZoneId.of("Pacific/Kiritimati"));
+        when(memberClocks.zoneOf(ORG, "leo")).thenReturn(ZoneId.of("Pacific/Pago_Pago"));
+        when(pairings.ongoingInvolving(ORG, PLATFORM, "leo"))
+                .thenReturn(List.of(pairing(91L, PLATFORM, MIA, "leo").build()));
+        when(pairings.ongoingInvolving(ORG, null, "leo")).thenReturn(List.of(pairing(92L, DATA, "leo", MIA).build()));
+
+        // when
+        service.end(90L);
+        service.departedFromGuild(ORG, PLATFORM, "leo");
+        service.deactivated(ORG, "leo");
+
+        // then
+        var order = org.mockito.Mockito.inOrder(pairings, meetings);
+        order.verify(pairings).end(ORG, 90L, EndReason.MENTEE, TODAY);
+        order.verify(meetings).deleteUpcoming(ORG, 90L, LocalDate.parse("2026-11-17"));
+        verify(meetings).deleteUpcoming(ORG, 91L, LocalDate.parse("2026-11-15"));
+        verify(meetings).deleteUpcoming(ORG, 92L, LocalDate.parse("2026-11-15"));
+    }
+
+    @Test
+    void anEndLostToAnotherKeepsEveryMeeting() {
+
+        // given
+        store(pairing(90L, PLATFORM, MIA, ME).build());
+        when(pairings.end(ORG, 90L, EndReason.MENTEE, TODAY)).thenReturn(false);
+
+        // when / then
+        assertThatThrownBy(() -> service.end(90L)).isInstanceOf(ConflictException.class);
+        verifyNoInteractions(meetings);
     }
 
     @Test
@@ -337,7 +377,7 @@ class PairingServiceTest {
     void myMentoringGlancesAtEachPairingFromTheCallersOwnDay() {
 
         // given: 10:00 UTC on the 16th is already the 17th in Kiritimati
-        var walked = pairing(90L, PLATFORM, MIA, ME).nextMeetingOn(LocalDate.parse("2026-11-16")).build();
+        var walked = pairing(90L, PLATFORM, MIA, ME).build();
         var bare = pairing(91L, PLATFORM, ME, "noah").build();
         when(pairings.involving(ORG, ME)).thenReturn(List.of(walked, bare));
         when(memberClocks.zoneOf(ORG, ME)).thenReturn(ZoneId.of("Pacific/Kiritimati"));
@@ -345,19 +385,29 @@ class PairingServiceTest {
                 topic("Now", TopicState.IN_PROGRESS), topic("Later", TopicState.TODO))));
         when(journal.tallyOf(ORG, List.of(90L, 91L)))
                 .thenReturn(Map.of(90L, new NoteTally(3, 2, LocalDate.parse("2026-11-09"))));
+        when(meetings.meetingsOf(ORG, List.of(90L, 91L))).thenReturn(Map.of(90L, List.of(meeting(1L, 90L, "2026-11-16"),
+                meeting(2L, 90L, "2026-11-17"), meeting(3L, 90L, "2026-11-30"))));
 
         // when
         var actual = service.mine();
 
         // then
         assertThat(actual.today()).isEqualTo(LocalDate.parse("2026-11-17"));
-        assertThat(actual.ongoing()).extracting(PairingSummary::id, PairingSummary::stops, PairingSummary::nowTopic,
-                PairingSummary::nextMeeting, PairingSummary::meetings, PairingSummary::notes, PairingSummary::lastMetOn)
+        assertThat(actual.ongoing())
+                .extracting(PairingSummary::id, PairingSummary::stops, PairingSummary::nowTopic,
+                        PairingSummary::nextMeeting, PairingSummary::laterPlanned, PairingSummary::meetings,
+                        PairingSummary::notes, PairingSummary::lastMetOn)
                 .containsExactly(tuple(90L, List.of("DONE", "IN_PROGRESS", "TODO"), "Now",
-                        new NextMeetingDay(LocalDate.parse("2026-11-16"), true), 2, 3, LocalDate.parse("2026-11-09")),
-                        tuple(91L, List.of(), null, null, 0, 0, null));
+                        new NextMeetingDay(LocalDate.parse("2026-11-16"), true), 2, 2, 3,
+                        LocalDate.parse("2026-11-09")), tuple(91L, List.of(), null, null, 0, 0, 0, null));
         verify(journal).trailsOf(ORG, List.of(90L, 91L));
         verify(journal).tallyOf(ORG, List.of(90L, 91L));
+    }
+
+    private static PlannedMeeting meeting(long id, long pairingId, String on) {
+
+        return PlannedMeeting.builder().id(id).pairingId(pairingId).on(LocalDate.parse(on)).topicIds(List.of())
+                .plannedBy(MIA).plannedAt(TODAY.minus(Duration.ofDays(3))).build();
     }
 
     @Test

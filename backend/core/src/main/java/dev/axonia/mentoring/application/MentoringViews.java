@@ -1,16 +1,19 @@
 package dev.axonia.mentoring.application;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 
 import dev.axonia.mentoring.api.NextMeetingDay;
 import dev.axonia.mentoring.api.PairingSummary;
 import dev.axonia.mentoring.api.ProposalView;
 import dev.axonia.mentoring.domain.MeetingDays;
+import dev.axonia.mentoring.domain.MeetingPlan;
 import dev.axonia.mentoring.domain.MentoringCommunity;
 import dev.axonia.mentoring.domain.MentoringPerson;
 import dev.axonia.mentoring.domain.MentoringWindows;
 import dev.axonia.mentoring.domain.Pairing;
+import dev.axonia.mentoring.domain.PlannedMeeting;
 import dev.axonia.mentoring.domain.Proposal;
 import dev.axonia.mentoring.domain.Role;
 import dev.axonia.mentoring.domain.Topic;
@@ -67,22 +70,23 @@ final class MentoringViews {
                 .startedAt(pairing.startedAt()).endedAt(pairing.endedAt());
     }
 
-    /** What a glance at the pairing tells: its stops, the topic in progress, the next meeting and the notes counted. */
+    /**
+     * What a glance at the pairing tells: its stops, the topic in progress, the meeting its plan leads with and how
+     * many more are planned, and the notes counted. An ended pairing has no plan.
+     */
     static PairingSummary.PairingSummaryBuilder glance(PairingSummary.PairingSummaryBuilder builder, Pairing pairing,
             PairingProgress progress, LocalDate today) {
 
         var trail = progress.trail();
         var tally = progress.tally();
+        var meetings = pairing.endedAt() == null ? progress.meetings() : List.<PlannedMeeting>of();
+        var leading = MeetingPlan.leading(meetings, today);
+        var shownUpcoming = leading.filter(m -> MeetingPlan.isUpcoming(m, today)).isPresent() ? 1 : 0;
         return builder.stops(trail.stream().map(t -> t.state().name()).toList())
                 .nowTopic(trail.stream().filter(t -> t.state() == TopicState.IN_PROGRESS).findFirst().map(Topic::label)
                         .orElse(null))
-                .nextMeeting(nextMeeting(pairing, today)).meetings(tally.meetings()).notes(tally.notes())
-                .lastMetOn(tally.lastMetOn());
-    }
-
-    private static NextMeetingDay nextMeeting(Pairing pairing, LocalDate today) {
-
-        var on = pairing.nextMeetingOn();
-        return on == null || pairing.endedAt() != null ? null : new NextMeetingDay(on, on.isBefore(today));
+                .nextMeeting(leading.map(m -> new NextMeetingDay(m.on(), MeetingPlan.isOwed(m, today))).orElse(null))
+                .laterPlanned(MeetingPlan.upcoming(meetings, today) - shownUpcoming).meetings(tally.meetings())
+                .notes(tally.notes()).lastMetOn(tally.lastMetOn());
     }
 }

@@ -1,5 +1,7 @@
 package dev.axonia.mentoring.adapter.out.privacy;
 
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 
@@ -19,8 +21,9 @@ import lombok.RequiredArgsConstructor;
  * What an erased member leaves of their mentoring. Their availability, every proposal they sent or received, the notes
  * they wrote and every pointer naming them go. The words of each of their pairings go too, whichever side they were on:
  * written by them as a mentee, or written to them as a mentor. A pairing keeps the other person's side, its topics and
- * the other person's notes, with the erased side and a next meeting they set cleared; a pairing left with nobody on
- * either side goes whole.
+ * the other person's notes, with the erased side cleared. The upcoming meetings they planned go, today read in UTC as
+ * of the erasure, before their notes go, so a meeting a note of theirs held stays held; every other meeting they
+ * planned stays with who planned it cleared. A pairing left with nobody on either side goes whole.
  *
  * <p>
  * Leaving each community on the way to erasure ends their ongoing pairings first, and the notice that ending would send
@@ -43,9 +46,17 @@ public class MentoringMemberDataEraser implements MemberDataEraser {
     @Transactional
     public ErasureCounts erase(MemberErasure erasure) {
 
-        var params = Map.of("org", erasure.organizationId(), "user", erasure.userId());
-        long deleted = jdbc
-                .update("DELETE FROM mentoring_availability WHERE organization_id = :org AND user_id = :user", params);
+        var params = Map.<String, Object>of("org", erasure.organizationId(), "user", erasure.userId(), "today",
+                LocalDate.ofInstant(erasure.erasedAt(), ZoneOffset.UTC));
+        long deleted = jdbc.update("""
+                DELETE FROM mentoring_meeting m
+                 WHERE m.organization_id = :org AND m.planned_by = :user AND m.meeting_on >= :today
+                   AND NOT EXISTS (SELECT 1 FROM mentoring_note n
+                                    WHERE n.organization_id = m.organization_id AND n.pairing_id = m.pairing_id
+                                      AND n.meeting_on = m.meeting_on)
+                """, params);
+        deleted += jdbc.update("DELETE FROM mentoring_availability WHERE organization_id = :org AND user_id = :user",
+                params);
         deleted += jdbc.update("DELETE FROM mentoring_proposal WHERE organization_id = :org"
                 + " AND (mentor_user_id = :user OR mentee_user_id = :user)", params);
         deleted += jdbc.update("DELETE FROM mentoring_pointer WHERE organization_id = :org AND target_user_id = :user",
@@ -67,10 +78,6 @@ public class MentoringMemberDataEraser implements MemberDataEraser {
                         OR (mentee_user_id = :user AND mentor_user_id IS NULL))
                 """, params);
         long cleared = jdbc.update(
-                "UPDATE mentoring_pairing SET next_meeting_on = NULL, next_meeting_set_by = NULL,"
-                        + " next_meeting_set_at = NULL WHERE organization_id = :org AND next_meeting_set_by = :user",
-                params);
-        cleared += jdbc.update(
                 "UPDATE mentoring_meeting SET planned_by = NULL WHERE organization_id = :org AND planned_by = :user",
                 params);
         cleared += jdbc.update("UPDATE mentoring_pairing SET mentor_user_id = NULL"

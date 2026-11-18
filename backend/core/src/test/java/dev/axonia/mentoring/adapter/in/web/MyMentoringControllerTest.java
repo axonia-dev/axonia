@@ -16,7 +16,6 @@ import dev.axonia.mentoring.api.MeetingRequest;
 import dev.axonia.mentoring.api.MentoringPresence;
 import dev.axonia.mentoring.api.MyMentoring;
 import dev.axonia.mentoring.api.NextMeetingDay;
-import dev.axonia.mentoring.api.NextMeetingView;
 import dev.axonia.mentoring.api.NoteRequest;
 import dev.axonia.mentoring.api.NoteView;
 import dev.axonia.mentoring.api.PairingSummary;
@@ -73,7 +72,7 @@ class MyMentoringControllerTest extends ControllerTestSupport {
                 {"id": 90, "communitySlug": "platform", "communityName": "Platform", "myRole": "MENTOR",
                  "partnerId": "u2", "partnerName": "Noah Keller", "partnerGivenName": "Noah", "partnerAvatarUrl": null,
                  "startedAt": "2026-11-16T10:00:00Z", "endedAt": null, "stops": ["TODO"], "nowTopic": null,
-                 "nextMeeting": null, "meetings": 0, "notes": 0, "lastMetOn": null}
+                 "nextMeeting": null, "laterPlanned": 0, "meetings": 0, "notes": 0, "lastMetOn": null}
                 """);
     }
 
@@ -148,8 +147,8 @@ class MyMentoringControllerTest extends ControllerTestSupport {
         var ongoing = PairingSummary.builder().id(90L).communitySlug("platform").communityName("Platform")
                 .myRole("MENTEE").partnerId(null).partnerName("Deleted member")
                 .startedAt(Instant.parse("2026-11-16T10:00:00Z")).stops(List.of("DONE", "IN_PROGRESS", "TODO"))
-                .nowTopic("Kafka").nextMeeting(new NextMeetingDay(LocalDate.parse("2026-11-19"), false)).meetings(2)
-                .notes(3).lastMetOn(LocalDate.parse("2026-11-09")).build();
+                .nowTopic("Kafka").nextMeeting(new NextMeetingDay(LocalDate.parse("2026-11-19"), false)).laterPlanned(2)
+                .meetings(2).notes(3).lastMetOn(LocalDate.parse("2026-11-09")).build();
         var received = ProposalView.builder().id(40L).communitySlug("platform").communityName("Platform")
                 .proposedBy("MENTEE").partnerId("u1").partnerName("Lea").topics(List.of("Kafka")).message("Hello")
                 .status("OPEN").createdAt(Instant.parse("2026-11-16T10:00:00Z")).lapsesOn(LocalDate.parse("2026-12-16"))
@@ -175,7 +174,8 @@ class MyMentoringControllerTest extends ControllerTestSupport {
                               "partnerAvatarUrl": null,
                               "startedAt": "2026-11-16T10:00:00Z", "endedAt": null,
                               "stops": ["DONE", "IN_PROGRESS", "TODO"], "nowTopic": "Kafka",
-                              "nextMeeting": {"on": "2026-11-19", "passed": false}, "meetings": 2, "notes": 3,
+                              "nextMeeting": {"on": "2026-11-19", "passed": false}, "laterPlanned": 2,
+                              "meetings": 2, "notes": 3,
                               "lastMetOn": "2026-11-09"}],
                  "ended": []}
                 """);
@@ -228,9 +228,10 @@ class MyMentoringControllerTest extends ControllerTestSupport {
                 .pointers(List.of(new PointerView(7L, "LINK", null, "https://example.com", true))).build();
         when(journalService.journal(90L)).thenReturn(Journal.builder().pairing(pairing)
                 .today(LocalDate.parse("2026-11-16")).startedOn(LocalDate.parse("2026-11-11"))
-                .nextMeeting(new NextMeetingView(LocalDate.parse("2026-11-19"), "u2", "Léa", false)).writable(true)
-                .topics(List.of(topic)).notes(List.of(note)).wordsWritten(true).canWriteWords(true).myWords(null)
-                .build());
+                .meetings(List.of(PlannedMeetingView.builder().id(12L).on(LocalDate.parse("2026-11-19"))
+                        .topicIds(List.of(1L)).plannedById(null).plannedByName("Deleted member").passed(false).build()))
+                .writable(true).topics(List.of(topic)).notes(List.of(note)).wordsWritten(true).canWriteWords(true)
+                .myWords(null).build());
 
         // when
         var actual = mvc.get().uri("/axonia/mentoring/pairings/{id}", 90).exchange();
@@ -241,7 +242,8 @@ class MyMentoringControllerTest extends ControllerTestSupport {
                         {"pairing": {"id": 90, "communitySlug": "platform", "communityName": "Platform", "myRole": "MENTEE",
                                      "partnerId": "u2", "partnerName": "Léa", "partnerGivenName": null,
                                      "partnerAvatarUrl": null, "startedAt": "2026-11-11T10:00:00Z", "endedAt": null, "stops": ["IN_PROGRESS"],
-                                     "nowTopic": null, "nextMeeting": null, "meetings": 0, "notes": 0, "lastMetOn": null},
+                                     "nowTopic": null, "nextMeeting": null, "laterPlanned": 0, "meetings": 0, "notes": 0,
+                                     "lastMetOn": null},
                          "today": "2026-11-16", "startedOn": "2026-11-11", "writable": true,
                          "topics": [{"id": 1, "label": "Kafka", "area": "kafka", "state": "IN_PROGRESS",
                                      "position": 2, "pointers": [
@@ -253,7 +255,8 @@ class MyMentoringControllerTest extends ControllerTestSupport {
                                     "writtenAt": "2026-11-11T18:00:00Z", "editedAt": null,
                                     "pointers": [{"id": 7, "kind": "LINK", "title": null, "href": "https://example.com",
                                                   "available": true}]}],
-                         "nextMeeting": {"on": "2026-11-19", "setById": "u2", "setByName": "Léa", "passed": false},
+                         "meetings": [{"id": 12, "on": "2026-11-19", "topicIds": [1], "plannedById": null,
+                                       "plannedByName": "Deleted member", "passed": false}],
                          "wordsWritten": true, "canWriteWords": true, "myWords": null}
                         """);
     }

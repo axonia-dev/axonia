@@ -31,7 +31,8 @@ import lombok.RequiredArgsConstructor;
  * opens My mentoring or the journal inside that guild, where the notice came from, rather than the cross-community
  * page. No notice carries a proposal's message or a mentee's words: only the two people read those, where they wrote
  * them. A decline, a reopening and a meeting's planning carry their moment in the subject, so a proposal declined,
- * reopened and declined again is told each time, and a decline or a planning still waiting is withdrawn alone.
+ * reopened and declined again is told each time, and a decline or a planning still waiting is withdrawn alone; a
+ * planning's subject names whether it was a plan or a move as well.
  */
 @Component("mentoringNoticesAdapter")
 @RequiredArgsConstructor
@@ -130,46 +131,61 @@ public class MentoringNoticesAdapter implements MentoringNotices {
     @Override
     public void meetingPlanned(MeetingNotice notice) {
 
-        meetingNotice(notice, "Meeting planned by ");
+        meetingNotice(notice, MeetingNoticeKind.PLANNED);
     }
 
     @Override
     public void meetingMoved(MeetingNotice notice) {
 
-        meetingNotice(notice, "Meeting moved by ");
+        meetingNotice(notice, MeetingNoticeKind.MOVED);
     }
 
     @Override
-    public boolean withdrawMeetingNotice(PlannedMeeting meeting) {
+    public boolean withdrawMeetingPlanned(PlannedMeeting meeting) {
 
-        return communication.withdrawPending(MessageType.MENTORING_MEETING_SET, thePlanning(meeting).ref()) > 0;
+        return withdrawMeetingNotice(meeting, MeetingNoticeKind.PLANNED);
     }
 
-    private void meetingNotice(MeetingNotice notice, String headline) {
+    @Override
+    public boolean withdrawMeetingMoved(PlannedMeeting meeting) {
+
+        return withdrawMeetingNotice(meeting, MeetingNoticeKind.MOVED);
+    }
+
+    private boolean withdrawMeetingNotice(PlannedMeeting meeting, MeetingNoticeKind kind) {
+
+        return communication.withdrawPending(MessageType.MENTORING_MEETING_SET, thePlanning(meeting, kind).ref()) > 0;
+    }
+
+    private void meetingNotice(MeetingNotice notice, MeetingNoticeKind kind) {
 
         var meeting = notice.meeting();
         var day = DAY.format(meeting.on());
         var line = notice.firstTopic() == null ? day : day + TOPIC_AFTER_DAY + notice.firstTopic();
-        inApp(MessageType.MENTORING_MEETING_SET, thePlanning(meeting), notice.recipientId(),
-                facts(notice.guild(), headline + notice.byName(), line, journalUrl(notice.guild(), notice.pairing())));
+        inApp(MessageType.MENTORING_MEETING_SET, thePlanning(meeting, kind), notice.recipientId(), facts(notice.guild(),
+                kind.headline(notice.byName()), line, journalUrl(notice.guild(), notice.pairing())));
     }
 
-    /** A meeting's subject names its planning's moment, so a move or a removal reaches that planning's notice alone. */
-    private static MentoringSubject thePlanning(PlannedMeeting meeting) {
+    /**
+     * A meeting's subject names its planning's kind and moment, so a move or a removal reaches that planning's notice
+     * alone.
+     */
+    private static MentoringSubject thePlanning(PlannedMeeting meeting, MeetingNoticeKind kind) {
 
-        return MentoringSubject.meeting(meeting.id(), String.valueOf(meeting.plannedAt().toEpochMilli()),
-                meeting.plannedBy());
+        return MentoringSubject.meeting(meeting.id(), kind.occasionOf(meeting), meeting.plannedBy());
     }
 
+    /** A reminder names the meeting and its day, so a meeting moved since is reminded of for its new day alone. */
     @Override
     public void meetingReminder(MeetingReminder reminder) {
 
         var pairing = reminder.pairing();
+        var meeting = reminder.meeting();
         var recipientId = reminder.recipientId();
         var partnerId = recipientId.equals(pairing.mentorUserId()) ? pairing.menteeUserId() : pairing.mentorUserId();
-        var subject = MentoringSubject.pairing(pairing.id(), pairing.nextMeetingOn().toString(), partnerId);
+        var subject = MentoringSubject.meeting(meeting.id(), meeting.on().toString(), partnerId);
         var facts = facts(reminder.guild(), "Mentoring tomorrow with " + reminder.partnerName(),
-                DAY.format(pairing.nextMeetingOn()),
+                DAY.format(meeting.on()),
                 OrganizationLinks.withOrganization(journalUrl(reminder.guild(), pairing), reminder.organizationId()));
         facts.put(PARTNER_FACT, reminder.partnerName());
         communication.enqueue(OutboundMessage.builder().type(MessageType.MENTORING_MEETING_REMINDER)

@@ -81,23 +81,29 @@ class MentoringMemberDataEraserTest extends FootprintTestSupport {
     }
 
     @Test
-    void erasingThePersonWhoSetTheNextMeetingClearsIt() {
+    void erasureRemovesTheUpcomingMeetingsTheyPlannedAndClearsThePlannerElsewhere() {
 
-        // given
+        // given: erased late on the 17th in UTC, already the 18th in Auckland
         var pairing = rows.pairing(guild, MENTOR, MENTEE);
-        var other = rows.pairing(guild, MENTOR, STRANGER);
-        rows.nextMeeting(pairing, MENTEE);
-        rows.nextMeeting(other, MENTOR);
+        var upcoming = rows.meeting(pairing, MENTEE, "2026-11-26");
+        var today = rows.meeting(pairing, MENTEE, "2026-11-17");
+        var passed = rows.meeting(pairing, MENTEE, "2026-11-16");
+        var theMentors = rows.meeting(pairing, MENTOR, "2026-11-27");
+        var another = rows.pairing(guild, STRANGER, MENTEE);
+        var heldToday = rows.meeting(another, MENTEE, "2026-11-17");
+        rows.noteOn(another, STRANGER, "2026-11-17");
 
         // when
-        eraser.erase(erasureOf(MENTEE));
+        var actual = eraser.erase(MemberErasure.builder().organizationId(ORG).userId(MENTEE)
+                .surrogateId("erased:test-surrogate").erasedAt(Instant.parse("2026-11-17T23:30:00Z")).build());
 
         // then
-        assertThat(jdbc.queryForList("SELECT next_meeting_on, next_meeting_set_by, next_meeting_set_at FROM "
-                + "mentoring_pairing WHERE id = :id", Map.of("id", pairing))).singleElement()
-                .satisfies(row -> assertThat(row.values()).containsOnlyNulls());
-        assertThat(jdbc.queryForObject("SELECT next_meeting_set_by FROM mentoring_pairing WHERE id = :id",
-                Map.of("id", other), String.class)).isEqualTo(MENTOR);
+        assertThat(actual).isEqualTo(new ErasureCounts(2, 4, 0, 0));
+        assertThat(jdbc.query("SELECT id, planned_by FROM mentoring_meeting WHERE organization_id = :org ORDER BY id",
+                Map.of("org", ORG), (rs, i) -> Arrays.asList(rs.getLong(1), rs.getString(2)))).containsExactly(
+                        Arrays.asList(passed, null), Arrays.asList(theMentors, MENTOR), Arrays.asList(heldToday, null));
+        assertThat(jdbc.queryForList("SELECT id FROM mentoring_meeting", Map.of(), Long.class)).doesNotContain(upcoming,
+                today);
     }
 
     @Test

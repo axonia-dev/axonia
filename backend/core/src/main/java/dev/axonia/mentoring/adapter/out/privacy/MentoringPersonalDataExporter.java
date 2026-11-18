@@ -24,10 +24,10 @@ import lombok.RequiredArgsConstructor;
 /**
  * A member's mentoring, as they took part in it: their availability, the proposals they sent or received, their
  * pairings with their role but never the partner, the topics of those pairings, the notes they wrote, with their
- * meeting day and the labels of the topics they name, and not the partner's, the pointers on those topics and notes,
- * and the words they wrote as a mentee or that were written to them as a mentor. A whole-Organization export carries
- * every row, each child row with its pairing's two people. A person scope has nothing here: every row belongs to an
- * Organization.
+ * meeting day and the labels of the topics they name, and not the partner's, the meetings they planned, with their day,
+ * the labels of their topics and when they were planned, the pointers on those topics and notes, and the words they
+ * wrote as a mentee or that were written to them as a mentor. A whole-Organization export carries every row, each child
+ * row with its pairing's two people. A person scope has nothing here: every row belongs to an Organization.
  */
 @Component
 @RequiredArgsConstructor

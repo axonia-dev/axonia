@@ -39,12 +39,18 @@ public interface MentoringNotices {
     void meetingMoved(MeetingNotice notice);
 
     /**
-     * Takes back the meeting's planned or moved notice while it still waits in the outbox, matched by that very
-     * planning; true when it was taken back, false when it may already have been read.
+     * Takes back the meeting's planned notice while it still waits in the outbox, matched by that very planning; true
+     * when it was taken back, false when it may already have been read or the planning was a move.
      */
-    boolean withdrawMeetingNotice(PlannedMeeting meeting);
+    boolean withdrawMeetingPlanned(PlannedMeeting meeting);
 
-    /** Reminds {@code recipientId} of the pairing's next meeting, the day before it. */
+    /**
+     * Takes back the meeting's moved notice while it still waits in the outbox, matched by that very move; true when it
+     * was taken back, false when it may already have been read or the planning was no move.
+     */
+    boolean withdrawMeetingMoved(PlannedMeeting meeting);
+
+    /** Reminds {@code recipientId} of a planned meeting, the day before it. */
     void meetingReminder(MeetingReminder reminder);
 
     /** {@code firstTopic} is null for a meeting naming no topic. */
@@ -53,8 +59,8 @@ public interface MentoringNotices {
             String firstTopic, String recipientId) {
     }
 
-    @Builder
-    record MeetingReminder(String organizationId, Pairing pairing, MentoringGuild guild, String partnerName,
-            String recipientId) {
+    @Builder(toBuilder = true)
+    record MeetingReminder(String organizationId, Pairing pairing, PlannedMeeting meeting, MentoringGuild guild,
+            String partnerName, String recipientId) {
     }
 }

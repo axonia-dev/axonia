@@ -1,7 +1,6 @@
 package dev.axonia.mentoring.adapter.out.persistence;
 
 import java.time.Instant;
-import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,15 +15,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import dev.axonia.mentoring.application.port.out.PairingRepository;
 import dev.axonia.mentoring.domain.EndReason;
-import dev.axonia.mentoring.domain.NextMeeting;
 import dev.axonia.mentoring.domain.Pairing;
 
 @Repository
 public class PairingRepositoryImpl implements PairingRepository {
 
     private static final String SELECT = """
-            SELECT p.id, p.community_id, p.mentor_user_id, p.mentee_user_id, p.started_at, p.ended_at, p.end_reason,
-                   p.next_meeting_on, p.next_meeting_set_by, p.next_meeting_set_at
+            SELECT p.id, p.community_id, p.mentor_user_id, p.mentee_user_id, p.started_at, p.ended_at, p.end_reason
               FROM mentoring_pairing p
             """;
 
@@ -51,11 +48,6 @@ public class PairingRepositoryImpl implements PairingRepository {
              ORDER BY p.started_at DESC, p.id DESC
             """;
 
-    private static final String WITH_NEXT_MEETING_BETWEEN_SQL = SELECT + """
-             WHERE p.organization_id = :org AND p.ended_at IS NULL AND p.next_meeting_on BETWEEN :from AND :to
-             ORDER BY p.id
-            """;
-
     private static final String ONGOING_AS_MENTOR_SQL = """
             SELECT count(*) FROM mentoring_pairing
              WHERE organization_id = :org AND community_id = :communityId AND mentor_user_id = :mentorId
@@ -77,19 +69,8 @@ public class PairingRepositoryImpl implements PairingRepository {
             """;
 
     private static final String END_SQL = """
-            UPDATE mentoring_pairing SET ended_at = :at, end_reason = :reason, next_meeting_on = NULL,
-                   next_meeting_set_by = NULL, next_meeting_set_at = NULL
+            UPDATE mentoring_pairing SET ended_at = :at, end_reason = :reason
              WHERE organization_id = :org AND id = :id AND ended_at IS NULL
-            """;
-
-    private static final String SET_NEXT_MEETING_SQL = """
-            UPDATE mentoring_pairing SET next_meeting_on = :on, next_meeting_set_by = :setBy, next_meeting_set_at = :at
-             WHERE organization_id = :org AND id = :id
-            """;
-
-    private static final String CLEAR_NEXT_MEETING_SQL = """
-            UPDATE mentoring_pairing SET next_meeting_on = NULL, next_meeting_set_by = NULL, next_meeting_set_at = NULL
-             WHERE organization_id = :org AND id = :id
             """;
 
     private static final String LOCK_MEMBER_SQL = """
@@ -100,10 +81,7 @@ public class PairingRepositoryImpl implements PairingRepository {
     private static final RowMapper<Pairing> MAPPER = (rs, i) -> Pairing.builder().id(rs.getLong("id"))
             .communityId(rs.getLong("community_id")).mentorUserId(rs.getString("mentor_user_id"))
             .menteeUserId(rs.getString("mentee_user_id")).startedAt(Rows.instant(rs, "started_at"))
-            .endedAt(Rows.instant(rs, "ended_at")).endReason(endReason(rs.getString("end_reason")))
-            .nextMeetingOn(rs.getObject("next_meeting_on", LocalDate.class))
-            .nextMeetingSetBy(rs.getString("next_meeting_set_by"))
-            .nextMeetingSetAt(Rows.instant(rs, "next_meeting_set_at")).build();
+            .endedAt(Rows.instant(rs, "ended_at")).endReason(endReason(rs.getString("end_reason"))).build();
 
     private final NamedParameterJdbcTemplate jdbc;
 
@@ -190,29 +168,6 @@ public class PairingRepositoryImpl implements PairingRepository {
 
         return jdbc.update(END_SQL, new MapSqlParameterSource("org", org).addValue("id", id)
                 .addValue("reason", reason.name()).addValue("at", Rows.timestamp(at))) == 1;
-    }
-
-    @Override
-    @Transactional
-    public void setNextMeeting(String org, long id, NextMeeting next) {
-
-        jdbc.update(SET_NEXT_MEETING_SQL,
-                new MapSqlParameterSource("org", org).addValue("id", id).addValue("on", next.on())
-                        .addValue("setBy", next.setBy()).addValue("at", Rows.timestamp(next.setAt())));
-    }
-
-    @Override
-    @Transactional
-    public void clearNextMeeting(String org, long id) {
-
-        jdbc.update(CLEAR_NEXT_MEETING_SQL, new MapSqlParameterSource("org", org).addValue("id", id));
-    }
-
-    @Override
-    public List<Pairing> withNextMeetingBetween(String org, LocalDate from, LocalDate to) {
-
-        return jdbc.query(WITH_NEXT_MEETING_BETWEEN_SQL,
-                new MapSqlParameterSource("org", org).addValue("from", from).addValue("to", to), MAPPER);
     }
 
     @Override

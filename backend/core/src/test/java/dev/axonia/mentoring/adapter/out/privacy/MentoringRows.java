@@ -86,19 +86,29 @@ final class MentoringRows {
 
     void meeting(long pairingId, String plannedBy, long topicId) {
 
-        var meetingId = jdbc.queryForObject("INSERT INTO mentoring_meeting (organization_id, pairing_id, meeting_on, "
-                + "planned_by, planned_at) VALUES (:org, :pairingId, '2026-11-26', :plannedBy, now()) RETURNING id",
-                Map.of("org", org, "pairingId", pairingId, "plannedBy", plannedBy), Long.class);
+        var meetingId = meeting(pairingId, plannedBy, "2026-11-26");
         jdbc.update("INSERT INTO mentoring_meeting_topic (organization_id, meeting_id, topic_id) VALUES (:org, "
                 + ":meetingId, :topicId)", Map.of("org", org, "meetingId", meetingId, "topicId", topicId));
     }
 
-    void nextMeeting(long pairingId, String setBy) {
+    long meeting(long pairingId, String plannedBy, String on) {
+
+        var params = new HashMap<String, Object>();
+        params.put("org", org);
+        params.put("pairingId", pairingId);
+        params.put("plannedBy", plannedBy);
+        params.put("on", on);
+        return jdbc.queryForObject("INSERT INTO mentoring_meeting (organization_id, pairing_id, meeting_on, "
+                + "planned_by, planned_at) VALUES (:org, :pairingId, CAST(:on AS date), :plannedBy, now()) RETURNING id",
+                params, Long.class);
+    }
+
+    void noteOn(long pairingId, String authorId, String on) {
 
         jdbc.update(
-                "UPDATE mentoring_pairing SET next_meeting_on = '2026-11-19', next_meeting_set_by = :setBy, "
-                        + "next_meeting_set_at = now() WHERE organization_id = :org AND id = :pairingId",
-                Map.of("org", org, "pairingId", pairingId, "setBy", setBy));
+                "INSERT INTO mentoring_note (organization_id, pairing_id, author_user_id, body, meeting_on, "
+                        + "written_at) VALUES (:org, :pairingId, :author, 'Met', CAST(:on AS date), now())",
+                Map.of("org", org, "pairingId", pairingId, "author", authorId, "on", on));
     }
 
     void linkOnTopic(long pairingId, long topicId, String url) {

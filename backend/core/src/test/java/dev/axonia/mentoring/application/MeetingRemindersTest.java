@@ -7,6 +7,7 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
 import dev.axonia.mentoring.application.port.out.CommunityAccess;
+import dev.axonia.mentoring.application.port.out.MeetingRepository;
 import dev.axonia.mentoring.application.port.out.MemberClocks;
 import dev.axonia.mentoring.application.port.out.MentoringNotices;
 import dev.axonia.mentoring.application.port.out.MentoringNotices.MeetingReminder;
@@ -24,6 +26,7 @@ import dev.axonia.mentoring.application.port.out.PairingRepository;
 import dev.axonia.mentoring.application.port.out.PersonDirectory;
 import dev.axonia.mentoring.domain.MentoringGuild;
 import dev.axonia.mentoring.domain.Pairing;
+import dev.axonia.mentoring.domain.PlannedMeeting;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
@@ -43,7 +46,10 @@ class MeetingRemindersTest {
     private static final String NOAH = "noah";
     private static final LocalDate THURSDAY = LocalDate.parse("2026-11-19");
     private static final Instant SET_MONDAY = Instant.parse("2026-11-16T10:00:00Z");
+    private static final MentoringGuild GUILD = new MentoringGuild("platform", "Platform");
 
+    @Mock
+    private MeetingRepository meetings;
     @Mock
     private PairingRepository pairings;
     @Mock
@@ -58,15 +64,16 @@ class MeetingRemindersTest {
     @BeforeEach
     void setUp() {
 
-        when(communityAccess.guildOf(ORG, 7L)).thenReturn(new MentoringGuild("platform", "Platform"));
+        when(communityAccess.guildOf(ORG, 7L)).thenReturn(GUILD);
         when(personDirectory.shortName(ORG, MIA)).thenReturn("Mia");
         when(personDirectory.shortName(ORG, NOAH)).thenReturn("Noah");
         zones(ZoneId.of("UTC"), ZoneId.of("UTC"));
+        store(pairing().build());
     }
 
     private MeetingReminders at(String instant) {
 
-        return new MeetingReminders(pairings, memberClocks, communityAccess, personDirectory, notices,
+        return new MeetingReminders(meetings, pairings, memberClocks, communityAccess, personDirectory, notices,
                 Clock.fixed(Instant.parse(instant), ZoneOffset.UTC));
     }
 
@@ -78,63 +85,101 @@ class MeetingRemindersTest {
     private static Pairing.PairingBuilder pairing() {
 
         return Pairing.builder().id(90L).communityId(7L).mentorUserId(MIA).menteeUserId(NOAH)
-                .startedAt(Instant.parse("2026-11-01T09:00:00Z")).nextMeetingOn(THURSDAY).nextMeetingSetBy(MIA)
-                .nextMeetingSetAt(SET_MONDAY);
+                .startedAt(Instant.parse("2026-11-01T09:00:00Z"));
     }
 
-    private static MeetingReminder reminder(Pairing pairing, String partnerName, String recipientId) {
+    private void store(Pairing pairing) {
 
-        return MeetingReminder.builder().organizationId(ORG).pairing(pairing)
-                .guild(new MentoringGuild("platform", "Platform")).partnerName(partnerName).recipientId(recipientId)
-                .build();
+        when(pairings.find(ORG, pairing.id())).thenReturn(Optional.of(pairing));
     }
 
-    private void meeting(Pairing pairing) {
+    private static PlannedMeeting.PlannedMeetingBuilder meeting(long id, LocalDate on) {
 
-        when(pairings.withNextMeetingBetween(any(), any(), any())).thenReturn(List.of(pairing));
+        return PlannedMeeting.builder().id(id).pairingId(90L).on(on).topicIds(List.of()).plannedBy(MIA)
+                .plannedAt(SET_MONDAY);
+    }
+
+    private static MeetingReminder reminder(PlannedMeeting meeting, String partnerName, String recipientId) {
+
+        return MeetingReminder.builder().organizationId(ORG).pairing(pairing().build()).meeting(meeting).guild(GUILD)
+                .partnerName(partnerName).recipientId(recipientId).build();
+    }
+
+    private void due(PlannedMeeting... planned) {
+
+        when(meetings.notHeldBetween(any(), any(), any())).thenReturn(List.of(planned));
     }
 
     @Test
     void eachPersonIsRemindedAtNineOnTheirOwnDayBefore() {
 
         // given
-        var pairing = pairing().build();
-        meeting(pairing);
+        var thursday = meeting(1L, THURSDAY).build();
+        due(thursday);
         zones(ZoneId.of("Europe/Zurich"), ZoneId.of("America/New_York"));
 
         // when
         at("2026-11-18T08:00:00Z").remindDue(ORG);
 
         // then - 09:00 in Zurich, 03:00 in New York
-        verify(notices).meetingReminder(reminder(pairing, "Noah", MIA));
+        verify(notices).meetingReminder(reminder(thursday, "Noah", MIA));
         verifyNoMoreInteractions(notices);
 
         // and when - 15:00 in Zurich, 09:00 in New York
         at("2026-11-18T14:00:00Z").remindDue(ORG);
 
         // then
-        verify(notices).meetingReminder(reminder(pairing, "Mia", NOAH));
+        verify(notices).meetingReminder(reminder(thursday, "Mia", NOAH));
     }
 
     @Test
     void theWindowReadSpansEveryZonesDayBefore() {
 
-        // given
-        meeting(pairing().build());
-
         // when
         at("2026-11-18T08:00:00Z").remindDue(ORG);
 
         // then
-        verify(pairings).withNextMeetingBetween(ORG, LocalDate.parse("2026-11-18"), LocalDate.parse("2026-11-20"));
+        verify(meetings).notHeldBetween(ORG, LocalDate.parse("2026-11-18"), LocalDate.parse("2026-11-20"));
+    }
+
+    @Test
+    void everyUpcomingMeetingIsRemindedTheDayBefore() {
+
+        // given
+        var thursday = meeting(1L, THURSDAY).build();
+        var friday = meeting(2L, THURSDAY.plusDays(1)).build();
+        var otherPairing = meeting(3L, THURSDAY).pairingId(91L).build();
+        store(pairing().id(91L).build());
+        due(thursday, friday, otherPairing);
+
+        // when
+        at("2026-11-18T12:00:00Z").remindDue(ORG);
+
+        // then
+        verify(notices).meetingReminder(reminder(thursday, "Noah", MIA));
+        verify(notices).meetingReminder(reminder(thursday, "Mia", NOAH));
+        verify(notices).meetingReminder(
+                reminder(otherPairing, "Noah", MIA).toBuilder().pairing(pairing().id(91L).build()).build());
+        verify(notices).meetingReminder(
+                reminder(otherPairing, "Mia", NOAH).toBuilder().pairing(pairing().id(91L).build()).build());
+        verifyNoMoreInteractions(notices);
+        verify(pairings).find(ORG, 90L);
+        verify(pairings).find(ORG, 91L);
+
+        // and when
+        at("2026-11-19T12:00:00Z").remindDue(ORG);
+
+        // then
+        verify(notices).meetingReminder(reminder(friday, "Noah", MIA));
+        verify(notices).meetingReminder(reminder(friday, "Mia", NOAH));
     }
 
     @Test
     void aMemberWithNoZoneIsRemindedOnUtc() {
 
         // given - the adapter answers UTC for a member with no zone
-        var pairing = pairing().build();
-        meeting(pairing);
+        var thursday = meeting(1L, THURSDAY).build();
+        due(thursday);
 
         // when
         at("2026-11-18T08:59:59Z").remindDue(ORG);
@@ -146,15 +191,15 @@ class MeetingRemindersTest {
         at("2026-11-18T09:00:00Z").remindDue(ORG);
 
         // then
-        verify(notices).meetingReminder(reminder(pairing, "Noah", MIA));
-        verify(notices).meetingReminder(reminder(pairing, "Mia", NOAH));
+        verify(notices).meetingReminder(reminder(thursday, "Noah", MIA));
+        verify(notices).meetingReminder(reminder(thursday, "Mia", NOAH));
     }
 
     @Test
-    void aDateSetForTomorrowSendsNoReminder() {
+    void aMeetingPlannedForTomorrowIsRemindedOfByNobody() {
 
         // given
-        meeting(pairing().nextMeetingSetAt(Instant.parse("2026-11-18T07:00:00Z")).build());
+        due(meeting(1L, THURSDAY).plannedAt(Instant.parse("2026-11-18T07:00:00Z")).build());
 
         // when
         at("2026-11-18T12:00:00Z").remindDue(ORG);
@@ -164,45 +209,23 @@ class MeetingRemindersTest {
     }
 
     @Test
-    void anEndedPairingIsNotReminded() {
+    void nothingDueReadsNothingMore() {
 
-        // given - the repository reads ongoing pairings only
-        when(pairings.withNextMeetingBetween(any(), any(), any())).thenReturn(List.of());
-
-        // when
+        // when - the repository reads meetings no note held, of ongoing pairings only
         at("2026-11-18T12:00:00Z").remindDue(ORG);
 
         // then
-        verifyNoInteractions(notices, memberClocks);
+        verifyNoInteractions(notices, memberClocks, pairings);
     }
 
     @Test
-    void aChangedDateIsRemindedForTheNewDayOnly() {
+    void anErasedSideOrAPurgedPairingIsSkipped() {
 
         // given
-        var friday = pairing().nextMeetingOn(THURSDAY.plusDays(1)).build();
-        meeting(friday);
-
-        // when
-        at("2026-11-18T12:00:00Z").remindDue(ORG);
-
-        // then
-        verifyNoInteractions(notices);
-
-        // and when
-        at("2026-11-19T12:00:00Z").remindDue(ORG);
-
-        // then
-        verify(notices).meetingReminder(reminder(friday, "Noah", MIA));
-        verify(notices).meetingReminder(reminder(friday, "Mia", NOAH));
-    }
-
-    @Test
-    void anErasedSideIsSkipped() {
-
-        // given
-        when(pairings.withNextMeetingBetween(any(), any(), any())).thenReturn(
-                List.of(pairing().mentorUserId(null).build(), pairing().id(91L).menteeUserId(null).build()));
+        store(pairing().mentorUserId(null).build());
+        store(pairing().id(91L).menteeUserId(null).build());
+        due(meeting(1L, THURSDAY).build(), meeting(2L, THURSDAY).pairingId(91L).build(),
+                meeting(3L, THURSDAY).pairingId(92L).build());
 
         // when
         at("2026-11-18T12:00:00Z").remindDue(ORG);

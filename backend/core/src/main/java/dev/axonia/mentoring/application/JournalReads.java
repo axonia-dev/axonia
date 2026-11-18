@@ -12,22 +12,25 @@ import java.util.stream.Stream;
 import org.springframework.stereotype.Component;
 
 import dev.axonia.mentoring.api.Journal;
-import dev.axonia.mentoring.api.NextMeetingView;
 import dev.axonia.mentoring.api.NoteView;
+import dev.axonia.mentoring.api.PlannedMeetingView;
 import dev.axonia.mentoring.api.PointerView;
 import dev.axonia.mentoring.api.TopicView;
 import dev.axonia.mentoring.application.port.out.CommunityAccess;
 import dev.axonia.mentoring.application.port.out.JournalRepository;
+import dev.axonia.mentoring.application.port.out.MeetingRepository;
 import dev.axonia.mentoring.application.port.out.MemberClocks;
 import dev.axonia.mentoring.application.port.out.PersonDirectory;
 import dev.axonia.mentoring.application.port.out.PointerTitles;
 import dev.axonia.mentoring.application.port.out.WordsRepository;
 import dev.axonia.mentoring.domain.MeetingDays;
+import dev.axonia.mentoring.domain.MeetingPlan;
 import dev.axonia.mentoring.domain.MentoringPerson;
 import dev.axonia.mentoring.domain.MentoringWindows;
 import dev.axonia.mentoring.domain.Note;
 import dev.axonia.mentoring.domain.NoteTally;
 import dev.axonia.mentoring.domain.Pairing;
+import dev.axonia.mentoring.domain.PlannedMeeting;
 import dev.axonia.mentoring.domain.Pointer;
 import dev.axonia.mentoring.domain.PointerAddress;
 import dev.axonia.mentoring.domain.PointerKind;
@@ -46,6 +49,7 @@ class JournalReads {
 
     private final CommunityAccess communityAccess;
     private final JournalRepository journal;
+    private final MeetingRepository meetings;
     private final WordsRepository words;
     private final PointerTitles pointerTitles;
     private final PersonDirectory personDirectory;
@@ -64,14 +68,16 @@ class JournalReads {
         var noteTopics = journal.noteTopicsOf(org, pairing.id());
         var zone = memberClocks.zoneOf(org, me);
         var partnerId = MentoringViews.partnerOf(pairing, me);
-        var people = personDirectory.resolve(
-                Stream.concat(Stream.of(partnerId, pairing.nextMeetingSetBy()), notes.stream().map(Note::authorUserId))
-                        .filter(Objects::nonNull).distinct().toList());
+        var planned = pairing.endedAt() == null ? meetings.meetingsOf(org, pairing.id()) : List.<PlannedMeeting>of();
+        var people = personDirectory.resolve(Stream
+                .of(Stream.of(partnerId), notes.stream().map(Note::authorUserId),
+                        planned.stream().map(PlannedMeeting::plannedBy))
+                .flatMap(Function.identity()).filter(Objects::nonNull).distinct().toList());
         var today = MeetingDays.dayOf(clock.instant(), zone);
         var mentee = me.equals(pairing.menteeUserId());
         var written = words.find(org, pairing.id());
         var topics = journal.topicsOf(org, pairing.id());
-        var progress = new PairingProgress(TopicBoard.trailOrder(topics), NoteTally.of(notes));
+        var progress = new PairingProgress(TopicBoard.trailOrder(topics), NoteTally.of(notes), planned);
         return Journal.builder()
                 .pairing(MentoringViews
                         .glance(MentoringViews.pairing(pairing, communityAccess.communityById(pairing.communityId()),
@@ -88,20 +94,20 @@ class JournalReads {
                                 .topicIds(noteTopics.getOrDefault(n.id(), List.of()))
                                 .pointers(pointersWhere.apply(p -> n.id().equals(p.noteId()))).build())
                         .toList())
-                .nextMeeting(nextMeeting(pairing, people, today)).wordsWritten(written.isPresent())
+                .meetings(planned.stream().filter(m -> !m.held()).map(m -> meeting(m, people, today)).toList())
+                .wordsWritten(written.isPresent())
                 .canWriteWords(
                         mentee && MentoringWindows.isWordsWritable(pairing, written.isPresent(), clock.instant()))
                 .myWords(mentee ? written.map(Words::body).orElse(null) : null).build();
     }
 
-    private static NextMeetingView nextMeeting(Pairing pairing, Map<String, MentoringPerson> people, LocalDate today) {
+    private static PlannedMeetingView meeting(PlannedMeeting meeting, Map<String, MentoringPerson> people,
+            LocalDate today) {
 
-        if (pairing.nextMeetingOn() == null) {
-            return null;
-        }
-        var setBy = MentoringViews.person(people, pairing.nextMeetingSetBy());
-        return new NextMeetingView(pairing.nextMeetingOn(), setBy.userId(), setBy.displayName(),
-                pairing.nextMeetingOn().isBefore(today));
+        var plannedBy = MentoringViews.person(people, meeting.plannedBy());
+        return PlannedMeetingView.builder().id(meeting.id()).on(meeting.on()).topicIds(meeting.topicIds())
+                .plannedById(plannedBy.userId()).plannedByName(plannedBy.displayName())
+                .passed(MeetingPlan.isOwed(meeting, today)).build();
     }
 
     private static NoteView.NoteViewBuilder note(Note note, MentoringPerson author, String me) {

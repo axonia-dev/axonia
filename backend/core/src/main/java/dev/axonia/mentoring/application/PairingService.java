@@ -21,6 +21,7 @@ import dev.axonia.mentoring.application.port.out.AvailabilityRepository;
 import dev.axonia.mentoring.application.port.out.CommunityAccess;
 import dev.axonia.mentoring.application.port.out.CurrentUser;
 import dev.axonia.mentoring.application.port.out.JournalRepository;
+import dev.axonia.mentoring.application.port.out.MeetingRepository;
 import dev.axonia.mentoring.application.port.out.MemberClocks;
 import dev.axonia.mentoring.application.port.out.MentoringNotices;
 import dev.axonia.mentoring.application.port.out.OrganizationContext;
@@ -28,6 +29,7 @@ import dev.axonia.mentoring.application.port.out.PairingRepository;
 import dev.axonia.mentoring.application.port.out.PersonDirectory;
 import dev.axonia.mentoring.application.port.out.ProposalRepository;
 import dev.axonia.mentoring.domain.EndReason;
+import dev.axonia.mentoring.domain.MeetingDays;
 import dev.axonia.mentoring.domain.MentoringCommunity;
 import dev.axonia.mentoring.domain.MentoringWindows;
 import dev.axonia.mentoring.domain.NoteTally;
@@ -56,6 +58,7 @@ public class PairingService {
     private final PairingRepository pairings;
     private final ProposalRepository proposals;
     private final JournalRepository journal;
+    private final MeetingRepository meetings;
     private final AvailabilityRepository availabilities;
     private final PersonDirectory personDirectory;
     private final MentoringNotices notices;
@@ -104,12 +107,14 @@ public class PairingService {
         var ids = mine.stream().map(Pairing::id).toList();
         var trails = journal.trailsOf(org, ids);
         var tallies = journal.tallyOf(org, ids);
+        var plans = meetings.meetingsOf(org, mine.stream().filter(p -> p.endedAt() == null).map(Pairing::id).toList());
         var summaries = mine.stream()
                 .map(p -> MentoringViews.glance(
                         MentoringViews.pairing(p, community.apply(p.communityId()), me,
                                 MentoringViews.person(people, MentoringViews.partnerOf(p, me))),
-                        p, new PairingProgress(trails.getOrDefault(p.id(), List.of()),
-                                tallies.getOrDefault(p.id(), NoteTally.NONE)),
+                        p,
+                        new PairingProgress(trails.getOrDefault(p.id(), List.of()),
+                                tallies.getOrDefault(p.id(), NoteTally.NONE), plans.getOrDefault(p.id(), List.of())),
                         at.today()).build())
                 .toList();
         Function<Proposal, ProposalView> view = p -> MentoringViews.proposal(p, community.apply(p.communityId()),
@@ -163,12 +168,17 @@ public class PairingService {
         proposals.withdrawOpenInvolving(org, null, userId, now());
     }
 
-    /** False, and nobody is told, when somebody else ended the pairing first. */
+    /**
+     * False, and nobody is told, when somebody else ended the pairing first. Its upcoming meetings go, read in the day
+     * of whoever ended it, left or was deactivated; its passed and held ones stay.
+     */
     private boolean endAndTell(String org, Pairing pairing, EndReason reason, String endedBy) {
 
         if (!pairings.end(org, pairing.id(), reason, now())) {
             return false;
         }
+        meetings.deleteUpcoming(org, pairing.id(),
+                MeetingDays.dayOf(clock.instant(), memberClocks.zoneOf(org, endedBy)));
         var other = MentoringViews.partnerOf(pairing, endedBy);
         if (other != null) {
             notices.ended(pairing, communityAccess.guildOf(org, pairing.communityId()),

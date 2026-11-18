@@ -8,7 +8,7 @@ import java.time.ZoneId;
 import dev.axonia.shared.api.error.ValidationException;
 
 /**
- * The calendar days a journal names: the day a meeting was held, the day of the next one, and the day before it, when
+ * The calendar days a journal names: the day a meeting was held, the day of a planned one, and the day before it, when
  * each person is reminded. Every day is read in one person's own zone.
  */
 public final class MeetingDays {

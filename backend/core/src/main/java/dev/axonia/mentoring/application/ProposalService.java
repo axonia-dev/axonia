@@ -122,7 +122,7 @@ public class ProposalService {
         var trail = firstTopics.seed(org, community, pairing, proposal.topics());
         return MentoringViews.glance(
                 MentoringViews.pairing(pairing, community, me, personDirectory.resolve(List.of(sender)).get(sender)),
-                pairing, new PairingProgress(trail, NoteTally.NONE),
+                pairing, new PairingProgress(trail, NoteTally.NONE, List.of()),
                 new CallerTime(now, memberClocks.zoneOf(org, me)).today()).build();
     }
 

@@ -16,6 +16,7 @@ import dev.axonia.mentoring.domain.MentoringCommunity;
 import dev.axonia.mentoring.domain.MentoringPerson;
 import dev.axonia.mentoring.domain.NoteTally;
 import dev.axonia.mentoring.domain.Pairing;
+import dev.axonia.mentoring.domain.PlannedMeeting;
 import dev.axonia.mentoring.domain.Proposal;
 import dev.axonia.mentoring.domain.ProposalStatus;
 import dev.axonia.mentoring.domain.Role;
@@ -80,8 +81,25 @@ class MentoringViewsTest {
 
     private static PairingSummary glance(Pairing pairing, List<Topic> trail, NoteTally tally) {
 
-        return MentoringViews.glance(PairingSummary.builder(), pairing, new PairingProgress(trail, tally), TODAY)
-                .build();
+        return glance(pairing, trail, tally, List.of());
+    }
+
+    private static PairingSummary glance(Pairing pairing, List<Topic> trail, NoteTally tally,
+            List<PlannedMeeting> meetings) {
+
+        return MentoringViews
+                .glance(PairingSummary.builder(), pairing, new PairingProgress(trail, tally, meetings), TODAY).build();
+    }
+
+    private static PairingSummary planned(PlannedMeeting... meetings) {
+
+        return glance(pairing().build(), List.of(), NoteTally.NONE, List.of(meetings));
+    }
+
+    private static PlannedMeeting meeting(long id, LocalDate on) {
+
+        return PlannedMeeting.builder().id(id).pairingId(90L).on(on).topicIds(List.of()).plannedBy("mia")
+                .plannedAt(SENT).build();
     }
 
     @Test
@@ -137,24 +155,52 @@ class MentoringViewsTest {
     }
 
     @Test
-    void glanceDropsTheNextMeetingOfAnEndedPairing() {
+    void glanceDropsThePlanOfAnEndedPairing() {
 
         // given
-        var ended = pairing().nextMeetingOn(TODAY.plusDays(2)).endedAt(SENT.plus(Duration.ofDays(40))).build();
+        var ended = pairing().endedAt(SENT.plus(Duration.ofDays(40))).build();
 
-        // when / then
-        assertThat(glance(ended, List.of(), NoteTally.NONE).nextMeeting()).isNull();
+        // when
+        var actual = glance(ended, List.of(), NoteTally.NONE,
+                List.of(meeting(1L, TODAY.minusDays(1)), meeting(2L, TODAY.plusDays(2))));
+
+        // then
+        assertThat(actual.nextMeeting()).isNull();
+        assertThat(actual.laterPlanned()).isZero();
     }
 
     @Test
-    void glanceMarksAMeetingBeforeTodayPassed() {
+    void theSummaryShowsTheOwedMeetingFirstThenTheSoonest() {
 
-        var yesterday = LocalDate.parse("2026-11-16");
+        // given
+        var owed = meeting(1L, TODAY.minusDays(3));
+        var laterOwed = meeting(2L, TODAY.minusDays(1));
+        var held = meeting(3L, TODAY.minusDays(5)).toBuilder().held(true).build();
+        var today = meeting(4L, TODAY);
+        var later = meeting(5L, TODAY.plusDays(7));
 
-        assertThat(glance(pairing().nextMeetingOn(yesterday).build(), List.of(), NoteTally.NONE).nextMeeting())
-                .isEqualTo(new NextMeetingDay(yesterday, true));
-        assertThat(glance(pairing().nextMeetingOn(TODAY).build(), List.of(), NoteTally.NONE).nextMeeting())
-                .isEqualTo(new NextMeetingDay(TODAY, false));
+        // when / then
+        assertThat(planned(held, laterOwed, owed, today, later).nextMeeting())
+                .isEqualTo(new NextMeetingDay(TODAY.minusDays(3), true));
+        assertThat(planned(held, later, today).nextMeeting()).isEqualTo(new NextMeetingDay(TODAY, false));
+        assertThat(planned(held).nextMeeting()).isNull();
+    }
+
+    @Test
+    void laterPlannedCountsTheOtherUpcomingMeetings() {
+
+        // given
+        var owed = meeting(1L, TODAY.minusDays(1));
+        var held = meeting(2L, TODAY).toBuilder().held(true).build();
+        var soon = meeting(3L, TODAY.plusDays(1));
+        var later = meeting(4L, TODAY.plusDays(8));
+        var last = meeting(5L, TODAY.plusDays(15));
+
+        // when / then
+        assertThat(planned(owed, held, soon, later, last).laterPlanned()).isEqualTo(3);
+        assertThat(planned(held, soon, later, last).laterPlanned()).isEqualTo(2);
+        assertThat(planned(soon).laterPlanned()).isZero();
+        assertThat(planned(owed).laterPlanned()).isZero();
     }
 
     @Test
@@ -167,6 +213,7 @@ class MentoringViewsTest {
         assertThat(actual.stops()).isEmpty();
         assertThat(actual.nowTopic()).isNull();
         assertThat(actual.nextMeeting()).isNull();
+        assertThat(actual.laterPlanned()).isZero();
         assertThat(actual.notes()).isZero();
         assertThat(actual.meetings()).isZero();
         assertThat(actual.lastMetOn()).isNull();

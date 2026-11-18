@@ -214,10 +214,11 @@ public final class ErasureSweepFixtures {
 
     /**
      * mentoring: the target's availability and an open proposal to the owner; an ongoing pairing as the owner's mentee,
-     * with a note from each side (the target's naming the topic), a next meeting the target set, a topic, a pointer
-     * naming the target and the target's words; and a pairing the target mentored whose mentee was erased before, which
-     * goes whole. Leaving the community on the way to erasure ends the ongoing pairing and tells the owner in a notice
-     * naming the target, which must not survive either; nor may the record of an expired notice about them.
+     * with a note from each side (the target's naming the topic), an upcoming and a passed meeting the target planned,
+     * a topic, a pointer naming the target and the target's words; and a pairing the target mentored whose mentee was
+     * erased before, which goes whole. Leaving the community on the way to erasure ends the ongoing pairing and tells
+     * the owner in a notice naming the target, which must not survive either; nor may the record of an expired notice
+     * about them.
      */
     private void seedMentoring(String organizationId, long communityId, String userId) {
 
@@ -250,8 +251,8 @@ public final class ErasureSweepFixtures {
                 "INSERT INTO mentoring_meeting_topic (organization_id, meeting_id, topic_id) VALUES (:org, "
                         + ":meetingId, :topicId)",
                 Map.of("org", organizationId, "meetingId", meetingId, "topicId", topicId));
-        jdbc.update("UPDATE mentoring_pairing SET next_meeting_on = current_date + 3, next_meeting_set_by = :user, "
-                + "next_meeting_set_at = now() WHERE id = :pairingId", pairing);
+        jdbc.update("INSERT INTO mentoring_meeting (organization_id, pairing_id, meeting_on, planned_by, planned_at) "
+                + "VALUES (:org, :pairingId, current_date - 3, :user, now())", pairing);
         jdbc.update(
                 "INSERT INTO mentoring_note (organization_id, pairing_id, author_user_id, body, meeting_on, "
                         + "written_at) VALUES (:org, :pairingId, :owner, 'Next time: backoff.', current_date, now())",

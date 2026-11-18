@@ -75,7 +75,7 @@ final class ExportLeakFixtures {
 
     /**
      * A pairing the two share, the neighbour mentoring the target, with the target's proposal that started it, a note
-     * from each side, the neighbour's naming a topic, a next meeting the neighbour set, a pointer naming the neighbour
+     * from each side, the neighbour's naming a topic, a meeting the neighbour planned, a pointer naming the neighbour
      * and the target's words: every mentoring row names both of them.
      */
     private void seedMentoring(String organizationId, Long communityId) {
@@ -110,10 +110,6 @@ final class ExportLeakFixtures {
                 "INSERT INTO mentoring_meeting_topic (organization_id, meeting_id, topic_id) VALUES (:org, "
                         + ":meetingId, :topicId)",
                 Map.of("org", organizationId, "meetingId", meetingId, "topicId", topicId));
-        jdbc.update(
-                "UPDATE mentoring_pairing SET next_meeting_on = current_date + 3, next_meeting_set_by = :neighbour, "
-                        + "next_meeting_set_at = now() WHERE id = :pairingId",
-                pairing);
         jdbc.update(
                 "INSERT INTO mentoring_pointer (organization_id, pairing_id, topic_id, kind, target_user_id, "
                         + "created_at) VALUES (:org, :pairingId, :topicId, 'MEMBER', :neighbour, now())",

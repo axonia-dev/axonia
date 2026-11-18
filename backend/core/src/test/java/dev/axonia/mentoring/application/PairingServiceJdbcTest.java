@@ -18,6 +18,7 @@ import dev.axonia.mentoring.application.port.out.AvailabilityRepository;
 import dev.axonia.mentoring.application.port.out.CommunityAccess;
 import dev.axonia.mentoring.application.port.out.CurrentUser;
 import dev.axonia.mentoring.application.port.out.JournalRepository;
+import dev.axonia.mentoring.application.port.out.MeetingRepository;
 import dev.axonia.mentoring.application.port.out.MemberClocks;
 import dev.axonia.mentoring.application.port.out.MentoringNotices;
 import dev.axonia.mentoring.application.port.out.OrganizationContext;
@@ -33,6 +34,7 @@ import dev.axonia.mentoring.domain.ProposalStatus;
 import dev.axonia.mentoring.domain.Role;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -65,9 +67,11 @@ class PairingServiceJdbcTest extends CoreJdbcTestSupport {
         when(communityAccess.guildOf(ORG, PLATFORM)).thenReturn(new MentoringGuild("platform", "Platform"));
         when(communityAccess.guildOf(ORG, DATA)).thenReturn(new MentoringGuild("data", "Data"));
         when(personDirectory.shortName(ORG, "leo")).thenReturn("Leo");
+        var memberClocks = mock(MemberClocks.class);
+        when(memberClocks.zoneOf(any(), any())).thenReturn(ZoneOffset.UTC);
         service = new PairingService(organizationContext, currentUser, communityAccess, pairings, proposals,
-                mock(JournalRepository.class), availabilities, personDirectory, mock(MentoringNotices.class),
-                mock(MemberClocks.class), Clock.fixed(NOW, ZoneOffset.UTC));
+                mock(JournalRepository.class), mock(MeetingRepository.class), availabilities, personDirectory,
+                mock(MentoringNotices.class), memberClocks, Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
     private long pair(long community, String mentor, String mentee) {

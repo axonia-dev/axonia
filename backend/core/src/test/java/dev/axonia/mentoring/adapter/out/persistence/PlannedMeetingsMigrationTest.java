@@ -16,7 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * V142 runs against pairings that hold a next meeting: each becomes one planned meeting, a pairing without one plans
- * none.
+ * none. V143 then drops the pairing's next meeting.
  */
 class PlannedMeetingsMigrationTest {
 
@@ -70,6 +70,23 @@ class PlannedMeetingsMigrationTest {
 
         // then
         assertThat(actual).isEmpty();
+    }
+
+    @Test
+    void thePairingNoLongerHoldsANextMeeting() {
+
+        // when
+        var actual = jdbc.queryForList("SELECT column_name FROM information_schema.columns WHERE table_name = "
+                + "'mentoring_pairing' AND column_name LIKE 'next_meeting%'", String.class);
+
+        // then
+        assertThat(actual).isEmpty();
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM pg_constraint WHERE conname = " + "'mentoring_pairing_next_meeting_check'",
+                Long.class)).isZero();
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM pg_indexes WHERE indexname = " + "'idx_mentoring_pairing_next_meeting'",
+                Long.class)).isZero();
     }
 
     private static long pairing(String mentee) {

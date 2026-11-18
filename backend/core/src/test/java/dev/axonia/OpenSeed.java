@@ -165,8 +165,7 @@ public final class OpenSeed {
                 + "proposed_by, topics, message, status, created_at) VALUES (:org, :communityId, :user, :user, "
                 + "'MENTEE', ARRAY['Kafka']::varchar[], 'Layer 3 message', 'OPEN', now())", params);
         var pairingId = jdbc.queryForObject("INSERT INTO mentoring_pairing (organization_id, community_id, "
-                + "mentor_user_id, mentee_user_id, started_at, next_meeting_on, next_meeting_set_by, "
-                + "next_meeting_set_at) VALUES (:org, :communityId, :user, :user, now(), current_date + 3, :user, now()) "
+                + "mentor_user_id, mentee_user_id, started_at) VALUES (:org, :communityId, :user, :user, now()) "
                 + "RETURNING id", params, Long.class);
         var pairing = Map.<String, Object>of("org", ORG, "pairingId", pairingId, "user", USER);
         var topicId = jdbc.queryForObject(

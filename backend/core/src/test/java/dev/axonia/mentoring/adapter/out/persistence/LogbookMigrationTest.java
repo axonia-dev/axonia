@@ -52,7 +52,7 @@ class LogbookMigrationTest {
         note(ongoing, "max", "2026-11-14T03:00:00Z", "2026-11-30", null);
         unknownZoneNote = note(ended, "lea", LATE_EVENING_UTC, "2026-11-20", null);
         noProfileNote = note(ended, "ghost", "2026-11-15T23:30:00Z", null, null);
-        MigrationChain.SELF_HOSTED.on(pg).migrate();
+        MigrationChain.SELF_HOSTED.upTo(pg, "142").migrate();
     }
 
     @AfterAll

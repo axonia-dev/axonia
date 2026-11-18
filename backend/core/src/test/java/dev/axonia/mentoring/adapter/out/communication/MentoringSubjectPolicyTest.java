@@ -78,10 +78,9 @@ class MentoringSubjectPolicyTest {
                 MessageType.of("mentoring_proposal_reopened"));
     }
 
-    private static Pairing.PairingBuilder meetingSetAt(Instant setAt) {
+    private static Pairing.PairingBuilder ongoing() {
 
-        return Pairing.builder().id(90L).communityId(7L).mentorUserId("mia").menteeUserId("noah")
-                .nextMeetingOn(LocalDate.parse("2026-11-19")).nextMeetingSetBy("noah").nextMeetingSetAt(setAt);
+        return Pairing.builder().id(90L).communityId(7L).mentorUserId("mia").menteeUserId("noah");
     }
 
     private static PlannedMeeting plannedAt(Instant at) {
@@ -90,20 +89,24 @@ class MentoringSubjectPolicyTest {
                 .plannedBy("noah").plannedAt(at).build();
     }
 
-    private static String meetingRef(Instant plannedAt) {
+    private static String meetingRef(String kind, Instant plannedAt) {
 
-        return MentoringSubject.meeting(12L, String.valueOf(plannedAt.toEpochMilli()), "noah").ref();
+        return MentoringSubject.meeting(12L, kind + "-" + plannedAt.toEpochMilli(), "noah").ref();
     }
 
     @Test
-    void aMeetingNoticeIsOwedWhileThatPlanningStands() {
+    void aPlannedOrMovedNoticeIsOwedWhileThatPlanningStands() {
 
         // given
         when(meetings.find(ORG, 12L)).thenReturn(Optional.of(plannedAt(NOW)));
-        when(pairings.find(ORG, 90L)).thenReturn(Optional.of(meetingSetAt(null).build()));
+        when(pairings.find(ORG, 90L)).thenReturn(Optional.of(ongoing().build()));
 
         // when / then
-        assertThat(policy.isEnabledFor(ORG, MessageType.MENTORING_MEETING_SET, meetingRef(NOW))).isTrue();
+        assertThat(policy.isEnabledFor(ORG, MessageType.MENTORING_MEETING_SET, meetingRef("planned", NOW))).isTrue();
+        assertThat(policy.isEnabledFor(ORG, MessageType.MENTORING_MEETING_SET, meetingRef("moved", NOW))).isTrue();
+        assertThat(policy.isEnabledFor(ORG, MessageType.MENTORING_MEETING_SET, meetingRef("other", NOW))).isFalse();
+        assertThat(policy.isEnabledFor(ORG, MessageType.MENTORING_MEETING_SET,
+                MentoringSubject.meeting(12L, String.valueOf(NOW.toEpochMilli()), "noah").ref())).isFalse();
     }
 
     @Test
@@ -112,12 +115,12 @@ class MentoringSubjectPolicyTest {
         // given
         when(meetings.find(ORG, 12L)).thenReturn(Optional.of(plannedAt(NOW.plusSeconds(60))));
         when(meetings.find(ORG, 13L)).thenReturn(Optional.empty());
-        lenient().when(pairings.find(ORG, 90L)).thenReturn(Optional.of(meetingSetAt(null).build()));
+        lenient().when(pairings.find(ORG, 90L)).thenReturn(Optional.of(ongoing().build()));
 
         // when / then
-        assertThat(policy.isEnabledFor(ORG, MessageType.MENTORING_MEETING_SET, meetingRef(NOW))).isFalse();
+        assertThat(policy.isEnabledFor(ORG, MessageType.MENTORING_MEETING_SET, meetingRef("planned", NOW))).isFalse();
         assertThat(policy.isEnabledFor(ORG, MessageType.MENTORING_MEETING_SET,
-                MentoringSubject.meeting(13L, String.valueOf(NOW.toEpochMilli()), "noah").ref())).isFalse();
+                MentoringSubject.meeting(13L, "planned-" + NOW.toEpochMilli(), "noah").ref())).isFalse();
     }
 
     @Test
@@ -127,66 +130,53 @@ class MentoringSubjectPolicyTest {
         when(meetings.find(ORG, 12L)).thenReturn(Optional.of(plannedAt(NOW)));
         when(meetings.find(ORG, 14L))
                 .thenReturn(Optional.of(plannedAt(NOW).toBuilder().id(14L).pairingId(94L).build()));
-        when(pairings.find(ORG, 90L)).thenReturn(Optional.of(meetingSetAt(null).endedAt(NOW.plusSeconds(5)).build()));
+        when(pairings.find(ORG, 90L)).thenReturn(Optional.of(ongoing().endedAt(NOW.plusSeconds(5)).build()));
         when(pairings.find(ORG, 94L)).thenReturn(Optional.empty());
 
         // when / then
-        assertThat(policy.isEnabledFor(ORG, MessageType.MENTORING_MEETING_SET, meetingRef(NOW))).isFalse();
+        assertThat(policy.isEnabledFor(ORG, MessageType.MENTORING_MEETING_SET, meetingRef("planned", NOW))).isFalse();
         assertThat(policy.isEnabledFor(ORG, MessageType.MENTORING_MEETING_SET,
-                MentoringSubject.meeting(14L, String.valueOf(NOW.toEpochMilli()), "noah").ref())).isFalse();
+                MentoringSubject.meeting(14L, "planned-" + NOW.toEpochMilli(), "noah").ref())).isFalse();
+        assertThat(policy.isEnabledFor(ORG, MessageType.MENTORING_MEETING_REMINDER, reminderRef("2026-11-26")))
+                .isFalse();
     }
 
     @Test
     void aLegacyPairingSubjectMeetingNoticeIsOwedNothing() {
 
         // given
-        lenient().when(pairings.find(ORG, 90L)).thenReturn(Optional.of(meetingSetAt(NOW).build()));
+        lenient().when(pairings.find(ORG, 90L)).thenReturn(Optional.of(ongoing().build()));
 
         // when / then
         assertThat(policy.isEnabledFor(ORG, MessageType.MENTORING_MEETING_SET,
                 MentoringSubject.pairing(90L, String.valueOf(NOW.toEpochMilli()), "noah").ref())).isFalse();
+        assertThat(policy.isEnabledFor(ORG, MessageType.MENTORING_MEETING_REMINDER,
+                MentoringSubject.pairing(90L, "2026-11-19", "mia").ref())).isFalse();
     }
 
     private static String reminderRef(String day) {
 
-        return MentoringSubject.pairing(90L, day, "mia").ref();
+        return MentoringSubject.meeting(12L, day, "mia").ref();
     }
 
     @Test
-    void aReminderIsOwedWhileItsDayIsTheNextMeeting() {
+    void aReminderIsOwedWhileTheMeetingStaysOnThatDayAndUnheld() {
 
         // given
-        when(pairings.find(ORG, 90L)).thenReturn(Optional.of(meetingSetAt(NOW).build()));
+        when(meetings.find(ORG, 12L)).thenReturn(Optional.of(plannedAt(NOW)));
+        when(meetings.find(ORG, 13L)).thenReturn(Optional.of(plannedAt(NOW).toBuilder().id(13L).held(true).build()));
+        when(meetings.find(ORG, 14L)).thenReturn(Optional.empty());
+        lenient().when(pairings.find(ORG, 90L)).thenReturn(Optional.of(ongoing().build()));
 
         // when / then
-        assertThat(policy.isEnabledFor(ORG, MessageType.MENTORING_MEETING_REMINDER, reminderRef("2026-11-19")))
+        assertThat(policy.isEnabledFor(ORG, MessageType.MENTORING_MEETING_REMINDER, reminderRef("2026-11-26")))
                 .isTrue();
-    }
-
-    @Test
-    void aReminderForAnotherDayIsOwedNothing() {
-
-        // given
-        when(pairings.find(ORG, 90L)).thenReturn(Optional.of(meetingSetAt(NOW).build()));
-        when(pairings.find(ORG, 91L))
-                .thenReturn(Optional.of(meetingSetAt(null).id(91L).nextMeetingOn(null).nextMeetingSetBy(null).build()));
-
-        // when / then
-        assertThat(policy.isEnabledFor(ORG, MessageType.MENTORING_MEETING_REMINDER, reminderRef("2026-11-20")))
+        assertThat(policy.isEnabledFor(ORG, MessageType.MENTORING_MEETING_REMINDER, reminderRef("2026-11-27")))
                 .isFalse();
         assertThat(policy.isEnabledFor(ORG, MessageType.MENTORING_MEETING_REMINDER,
-                MentoringSubject.pairing(91L, "2026-11-19", "mia").ref())).isFalse();
-    }
-
-    @Test
-    void anEndedPairingsReminderIsOwedNothing() {
-
-        // given
-        when(pairings.find(ORG, 90L)).thenReturn(Optional.of(meetingSetAt(NOW).endedAt(NOW.plusSeconds(5)).build()));
-
-        // when / then
-        assertThat(policy.isEnabledFor(ORG, MessageType.MENTORING_MEETING_REMINDER, reminderRef("2026-11-19")))
-                .isFalse();
+                MentoringSubject.meeting(13L, "2026-11-26", "mia").ref())).isFalse();
+        assertThat(policy.isEnabledFor(ORG, MessageType.MENTORING_MEETING_REMINDER,
+                MentoringSubject.meeting(14L, "2026-11-26", "mia").ref())).isFalse();
     }
 
     @Test
@@ -258,7 +248,7 @@ class MentoringSubjectPolicyTest {
     void aRetiredAskForWordsStillWaitingIsOwedNothing() {
 
         // given: the pairing is still there
-        lenient().when(pairings.find(ORG, 90L)).thenReturn(Optional.of(meetingSetAt(NOW).build()));
+        lenient().when(pairings.find(ORG, 90L)).thenReturn(Optional.of(ongoing().build()));
 
         // when / then
         assertThat(

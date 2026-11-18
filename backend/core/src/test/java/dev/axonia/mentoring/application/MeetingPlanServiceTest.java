@@ -276,7 +276,8 @@ class MeetingPlanServiceTest {
         // then
         var moved = meeting(1L, friday).topicIds(List.of(8L, 7L)).plannedBy(NOAH).plannedAt(AT).build();
         verify(meetings).update(ORG, moved);
-        verify(notices).withdrawMeetingNotice(original);
+        verify(notices).withdrawMeetingPlanned(original);
+        verify(notices).withdrawMeetingMoved(original);
         verify(notices).meetingMoved(MeetingNotice.builder().pairing(pairing().build()).meeting(moved).guild(GUILD)
                 .byName("Noah").firstTopic("Kafka basics").recipientId(MIA).build());
         verify(notices, never()).meetingPlanned(any());
@@ -300,7 +301,7 @@ class MeetingPlanServiceTest {
         // given
         var original = meeting(1L, THURSDAY).build();
         store(pairing().build(), original);
-        when(notices.withdrawMeetingNotice(original)).thenReturn(true);
+        when(notices.withdrawMeetingPlanned(original)).thenReturn(true);
         var friday = THURSDAY.plusDays(1);
 
         // when
@@ -311,6 +312,28 @@ class MeetingPlanServiceTest {
         verify(notices).meetingPlanned(MeetingNotice.builder().pairing(pairing().build()).meeting(moved).guild(GUILD)
                 .byName("Noah").recipientId(MIA).build());
         verify(notices, never()).meetingMoved(any());
+        verify(notices, never()).withdrawMeetingMoved(any());
+    }
+
+    @Test
+    void aSecondMoveBeforeTheNoticeLeftStaysAMove() {
+
+        // given: the plan's notice left, the first move's still waits
+        var movedOnce = meeting(1L, THURSDAY).build();
+        store(pairing().build(), movedOnce);
+        when(notices.withdrawMeetingPlanned(movedOnce)).thenReturn(false);
+        when(notices.withdrawMeetingMoved(movedOnce)).thenReturn(true);
+        var friday = THURSDAY.plusDays(1);
+
+        // when
+        service.change(PAIRING, 1L, new MeetingRequest(friday, List.of()));
+
+        // then
+        var movedTwice = meeting(1L, friday).topicIds(List.of()).plannedBy(NOAH).plannedAt(AT).build();
+        verify(notices).withdrawMeetingMoved(movedOnce);
+        verify(notices).meetingMoved(MeetingNotice.builder().pairing(pairing().build()).meeting(movedTwice).guild(GUILD)
+                .byName("Noah").recipientId(MIA).build());
+        verify(notices, never()).meetingPlanned(any());
     }
 
     @Test
@@ -381,7 +404,8 @@ class MeetingPlanServiceTest {
 
         // then
         verify(meetings).delete(ORG, PAIRING, 1L);
-        verify(notices).withdrawMeetingNotice(planned);
+        verify(notices).withdrawMeetingPlanned(planned);
+        verify(notices).withdrawMeetingMoved(planned);
         verify(notices, never()).meetingPlanned(any());
         verify(notices, never()).meetingMoved(any());
     }

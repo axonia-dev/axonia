@@ -47,7 +47,8 @@ class MentoringPersonalDataExporterTest extends FootprintTestSupport {
         rows.linkOnTopic(mentored, topic, "https://topic.example");
         var targetsNote = rows.note(mentored, TARGET, "Target note");
         rows.noteTopic(targetsNote, topic);
-        rows.nextMeeting(mentored, NEIGHBOUR);
+        rows.meeting(mentored, TARGET, topic);
+        rows.meeting(mentored, NEIGHBOUR, "2026-12-03");
         rows.linkOnNote(mentored, targetsNote, "https://target.example");
         var neighboursNote = rows.note(mentored, NEIGHBOUR, "Neighbour note");
         rows.linkOnNote(mentored, neighboursNote, "https://neighbour.example");
@@ -129,20 +130,32 @@ class MentoringPersonalDataExporterTest extends FootprintTestSupport {
         assertThat(rowsOf(fragment, "mentoring_note")).singleElement()
                 .satisfies(row -> assertThat(row).containsEntry("topics", List.of("Kafka"))
                         .containsEntry("meeting_on", Date.valueOf("2026-11-12")).doesNotContainKey("topic_id"));
-        assertThat(rowsOf(fragment, "mentoring_pairing")).filteredOn(row -> row.get("next_meeting_on") != null)
-                .singleElement().satisfies(row -> assertThat(row).containsKey("next_meeting_set_at")
-                        .doesNotContainKey("next_meeting_set_by"));
     }
 
     @Test
-    void theOrganizationsExportNamesWhoSetTheNextMeeting() {
+    void theExportListsTheMeetingsTheyPlanned() {
+
+        // when
+        var fragment = exporter.export(new ExportScope.OneMember(ORG, TARGET));
+
+        // then
+        assertThat(rowsOf(fragment, "mentoring_meeting")).singleElement()
+                .satisfies(row -> assertThat(row).containsEntry("meeting_on", Date.valueOf("2026-11-26"))
+                        .containsEntry("topics", List.of("Kafka")).containsKey("planned_at")
+                        .containsEntry("community", "Platform Guild").doesNotContainKey("pairing_id"));
+        assertThat(rowsOf(fragment, "mentoring_pairing"))
+                .allSatisfy(row -> assertThat(row).doesNotContainKeys("next_meeting_on", "next_meeting_set_at"));
+    }
+
+    @Test
+    void theOrganizationsExportNamesWhoPlannedEachMeeting() {
 
         // when
         var fragment = exporter.export(new ExportScope.WholeOrganization(ORG));
 
         // then
-        assertThat(rowsOf(fragment, "mentoring_pairing")).extracting(row -> row.get("next_meeting_set_by"))
-                .containsExactlyInAnyOrder(NEIGHBOUR, null, null);
+        assertThat(rowsOf(fragment, "mentoring_meeting")).extracting(row -> row.get("planned_by"))
+                .containsExactlyInAnyOrder(TARGET, NEIGHBOUR);
         assertThat(rowsOf(fragment, "mentoring_note")).extracting(row -> row.get("topics"))
                 .containsExactlyInAnyOrder(List.of("Kafka"), List.of(), List.of());
     }
