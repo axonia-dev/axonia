@@ -34,7 +34,6 @@ import dev.axonia.mentoring.application.port.out.PersonDirectory;
 import dev.axonia.mentoring.domain.EndReason;
 import dev.axonia.mentoring.domain.MentoringGuild;
 import dev.axonia.mentoring.domain.MentoringPerson;
-import dev.axonia.mentoring.domain.Note;
 import dev.axonia.mentoring.domain.Pairing;
 import dev.axonia.mentoring.domain.PlannedMeeting;
 import dev.axonia.mentoring.domain.Topic;
@@ -177,7 +176,8 @@ class MeetingPlanServiceTest {
 
         // given: today holds a held meeting, and a later day a note no meeting planned
         store(pairing().build(), meeting(1L, TODAY).held(true).build(), meeting(2L, THURSDAY).build());
-        when(journal.notesOf(ORG, PAIRING)).thenReturn(List.of(note(TODAY), note(THURSDAY.plusDays(2))));
+        when(journal.hasNoteOn(ORG, PAIRING, TODAY)).thenReturn(true);
+        when(journal.hasNoteOn(ORG, PAIRING, THURSDAY.plusDays(2))).thenReturn(true);
 
         // when / then
         assertThatThrownBy(() -> service.plan(PAIRING, new MeetingRequest(TODAY, List.of())))
@@ -190,12 +190,6 @@ class MeetingPlanServiceTest {
         verify(meetings, never()).insert(any(), any());
         verify(meetings, never()).update(any(), any());
         verifyNoInteractions(notices);
-    }
-
-    private static Note note(LocalDate on) {
-
-        return Note.builder().id(on.toEpochDay()).pairingId(PAIRING).authorUserId(MIA).body("Met").meetingOn(on)
-                .writtenAt(NOW).build();
     }
 
     @Test

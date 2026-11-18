@@ -418,6 +418,23 @@ class JournalRepositoryTest extends MentoringRepositoryTestSupport {
         assertThat(repo.topicsOf(ORG, inData)).extracting(Topic::area).containsExactly("kafka");
     }
 
+    @Test
+    void hasNoteOnAnswersForThatPairingAndDayAlone() {
+
+        // given
+        var community = seedCommunity("platform");
+        var pairing = seedPairing(community);
+        var other = seedPairing(community, "mia", "lea");
+        var day = LocalDate.parse("2026-10-03");
+        repo.insertNote(ORG, note(pairing, "Met", LATE, day));
+
+        // when / then
+        assertThat(repo.hasNoteOn(ORG, pairing, day)).isTrue();
+        assertThat(repo.hasNoteOn(ORG, pairing, day.plusDays(1))).isFalse();
+        assertThat(repo.hasNoteOn(ORG, other, day)).isFalse();
+        assertThat(repo.hasNoteOn("another-org", pairing, day)).isFalse();
+    }
+
     private long seedPairing(long community) {
 
         return seedPairing(community, "mia", "max");

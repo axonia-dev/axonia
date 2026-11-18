@@ -138,17 +138,12 @@ class MeetingPlanTest {
     }
 
     @Test
-    void aDayWithNotesCannotBePlanned() {
-
-        // given
-        var notes = List.of(Note.builder().id(1L).pairingId(90L).authorUserId("noah").body("Met").meetingOn(TODAY)
-                .writtenAt(Instant.parse("2026-11-18T10:00:00Z")).build());
+    void aDayWithNotesIsRefusedAsHeld() {
 
         // when / then
-        assertThatThrownBy(() -> MeetingPlan.requireNoNotes(notes, TODAY)).isInstanceOf(ConflictException.class)
+        assertThat(MeetingPlan.held()).isInstanceOf(ConflictException.class)
                 .hasFieldOrPropertyWithValue("code", "MENTORING_MEETING_HELD")
                 .hasMessage("That day already has its notes.");
-        MeetingPlan.requireNoNotes(notes, TODAY.plusDays(1));
     }
 
     @Test

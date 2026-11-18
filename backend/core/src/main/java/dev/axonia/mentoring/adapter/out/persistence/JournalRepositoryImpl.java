@@ -86,6 +86,11 @@ public class JournalRepositoryImpl implements JournalRepository {
             DELETE FROM mentoring_note WHERE organization_id = :org AND pairing_id = :pairingId AND id = :id
             """;
 
+    private static final String HAS_NOTE_ON_SQL = """
+            SELECT EXISTS (SELECT 1 FROM mentoring_note
+                            WHERE organization_id = :org AND pairing_id = :pairingId AND meeting_on = :day)
+            """;
+
     private static final String NOTES_OF_SQL = """
             SELECT n.id, n.pairing_id, n.author_user_id, n.body, n.meeting_on, n.written_at, n.edited_at
               FROM mentoring_note n
@@ -289,6 +294,14 @@ public class JournalRepositoryImpl implements JournalRepository {
     public List<Note> notesOf(String org, long pairingId) {
 
         return jdbc.query(NOTES_OF_SQL, pairing(org, pairingId), NOTE_MAPPER);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean hasNoteOn(String org, long pairingId, LocalDate day) {
+
+        return Boolean.TRUE.equals(
+                jdbc.queryForObject(HAS_NOTE_ON_SQL, pairing(org, pairingId).addValue("day", day), Boolean.class));
     }
 
     @Override

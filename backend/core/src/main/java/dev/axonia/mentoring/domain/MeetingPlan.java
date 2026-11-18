@@ -63,11 +63,9 @@ public final class MeetingPlan {
     }
 
     /** A day the pair already wrote notes for has been met; it is not planned again. */
-    public static void requireNoNotes(List<Note> notes, LocalDate day) {
+    public static ConflictException held() {
 
-        if (notes.stream().anyMatch(n -> n.meetingOn().equals(day))) {
-            throw new ConflictException("MENTORING_MEETING_HELD", "That day already has its notes.");
-        }
+        return new ConflictException("MENTORING_MEETING_HELD", "That day already has its notes.");
     }
 
     public static void requireFree(List<PlannedMeeting> meetings, LocalDate day) {

@@ -1,5 +1,6 @@
 package dev.axonia.mentoring.application.port.out;
 
+import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +37,9 @@ public interface JournalRepository {
 
     /** By meeting day, newest first, then by when they were written, newest first. */
     List<Note> notesOf(String org, long pairingId);
+
+    /** Whether any note of the pairing names that meeting day, however many notes it holds. */
+    boolean hasNoteOn(String org, long pairingId, LocalDate day);
 
     /** Each note's topics, by note id; a note naming none is absent. */
     Map<Long, List<Long>> noteTopicsOf(String org, long pairingId);
