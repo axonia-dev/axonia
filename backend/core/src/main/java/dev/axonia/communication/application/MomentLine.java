@@ -41,6 +41,7 @@ final class MomentLine {
     private static final DateTimeFormatter COMPACT_DAY = DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.ENGLISH);
     private static final DateTimeFormatter HOUR = DateTimeFormatter.ofPattern("HH:mm", Locale.ENGLISH);
     private static final DateTimeFormatter SHORT_DAY = DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH);
+    private static final DateTimeFormatter DAY = DateTimeFormatter.ofPattern("d MMMM", Locale.ENGLISH);
 
     /**
      * {@code ZoneId.of("UTC")}, never {@code ZoneOffset.UTC}, whose id is the single character {@code Z}: this zone is
@@ -50,6 +51,7 @@ final class MomentLine {
 
     static final String READER_ZONE_FACT = "readerTimeZone";
     static final String LABEL_FACT = "scheduledAtLabel";
+    static final String DAY_FACT = "scheduledAtDay";
 
     private MomentLine() {
     }
@@ -73,6 +75,17 @@ final class MomentLine {
             return null;
         }
         return SHORT_DAY.withZone(readerZoneOr(facts, sessionZoneOf(facts))).format(at);
+    }
+
+    /** The day alone, "2 December", on the clock the full line names first, so the two never disagree. */
+    static String day(Map<String, Object> facts) {
+
+        if (!(facts.get("scheduledAt") instanceof Instant at)) {
+            return null;
+        }
+        var sessionZone = sessionZoneOf(facts);
+        var zone = Boolean.FALSE.equals(facts.get("hasTime")) ? sessionZone : readerZoneOr(facts, sessionZone);
+        return DAY.withZone(zone).format(at);
     }
 
     private static String line(Map<String, Object> facts, DateTimeFormatter timed, DateTimeFormatter dayOnly) {

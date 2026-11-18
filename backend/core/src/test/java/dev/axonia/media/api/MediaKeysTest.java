@@ -19,7 +19,7 @@ class MediaKeysTest {
         var reaction = MediaKeys.reaction("acme-corp", "image/webp");
         var badge = MediaKeys.communityAsset(42L, "badge", "image/jpeg");
         var hero = MediaKeys.communityAsset(42L, "hero", "image/png");
-        var thumbnail = MediaKeys.roundupThumbnail(42L);
+        var thumbnail = MediaKeys.heroThumbnail(42L);
 
         // then
         assertThat(avatar).startsWith("avatars/01j9z3k8q2w4e6r8t0y2u4i6o8/").endsWith(".png");

@@ -2,9 +2,9 @@
 <html xmlns:th="http://www.thymeleaf.org" lang="en">
 <!--
 This file is never rendered on its own - MailRenderer only ever processes a `session-*.html` file by name. It exists
-purely as a library of Thymeleaf fragments the six message templates compose: the envelope (outer table, card, header,
-footer) plus the reusable inner pieces (stat strip, section heading, talk block, chip, resource link, action-point row,
-note block, primary button). Every hex literal in the mail feature lives here. A message template supplies content,
+purely as a library of Thymeleaf fragments the message templates compose: the envelope (outer table, card, header,
+footer) plus the reusable inner pieces (section heading, posters, talk rows, chip, resource row, action-point row,
+primary button). Every hex literal in the mail feature lives here. A message template supplies content,
 never colour.
 -->
 <head>
@@ -46,7 +46,7 @@ and this one would come to say different things about the same message, which th
 formatted in UTC and one of them got the day wrong.
 
 The card's own 28px inset - top, right, bottom, left - lives in exactly one place: the single `<td>` wrapping the
-inner content table below. No header row and no body-row fragment (statStrip, sectionHeading, talkBlock, ...) sets
+inner content table below. No header row and no body-row fragment (sectionHeading, wrapUpTalk, ...) sets
 its own horizontal padding any more, and each sets only its own top padding, the gap from whatever rendered
 immediately before it. The exceptions are actionPointRow and checkedItemRow, which also carry 12px below so that
 their own border-bottom clears the badges hanging under their text; that padding is interior to the row and
@@ -140,51 +140,21 @@ the caller-supplied text when there are no talks to name.
 ><th:block th:unless="${hasTalks}" th:text="${fallback}">fallback</th:block>
 </th:block>
 
-<!-- The talk-count chip statStrip and nudgeStrip both need: how many talks this session carries, omitted entirely
-     when there are none. One fragment, not two near-identical cells, so the fact and its rendering never drift
-     between a wrap-up's own stats and a nudge's own chip row. The emptiness guard sits HERE, on the fragment's own
-     definition, and never on a caller's th:replace tag: a th:if beside a th:replace never runs at all (inclusion is
-     order 1, conditional evaluation order 3, and inclusion stops the host tag's remaining attributes). Every
-     self-guarding fragment in this file - statStrip, talkCountCell, nudgeStrip - carries its condition the same way. -->
+<!-- The nudge's talk-count chip: how many talks this session carries, omitted entirely when there are none. The
+     emptiness guard sits HERE, on the fragment's own definition, and never on a caller's th:replace tag: a th:if beside
+     a th:replace never runs at all (inclusion is order 1, conditional evaluation order 3, and inclusion stops the host
+     tag's remaining attributes). Every self-guarding fragment in this file carries its condition the same way. -->
 <td th:fragment="talkCountCell" th:if="${talks} != null and not ${talks.isEmpty()}" style="padding:0 8px 8px 0;">
 <span th:text="${talks.size()} + (${talks.size()} == 1 ? ' talk' : ' talks')"
     style="display:inline-block; background:#f6f0ec; border-radius:999px; padding:6px 12px; font-size:12px; font-weight:600; color:#211a26;">talks</span>
 </td>
 
-<!-- A stat strip promoting attendance and the recording out of trailing grey lines. Renders nothing at all when
-     there is nothing to show. Attendance never needs a singular/plural branch ("1 in the room" already reads fine);
-     talk count does. -->
-<tr th:fragment="statStrip"
-    th:if="(${talks} != null and not ${talks.isEmpty()}) or (${attendeeCount} != null and ${attendeeCount} > 0) or not ${#strings.isEmpty(recordingUrl)}">
-<td style="padding:20px 0 0 0;">
-<table role="presentation" cellpadding="0" cellspacing="0" border="0">
-<tr>
-<td th:replace="~{::talkCountCell}">talks</td>
-<td th:if="${attendeeCount} != null and ${attendeeCount} > 0" style="padding:0 8px 8px 0;">
-<span th:text="${attendeeCount} + ' in the room'"
-    style="display:inline-block; background:#f6f0ec; border-radius:999px; padding:6px 12px; font-size:12px; font-weight:600; color:#211a26;">in the room</span>
-</td>
-<td th:if="not ${#strings.isEmpty(recordingUrl)}"
-    th:with="recordingUrlIsSafe=${#strings.startsWith(recordingUrl,'https://') or #strings.startsWith(recordingUrl,'http://')}"
-    style="padding:0 8px 8px 0;">
-<a th:if="${recordingUrlIsSafe}" th:href="${recordingUrl}"
-    style="display:inline-block; background:#ffffff; border:1px solid #ede4e9; border-radius:999px; padding:5px 12px; font-size:12px; font-weight:600; color:#c32c66; text-decoration:none;">Recording available</a>
-<span th:unless="${recordingUrlIsSafe}" th:text="'Recording available: ' + ${recordingUrl}"
-    style="display:inline-block; background:#f6f0ec; border-radius:999px; padding:6px 12px; font-size:12px; font-weight:600; color:#786a7e;">Recording available</span>
-</td>
-</tr>
-</table>
-</td>
-</tr>
-
 <!-- The nudge's own chip row: the alert chip its caller supplies, then the agenda count read straight off `talks`,
-     the same fact the upcoming notice already renders as a list. Separate from statStrip rather than a branch inside
-     it, because a nudge and a wrap-up promote different things: a wrap-up reports attendance and a recording, a nudge
-     reports how long it has been ignored and how much work is sitting behind it. Self-guarding rather than leaving its
+     the same fact the upcoming notice already renders as a list. Self-guarding rather than leaving its
      condition to a caller's th:replace tag, where a th:if would never run - so the caller picks the arm's copy as a
      value, not as a condition.
 
-     Guarded in statStrip's exact shape, and for the same reason: the row's own condition is the DISJUNCTION of its
+     The row's own condition is the DISJUNCTION of its
      cells' conditions, and each cell still guards itself. The two chips are independent facts - the arm is frozen at
      enqueue and the count is read off `talks` - so hanging the whole row off `alert` alone drops the count with the
      arm, and an outbox row enqueued before nudgeArm existed (this template predates it) renders no count in the HTML
@@ -231,42 +201,11 @@ the caller-supplied text when there are no talks to name.
 </td>
 </tr>
 
-<!-- The wrap-up's feedback ask: a small rising row of bars in the sender's ink beside the heading, the sentence, then
-     a plain link to the card. A link and not a button, because the message's one call to action is still primaryButton
-     at its foot. The bars are table cells rather than an image so they render with images blocked; brand pink stands in
-     when no sender travels with the facts. -->
-<tr th:fragment="feedbackAsk(heading, text, url, label)" th:with="markInk=${sender} != null ? ${sender.tintForeground} : '#de3b78'">
-<td style="padding:24px 0 0 0;">
-<table role="presentation" cellpadding="0" cellspacing="0" border="0">
-<tr>
-<td valign="bottom" style="padding:0 8px 0 0;">
-<table role="presentation" cellpadding="0" cellspacing="0" border="0" aria-hidden="true">
-<tr>
-<td th:replace="~{_shell.html :: risingBar(height=4, ink=${markInk})}">Bar</td>
-<td th:replace="~{_shell.html :: risingBar(height=6, ink=${markInk})}">Bar</td>
-<td th:replace="~{_shell.html :: risingBar(height=8, ink=${markInk})}">Bar</td>
-<td th:replace="~{_shell.html :: risingBar(height=10, ink=${markInk})}">Bar</td>
-<td th:replace="~{_shell.html :: risingBar(height=12, ink=${markInk})}">Bar</td>
-<td th:replace="~{_shell.html :: risingBar(height=14, ink=${markInk})}">Bar</td>
-</tr>
-</table>
-</td>
-<td valign="bottom">
-<p th:text="${heading}" style="margin:0; font-size:11px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; line-height:14px; color:#786a7e;">Heading</p>
-</td>
-</tr>
-</table>
-<p th:text="${text}" style="margin:10px 0 0 0; font-size:15px; line-height:1.55; color:#211a26;">Ask</p>
-<p style="margin:6px 0 0 0; font-size:15px; line-height:1.55;"><a th:href="${url}" th:text="${label}"
-    style="color:#c32c66; text-decoration:underline; font-weight:600;">Link</a></p>
-</td>
-</tr>
-
-<!-- One bar of feedbackAsk's rising row, bottom-aligned so the row rises left to right. -->
+<!-- One bar of wrapUpVote's rising row, bottom-aligned so the row rises left to right. -->
 <td th:fragment="risingBar(height, ink)" valign="bottom" style="padding:0 2px 0 0;">
 <table role="presentation" cellpadding="0" cellspacing="0" border="0">
 <tr>
-<td width="4" th:attr="height=${height},style='width:4px;height:' + ${height} + 'px;font-size:0;line-height:0;border-radius:1px;background-color:' + ${ink} + ';'">&nbsp;</td>
+<td width="5" th:attr="height=${height},style='width:5px;height:' + ${height} + 'px;font-size:0;line-height:0;border-radius:1px;background-color:' + ${ink} + ';'">&nbsp;</td>
 </tr>
 </table>
 </td>
@@ -298,57 +237,10 @@ the caller-supplied text when there are no talks to name.
 </td>
 </tr>
 
-<!-- A wrap-up talk: presenter named at the top, the title at 17px, subjects as chips, then its own resources. The
-     title carries the same 'Untitled talk' fallback agendaItem does, and both .txt twins carry it too: a slot's title
-     is nullable, and one of four renderings quietly dropping to a blank line was the only thing distinguishing them. -->
-<tr th:fragment="talkBlock(talk)">
-<td style="padding:12px 0 0 0;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f6f0ec; border-radius:11px;">
-<tr>
-<td style="padding:16px 18px;">
-<table th:if="${talk.presenters} != null and not ${talk.presenters.isEmpty()}" role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 8px 0;">
-<tr>
-<th:block th:each="presenter, presenterStat : ${talk.presenters}">
-<td width="28"
-    th:with="avatarColor=(${presenterStat.index % 3 == 0} ? '#de3b78' : (${presenterStat.index % 3 == 1} ? '#6e3ceb' : '#1f9d63')), avatarCellPadding=(${presenterStat.last} ? '10px' : '8px')"
-    th:attr="style='padding:0 ' + ${avatarCellPadding} + ' 0 0;'">
-<div th:text="${presenter.initials}"
-    th:attr="style='width:28px;height:28px;border-radius:999px;color:#ffffff;font-size:11px;font-weight:700;line-height:28px;text-align:center;background-color:' + ${avatarColor} + ';'">AA</div>
-</td>
-</th:block>
-<td style="font-size:13px; color:#786a7e;" th:text="${talk.presenter}">Presenter names</td>
-</tr>
-</table>
-<th:block th:if="${talk.presenters} == null or ${talk.presenters.isEmpty()}">
-<p th:if="not ${#strings.isEmpty(talk.presenter)}" th:text="${talk.presenter}"
-    style="margin:0 0 8px 0; font-size:13px; font-weight:600; color:#786a7e;">Presenter</p>
-<p th:if="${#strings.isEmpty(talk.presenter)}"
-    style="margin:0 0 8px 0; font-size:13px; font-weight:600; color:#786a7e;">We did not catch who presented this one.</p>
-</th:block>
-<p th:text="${talk.title} ?: 'Untitled talk'" style="margin:0 0 10px 0; font-size:17px; font-weight:700; line-height:1.3; color:#211a26;">Talk title</p>
-<table th:if="${talk.subjects} != null and not ${talk.subjects.isEmpty()}" role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 12px 0;">
-<tr>
-<th:block th:each="subject : ${talk.subjects}">
-<td style="padding:0 6px 6px 0;" th:insert="~{::chip(text=${subject})}">Subject</td>
-</th:block>
-</tr>
-</table>
-<div th:if="${talk.resources} != null and not ${talk.resources.isEmpty()}">
-<th:block th:each="resource : ${talk.resources}"
-    th:with="resourceMatchesTalkTitle=(not ${#strings.isEmpty(resource.title)}) and (not ${#strings.isEmpty(talk.title)}) and (${#strings.toLowerCase(#strings.trim(resource.title))} == ${#strings.toLowerCase(#strings.trim(talk.title))})">
-<p th:replace="~{::resourceLink(resource=${resource}, forceUrlLabel=${resourceMatchesTalkTitle})}">Resource</p>
-</th:block>
-</div>
-</td>
-</tr>
-</table>
-</td>
-</tr>
-
-<!-- An upcoming session's agenda item. Renders the same three things the wrap-up's talkBlock does - presenters as
-     initialled avatars, the title, subjects as chips - plus the one thing only a future talk has a use for, its
-     duration. It deliberately does NOT reuse talkBlock: a wrap-up names who presented and lists what they left
-     behind, an agenda names who is about to and how long they have. The presenter-less branch
+<!-- An upcoming session's agenda item: presenters as initialled avatars, the title, subjects as chips, and the one
+     thing only a future talk has a use for, its duration. It deliberately does NOT reuse wrapUpTalk: a wrap-up names
+     who presented and lists what they left behind, an agenda names who is about to and how long they have. The
+     presenter-less branch
      is the only block on the card wearing the brand tint, because it is the only one asking for something. -->
 <tr th:fragment="agendaItem(talk)" th:with="talkIsOpen=${#strings.isEmpty(talk.presenter)}">
 <td style="padding:12px 0 0 0;">
@@ -388,30 +280,21 @@ the caller-supplied text when there are no talks to name.
 </td>
 </tr>
 
-<!-- A subject chip - also reused for a talk's topics. -->
+<!-- A subject chip on an agenda item. -->
 <span th:fragment="chip(text)" th:text="${text}"
     style="display:inline-block; background:#ffffff; border:1px solid #ede4e9; border-radius:999px; padding:4px 10px; font-size:11px; font-weight:600; color:#786a7e;">Chip</span>
 
-<!-- A single resource, rendered by its title where it has one, falling back to the url - and only ever an <a> for an
-     http(s) url, text otherwise, so a resource carrying an unexpected scheme can never become a clickable link.
-     forceUrlLabel overrides the title-first default: a talk's own resources routinely carry the talk's own title
-     (AddResourceButton defaults an artifact's title to its slot's title), and reading that sentence twice - once as
-     the talk heading, once as the resource link right underneath - reads as a rendering bug rather than content.
-     talkBlock sets it when a resource's title matches its talk's; resourceRow always passes false. -->
-<p th:fragment="resourceLink(resource, forceUrlLabel)"
-    th:with="resourceIsSafe=${#strings.startsWith(resource.url,'https://') or #strings.startsWith(resource.url,'http://')}, resourceLabel=${forceUrlLabel} ? ${resource.url} : (${resource.title} ?: ${resource.url})"
-    style="margin:0 0 6px 0; font-size:14px;">
+<!-- A session-level resource as its own row, for the "From the session" list, rendered by its label (its title, else
+     its host), or by its title or url for a row frozen before labels. Only ever an <a> for an http(s) url, text
+     otherwise, so a resource carrying an unexpected scheme can never become a clickable link. -->
+<tr th:fragment="resourceRow(resource)"
+    th:with="resourceIsSafe=${#strings.startsWith(resource.url,'https://') or #strings.startsWith(resource.url,'http://')}, resourceLabel=${resource.label} ?: (${resource.title} ?: ${resource.url})">
+<td style="padding:10px 0 0 0;">
+<p style="margin:0 0 6px 0; font-size:14px;">
 <a th:if="${resourceIsSafe}" th:href="${resource.url}" th:text="${resourceLabel}"
     style="color:#c32c66; text-decoration:underline; font-weight:500;">Resource</a>
 <span th:unless="${resourceIsSafe}" th:text="${resourceLabel}" style="color:#211a26;">Resource</span>
 </p>
-
-<!-- A session-level resource as its own row, for the "From the session" list (talk-level resources sit inside
-     talkBlock instead, since they belong to one talk, not the session). Never suppresses its own title, since it is
-     never rendered beneath a talk title it could duplicate. -->
-<tr th:fragment="resourceRow(resource)">
-<td style="padding:10px 0 0 0;">
-<p th:replace="~{::resourceLink(resource=${resource}, forceUrlLabel=false)}">Resource</p>
 </td>
 </tr>
 
@@ -452,10 +335,10 @@ the caller-supplied text when there are no talks to name.
      follows; a null reads as "Unassigned" here for the same reason. Bottom padding matches actionPointRow's, for the
      same reason: the outcome badge hangs below the text line through it. The badge colour keys off outcomeKey (the
      raw CheckpointOutcome name), never off the rendered outcome label, the same th:with + th:attr style-concatenation
-     shape talkBlock's avatarColor already uses: Done keeps actionPointRow's own Done green, Carried takes this
+     shape agendaItem's avatarColor already uses: Done keeps actionPointRow's own Done green, Carried takes this
      template's existing still-outstanding colour (the due chip above, "Awaiting a presenter" in agendaItem) because a
      carried item is precisely the one still owing an answer, and Dropped takes the muted grey already used for a
-     struck-through done title and the inert "Recording available" chip - nothing further will happen, without
+     struck-through done title - nothing further will happen, without
      claiming failure. -->
 <tr th:fragment="checkedItemRow(checkedItem)">
 <td style="padding:10px 0 12px 0; border-bottom:1px solid #ede4e9;">
@@ -470,21 +353,6 @@ the caller-supplied text when there are no talks to name.
 </td>
 </tr>
 
-<!-- A note block with a brand-coloured accent bar, for the organizer's own words. -->
-<tr th:fragment="noteBlock(text)">
-<td style="padding:22px 0 0 0;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f6f0ec; border-radius:11px;">
-<tr>
-<td width="3" style="background-color:#de3b78; border-radius:11px 0 0 11px;"></td>
-<td style="padding:14px 16px;">
-<p style="margin:0 0 4px 0; font-size:11px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:#786a7e;">From the organizer</p>
-<p th:text="${text}" style="margin:0; font-size:14px; line-height:1.55; color:#211a26; white-space:pre-wrap;">Note</p>
-</td>
-</tr>
-</table>
-</td>
-</tr>
-
 <!-- The one call to action a message carries, always brand pink, never a bare link. It takes the same 28px the
      card gives it below, on the top only: the button is the end of the message, and a tighter gap above it read as
      attached to the paragraph before it rather than as its own closing move. -->
@@ -492,20 +360,6 @@ the caller-supplied text when there are no talks to name.
 <td align="center" style="padding:28px 0 0 0;">
 <a th:href="${url}" th:text="${label}"
     style="display:inline-block; background-color:#de3b78; color:#ffffff; text-decoration:none; font-size:15px; font-weight:600; padding:13px 28px; border-radius:999px;">Button</a>
-</td>
-</tr>
-
-<!-- The series' next occurrence, set off by a rule above it. -->
-<tr th:fragment="nextUp(text)">
-<td style="padding:18px 0 0 0;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid #ede4e9;">
-<tr>
-<td style="padding-top:16px;">
-<p style="margin:0 0 3px 0; font-size:11px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:#786a7e;">Coming up next</p>
-<p th:text="${text}" style="margin:0; font-size:15px; font-weight:600; color:#211a26;">Next session</p>
-</td>
-</tr>
-</table>
 </td>
 </tr>
 
@@ -614,49 +468,23 @@ th:replace="~{::roundupFigure(text=${things})}">17 things</span> worth keeping</
 <div th:fragment="roundupRemainder(count)" th:text="'+' + ${count}"
     style="display:inline-block;width:18px;height:18px;border:2px solid #fff;line-height:18px;margin-left:-6px;border-radius:50%;color:#786a7e;font-size:9px;font-weight:700;text-align:center;vertical-align:middle;background-color:#e2d6de;">+2</div>
 
-<!-- One session as a poster: a band that plays the recording (or opens the session when there is none), the titled
-     talks, the going count, and what the session kept counted by kind. The band paints the composed thumbnail three
-     ways: `background` for old clients, a CSS background image, and a VML frame for desktop Outlook, which ignores
-     both; the dark mix is the colour under all of them. Without a thumbnail the band is the accent gradient. The play
-     disc is a text glyph, never an image or SVG, so it shows with images blocked. Desktop Outlook ignores the block link
-     around the band's table, so the disc and the title each carry their own link too. -->
+<!-- One session as a poster: a posterBand that plays the recording (or opens the session when there is none), the
+     titled talks, the going count, and what the session kept counted by kind. -->
 <table th:fragment="roundupPoster(session, tints)" role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff"
     th:with="hasRecording=not ${#strings.isEmpty(session.recordingUrl)},
-             hasThumbnail=not ${#strings.isEmpty(session.thumbnailUrl)},
              hasTitle=not ${#strings.isEmpty(session.title)},
              hasTalks=${session.talks} != null and not ${session.talks.isEmpty()},
              hasGroups=${session.resourceGroups} != null and not ${session.resourceGroups.isEmpty()},
              hasGoing=${session.goingCount} != null and ${session.goingCount} > 0,
              moreTalkCount=${session.moreTalkCount} ?: 0,
              bandLink=${hasRecording} ? ${session.recordingUrl} : ${session.sessionUrl},
-             bandBase='height:140px;border-radius:16px 16px 0 0;background-color:' + ${tints.bandDark} + ';',
              moreTalks=(${moreTalkCount} == 1 ? '+ 1 more talk' : '+ ' + ${moreTalkCount} + ' more talks'),
              linkStyle='color:' + ${tints.linkText} + ';font-size:12.5px;font-weight:700;text-decoration:none;'"
     th:attr="style='border-collapse:separate;background-color:#ffffff;border-radius:16px;box-shadow:0 1px 0 ' + ${tints.blockBorder} + ';'">
 <tr>
-<td valign="bottom" height="140"
-    th:attr="background=${hasThumbnail} ? ${session.thumbnailUrl} : null,
-             bgcolor=${tints.bandDark},
-             style=${hasThumbnail}
-                   ? ${bandBase} + 'background-image:url(\'' + ${session.thumbnailUrl} + '\');background-size:cover;background-position:center;'
-                   : ${bandBase} + 'background-image:linear-gradient(120deg,#1b1420 0%,' + ${tints.bandDark} + ' 65%,' + ${tints.accent} + ' 130%);'"
-><th:block th:if="${hasThumbnail}" th:utext="'&lt;!--[if gte mso 9]&gt;&lt;v:rect xmlns:v=&quot;urn:schemas-microsoft-com:vml&quot; fill=&quot;true&quot; stroke=&quot;false&quot; style=&quot;width:512px;height:140px;&quot;&gt;&lt;v:fill type=&quot;frame&quot; src=&quot;' + ${#strings.escapeXml(session.thumbnailUrl)} + '&quot; color=&quot;' + ${tints.bandDark} + '&quot;/&gt;&lt;v:textbox inset=&quot;0,0,0,0&quot; style=&quot;mso-fit-shape-to-text:true;&quot;&gt;&lt;![endif]--&gt;'"></th:block
-><a th:href="${bandLink}" style="display:block;color:#ffffff;text-decoration:none;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-<tr>
-<td th:if="${hasRecording}" width="48" valign="bottom" style="padding:16px 14px 16px 18px;"><div
-    style="width:45px;height:48px;padding-left:3px;border-radius:50%;background-color:#ffffff;box-shadow:0 0 0 6px rgba(255,255,255,0.16);color:#211a26;font-size:17px;line-height:48px;text-align:center;"><a th:href="${bandLink}" style="color:#211a26;text-decoration:none;">&#9654;&#65038;</a></div></td>
-<td valign="bottom" th:attr="style=${hasRecording} ? 'padding:16px 0 18px 0;' : 'padding:16px 0 18px 18px;'">
-<p th:if="${hasTitle}" th:text="${session.dateLabel}"
-    style="margin:0 0 3px 0;font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:#e6dfe8;">16 September</p>
-<p style="margin:0;font-size:21px;font-weight:700;line-height:1.15;color:#ffffff;font-family:'Space Grotesk Variable','Inter Variable',Helvetica,Arial,sans-serif;"><a th:href="${bandLink}" th:text="${hasTitle} ? ${session.title} : ${session.dateLabel}"
-    style="color:#ffffff;text-decoration:none;">Session</a></p>
-</td>
-<td th:if="not ${#strings.isEmpty(session.durationLabel)}" valign="bottom" align="right" style="padding:16px 18px 18px 12px;white-space:nowrap;"><span th:text="${session.durationLabel}"
-    style="display:inline-block;background-color:rgba(255,255,255,0.16);border-radius:999px;padding:4px 10px;font-size:12px;font-weight:600;color:#ffffff;">1h 12</span></td>
-</tr>
-</table></a
-><th:block th:if="${hasThumbnail}" th:utext="'&lt;!--[if gte mso 9]&gt;&lt;/v:textbox&gt;&lt;/v:rect&gt;&lt;![endif]--&gt;'"></th:block>
-</td>
+<td th:replace="~{::posterBand(link=${bandLink}, kicker=${hasTitle} ? ${session.dateLabel} : null,
+    line=${hasTitle} ? ${session.title} : ${session.dateLabel}, duration=${session.durationLabel},
+    thumbnail=${session.thumbnailUrl}, playable=${hasRecording}, tints=${tints})}">Band</td>
 </tr>
 <tr th:if="${hasTalks}">
 <td style="padding:6px 18px 2px 18px;">
@@ -682,6 +510,37 @@ th:replace="~{::roundupFigure(text=${things})}">17 things</span> worth keeping</
 </tr>
 </table>
 
+<!-- A poster's band: plays the recording when `playable`, else opens the session. It paints the composed thumbnail three
+     ways: `background` for old clients, a CSS background image, and a VML frame for desktop Outlook, which ignores
+     both; the dark mix is the colour under all of them. Without a thumbnail the band is the accent gradient. The play
+     disc is a text glyph, never an image or SVG, so it shows with images blocked. Desktop Outlook ignores the block link
+     around the band's table, so the disc and the line each carry their own link too. -->
+<td th:fragment="posterBand(link, kicker, line, duration, thumbnail, playable, tints)" valign="bottom" height="140"
+    th:with="hasThumbnail=not ${#strings.isEmpty(thumbnail)},
+             bandBase='height:140px;border-radius:16px 16px 0 0;background-color:' + ${tints.bandDark} + ';'"
+    th:attr="background=${hasThumbnail} ? ${thumbnail} : null,
+             bgcolor=${tints.bandDark},
+             style=${hasThumbnail}
+                   ? ${bandBase} + 'background-image:url(\'' + ${thumbnail} + '\');background-size:cover;background-position:center;'
+                   : ${bandBase} + 'background-image:linear-gradient(120deg,#1b1420 0%,' + ${tints.bandDark} + ' 65%,' + ${tints.accent} + ' 130%);'"
+><th:block th:if="${hasThumbnail}" th:utext="'&lt;!--[if gte mso 9]&gt;&lt;v:rect xmlns:v=&quot;urn:schemas-microsoft-com:vml&quot; fill=&quot;true&quot; stroke=&quot;false&quot; style=&quot;width:512px;height:140px;&quot;&gt;&lt;v:fill type=&quot;frame&quot; src=&quot;' + ${#strings.escapeXml(thumbnail)} + '&quot; color=&quot;' + ${tints.bandDark} + '&quot;/&gt;&lt;v:textbox inset=&quot;0,0,0,0&quot; style=&quot;mso-fit-shape-to-text:true;&quot;&gt;&lt;![endif]--&gt;'"></th:block
+><a th:href="${link}" style="display:block;color:#ffffff;text-decoration:none;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td th:if="${playable}" width="48" valign="bottom" style="padding:16px 14px 16px 18px;"><div
+    style="width:48px;height:48px;text-indent:3px;border-radius:50%;background-color:#ffffff;box-shadow:0 0 0 6px rgba(255,255,255,0.16);color:#211a26;font-size:17px;line-height:48px;text-align:center;"><a th:href="${link}" style="color:#211a26;text-decoration:none;">&#9654;&#65038;</a></div></td>
+<td valign="bottom" th:attr="style=${playable} ? 'padding:16px 0 18px 0;' : 'padding:16px 0 18px 18px;'">
+<p th:if="not ${#strings.isEmpty(kicker)}" th:text="${kicker}"
+    style="margin:0 0 3px 0;font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:#e6dfe8;">16 September</p>
+<p style="margin:0;font-size:21px;font-weight:700;line-height:1.15;color:#ffffff;font-family:'Space Grotesk Variable','Inter Variable',Helvetica,Arial,sans-serif;"><a th:href="${link}" th:text="${line}"
+    style="color:#ffffff;text-decoration:none;">Session</a></p>
+</td>
+<td th:if="not ${#strings.isEmpty(duration)}" valign="bottom" align="right" style="padding:16px 18px 18px 12px;white-space:nowrap;"><span th:text="${duration}"
+    style="display:inline-block;background-color:rgba(255,255,255,0.16);border-radius:999px;padding:4px 10px;font-size:12px;font-weight:600;color:#ffffff;">1h 12</span></td>
+</tr>
+</table></a
+><th:block th:if="${hasThumbnail}" th:utext="'&lt;!--[if gte mso 9]&gt;&lt;/v:textbox&gt;&lt;/v:rect&gt;&lt;![endif]--&gt;'"></th:block>
+</td>
+
 <!-- One titled talk on a poster: the first presenter's avatar and a muted "+N" for co-presenters, in a cell of one
      fixed width so every title in the letter starts at the same x; then the title and the talk's tag
      as a chip in the community's tint. The chip sits inline after the title, so a phone keeps the title's width; the
@@ -698,13 +557,14 @@ th:replace="~{::roundupFigure(text=${things})}">17 things</span> worth keeping</
     th:attr="style='display:inline-block;margin-left:4px;white-space:nowrap;border-radius:10px;padding:1px 8px;font-size:11px;font-weight:600;line-height:18px;background-color:' + ${tints.chipBackground} + ';color:' + ${tints.chipText} + ';'">tag</span></td>
 </tr>
 
-<!-- The community's next session as a small calendar chip in its accent, inside a dashed tinted frame. -->
-<tr th:fragment="roundupNextUp(community, tints)" th:with="nextTitled=not ${#strings.isEmpty(community.nextTitle)}">
+<!-- The community's next session as a small calendar chip in its accent, inside a dashed tinted frame. A wrap-up frozen
+     before the chip existed carries only the next session's line, so the calendar goes when there is no day. -->
+<tr th:fragment="roundupNextUp(community, tints)" th:with="nextTitled=not ${#strings.isEmpty(community.nextTitle)}, hasDay=not ${#strings.isEmpty(community.nextDay)}">
 <td style="padding:12px 0 0 0;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
     th:attr="style='border-collapse:separate;border:2px dashed ' + ${tints.blockBorder} + ';border-radius:14px;'">
 <tr>
-<td width="44" style="padding:12px 14px 12px 16px;">
+<td th:if="${hasDay}" width="44" style="padding:12px 14px 12px 16px;">
 <table role="presentation" width="44" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff"
     style="border-collapse:separate;background-color:#ffffff;border:1px solid #ede4e9;border-radius:9px;">
 <tr>
@@ -717,7 +577,7 @@ th:replace="~{::roundupFigure(text=${things})}">17 things</span> worth keeping</
 </tr>
 </table>
 </td>
-<td style="padding:12px 16px 12px 0;">
+<td th:attr="style=${hasDay} ? 'padding:12px 16px 12px 0;' : 'padding:12px 16px;'">
 <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#786a7e;">Next up</p>
 <p th:text="${nextTitled} ? ${community.nextTitle} : ${community.nextLabel}"
     style="margin:2px 0 0 0;font-size:14.5px;font-weight:700;line-height:1.3;color:#211a26;">Signals in React</p>
@@ -743,6 +603,117 @@ th:replace="~{::roundupFigure(text=${things})}">17 things</span> worth keeping</
     style="display:inline-block;background-color:#de3b78;color:#ffffff;text-decoration:none;font-size:13px;font-weight:700;padding:10px 16px;border-radius:999px;">Pick one</a></td>
 </tr>
 </table>
+</td>
+</tr>
+
+<!-- The wrap-up's own pieces. The letter leads with the recording, then the vote, the takeaways and the talks; the
+     community's colours arrive precomputed in `tints`, the shape roundupCommunity reads. -->
+
+<!-- The recording as a poster: a posterBand that plays the recording, or opens the session when there is none, and a
+     footer row with the counts and the session link. A recording with any scheme but http(s) is no recording. -->
+<tr th:fragment="wrapUpPoster(tints)"
+    th:with="hasRecording=${recordingUrl != null and (recordingUrl.startsWith('https://') or recordingUrl.startsWith('http://'))},
+             hasSession=not ${#strings.isEmpty(sessionUrl)},
+             talkCount=${talks == null ? 0 : talks.size()},
+             roomCount=${attendeeCount} ?: 0,
+             dateLabel=${scheduledAtDay},
+             bandLink=${hasRecording} ? ${recordingUrl} : (${hasSession} ? ${sessionUrl} : null),
+             linkStyle='color:' + ${tints.linkText} + ';font-size:12.5px;font-weight:700;text-decoration:none;'">
+<td style="padding:20px 0 0 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff"
+    style="border-collapse:separate;background-color:#ffffff;border-radius:16px;">
+<tr>
+<td th:replace="~{::posterBand(link=${bandLink}, kicker=${hasRecording} ? 'Recording' : ${dateLabel},
+    line=${hasRecording} ? 'Watch the session' : 'Open the session', duration=${durationLabel},
+    thumbnail=${thumbnailUrl}, playable=${hasRecording}, tints=${tints})}">Band</td>
+</tr>
+<tr>
+<td style="padding:10px 18px;border:1px solid #ede4e9;border-top:0;border-radius:0 0 16px 16px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr
+><td style="font-size:12.5px;font-weight:500;line-height:1.4;color:#786a7e;"><th:block th:if="${talkCount} > 0"><b th:text="${talkCount}" style="color:#211a26;">5</b><th:block th:text="${talkCount} == 1 ? ' talk' : ' talks'"> talks</th:block></th:block><th:block
+    th:if="${talkCount} > 0 and ${roomCount} > 0"> &middot; </th:block><th:block th:if="${roomCount} > 0"><b th:text="${roomCount}" style="color:#211a26;">23</b> in the room</th:block></td>
+<td th:if="${hasSession}" align="right" style="padding:0 0 0 12px;white-space:nowrap;"><a th:href="${sessionUrl}" th:attr="style=${linkStyle}">Open session</a></td>
+</tr></table></td>
+</tr>
+</table>
+</td>
+</tr>
+
+<!-- The vote: the rising bars in the sender's ink, the ask, and the letter's one pink button. Below 480px the head's
+     `wv-btn` rule drops the button under the text. -->
+<tr th:fragment="wrapUpVote(text, url)" th:with="markInk=${sender} != null ? ${sender.tintForeground} : '#de3b78'">
+<td style="padding:16px 0 0 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#fdeef4"
+    style="border-collapse:separate;background-color:#fdeef4;border-radius:14px;">
+<tr>
+<td style="padding:16px 18px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td class="wv-text" valign="middle"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+<td valign="middle" style="padding:0 12px 0 0;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" aria-hidden="true">
+<tr>
+<td th:replace="~{_shell.html :: risingBar(height=6, ink=${markInk})}">Bar</td>
+<td th:replace="~{_shell.html :: risingBar(height=9, ink=${markInk})}">Bar</td>
+<td th:replace="~{_shell.html :: risingBar(height=12, ink=${markInk})}">Bar</td>
+<td th:replace="~{_shell.html :: risingBar(height=15, ink=${markInk})}">Bar</td>
+<td th:replace="~{_shell.html :: risingBar(height=18, ink=${markInk})}">Bar</td>
+<td th:replace="~{_shell.html :: risingBar(height=21, ink=${markInk})}">Bar</td>
+</tr>
+</table>
+</td>
+<td valign="middle">
+<p style="margin:0;font-size:17px;font-weight:700;line-height:1.25;color:#211a26;font-family:'Space Grotesk Variable','Inter Variable',Helvetica,Arial,sans-serif;">How was it?</p>
+<p th:text="${text}" style="margin:2px 0 0 0;font-size:12.5px;line-height:1.4;color:#786a7e;">Two taps</p>
+</td>
+</tr></table></td>
+<td class="wv-btn" align="right" valign="middle" style="padding:0 0 0 12px;white-space:nowrap;"><a th:href="${url}"
+    style="display:inline-block;background-color:#de3b78;color:#ffffff;text-decoration:none;font-size:13px;font-weight:700;padding:10px 16px;border-radius:999px;">Give feedback</a></td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+
+<!-- The organizer's note, already rendered to inline-styled HTML by the note renderer, which escapes every character
+     of the source; nothing else in a template may reach th:utext. -->
+<tr th:fragment="formattedNote(html)">
+<td style="padding:10px 0 0 0;font-size:15px;line-height:1.6;color:#211a26;" th:utext="${html}">Note</td>
+</tr>
+
+<!-- One talk of the wrap-up, shaped like a poster's talk row: the first presenter's avatar and "+N" in a fixed column,
+     then the title, who presented, the short description, and a meta line of tags and links. A row frozen before the
+     avatar existed draws one from the presenters list. `rule` is the dashed divider, empty on the last row. -->
+<tr th:fragment="wrapUpTalk(talk, tints, rule)"
+    th:with="hasPresenters=${talk.presenters} != null and not ${talk.presenters.isEmpty()},
+             avatar=${talk.avatar} ?: (${hasPresenters} ? ${ #{'initials': talk.presenters[0].initials, 'tint': '#de3b78'} } : null),
+             morePresenters=${talk.morePresenterCount} ?: (${hasPresenters} ? ${talk.presenters.size() - 1} : 0),
+             hasTags=${talk.subjects} != null and not ${talk.subjects.isEmpty()},
+             hasResources=${talk.resources} != null and not ${talk.resources.isEmpty()},
+             chipStyle='display:inline-block;margin:0 4px 4px 0;border-radius:10px;padding:1px 8px;font-size:11px;font-weight:600;line-height:18px;background-color:' + ${tints.chipBackground} + ';color:' + ${tints.chipText} + ';'">
+<td width="40" valign="top" th:attr="style='padding:14px 12px 14px 0;' + ${rule}"><div style="width:40px;white-space:nowrap;"><th:block th:if="${avatar} != null"><div
+    th:replace="~{::roundupAvatar(person=${avatar}, ring=false, overlap=false)}">AA</div></th:block><span
+    th:if="${avatar} != null and ${morePresenters} > 0" th:text="'+' + ${morePresenters}"
+    style="margin-left:3px;font-size:10px;font-weight:700;color:#786a7e;">+1</span></div></td>
+<td width="100%" valign="top" th:attr="style='padding:14px 0;' + ${rule}">
+<p th:text="${talk.title} ?: 'Untitled talk'" style="margin:0;font-size:15px;font-weight:700;line-height:1.35;color:#211a26;">Talk</p>
+<p th:text="${#strings.isEmpty(talk.presenter)} ? 'Presenter unknown' : ${talk.presenter}"
+    style="margin:2px 0 0 0;font-size:12.5px;line-height:1.4;color:#786a7e;">Presenter</p>
+<p th:if="not ${#strings.isEmpty(talk.description)}" th:text="${talk.description}"
+    style="margin:4px 0 0 0;font-size:13.5px;line-height:1.5;color:#4c4152;">Description</p>
+<p th:if="${hasTags} or ${hasResources}" style="margin:6px 0 0 0;font-size:12.5px;line-height:22px;color:#786a7e;"><th:block th:if="${hasTags}"
+><span th:each="tag, tagStat : ${talk.subjects}" th:text="${tag}"
+    th:attr="style=${chipStyle} + (${tagStat.last} and ${hasResources} ? 'margin-right:12px;' : '')">tag</span></th:block
+><th:block th:if="${hasResources}"
+><th:block th:each="resource : ${talk.resources}"
+    th:with="resourceIsSafe=${#strings.startsWith(resource.url,'https://') or #strings.startsWith(resource.url,'http://')},
+             resourceRepeatsTitle=(not ${#strings.isEmpty(resource.title)}) and (not ${#strings.isEmpty(talk.title)}) and (${#strings.toLowerCase(#strings.trim(resource.title))} == ${#strings.toLowerCase(#strings.trim(talk.title))}),
+             resourceLabel=${resource.label} ?: ((${#strings.isEmpty(resource.title)} or ${resourceRepeatsTitle}) ? ${resource.url} : ${resource.title})"
+><a th:if="${resourceIsSafe}" th:href="${resource.url}" th:text="'↗ ' + ${resourceLabel}"
+    style="display:inline-block;margin:0 12px 4px 0;font-size:13px;font-weight:600;color:#c32c66;text-decoration:none;">Slides</a><span
+    th:unless="${resourceIsSafe}" th:text="${resourceLabel}" style="display:inline-block;margin:0 12px 4px 0;font-size:13px;color:#211a26;">Slides</span></th:block
+></th:block></p>
 </td>
 </tr>
 

@@ -1,4 +1,4 @@
-package dev.axonia.roundup.adapter.out.thumbnail;
+package dev.axonia.media.adapter.out.thumbnail;
 
 import java.awt.Color;
 import java.awt.image.BufferedImage;
@@ -6,33 +6,38 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.sql.Timestamp;
 import java.time.Clock;
+import java.util.Objects;
 import java.util.Optional;
 
 import javax.imageio.ImageIO;
 
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
+import dev.axonia.media.adapter.out.thumbnail.HeroThumbnailComposer.Slice;
 import dev.axonia.media.api.AbsoluteMediaLinks;
+import dev.axonia.media.api.HeroThumbnailRequest;
+import dev.axonia.media.api.HeroThumbnails;
 import dev.axonia.media.api.MediaKeys;
 import dev.axonia.media.api.MediaStorage;
-import dev.axonia.roundup.adapter.out.thumbnail.HeroThumbnailComposer.Slice;
-import dev.axonia.roundup.application.port.out.SessionThumbnails;
-import dev.axonia.roundup.domain.ThumbnailRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
  * Composes a thumbnail once per (hero, slice, accent) and records it, so a preview and the send share one stored image.
- * A hero that cannot be read, decoded or composed answers empty and the band falls back to the accent gradient. The
- * image is stored before the row joins the caller's transaction, so a rollback there leaves an orphaned blob.
+ * A hero that cannot be read, decoded, composed or recorded answers empty and the band falls back to the accent
+ * gradient. The image is stored before the row is written, so a rollback leaves an orphaned blob.
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class JdbcSessionThumbnails implements SessionThumbnails {
+public class JdbcHeroThumbnails implements HeroThumbnails {
 
     private static final String CONTENT_TYPE = "image/jpeg";
 
@@ -49,36 +54,50 @@ public class JdbcSessionThumbnails implements SessionThumbnails {
     private final AbsoluteMediaLinks absoluteMediaLinks;
     private final HeroThumbnailComposer composer;
     private final Clock clock;
+    private final PlatformTransactionManager transactionManager;
 
+    /**
+     * Runs on a savepoint of the caller's transaction, so a failed read or write of the record rolls back only itself
+     * and the caller's transaction stays usable.
+     */
     @Override
     @Transactional
-    public Optional<String> urlFor(ThumbnailRequest request) {
+    public Optional<String> urlFor(HeroThumbnailRequest request) {
 
-        return recorded(request).or(() -> composed(request).map(key -> record(request, key)))
-                .map(absoluteMediaLinks::urlFor);
+        var savepoint = new TransactionTemplate(transactionManager);
+        savepoint.setPropagationBehavior(TransactionDefinition.PROPAGATION_NESTED);
+        try {
+            return Objects.requireNonNullElse(savepoint.execute(status -> recorded(request)
+                    .or(() -> composed(request).map(key -> record(request, key))).map(absoluteMediaLinks::urlFor)),
+                    Optional.empty());
+        } catch (DataAccessException e) {
+            log.warn("Hero thumbnail skipped: the record for hero '{}' of community {} failed", request.heroKey(),
+                    request.communityId(), e);
+            return Optional.empty();
+        }
     }
 
-    private Optional<String> recorded(ThumbnailRequest request) {
+    private Optional<String> recorded(HeroThumbnailRequest request) {
 
-        return jdbc.queryForList("SELECT media_key FROM roundup_thumbnail" + WHERE_REQUESTED, parameters(request),
+        return jdbc.queryForList("SELECT media_key FROM hero_thumbnail" + WHERE_REQUESTED, parameters(request),
                 String.class).stream().findFirst();
     }
 
-    private Optional<String> composed(ThumbnailRequest request) {
+    private Optional<String> composed(HeroThumbnailRequest request) {
 
         try {
             var hero = decoded(request.heroKey());
             if (hero.isEmpty()) {
-                log.warn("Roundup thumbnail skipped: hero '{}' of community {} could not be read as an image",
+                log.warn("Hero thumbnail skipped: hero '{}' of community {} could not be read as an image",
                         request.heroKey(), request.communityId());
                 return Optional.empty();
             }
             var jpeg = composer.compose(hero.get(), slice(request));
-            var key = MediaKeys.roundupThumbnail(request.communityId());
+            var key = MediaKeys.heroThumbnail(request.communityId());
             mediaStorage.store(key, new ByteArrayInputStream(jpeg), CONTENT_TYPE, jpeg.length);
             return Optional.of(key);
         } catch (IOException | RuntimeException e) {
-            log.warn("Roundup thumbnail skipped: hero '{}' of community {} could not be composed", request.heroKey(),
+            log.warn("Hero thumbnail skipped: hero '{}' of community {} could not be composed", request.heroKey(),
                     request.communityId(), e);
             return Optional.empty();
         }
@@ -96,14 +115,14 @@ public class JdbcSessionThumbnails implements SessionThumbnails {
     }
 
     /** The key recorded for the request: this one, or the one a concurrent composition recorded first. */
-    private String record(ThumbnailRequest request, String key) {
+    private String record(HeroThumbnailRequest request, String key) {
 
         var recorded = jdbc.queryForObject("""
-                INSERT INTO roundup_thumbnail (organization_id, community_id, hero_key, slice_index, accent_hex,
+                INSERT INTO hero_thumbnail (organization_id, community_id, hero_key, slice_index, accent_hex,
                                                media_key, created_at)
                 VALUES (:org, :community, :hero, :slice, :accent, :key, :createdAt)
                 ON CONFLICT (organization_id, community_id, hero_key, slice_index, accent_hex)
-                    DO UPDATE SET media_key = roundup_thumbnail.media_key
+                    DO UPDATE SET media_key = hero_thumbnail.media_key
                 RETURNING media_key
                 """, parameters(request).addValue("key", key).addValue("createdAt", Timestamp.from(clock.instant())),
                 String.class);
@@ -118,18 +137,18 @@ public class JdbcSessionThumbnails implements SessionThumbnails {
         try {
             mediaStorage.delete(key);
         } catch (RuntimeException e) {
-            log.warn("Orphaned roundup thumbnail '{}': storage delete failed", key, e);
+            log.warn("Orphaned hero thumbnail '{}': storage delete failed", key, e);
         }
     }
 
-    private static MapSqlParameterSource parameters(ThumbnailRequest request) {
+    private static MapSqlParameterSource parameters(HeroThumbnailRequest request) {
 
         return new MapSqlParameterSource().addValue("org", request.organizationId())
                 .addValue("community", request.communityId()).addValue("hero", request.heroKey())
                 .addValue("slice", request.sliceIndex()).addValue("accent", request.accentHex());
     }
 
-    private static Slice slice(ThumbnailRequest request) {
+    private static Slice slice(HeroThumbnailRequest request) {
 
         return Slice.builder().focusX(request.heroFocusX()).focusY(request.heroFocusY()).index(request.sliceIndex())
                 .accent(Color.decode(request.accentHex())).build();

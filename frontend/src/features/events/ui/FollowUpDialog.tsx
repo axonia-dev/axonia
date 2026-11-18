@@ -175,6 +175,7 @@ function FollowUpForm({
       />
       <TextArea
         label="Note"
+        description="Supports **bold**, *italics*, lists and links."
         value={note}
         onChange={setNote}
         rows={4}

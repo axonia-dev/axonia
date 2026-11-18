@@ -60,6 +60,7 @@ public class AvatarSyncService {
     private final ClaimPhotoSource claimUrlPhotoSource;
     private final MediaStorage mediaStorage;
     private final OrganizationIdpResolver resolver;
+    private final GraphAppRegistration graphApp;
     private final AvatarSyncExecutor avatarSyncExecutor;
     private final Clock clock;
     private final ConcurrentHashMap<String, Boolean> inFlight = new ConcurrentHashMap<>();
@@ -86,11 +87,12 @@ public class AvatarSyncService {
      * {@code picture} claim: {@code aadTenantId} is typed by an administrator and axonia's app registration is
      * multi-tenant, so reading photos out of it before
      * {@link dev.axonia.identity.api.OrganizationIdp#graphReadsAllowed()} says the tenant is proved would be reading a
-     * directory nobody has shown this Organization any claim on.
+     * directory nobody has shown this Organization any claim on. A deployment with no Graph app registration falls back
+     * the same way, since it cannot mint the token a Graph read needs.
      */
     private String entraTenantFor(String organizationId, UserAccount user) {
 
-        if (user.externalId() == null) {
+        if (user.externalId() == null || !graphApp.isConfigured()) {
             return null;
         }
         var idp = resolver.resolve(organizationId).orElse(null);

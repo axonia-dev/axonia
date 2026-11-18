@@ -56,8 +56,8 @@ class TeamsPlatform implements ChatPlatform {
      * <p>
      * Adaptive Card {@code TextBlock} renders a restricted markdown, so member-typed text is escaped for the constructs
      * it honours - emphasis ({@code *}/{@code _}), inline code ({@code `}) and link brackets ({@code [}/{@code ]}) -
-     * for the same reason Slack's is. List markers are deliberately left alone: a follow-up note someone typed as a
-     * dash list should still read as one, not as a literal {@code \-}.
+     * for the same reason Slack's is. The closing note is parsed first and rendered by {@link TeamsNote}, which writes
+     * its own bold, italics, links and lists.
      */
     @Override
     public Map<String, Object> payload(ChatPost post) {
@@ -68,8 +68,8 @@ class TeamsPlatform implements ChatPlatform {
         }
         body.add(textBlock(escape(post.headline()), "Default", true));
         body.add(textBlock(escape(post.whenLine()), "Default", false));
-        if (post.body() != null) {
-            body.add(textBlock(escape(post.body()), "Default", false));
+        if (post.note() != null) {
+            body.add(textBlock(TeamsNote.of(post.note(), ChatPost.MAX_NOTE_LENGTH), "Default", false));
         }
         post.details().forEach(
                 (label, value) -> body.add(textBlock("**" + escape(label) + ":** " + escape(value), "Default", false)));
@@ -94,6 +94,6 @@ class TeamsPlatform implements ChatPlatform {
      */
     private static String escape(String raw) {
 
-        return raw == null ? "" : raw.replace("\\", "\\\\").replaceAll("([*_`\\[\\]])", "\\\\$1");
+        return raw == null ? "" : TeamsNote.escape(raw);
     }
 }

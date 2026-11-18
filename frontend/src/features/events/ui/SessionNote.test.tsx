@@ -28,7 +28,14 @@ describe("SessionNote", () => {
   it("keeps the line breaks the organizer typed", () => {
     render(<SessionNote session={held({ notes: "One.\nTwo." })} />);
 
-    expect(screen.getByText(/One\./)).toHaveClass("whitespace-pre-line");
+    expect(screen.getByText(/One\./).querySelector("br")).not.toBeNull();
+  });
+
+  it("renders a formatted note", () => {
+    render(<SessionNote session={held({ notes: "**Bold** and\n- item" })} />);
+
+    expect(screen.getByText("Bold").tagName).toBe("STRONG");
+    expect(screen.getByRole("listitem")).toHaveTextContent("item");
   });
 
   /** No note is not a state worth a heading, an empty box, or a control: it is nothing. */

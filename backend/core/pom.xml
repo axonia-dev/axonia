@@ -214,6 +214,14 @@
 			<artifactId>opentelemetry-logback-appender-1.0</artifactId>
 			<version>${opentelemetry-instrumentation.version}</version>
 		</dependency>
+		<dependency>
+			<groupId>org.commonmark</groupId>
+			<artifactId>commonmark</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.commonmark</groupId>
+			<artifactId>commonmark-ext-autolink</artifactId>
+		</dependency>
 
 	</dependencies>
 

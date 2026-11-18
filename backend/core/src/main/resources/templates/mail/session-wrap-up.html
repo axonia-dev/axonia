@@ -1,35 +1,55 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<html xmlns:th="http://www.thymeleaf.org" xmlns:v="urn:schemas-microsoft-com:vml" lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title th:text="(${sessionTitle} ?: 'This session') + ': what happened'">What happened</title>
+<style>
+@media only screen and (max-width:480px) { .wv-text, .wv-btn { display:block !important; width:auto !important; } .wv-btn { text-align:left !important; padding:12px 0 0 0 !important; } }
+</style>
 </head>
 <body style="margin:0; padding:0;">
 <div style="display:none; max-height:0; overflow:hidden; mso-hide:all;">
-<div th:replace="~{_shell.html :: preheader(fallback='Here is what happened, whether you were in the room or not.')}">Preheader</div>
+<div th:replace="~{_shell.html :: preheader(fallback='A look back at the session.')}">Preheader</div>
 </div>
 <div th:replace="~{_shell.html :: page(body=~{::content}, when='Held', reason='Sent to members of')}">
-<th:block th:fragment="content">
-<tr th:replace="~{_shell.html :: statStrip}">Stats</tr>
+<!--/* The letter leads with the recording, then the vote, the takeaways and the talks. Every conditional row is a
+     WRAPPING th:block: a th:if beside a th:replace never runs. A row frozen before the poster carries no tints, no
+     thumbnail and no nextUp, so each falls back here: neutral tints, the gradient band, and nextSession as the chip's
+     only line. */-->
+<th:block th:fragment="content"
+    th:with="tints=${tints} ?: ${ #{'accent':'#786a7e','blockBackground':'#f6f5f6','blockBorder':'#e9e7ea','bandDark':'#312835','chipBackground':'#f3f2f3','chipText':'#5e5264','linkText':'#675a6c'} },
+             hasTalks=${talks} != null and not ${talks.isEmpty()},
+             nextChip=${nextUp} ?: (${#strings.isEmpty(nextSession)} ? null : ${ #{'nextLabel': nextSession} })">
+<tr th:replace="~{_shell.html :: wrapUpPoster(tints=${tints})}">Poster</tr>
 <th:block th:if="${feedbackClosesAt} != null" th:with="feedbackZone=${readerTimeZone} ?: (${timeZone} ?: 'UTC'), feedbackClosesOn=${#temporals.format(feedbackClosesAt, 'd MMM', feedbackZone)}">
-<tr th:replace="~{_shell.html :: feedbackAsk(heading='How was it?', text='Two taps, anonymous, open until ' + ${feedbackClosesOn}, url=${sessionUrl} + '#feedback', label='Give feedback')}">Feedback</tr>
+<tr th:replace="~{_shell.html :: wrapUpVote(text='Two taps, anonymous, open until ' + ${feedbackClosesOn}, url=${sessionUrl} + '#feedback')}">Vote</tr>
 </th:block>
-<tr th:replace="~{_shell.html :: sectionHeading(text='What happened')}">Heading</tr>
-<th:block th:if="${talks} == null or ${talks.isEmpty()}">
+<th:block th:if="not ${#strings.isEmpty(followUpNotesHtml)}">
+<tr th:replace="~{_shell.html :: sectionHeading(text='Takeaways')}">Heading</tr>
+<tr th:replace="~{_shell.html :: formattedNote(html=${followUpNotesHtml})}">Note</tr>
+</th:block>
+<tr th:replace="~{_shell.html :: sectionHeading(text='Talks')}">Heading</tr>
+<th:block th:unless="${hasTalks}">
 <tr th:replace="~{_shell.html :: bodyText(text='No talks were recorded for this session.')}">No talks</tr>
 </th:block>
-<th:block th:each="talk : ${talks}">
-<tr th:replace="~{_shell.html :: talkBlock(talk=${talk})}">Talk</tr>
-</th:block>
+<tr th:if="${hasTalks}">
+<td style="padding:4px 0 0 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+<th:block th:each="talk, talkStat : ${talks}"
+><tr th:replace="~{_shell.html :: wrapUpTalk(talk=${talk}, tints=${tints}, rule=${talkStat.last} ? '' : 'border-bottom:1px dashed #ede4e9;')}">Talk</tr
+></th:block>
+</table>
+</td>
+</tr>
 <th:block th:if="${actionPoints} != null and not ${actionPoints.isEmpty()}">
-<tr th:replace="~{_shell.html :: sectionHeading(text='What we agreed to do')}">Heading</tr>
+<tr th:replace="~{_shell.html :: sectionHeading(text='Action points')}">Heading</tr>
 <th:block th:each="actionPoint : ${actionPoints}">
 <tr th:replace="~{_shell.html :: actionPointRow(actionPoint=${actionPoint})}">Action point</tr>
 </th:block>
 </th:block>
 <th:block th:if="${checkedItems} != null and not ${checkedItems.isEmpty()}">
-<tr th:replace="~{_shell.html :: sectionHeading(text='What was checked')}">Heading</tr>
+<tr th:replace="~{_shell.html :: sectionHeading(text='Checked')}">Heading</tr>
 <th:block th:each="checkedItem : ${checkedItems}">
 <tr th:replace="~{_shell.html :: checkedItemRow(checkedItem=${checkedItem})}">Checked item</tr>
 </th:block>
@@ -40,15 +60,13 @@
 <tr th:replace="~{_shell.html :: resourceRow(resource=${resource})}">Resource</tr>
 </th:block>
 </th:block>
-<th:block th:if="not ${#strings.isEmpty(followUpNotes)}">
-<tr th:replace="~{_shell.html :: noteBlock(text=${followUpNotes})}">Note</tr>
-</th:block>
-<th:block th:if="not ${#strings.isEmpty(sessionUrl)}">
-<tr th:replace="~{_shell.html :: primaryButton(url=${sessionUrl}, label='Open the session')}">Button</tr>
-</th:block>
-<th:block th:if="not ${#strings.isEmpty(nextSession)}">
-<tr th:replace="~{_shell.html :: nextUp(text=${nextSession})}">Next up</tr>
-</th:block>
+<tr th:if="${nextChip} != null">
+<td style="padding:12px 0 0 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr th:replace="~{_shell.html :: roundupNextUp(community=${nextChip}, tints=${tints})}">Next up</tr>
+</table>
+</td>
+</tr>
 </th:block>
 </div>
 <div style="display:none; max-height:0; overflow:hidden; mso-hide:all;">

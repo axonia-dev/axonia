@@ -8,10 +8,11 @@ import java.util.Map;
 
 import dev.axonia.events.api.ActionItemOutcome;
 import dev.axonia.events.api.MeetingPlace;
-import dev.axonia.events.api.ResourceLink;
 import dev.axonia.events.api.Section;
 import dev.axonia.events.api.Session;
 import dev.axonia.events.api.Slot;
+import dev.axonia.shared.api.colour.GuildTints;
+import dev.axonia.shared.api.text.DurationLabels;
 import dev.axonia.shared.api.text.Initials;
 
 /**
@@ -30,14 +31,12 @@ import dev.axonia.shared.api.text.Initials;
  * {@code displayNamesByUserId} exists because {@link Slot#presenterUserIds()} carries ids, never names, and a raw id
  * must never reach a member's inbox (it would render literally, e.g. "With user-123"). A presenter whose id is missing
  * from the map (an erased member the caller already resolved to a fallback label, or simply an id nobody supplied a
- * name for) is dropped rather than defaulting to the id: absent is a state the templates already render ("We did not
- * catch who presented this one."), a leaked id is not. An action point's assignee, and a checked item's, are each
- * resolved through the exact same map, for the exact same reason and with the exact same drop-if-unresolved behaviour -
- * see {@link #actionPoint} and {@link #checkedItem}.
+ * name for) is dropped rather than defaulting to the id: absent is a state the templates already render ("Presenter
+ * unknown"), a leaked id is not. An action point's assignee, and a checked item's, are each resolved through the exact
+ * same map, for the exact same reason and with the exact same drop-if-unresolved behaviour - see {@link #actionPoint}
+ * and {@link #checkedItem}.
  */
 public final class SessionFacts {
-
-    private static final String PRESENTER_JOIN_SEPARATOR = ", ";
 
     private SessionFacts() {
     }
@@ -56,6 +55,9 @@ public final class SessionFacts {
         facts.put("seriesTitle", blankToNull(context.seriesTitle()));
         facts.put("scheduledAt", session.scheduledAt());
         facts.put("hasTime", session.hasTime());
+        if (context.poster()) {
+            putPoster(facts, session, context);
+        }
         facts.put("timeZone", timeZone(session));
         // Not blankToNull: SessionFactsContext's own constructor already rejects a blank sessionUrl, unlike every
         // other fact here - every message this feeds wants its call to action, so there is no absent state to
@@ -77,6 +79,17 @@ public final class SessionFacts {
         facts.put("nudgeArm", blankToNull(context.nudgeArm()));
         facts.put("feedbackClosesAt", context.feedbackClosesAt());
         return Collections.unmodifiableMap(facts);
+    }
+
+    /** The wrap-up's poster and calendar chip, which no other message draws, so no other message freezes them. */
+    private static void putPoster(Map<String, Object> facts, Session session, SessionFactsContext context) {
+
+        facts.put("durationLabel", DurationLabels.of(session.durationMinutes()));
+        if (context.community() != null) {
+            facts.put("tints", GuildTints.of(context.community().accentColor()));
+        }
+        facts.put("thumbnailUrl", context.thumbnailUrl());
+        facts.put("nextUp", context.nextUp());
     }
 
     /**
@@ -137,7 +150,7 @@ public final class SessionFacts {
         var talks = new ArrayList<Map<String, Object>>();
         for (Section section : session.sections()) {
             for (Slot slot : section.slots()) {
-                talks.add(Collections.unmodifiableMap(talk(slot, context)));
+                talks.add(TalkFacts.of(slot, context));
             }
         }
         return Collections.unmodifiableList(talks);
@@ -154,35 +167,6 @@ public final class SessionFacts {
     private static int openSlotCount(List<Map<String, Object>> talks) {
 
         return (int) talks.stream().filter(talk -> talk.get("presenter") == null).count();
-    }
-
-    private static Map<String, Object> talk(Slot slot, SessionFactsContext context) {
-
-        var presenterNames = resolvedPresenterNames(slot, context.displayNamesByUserId());
-        var talk = new LinkedHashMap<String, Object>();
-        talk.put("title", blankToNull(slot.title()));
-        talk.put("presenter", presenterNames.isEmpty() ? null : String.join(PRESENTER_JOIN_SEPARATOR, presenterNames));
-        // Beside presenter, not instead of it: presenter is the flat string every template already renders,
-        // presenters is the unflattened list a talk block needs to draw one avatar per person. Same source list,
-        // same drop-if-unresolved rule, kept in step by construction rather than by two separate lookups.
-        talk.put("presenters", presenterNames.stream().map(SessionFacts::presenterFact).toList());
-        // slot.tags() needs no wrap of its own: Slot's canonical constructor already runs it through
-        // List.copyOf, so it is unmodifiable before this method ever sees it.
-        talk.put("subjects", slot.tags());
-        talk.put("durationMinutes", slot.durationMinutes());
-        // Always present, never null: a slot the context's resource map has no entry for genuinely has nothing
-        // attached, and the template iterates this list unconditionally once talk.resources is non-empty.
-        var slotResources = context.resourcesBySlotId().getOrDefault(slot.id(), List.of());
-        talk.put("resources", slotResources.stream().map(SessionFacts::resourceFact).toList());
-        return talk;
-    }
-
-    private static Map<String, Object> presenterFact(String name) {
-
-        var fact = new LinkedHashMap<String, Object>();
-        fact.put("name", name);
-        fact.put("initials", Initials.of(name));
-        return Collections.unmodifiableMap(fact);
     }
 
     /**
@@ -219,15 +203,7 @@ public final class SessionFacts {
     private static List<Map<String, Object>> sessionResources(SessionFactsContext context) {
 
         var resources = context.sessionResources();
-        return resources.isEmpty() ? null : resources.stream().map(SessionFacts::resourceFact).toList();
-    }
-
-    private static Map<String, Object> resourceFact(ResourceLink link) {
-
-        var fact = new LinkedHashMap<String, Object>();
-        fact.put("title", blankToNull(link.title()));
-        fact.put("url", link.url());
-        return Collections.unmodifiableMap(fact);
+        return resources.isEmpty() ? null : resources.stream().map(link -> ResourceFacts.of(link, null)).toList();
     }
 
     /**
@@ -305,18 +281,7 @@ public final class SessionFacts {
         return assigneeUserId == null ? null : names.get(assigneeUserId);
     }
 
-    /**
-     * A blank {@code display_name} is a real row shape (the column is {@code NOT NULL} with no check against empty),
-     * not a hypothetical: dropped here, the same as an unresolved id, so {@code presenter} and {@code presenters} never
-     * disagree about who counts as resolved - one filtered list feeds both facts.
-     */
-    private static List<String> resolvedPresenterNames(Slot slot, Map<String, String> names) {
-
-        return slot.presenterUserIds().stream().map(names::get).filter(name -> name != null && !name.isBlank())
-                .toList();
-    }
-
-    private static String blankToNull(String value) {
+    static String blankToNull(String value) {
 
         return value == null || value.isBlank() ? null : value;
     }

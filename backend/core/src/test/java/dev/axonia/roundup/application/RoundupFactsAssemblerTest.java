@@ -15,6 +15,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoSettings;
 
 import dev.axonia.media.api.AbsoluteMediaLinks;
+import dev.axonia.media.api.HeroThumbnailRequest;
+import dev.axonia.media.api.HeroThumbnails;
 import dev.axonia.roundup.api.spi.ArtifactActivity;
 import dev.axonia.roundup.api.spi.ArtifactActivity.CapturedArtifact;
 import dev.axonia.roundup.api.spi.CommunityActivity;
@@ -23,12 +25,10 @@ import dev.axonia.roundup.api.spi.SessionActivity;
 import dev.axonia.roundup.api.spi.SessionActivity.HeldSession;
 import dev.axonia.roundup.api.spi.SessionActivity.UpcomingSession;
 import dev.axonia.roundup.api.spi.TopicActivity;
-import dev.axonia.roundup.application.port.out.SessionThumbnails;
 import dev.axonia.roundup.configuration.RoundupProperties;
 import dev.axonia.roundup.domain.Quarter;
 import dev.axonia.roundup.domain.QuarterActivity.NamedCommunity;
 import dev.axonia.roundup.domain.RoundupFacts;
-import dev.axonia.roundup.domain.ThumbnailRequest;
 import dev.axonia.shared.configuration.PublicUrlProperties;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -67,7 +67,7 @@ class RoundupFactsAssemblerTest {
     @Mock
     private AbsoluteMediaLinks absoluteMediaLinks;
     @Mock
-    private SessionThumbnails sessionThumbnails;
+    private HeroThumbnails heroThumbnails;
 
     private RoundupFactsAssembler assembler;
 
@@ -76,7 +76,7 @@ class RoundupFactsAssemblerTest {
 
         assembler = new RoundupFactsAssembler(communityActivity, sessionActivity, artifactActivity, topicActivity,
                 new RoundupProperties(Duration.ofDays(2), COMMUNITY_CAP, SESSIONS_PER_COMMUNITY_CAP, TOPIC_CAP),
-                new PublicUrlProperties("https://axonia.example"), absoluteMediaLinks, sessionThumbnails);
+                new PublicUrlProperties("https://axonia.example"), absoluteMediaLinks, heroThumbnails);
     }
 
     @Test
@@ -228,8 +228,8 @@ class RoundupFactsAssemblerTest {
                 new CommunitySummary(7L, "Backend Guild", "backend-guild", null, "heroes/7.png", 30, 70, "#1F9D63")));
         given(sessionActivity.heldInPeriod(ORGANIZATION_ID, QUARTER_START, QUARTER_END))
                 .willReturn(List.of(heldSession(41L, 7L), heldSession(42L, 7L)));
-        given(sessionThumbnails.urlFor(request(0, 30, 70, "#1f9d63"))).willReturn(Optional.of("https://m/0.jpg"));
-        given(sessionThumbnails.urlFor(request(1, 30, 70, "#1f9d63"))).willReturn(Optional.of("https://m/1.jpg"));
+        given(heroThumbnails.urlFor(request(0, 30, 70, "#1f9d63"))).willReturn(Optional.of("https://m/0.jpg"));
+        given(heroThumbnails.urlFor(request(1, 30, 70, "#1f9d63"))).willReturn(Optional.of("https://m/1.jpg"));
 
         // when
         var actual = assembler.read(ORGANIZATION_ID, ORGANIZATION_NAME, QUARTER);
@@ -246,13 +246,13 @@ class RoundupFactsAssemblerTest {
                 new CommunitySummary(7L, "Backend Guild", "backend-guild", null, "heroes/7.png", null, null, null)));
         given(sessionActivity.heldInPeriod(ORGANIZATION_ID, QUARTER_START, QUARTER_END))
                 .willReturn(List.of(heldSession(41L, 7L)));
-        given(sessionThumbnails.urlFor(any())).willReturn(Optional.empty());
+        given(heroThumbnails.urlFor(any())).willReturn(Optional.empty());
 
         // when
         var actual = assembler.read(ORGANIZATION_ID, ORGANIZATION_NAME, QUARTER);
 
         // then
-        verify(sessionThumbnails).urlFor(request(0, 50, 50, "#786a7e"));
+        verify(heroThumbnails).urlFor(request(0, 50, 50, "#786a7e"));
         assertThat(actual.thumbnailUrls()).isEmpty();
     }
 
@@ -269,16 +269,16 @@ class RoundupFactsAssemblerTest {
                                 IntStream.rangeClosed(1, SESSIONS_PER_COMMUNITY_CAP + 1).mapToObj(
                                         i -> heldSession(40L + i, 7L, QUARTER_START.plus(Duration.ofDays(i)))))
                         .toList());
-        given(sessionThumbnails.urlFor(any())).willReturn(Optional.of("https://m/t.jpg"));
-        var requests = ArgumentCaptor.forClass(ThumbnailRequest.class);
+        given(heroThumbnails.urlFor(any())).willReturn(Optional.of("https://m/t.jpg"));
+        var requests = ArgumentCaptor.forClass(HeroThumbnailRequest.class);
 
         // when
         var actual = assembler.read(ORGANIZATION_ID, ORGANIZATION_NAME, QUARTER);
 
         // then
-        verify(sessionThumbnails, times(SESSIONS_PER_COMMUNITY_CAP)).urlFor(requests.capture());
-        assertThat(requests.getAllValues()).extracting(ThumbnailRequest::sliceIndex).containsExactly(0, 1, 2, 3);
-        assertThat(requests.getAllValues()).extracting(ThumbnailRequest::accentHex).containsOnly("#aabbcc");
+        verify(heroThumbnails, times(SESSIONS_PER_COMMUNITY_CAP)).urlFor(requests.capture());
+        assertThat(requests.getAllValues()).extracting(HeroThumbnailRequest::sliceIndex).containsExactly(0, 1, 2, 3);
+        assertThat(requests.getAllValues()).extracting(HeroThumbnailRequest::accentHex).containsOnly("#aabbcc");
         assertThat(actual.thumbnailUrls()).as("the oldest session is the one the cap leaves out").containsOnlyKeys(42L,
                 43L, 44L, 45L);
     }
@@ -292,19 +292,19 @@ class RoundupFactsAssemblerTest {
         given(communityActivity.activeCommunities(ORGANIZATION_ID)).willReturn(communities);
         given(sessionActivity.heldInPeriod(ORGANIZATION_ID, QUARTER_START, QUARTER_END)).willReturn(
                 IntStream.rangeClosed(1, COMMUNITY_CAP + 1).mapToObj(i -> heldSession(200L + i, 100L + i)).toList());
-        given(sessionThumbnails.urlFor(any())).willReturn(Optional.of("https://m/t.jpg"));
+        given(heroThumbnails.urlFor(any())).willReturn(Optional.of("https://m/t.jpg"));
 
         // when
         var actual = assembler.read(ORGANIZATION_ID, ORGANIZATION_NAME, QUARTER);
 
         // then
-        verify(sessionThumbnails, times(COMMUNITY_CAP)).urlFor(any());
+        verify(heroThumbnails, times(COMMUNITY_CAP)).urlFor(any());
         assertThat(actual.thumbnailUrls()).doesNotContainKey(200L + COMMUNITY_CAP + 1);
     }
 
-    private static ThumbnailRequest request(int slice, int focusX, int focusY, String accentHex) {
+    private static HeroThumbnailRequest request(int slice, int focusX, int focusY, String accentHex) {
 
-        return ThumbnailRequest.builder().organizationId(ORGANIZATION_ID).communityId(7L).heroKey("heroes/7.png")
+        return HeroThumbnailRequest.builder().organizationId(ORGANIZATION_ID).communityId(7L).heroKey("heroes/7.png")
                 .heroFocusX(focusX).heroFocusY(focusY).sliceIndex(slice).accentHex(accentHex).build();
     }
 

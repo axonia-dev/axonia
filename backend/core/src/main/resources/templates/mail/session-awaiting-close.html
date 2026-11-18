@@ -16,7 +16,7 @@
      processing its remaining attributes the moment it fires - so both arms would render, both paragraphs would render,
      and a ${sender.name} in a parameter expression would be dereferenced even on the null-sender path. Only two
      placements are safe, and this file uses both: a wrapping th:block (the sessionUrl button, below), or a th:if on
-     the fragment's own definition (nudgeStrip and talkCountCell in _shell.html, matching statStrip). Which arm and
+     the fragment's own definition (nudgeStrip and talkCountCell in _shell.html). Which arm and
      which name the copy uses is a value here, not a row, so there is one row per idea rather than one per branch. -->
 <th:block th:fragment="content"
     th:with="communityName=(${sender} != null) ? ${sender.name} : 'the community',

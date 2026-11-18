@@ -1,4 +1,4 @@
-package dev.axonia.roundup.domain;
+package dev.axonia.shared.api.colour;
 
 import java.util.Map;
 

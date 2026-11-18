@@ -5,6 +5,9 @@ import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
+import dev.axonia.communication.application.note.FormattedNote;
+import dev.axonia.communication.application.note.NoteParser;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 class TeamsPlatformTest {
@@ -14,7 +17,7 @@ class TeamsPlatformTest {
     private static ChatPost post(String headline, String body) {
 
         return ChatPost.builder().sender("Backend Guild").headline(headline).whenLine("Held 1 September 2026 at 16:00")
-                .body(body).details(Map.of("Attended", "24")).actionLabel("View the wrap-up")
+                .note(NoteParser.parse(body)).details(Map.of("Attended", "24")).actionLabel("View the wrap-up")
                 .actionUrl("https://axonia.example/s/1").build();
     }
 
@@ -55,20 +58,18 @@ class TeamsPlatformTest {
     @Test
     void payload_escapesTheMarkdownAdaptiveCardsDoRender() {
 
-        var payload = sut.payload(post("**not bold**", "[label](https://evil.test)"));
+        var payload = sut.payload(post("**not bold**", "[label](javascript:alert(1)) `code`"));
 
-        assertThat(payload.toString()).doesNotContain("[label](https://evil.test)");
-        assertThat(payload.toString()).contains("\\*\\*not bold\\*\\*".replace("\\\\", "\\"));
+        assertThat(payload.toString()).doesNotContain("](javascript").contains("\\*\\*not bold\\*\\*")
+                .contains("label \\`code\\`");
     }
 
     @Test
     void payload_escapesTheBackslashFirstSoAPriorEscapeCannotReviveALink() {
 
-        var payload = sut.payload(post("Event sourcing", "\\[Click here\\](https://evil.test)"));
+        var payload = sut.payload(post("Event sourcing", "\\[Click here\\] and \\\\"));
 
-        var threeBackslashes = "\\".repeat(3);
-        assertThat(payload.toString())
-                .contains(threeBackslashes + "[Click here" + threeBackslashes + "](https://evil.test)");
+        assertThat(payload.toString()).contains("\\[Click here\\] and \\\\");
     }
 
     @Test
@@ -86,5 +87,16 @@ class TeamsPlatformTest {
         @SuppressWarnings("unchecked")
         var body = (List<Map<String, Object>>) card.get("body");
         assertThat(body).noneMatch(block -> "Bolder".equals(block.get("weight")));
+    }
+
+    @Test
+    void payload_sendsNoNoteBlockForANoteWithoutVisibleText() {
+
+        var invisible = new FormattedNote(List.of(new FormattedNote.Paragraph(List.of(new FormattedNote.LineBreak()))));
+        var withInvisibleNote = ChatPost.builder().sender("Backend Guild").headline("Event sourcing")
+                .whenLine("Held 1 September 2026 at 16:00").note(invisible).details(Map.of("Attended", "24"))
+                .actionLabel("View the wrap-up").actionUrl("https://axonia.example/s/1").build();
+
+        assertThat(sut.payload(withInvisibleNote)).isEqualTo(sut.payload(post("Event sourcing", null)));
     }
 }

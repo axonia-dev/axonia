@@ -17,6 +17,7 @@ import dev.axonia.community.api.CommunicationSettings;
 import dev.axonia.community.api.Communities;
 import dev.axonia.community.api.Community;
 import dev.axonia.community.api.CommunityCapabilities;
+import dev.axonia.community.api.CommunityHero;
 import dev.axonia.community.api.CommunityIdentity;
 import dev.axonia.community.api.CommunityPolicies;
 import dev.axonia.community.api.ContributionPolicy;
@@ -84,6 +85,17 @@ class CommunityAccessAdapterTest {
 
         // when / then
         assertThat(sut.communityIdentity("acme", 7L)).isEqualTo(identity);
+    }
+
+    @Test
+    void communityHero_delegatesToCommunityServicesHeroById() {
+
+        // given
+        var hero = new CommunityHero("heroes/a.jpg", 20, 80);
+        when(communityService.heroById("acme", 7L)).thenReturn(java.util.Optional.of(hero));
+
+        // when / then
+        assertThat(sut.communityHero("acme", 7L)).contains(hero);
     }
 
     @Test

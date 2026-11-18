@@ -102,6 +102,31 @@ describe("SessionMarquee", () => {
     );
   });
 
+  it("keeps a two-line note as two lines", () => {
+    mockQueries({
+      lastHeld: aScheduledSession({
+        ...HELD,
+        notes: "First line.\nSecond line.",
+      }),
+    });
+    renderMarquee();
+
+    expect(screen.getByText(/First line\./).querySelector("br")).not.toBeNull();
+  });
+
+  it("renders a formatted note", () => {
+    mockQueries({
+      lastHeld: aScheduledSession({
+        ...HELD,
+        notes: "**Shipped** it\n\n- one\n- two",
+      }),
+    });
+    renderMarquee();
+
+    expect(screen.getByText("Shipped").tagName).toBe("STRONG");
+    expect(screen.getAllByRole("listitem").length).toBeGreaterThanOrEqual(2);
+  });
+
   /** A greyed-out pill for a recording nobody captured is a promise the page cannot keep. */
   it("says nothing about a recording when none was captured", () => {
     renderMarquee();

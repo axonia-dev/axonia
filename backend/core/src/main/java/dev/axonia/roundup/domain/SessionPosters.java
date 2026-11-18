@@ -16,6 +16,8 @@ import dev.axonia.roundup.api.spi.ArtifactActivity.CapturedArtifact;
 import dev.axonia.roundup.api.spi.SessionActivity.HeldSession;
 import dev.axonia.roundup.api.spi.SessionActivity.HeldTalk;
 import dev.axonia.roundup.domain.QuarterActivity.NamedCommunity;
+import dev.axonia.shared.api.colour.PersonTints;
+import dev.axonia.shared.api.text.DurationLabels;
 import dev.axonia.shared.api.text.Initials;
 import dev.axonia.shared.api.web.OrganizationLinks;
 
@@ -25,13 +27,6 @@ import dev.axonia.shared.api.web.OrganizationLinks;
  */
 final class SessionPosters {
 
-    /**
-     * The shell's avatar trio. A person's colour hangs off {@code String#hashCode}, which is specified, so somebody who
-     * appears in two cards wears one colour in both.
-     */
-    private static final List<String> AVATAR_TINTS = List.of("#de3b78", "#6e3ceb", "#1f9d63");
-
-    private static final int MINUTES_PER_HOUR = 60;
     private static final String UNTYPED_RESOURCE = "Link";
     private static final String SESSION_PATH = "%s/communities/%s/sessions/%d";
 
@@ -49,7 +44,7 @@ final class SessionPosters {
         var row = new LinkedHashMap<String, Object>();
         row.put("dateLabel", dateLabel(session));
         row.put("title", session.title());
-        row.put("durationLabel", durationLabel(session.durationMinutes()));
+        row.put("durationLabel", DurationLabels.of(session.durationMinutes()));
         row.put("recordingUrl", session.recordingUrl());
         row.put("sessionUrl", sessionUrl(activity, community, session));
         row.put("thumbnailUrl", thumbnailUrlOf(activity, session));
@@ -91,7 +86,7 @@ final class SessionPosters {
         var fact = new LinkedHashMap<String, String>();
         fact.put("name", name);
         fact.put("initials", Initials.of(name));
-        fact.put("tint", AVATAR_TINTS.get(Math.floorMod(name.hashCode(), AVATAR_TINTS.size())));
+        fact.put("tint", PersonTints.of(name));
         return Collections.unmodifiableMap(fact);
     }
 
@@ -103,20 +98,6 @@ final class SessionPosters {
     static boolean isNamed(String name) {
 
         return !DirectoryUser.DELETED_MEMBER_LABEL.equals(name);
-    }
-
-    /** "45 min", "1h", "1h 12"; absent when the session never stated how long it ran. */
-    static String durationLabel(Integer minutes) {
-
-        if (minutes == null || minutes <= 0) {
-            return null;
-        }
-        if (minutes < MINUTES_PER_HOUR) {
-            return minutes + " min";
-        }
-        var hours = minutes / MINUTES_PER_HOUR;
-        var rest = minutes % MINUTES_PER_HOUR;
-        return rest == 0 ? hours + "h" : "%dh %02d".formatted(hours, rest);
     }
 
     private static String sessionUrl(QuarterActivity activity, NamedCommunity community, HeldSession session) {

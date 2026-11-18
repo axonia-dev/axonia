@@ -38,6 +38,7 @@ import dev.axonia.knowledge.adapter.out.privacy.KnowledgePersonalDataFootprint;
 import dev.axonia.learning.adapter.out.privacy.LearningMemberDataEraser;
 import dev.axonia.learning.adapter.out.privacy.LearningPersonalDataExporter;
 import dev.axonia.learning.adapter.out.privacy.LearningPersonalDataFootprint;
+import dev.axonia.media.adapter.out.privacy.HeroThumbnailFootprint;
 import dev.axonia.media.api.MediaStorage;
 import dev.axonia.mentoring.adapter.out.privacy.MentoringMemberDataEraser;
 import dev.axonia.mentoring.adapter.out.privacy.MentoringPersonalDataExporter;
@@ -94,12 +95,12 @@ import static org.mockito.Mockito.mock;
         KnowledgePersonalDataFootprint.class, LearningPersonalDataFootprint.class, MentoringPersonalDataFootprint.class,
         OnboardingPersonalDataFootprint.class, OrganizationPersonalDataFootprint.class,
         PrivacyPersonalDataFootprint.class, RecognitionPersonalDataFootprint.class, RoundupPersonalDataFootprint.class,
-        AccessMemberDataEraser.class, AgentMemberDataEraser.class, BookmarksMemberDataEraser.class,
-        CommunicationMemberDataEraser.class, JdbcExpiredSubjects.class, EventsMemberDataEraser.class,
-        ExpertiseMemberDataEraser.class, IdentityMemberDataEraser.class, KnowledgeMemberDataEraser.class,
-        LearningMemberDataEraser.class, MentoringMemberDataEraser.class, OnboardingPersonDataEraser.class,
-        RecognitionMemberDataEraser.class, AccessPersonalDataExporter.class, AgentPersonalDataExporter.class,
-        BookmarksPersonalDataExporter.class, CommunicationPersonalDataExporter.class,
+        HeroThumbnailFootprint.class, AccessMemberDataEraser.class, AgentMemberDataEraser.class,
+        BookmarksMemberDataEraser.class, CommunicationMemberDataEraser.class, JdbcExpiredSubjects.class,
+        EventsMemberDataEraser.class, ExpertiseMemberDataEraser.class, IdentityMemberDataEraser.class,
+        KnowledgeMemberDataEraser.class, LearningMemberDataEraser.class, MentoringMemberDataEraser.class,
+        OnboardingPersonDataEraser.class, RecognitionMemberDataEraser.class, AccessPersonalDataExporter.class,
+        AgentPersonalDataExporter.class, BookmarksPersonalDataExporter.class, CommunicationPersonalDataExporter.class,
         CommunityPersonalDataExporter.class, EventsPersonalDataExporter.class, ExpertisePersonalDataExporter.class,
         IdentityPersonalDataExporter.class, KnowledgePersonalDataExporter.class, LearningPersonalDataExporter.class,
         MentoringPersonalDataExporter.class, OnboardingPersonalDataExporter.class,

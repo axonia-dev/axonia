@@ -5,6 +5,9 @@ import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
+import dev.axonia.communication.application.note.FormattedNote;
+import dev.axonia.communication.application.note.NoteParser;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 class SlackPlatformTest {
@@ -14,7 +17,7 @@ class SlackPlatformTest {
     private static ChatPost post(String headline, String body) {
 
         return ChatPost.builder().sender("Backend Guild").headline(headline).whenLine("Held 1 September 2026 at 16:00")
-                .body(body).details(Map.of("Attended", "24")).actionLabel("View the wrap-up")
+                .note(NoteParser.parse(body)).details(Map.of("Attended", "24")).actionLabel("View the wrap-up")
                 .actionUrl("https://axonia.example/s/1").build();
     }
 
@@ -67,5 +70,16 @@ class SlackPlatformTest {
         @SuppressWarnings("unchecked")
         var headerText = (Map<String, Object>) blocks.get(0).get("text");
         assertThat(headerText.get("text")).isEqualTo("Event sourcing");
+    }
+
+    @Test
+    void payload_sendsNoNoteBlockForANoteWithoutVisibleText() {
+
+        var invisible = new FormattedNote(List.of(new FormattedNote.Paragraph(List.of(new FormattedNote.LineBreak()))));
+        var withInvisibleNote = ChatPost.builder().sender("Backend Guild").headline("Event sourcing")
+                .whenLine("Held 1 September 2026 at 16:00").note(invisible).details(Map.of("Attended", "24"))
+                .actionLabel("View the wrap-up").actionUrl("https://axonia.example/s/1").build();
+
+        assertThat(sut.payload(withInvisibleNote)).isEqualTo(sut.payload(post("Event sourcing", null)));
     }
 }

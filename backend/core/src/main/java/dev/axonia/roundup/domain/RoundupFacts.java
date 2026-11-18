@@ -18,6 +18,7 @@ import dev.axonia.roundup.api.spi.SessionActivity.HeldSession;
 import dev.axonia.roundup.api.spi.SessionActivity.UpcomingSession;
 import dev.axonia.roundup.api.spi.TopicActivity.TagCount;
 import dev.axonia.roundup.domain.QuarterActivity.NamedCommunity;
+import dev.axonia.shared.api.colour.GuildTints;
 import dev.axonia.shared.api.text.Initials;
 import lombok.Builder;
 

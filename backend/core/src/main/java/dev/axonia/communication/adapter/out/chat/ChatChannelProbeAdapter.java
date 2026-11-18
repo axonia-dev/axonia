@@ -5,6 +5,7 @@ import java.net.URI;
 import org.springframework.stereotype.Component;
 
 import dev.axonia.communication.api.ChatChannelProbe;
+import dev.axonia.communication.application.note.NoteParser;
 import dev.axonia.shared.api.web.PublicUrls;
 import lombok.RequiredArgsConstructor;
 
@@ -29,8 +30,8 @@ class ChatChannelProbeAdapter implements ChatChannelProbe {
 
         var post = ChatPost.builder().sender(communityName).headline("Test message from axonia")
                 .whenLine("This is only a test, not a real update")
-                .body("If you can see this in the channel, the connection is working.").actionLabel("Open axonia")
-                .actionUrl(publicUrlProperties.publicBaseUrl()).build();
+                .note(NoteParser.parse("If you can see this in the channel, the connection is working."))
+                .actionLabel("Open axonia").actionUrl(publicUrlProperties.publicBaseUrl()).build();
         chatTransport.post(URI.create(webhookUrl), post);
     }
 }

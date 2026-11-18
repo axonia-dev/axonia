@@ -12,18 +12,18 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import dev.axonia.media.api.AbsoluteMediaLinks;
+import dev.axonia.media.api.HeroThumbnailRequest;
+import dev.axonia.media.api.HeroThumbnails;
 import dev.axonia.roundup.api.spi.ArtifactActivity;
 import dev.axonia.roundup.api.spi.CommunityActivity;
 import dev.axonia.roundup.api.spi.CommunityActivity.CommunitySummary;
 import dev.axonia.roundup.api.spi.SessionActivity;
 import dev.axonia.roundup.api.spi.SessionActivity.HeldSession;
 import dev.axonia.roundup.api.spi.TopicActivity;
-import dev.axonia.roundup.application.port.out.SessionThumbnails;
 import dev.axonia.roundup.domain.Quarter;
 import dev.axonia.roundup.domain.QuarterActivity;
 import dev.axonia.roundup.domain.QuarterActivity.NamedCommunity;
 import dev.axonia.roundup.domain.RoundupFacts;
-import dev.axonia.roundup.domain.ThumbnailRequest;
 import dev.axonia.shared.api.web.OrganizationLinks;
 import dev.axonia.shared.api.web.PublicUrls;
 import lombok.RequiredArgsConstructor;
@@ -74,7 +74,7 @@ public class RoundupFactsAssembler {
     private final RoundupLimits properties;
     private final PublicUrls publicUrlProperties;
     private final AbsoluteMediaLinks absoluteMediaLinks;
-    private final SessionThumbnails sessionThumbnails;
+    private final HeroThumbnails heroThumbnails;
 
     @Transactional
     public QuarterActivity read(String organizationId, String organizationName, Quarter quarter) {
@@ -127,17 +127,17 @@ public class RoundupFactsAssembler {
                 .sorted(RoundupFacts.NEWEST_FIRST).limit(properties.sessionsPerCommunityCap()).toList();
         var urls = new HashMap<Long, String>();
         IntStream.range(0, shown.size())
-                .forEach(slice -> sessionThumbnails.urlFor(thumbnailRequest(organizationId, community, slice))
+                .forEach(slice -> heroThumbnails.urlFor(thumbnailRequest(organizationId, community, slice))
                         .ifPresent(url -> urls.put(shown.get(slice).sessionId(), url)));
         return urls;
     }
 
-    private static ThumbnailRequest thumbnailRequest(String organizationId, CommunitySummary community, int slice) {
+    private static HeroThumbnailRequest thumbnailRequest(String organizationId, CommunitySummary community, int slice) {
 
-        return ThumbnailRequest.builder().organizationId(organizationId).communityId(community.id())
-                .heroKey(community.heroKey()).heroFocusX(ThumbnailRequest.focusOrCentre(community.heroFocusX()))
-                .heroFocusY(ThumbnailRequest.focusOrCentre(community.heroFocusY())).sliceIndex(slice)
-                .accentHex(ThumbnailRequest.accentHexOf(community.accentColor())).build();
+        return HeroThumbnailRequest.builder().organizationId(organizationId).communityId(community.id())
+                .heroKey(community.heroKey()).heroFocusX(HeroThumbnailRequest.focusOrCentre(community.heroFocusX()))
+                .heroFocusY(HeroThumbnailRequest.focusOrCentre(community.heroFocusY())).sliceIndex(slice)
+                .accentHex(HeroThumbnailRequest.accentHexOf(community.accentColor())).build();
     }
 
     /**

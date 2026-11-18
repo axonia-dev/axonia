@@ -79,6 +79,9 @@ class AvatarSyncServiceTest {
     @Mock
     private OrganizationIdpResolver resolver;
 
+    @Mock
+    private GraphAppRegistration graphApp;
+
     private AvatarSyncService sut;
 
     @BeforeEach
@@ -92,8 +95,9 @@ class AvatarSyncServiceTest {
         });
         lenient().when(resolver.resolve(ORG))
                 .thenReturn(Optional.of(new OrganizationIdp(IdpProvider.ENTRA, TENANT, true)));
-        sut = new AvatarSyncService(userStore, photoSource, claimUrlPhotoSource, mediaStorage, resolver, executor,
-                clock);
+        lenient().when(graphApp.isConfigured()).thenReturn(true);
+        sut = new AvatarSyncService(userStore, photoSource, claimUrlPhotoSource, mediaStorage, resolver, graphApp,
+                executor, clock);
     }
 
     private UserAccount.UserAccountBuilder entraUser() {
@@ -172,6 +176,39 @@ class AvatarSyncServiceTest {
 
         // then
         verifyNoInteractions(photoSource, mediaStorage, executor);
+    }
+
+    @Test
+    void maybeSync_withoutGraphAppRegistration_doesNotReachGraph() {
+
+        // given - a proved Entra tenant on a deployment that configures no axonia.idp.entra.* app: no token can be
+        // minted
+        given(graphApp.isConfigured()).willReturn(false);
+        when(userStore.findByOrganizationIdAndUserId(ORG, USER))
+                .thenReturn(Optional.of(entraUser().avatarSyncedAt(STALE).build()));
+
+        // when - no claim url either, so nothing at all should happen
+        sut.maybeSync(ORG, USER, null);
+
+        // then
+        verifyNoInteractions(photoSource, mediaStorage, executor);
+    }
+
+    @Test
+    void maybeSync_withoutGraphAppRegistration_fallsBackToTheClaimUrl() {
+
+        // given
+        given(graphApp.isConfigured()).willReturn(false);
+        when(userStore.findByOrganizationIdAndUserId(ORG, USER))
+                .thenReturn(Optional.of(entraUser().avatarSyncedAt(STALE).build()));
+        when(claimUrlPhotoSource.fetch(CLAIM_URL)).thenReturn(Optional.empty());
+
+        // when
+        sut.maybeSync(ORG, USER, CLAIM_URL);
+
+        // then
+        verify(claimUrlPhotoSource).fetch(CLAIM_URL);
+        verifyNoInteractions(photoSource);
     }
 
     @Test

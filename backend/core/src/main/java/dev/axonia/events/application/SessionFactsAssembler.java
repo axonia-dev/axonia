@@ -4,10 +4,13 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -35,10 +38,13 @@ import dev.axonia.events.domain.SessionFacts;
 import dev.axonia.events.domain.SessionFactsContext;
 import dev.axonia.events.domain.SessionRecord;
 import dev.axonia.events.domain.SessionUrls;
+import dev.axonia.media.api.HeroThumbnailRequest;
+import dev.axonia.media.api.HeroThumbnails;
 import dev.axonia.shared.api.web.OrganizationLinks;
 import dev.axonia.shared.api.web.PublicUrls;
 import lombok.Builder;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Resolves everything {@link SessionFactsContext} needs and hands the result to {@link SessionFacts#of} - the one place
@@ -48,11 +54,15 @@ import lombok.RequiredArgsConstructor;
  * no JWT, so the implicit-organization overload of any of these ports would throw exactly the way
  * {@code MessageSubjectPolicyAdapterRunsWithNoJwtTest} already proved for the delivery gate's own path.
  */
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class SessionFactsAssembler {
 
+    private static final DateTimeFormatter NEXT_MONTH = DateTimeFormatter.ofPattern("MMM", Locale.ENGLISH);
+    private static final DateTimeFormatter NEXT_DAY = DateTimeFormatter.ofPattern("d", Locale.ENGLISH);
     private static final DateTimeFormatter NEXT_SESSION_DATE = DateTimeFormatter.ofPattern("d MMMM", Locale.ENGLISH);
+    private static final DateTimeFormatter NEXT_DATE_LINE = DateTimeFormatter.ofPattern("EEEE d MMMM", Locale.ENGLISH);
     private static final String BACKLOG_URL_TEMPLATE = "%s/communities/%s/backlog";
 
     private final SessionMapper sessionMapper;
@@ -65,6 +75,7 @@ public class SessionFactsAssembler {
     private final ActionItemCheckpointStore actionItemCheckpointStore;
     private final PublicUrls publicUrlProperties;
     private final WrapUpWindow wrapUpWindow;
+    private final HeroThumbnails heroThumbnails;
 
     /**
      * Facts for a notice that never mentions what follows this session - {@code SESSION_UPCOMING} and both arms of the
@@ -87,15 +98,17 @@ public class SessionFactsAssembler {
      * and {@code feedbackClosesAt} (when its feedback window closes, only while it is open at {@code now}), resolved
      * here because the wrap-up is the one message that renders them.
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public Map<String, Object> factsForWrapUp(String organizationId, SessionRecord entity, Instant now) {
 
         var series = series(organizationId, entity);
         var actionPointEntities = actionItemStore.findByOriginSessionId(organizationId, entity.getCommunityId(),
                 entity.getId());
         var checkedItems = checkedItems(organizationId, entity.getCommunityId(), entity.getId());
+        var next = nextOccurrence(organizationId, entity, now);
         return facts(FactsRequest.builder().organizationId(organizationId).entity(entity).series(series)
-                .nextSession(nextSessionLabel(organizationId, entity, series, now))
+                .nextUp(next.map(occurrence -> nextUp(occurrence, zoneOf(series))).orElse(null))
+                .nextSession(next.map(occurrence -> label(occurrence, zoneOf(series))).orElse(null)).withPoster(true)
                 .actionPointEntities(actionPointEntities).checkedItems(checkedItems)
                 .feedbackClosesAt(openFeedbackClosesAt(entity, now)).build());
     }
@@ -165,7 +178,7 @@ public class SessionFactsAssembler {
     @Builder
     private record FactsRequest(String organizationId, SessionRecord entity, SeriesRecord series, String nextSession,
             List<ActionItemRecord> actionPointEntities, List<CheckedItemSource> checkedItems, String nudgeArm,
-            Instant feedbackClosesAt) {
+            Instant feedbackClosesAt, Map<String, String> nextUp, boolean withPoster) {
 
         private FactsRequest {
             actionPointEntities = actionPointEntities == null ? List.of() : actionPointEntities;
@@ -190,7 +203,11 @@ public class SessionFactsAssembler {
                 .backlogUrl(OrganizationLinks.withOrganization(
                         BACKLOG_URL_TEMPLATE.formatted(publicUrlProperties.publicBaseUrl(), community.slug()),
                         request.organizationId()))
-                .feedbackClosesAt(request.feedbackClosesAt()).build();
+                .feedbackClosesAt(request.feedbackClosesAt()).nextUp(request.nextUp()).poster(request.withPoster())
+                .thumbnailUrl(request.withPoster()
+                        ? thumbnailUrl(request.organizationId(), community, request.entity())
+                        : null)
+                .build();
         return SessionFacts.of(session, context);
     }
 
@@ -243,13 +260,41 @@ public class SessionFactsAssembler {
         return series == null ? null : series.getTitle();
     }
 
-    private String nextSessionLabel(String organizationId, SessionRecord entity, SeriesRecord series, Instant now) {
+    /** The poster band's image, or null for the gradient: a thumbnail that fails never holds back the wrap-up. */
+    private String thumbnailUrl(String organizationId, CommunityIdentity community, SessionRecord entity) {
 
-        if (entity.getSeriesId() == null) {
+        try {
+            return communityAccess.communityHero(organizationId, entity.getCommunityId())
+                    .flatMap(hero -> heroThumbnails.urlFor(HeroThumbnailRequest.builder().organizationId(organizationId)
+                            .communityId(entity.getCommunityId()).heroKey(hero.heroKey())
+                            .heroFocusX(HeroThumbnailRequest.focusOrCentre(hero.focusX()))
+                            .heroFocusY(HeroThumbnailRequest.focusOrCentre(hero.focusY())).sliceIndex(0)
+                            .accentHex(HeroThumbnailRequest.accentHexOf(community.accentColor())).build()))
+                    .orElse(null);
+        } catch (RuntimeException e) {
+            log.warn("Wrap-up of session {} goes without its thumbnail", entity.getId(), e);
             return null;
         }
-        return sessionStore.findPendingForSeriesExcluding(organizationId, entity.getSeriesId(), entity.getId(), now)
-                .map(next -> label(next, zoneOf(series))).orElse(null);
+    }
+
+    private Optional<SessionRecord> nextOccurrence(String organizationId, SessionRecord entity, Instant now) {
+
+        if (entity.getSeriesId() == null) {
+            return Optional.empty();
+        }
+        return sessionStore.findPendingForSeriesExcluding(organizationId, entity.getSeriesId(), entity.getId(), now);
+    }
+
+    /** What the next up chip draws: the month and day in the chip, the title when there is one, the date line. */
+    private static Map<String, String> nextUp(SessionRecord next, ZoneId zone) {
+
+        var title = next.getTitle() == null || next.getTitle().isBlank() ? null : next.getTitle();
+        var nextUp = new LinkedHashMap<String, String>();
+        nextUp.put("nextMonth", NEXT_MONTH.withZone(zone).format(next.getScheduledAt()).toUpperCase(Locale.ENGLISH));
+        nextUp.put("nextDay", NEXT_DAY.withZone(zone).format(next.getScheduledAt()));
+        nextUp.put("nextTitle", title);
+        nextUp.put("nextLabel", NEXT_DATE_LINE.withZone(zone).format(next.getScheduledAt()));
+        return Collections.unmodifiableMap(nextUp);
     }
 
     /**

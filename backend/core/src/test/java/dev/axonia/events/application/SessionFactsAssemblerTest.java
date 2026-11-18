@@ -3,6 +3,7 @@ package dev.axonia.events.application;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -11,7 +12,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoSettings;
+import org.springframework.dao.DataAccessResourceFailureException;
 
+import dev.axonia.community.api.CommunityHero;
 import dev.axonia.community.api.CommunityIdentity;
 import dev.axonia.events.adapter.out.communication.AwaitingCloseProducerTest;
 import dev.axonia.events.api.ActionItemOutcome;
@@ -35,10 +38,13 @@ import dev.axonia.events.domain.SeriesRecord;
 import dev.axonia.events.domain.SessionFacts;
 import dev.axonia.events.domain.SessionRecord;
 import dev.axonia.events.domain.SessionRecordMother;
+import dev.axonia.media.api.HeroThumbnailRequest;
+import dev.axonia.media.api.HeroThumbnails;
 import dev.axonia.shared.api.web.PublicUrls;
 import dev.axonia.shared.configuration.PublicUrlProperties;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -76,6 +82,9 @@ class SessionFactsAssemblerTest {
     @Mock
     private ActionItemCheckpointStore actionItemCheckpointStore;
 
+    @Mock
+    private HeroThumbnails heroThumbnails;
+
     private final PublicUrls publicUrlProperties = new PublicUrlProperties("https://axonia.example");
 
     private final WrapUpWindow wrapUpWindow = () -> Duration.ofDays(30);
@@ -89,7 +98,7 @@ class SessionFactsAssemblerTest {
         // constructor strategy only fills parameters it can match to a mock - it would otherwise pass null.
         assembler = new SessionFactsAssembler(sessionMapper, seriesStore, sessionStore, communityAccess,
                 userProfileAccess, sessionResourceAccess, actionItemStore, actionItemCheckpointStore,
-                publicUrlProperties, wrapUpWindow);
+                publicUrlProperties, wrapUpWindow, heroThumbnails);
     }
 
     @Test
@@ -157,8 +166,8 @@ class SessionFactsAssemblerTest {
         // then
         @SuppressWarnings("unchecked")
         var talks = (List<Map<String, Object>>) facts.get("talks");
-        assertThat(talks).singleElement().extracting(talk -> talk.get("resources"))
-                .isEqualTo(List.of(Map.of("title", "Slides", "url", "https://example.com/deck.pdf")));
+        assertThat(talks).singleElement().extracting(talk -> talk.get("resources")).isEqualTo(
+                List.of(Map.of("title", "Slides", "url", "https://example.com/deck.pdf", "label", "Slides")));
     }
 
     /**
@@ -179,8 +188,8 @@ class SessionFactsAssemblerTest {
         var facts = assembler.facts(ORGANIZATION_ID, entity);
 
         // then
-        assertThat(facts.get("resources"))
-                .isEqualTo(List.of(Map.of("title", "Agenda", "url", "https://example.com/agenda.pdf")));
+        assertThat(facts.get("resources")).isEqualTo(
+                List.of(Map.of("title", "Agenda", "url", "https://example.com/agenda.pdf", "label", "Agenda")));
     }
 
     /**
@@ -450,6 +459,99 @@ class SessionFactsAssemblerTest {
     }
 
     @Test
+    void factsForWrapUp_carriesTheNextOccurrenceAsMonthDayAndTitleOnTheSeriesClock() {
+
+        // given - 23:30 UTC on 1 December is already 2 December in Brussels.
+        var entity = SessionRecordMother.any().id(42L).communityId(COMMUNITY_ID).seriesId(9L).build();
+        givenMappedSession(entity, SessionMother.any().id(42L).seriesId(9L).build());
+        givenLeafDependencies(entity);
+        when(seriesStore.findByOrganizationIdAndId(ORGANIZATION_ID, 9L)).thenReturn(
+                Optional.of(SeriesRecord.builder().id(9L).title("Frontend Dojo").timeZone("Europe/Brussels").build()));
+        when(sessionStore.findPendingForSeriesExcluding(ORGANIZATION_ID, 9L, 42L, NOW))
+                .thenReturn(Optional.of(SessionRecord.builder().id(43L).title("Structured concurrency")
+                        .scheduledAt(Instant.parse("2026-12-01T23:30:00Z")).build()));
+
+        // when
+        var facts = assembler.factsForWrapUp(ORGANIZATION_ID, entity, NOW);
+
+        // then
+        assertThat(facts.get("nextUp")).isEqualTo(Map.of("nextMonth", "DEC", "nextDay", "2", "nextTitle",
+                "Structured concurrency", "nextLabel", "Wednesday 2 December"));
+        assertThat(facts).containsEntry("nextSession", "2 December - Structured concurrency");
+    }
+
+    @Test
+    void factsForWrapUp_carriesNoNextUpForAOneOff() {
+
+        // given
+        var entity = SessionRecordMother.any().id(42L).communityId(COMMUNITY_ID).seriesId(null).build();
+        givenMappedSession(entity, SessionMother.any().id(42L).seriesId(null).build());
+        givenLeafDependencies(entity);
+
+        // when
+        var facts = assembler.factsForWrapUp(ORGANIZATION_ID, entity, NOW);
+
+        // then
+        assertThat(facts).containsEntry("nextUp", null).containsEntry("nextSession", null);
+    }
+
+    @Test
+    void factsForWrapUp_composesTheThumbnailFromTheCommunityHeroAtSliceZero() {
+
+        // given
+        var entity = SessionRecordMother.any().id(42L).communityId(COMMUNITY_ID).seriesId(null).build();
+        givenMappedSession(entity, SessionMother.any().id(42L).seriesId(null).build());
+        givenLeafDependencies(entity);
+        when(communityAccess.communityHero(ORGANIZATION_ID, COMMUNITY_ID))
+                .thenReturn(Optional.of(new CommunityHero("heroes/a.jpg", 30, null)));
+        var expected = HeroThumbnailRequest.builder().organizationId(ORGANIZATION_ID).communityId(COMMUNITY_ID)
+                .heroKey("heroes/a.jpg").heroFocusX(30).heroFocusY(HeroThumbnailRequest.CENTRED_FOCUS).sliceIndex(0)
+                .accentHex("#1aa6a0").build();
+        when(heroThumbnails.urlFor(expected)).thenReturn(Optional.of("https://axonia.example/t.png"));
+
+        // when
+        var facts = assembler.factsForWrapUp(ORGANIZATION_ID, entity, NOW);
+
+        // then
+        assertThat(facts).containsEntry("thumbnailUrl", "https://axonia.example/t.png");
+    }
+
+    @Test
+    void factsForWrapUp_carriesNoThumbnailAndComposesNoneWhenTheCommunityHasNoHero() {
+
+        // given
+        var entity = SessionRecordMother.any().id(42L).communityId(COMMUNITY_ID).seriesId(null).build();
+        givenMappedSession(entity, SessionMother.any().id(42L).seriesId(null).build());
+        givenLeafDependencies(entity);
+        when(communityAccess.communityHero(ORGANIZATION_ID, COMMUNITY_ID)).thenReturn(Optional.empty());
+
+        // when
+        var facts = assembler.factsForWrapUp(ORGANIZATION_ID, entity, NOW);
+
+        // then
+        assertThat(facts).containsEntry("thumbnailUrl", null);
+        verifyNoInteractions(heroThumbnails);
+    }
+
+    @Test
+    void facts_neverComposesAThumbnail() {
+
+        // given
+        var entity = SessionRecordMother.any().id(42L).communityId(COMMUNITY_ID).seriesId(null).build();
+        givenMappedSession(entity, SessionMother.any().id(42L).seriesId(null).build());
+        givenLeafDependencies(entity);
+
+        // when
+        var facts = assembler.facts(ORGANIZATION_ID, entity);
+
+        // then
+        assertThat(facts).doesNotContainKeys("thumbnailUrl", "nextUp", "durationLabel", "tints");
+        verifyNoInteractions(heroThumbnails);
+        verify(communityAccess, org.mockito.Mockito.never()).communityHero(any(),
+                org.mockito.ArgumentMatchers.anyLong());
+    }
+
+    @Test
     void factsForWrapUp_labelsTheNextSessionWithOnlyItsDateWhenItHasNoTitleYet() {
 
         // given - a materialised-but-not-yet-planned next occurrence still carries no title.
@@ -467,6 +569,56 @@ class SessionFactsAssemblerTest {
 
         // then
         assertThat(facts).containsEntry("nextSession", "29 August");
+        assertThat(facts.get("nextUp")).isEqualTo(nextUpWithoutTitle("Saturday 29 August"));
+    }
+
+    @Test
+    void factsForWrapUp_readsABlankNextTitleAsNoTitle() {
+
+        // given
+        var entity = SessionRecordMother.any().id(42L).communityId(COMMUNITY_ID).seriesId(9L).build();
+        givenMappedSession(entity, SessionMother.any().id(42L).seriesId(9L).build());
+        givenLeafDependencies(entity);
+        when(seriesStore.findByOrganizationIdAndId(ORGANIZATION_ID, 9L)).thenReturn(
+                Optional.of(SeriesRecord.builder().id(9L).title("Frontend Dojo").timeZone("Europe/Brussels").build()));
+        when(sessionStore.findPendingForSeriesExcluding(ORGANIZATION_ID, 9L, 42L, NOW))
+                .thenReturn(Optional.of(SessionRecord.builder().id(43L).title("   ")
+                        .scheduledAt(Instant.parse("2026-08-29T18:00:00Z")).build()));
+
+        // when
+        var facts = assembler.factsForWrapUp(ORGANIZATION_ID, entity, NOW);
+
+        // then
+        assertThat(facts).containsEntry("nextSession", "29 August");
+        assertThat(facts.get("nextUp")).isEqualTo(nextUpWithoutTitle("Saturday 29 August"));
+    }
+
+    private static Map<String, String> nextUpWithoutTitle(String nextLabel) {
+
+        var nextUp = new HashMap<String, String>();
+        nextUp.put("nextMonth", "AUG");
+        nextUp.put("nextDay", "29");
+        nextUp.put("nextTitle", null);
+        nextUp.put("nextLabel", nextLabel);
+        return nextUp;
+    }
+
+    @Test
+    void factsForWrapUp_fallsBackToTheGradientBandWhenTheThumbnailFails() {
+
+        // given
+        var entity = SessionRecordMother.any().id(42L).communityId(COMMUNITY_ID).seriesId(null).build();
+        givenMappedSession(entity, SessionMother.any().id(42L).seriesId(null).build());
+        givenLeafDependencies(entity);
+        when(communityAccess.communityHero(ORGANIZATION_ID, COMMUNITY_ID))
+                .thenReturn(Optional.of(new CommunityHero("heroes/a.jpg", 30, null)));
+        when(heroThumbnails.urlFor(any())).thenThrow(new DataAccessResourceFailureException("down"));
+
+        // when
+        var facts = assembler.factsForWrapUp(ORGANIZATION_ID, entity, NOW);
+
+        // then
+        assertThat(facts).containsEntry("thumbnailUrl", null);
     }
 
     /**

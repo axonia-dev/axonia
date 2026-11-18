@@ -163,6 +163,20 @@ class MomentLineTest {
         assertThat(day).isNull();
     }
 
+    @Test
+    void theDayAloneFollowsTheClockTheFullLineNamesFirst() {
+
+        var timed = facts("Pacific/Auckland", "America/Los_Angeles");
+        var untimed = facts("Pacific/Auckland", "America/Los_Angeles");
+        untimed.put("hasTime", false);
+        var noInstant = facts("Europe/Berlin", null);
+        noInstant.remove("scheduledAt");
+
+        assertThat(MomentLine.day(timed)).isEqualTo("1 October");
+        assertThat(MomentLine.day(untimed)).isEqualTo("2 October");
+        assertThat(MomentLine.day(noInstant)).isNull();
+    }
+
     private static Map<String, Object> facts(String sessionZone, String readerZone) {
 
         var facts = new HashMap<String, Object>();

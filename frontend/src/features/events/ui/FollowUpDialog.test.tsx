@@ -110,6 +110,9 @@ describe("FollowUpDialog", () => {
     expect(screen.getByLabelText(/note/i)).toHaveValue(
       "The p95 numbers landed.",
     );
+    expect(
+      screen.getByText("Supports **bold**, *italics*, lists and links."),
+    ).toBeInTheDocument();
   });
 
   it("stays shut until its owner opens it, since the strip and the menu both open this one", () => {

@@ -1,4 +1,4 @@
-package dev.axonia.roundup.adapter.out.thumbnail;
+package dev.axonia.media.adapter.out.thumbnail;
 
 import java.awt.Color;
 import java.awt.RenderingHints;

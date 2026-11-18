@@ -16,6 +16,7 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import dev.axonia.communication.api.MessageType;
 import dev.axonia.communication.application.FactRehydration;
 import dev.axonia.communication.application.MailRenderer;
+import dev.axonia.communication.application.note.NoteParser;
 import dev.axonia.communication.configuration.MailTemplateConfig;
 import dev.axonia.community.api.CommunityIdentity;
 import dev.axonia.events.api.ActionItemOutcome;
@@ -83,6 +84,9 @@ class ChatPostMatchesMailTest {
      * <li>{@code checkedItems} - the same structured, multi-row shape as {@code actionPoints} and not carried either:
      * what a session checked was added later, and it carries the exact reason {@code actionPoints} stays out - a
      * per-assignee, per-outcome list is exactly what a flat chat card cannot hold.</li>
+     * <li>{@code durationLabel}, {@code tints}, {@code thumbnailUrl} and {@code nextUp} - the mail's recording poster
+     * and calendar chip: a chat card has no band to paint or chip to draw, and {@code nextUp} is only
+     * {@code nextSession} split into the chip's parts.</li>
      * </ul>
      * {@code ChatPost} is deliberately not widened to carry any of them: a real gap gets fixed in
      * {@code ChatPostBuilders}, never by adding a field to {@code ChatPost}. Any fact {@code
@@ -91,7 +95,7 @@ class ChatPostMatchesMailTest {
      * {@code everySessionFactIsAccountedForOnOneSideOfTheChatBoundary} below.
      */
     private static final Set<String> FACTS_THE_WRAPUP_MAIL_RENDERS_BUT_THE_POST_CANNOT_CARRY = Set.of("seriesTitle",
-            "actionPoints", "checkedItems", "nextSession");
+            "actionPoints", "checkedItems", "nextSession", "durationLabel", "tints", "thumbnailUrl", "nextUp");
 
     /**
      * {@code SessionFacts.of} writes one fact map shared by all three session templates: {@code openSlotCount} and
@@ -144,7 +148,7 @@ class ChatPostMatchesMailTest {
         // followUpNotes -> the mail's note block and the post's body: a value transformed differently on either
         // side (escaped one way, truncated, re-labelled) fails this exact-equality check, not just a contains.
         assertThat(mail.html()).contains("We agreed to spike it.");
-        assertThat(post.body()).isEqualTo("We agreed to spike it.");
+        assertThat(post.note()).isEqualTo(NoteParser.parse("We agreed to spike it."));
 
         // recordingUrl: the mail's href and the post's own "Recording" detail row.
         assertThat(mail.html()).contains("https://rec.example/1");
@@ -163,7 +167,7 @@ class ChatPostMatchesMailTest {
 
         // attendeeCount: a count the mail states as a stat-strip chip and the post states as a detail row - a
         // count silently rounded, dropped, or off by one on either side fails this.
-        assertThat(mail.html()).contains("3 in the room");
+        assertThat(mail.html()).contains(">3</b> in the room");
         assertThat(post.details()).containsEntry("Attended", "3");
 
         // talks[].presenter, joined into the post's flat "Talks" line - proves the same presenter name that made
@@ -312,6 +316,6 @@ class ChatPostMatchesMailTest {
                 .sessionResources(List.of(new ResourceLink("Session notes", "https://axonia.example/notes/1")))
                 .actionPoints(actionPoints).checkedItems(checkedItems)
                 .community(new CommunityIdentity("backend-guild", "Backend Guild", null)).communityId(9L)
-                .feedbackClosesAt(Instant.parse("2026-08-22T18:30:00Z")).build();
+                .feedbackClosesAt(Instant.parse("2026-08-22T18:30:00Z")).poster(true).build();
     }
 }

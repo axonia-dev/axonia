@@ -82,15 +82,6 @@ class MailRendererTest {
     }
 
     @Test
-    void aRecordingUrlWithAnUnsafeSchemeIsNeverAnHref() {
-
-        var rendered = renderer.render("session-wrap-up",
-                Map.of("sessionTitle", "Frontend Dojo", "talks", List.of(), "recordingUrl", "javascript:alert(1)"));
-
-        assertThat(rendered.html()).doesNotContain("href=\"javascript:alert(1)\"").contains("javascript:alert(1)");
-    }
-
-    @Test
     void aResourceWithAnUnsafeSchemeIsNeverAnHref() {
 
         var talk = Map.<String, Object>of("title", "Signals in React", "presenter", "Ada", "resources",
@@ -100,115 +91,6 @@ class MailRendererTest {
                 Map.of("sessionTitle", "Frontend Dojo", "talks", List.of(talk)));
 
         assertThat(rendered.html()).doesNotContain("href=\"javascript:alert(1)\"").contains("javascript:alert(1)");
-    }
-
-    @Test
-    void emptyStringFactsDoNotLeaveDanglingLabels() {
-
-        var facts = new HashMap<String, Object>();
-        facts.put("sessionTitle", "Frontend Dojo");
-        facts.put("talks", List.of());
-        facts.put("seriesTitle", "");
-        facts.put("recordingUrl", "");
-        facts.put("followUpNotes", "");
-        facts.put("nextSession", "");
-        facts.put("sessionUrl", "");
-
-        var rendered = renderer.render("session-wrap-up", facts);
-
-        assertThat(rendered.html()).doesNotContain("Recording available").doesNotContain("From the organizer")
-                .doesNotContain("Coming up next").doesNotContain("Open the session").doesNotContain("From the session")
-                .doesNotContain("margin:0 0 6px 0; font-size:13px; font-weight:600; color:#786a7e;")
-                .contains("No talks were recorded for this session.");
-        assertThat(rendered.text()).doesNotContain("()").doesNotContain("Recording available")
-                .doesNotContain("A note from the organizer").doesNotContain("Coming up next:")
-                .doesNotContain("View this session on axonia").doesNotContain("From the session")
-                .contains("No talks were recorded for this session.").doesNotContain("<");
-    }
-
-    @Test
-    void attendeeCountRendersAsAStatStripChip() {
-
-        var rendered = renderer.render("session-wrap-up",
-                Map.of("sessionTitle", "Frontend Dojo", "talks", List.of(), "attendeeCount", 1));
-
-        assertThat(rendered.html()).contains("1 in the room");
-        assertThat(rendered.text()).contains("1 in the room");
-    }
-
-    @Test
-    void zeroAttendeesSuppressesTheLineEntirely() {
-
-        // talks is non-empty so the outer stat-strip guard renders the strip via the talk-count chip: without
-        // that, "attendeeCount: 0" alone would never reach the inner attendeeCount guard at all, and this test
-        // would prove nothing about it.
-        var talk = Map.<String, Object>of("title", "Signals in React", "presenter", "Ada");
-
-        var rendered = renderer.render("session-wrap-up",
-                Map.of("sessionTitle", "Frontend Dojo", "talks", List.of(talk), "attendeeCount", 0));
-
-        assertThat(rendered.html()).doesNotContain("in the room");
-        assertThat(rendered.text()).doesNotContain("in the room");
-    }
-
-    @Test
-    void noRecordingUrlSuppressesTheRecordingChipEvenWhenTalksArePresent() {
-
-        // Same shape of gap as zeroAttendeesSuppressesTheLineEntirely: talks non-empty keeps the outer stat-strip
-        // guard true via the talk-count chip, so the absence of a recording chip here is actually exercising the
-        // inner recordingUrl guard, not just an already-suppressed strip.
-        var talk = Map.<String, Object>of("title", "Signals in React", "presenter", "Ada");
-
-        var rendered = renderer.render("session-wrap-up",
-                Map.of("sessionTitle", "Frontend Dojo", "talks", List.of(talk)));
-
-        assertThat(rendered.html()).doesNotContain("Recording available");
-        assertThat(rendered.text()).doesNotContain("Recording available");
-    }
-
-    @Test
-    void statStripRendersNothingWhenThereIsNothingToShow() {
-
-        var rendered = renderer.render("session-wrap-up", Map.of("sessionTitle", "Frontend Dojo", "talks", List.of()));
-
-        assertThat(rendered.html())
-                .doesNotContain("<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\">");
-    }
-
-    @Test
-    void statStripOmitsTheTalkChipWhenThereAreNoTalksEvenIfTheStripRenders() {
-
-        // The strip renders on attendeeCount alone here; talks stays empty, so the talk-count chip must not
-        // fall back to "0 talks" - that would mean its own inner guard, not the strip's outer one, was deleted.
-        var rendered = renderer.render("session-wrap-up",
-                Map.of("sessionTitle", "Frontend Dojo", "talks", List.of(), "attendeeCount", 5));
-
-        assertThat(rendered.html()).contains("5 in the room").doesNotContain("talk</span>")
-                .doesNotContain("talks</span>");
-        assertThat(rendered.text()).contains("5 in the room").doesNotContain("0 talks");
-    }
-
-    @Test
-    void theAvatarRowOnlyRendersWhenPresentersIsResolved() {
-
-        var talk = Map.<String, Object>of("title", "Signals in React", "presenter", "Ada");
-
-        var rendered = renderer.render("session-wrap-up",
-                Map.of("sessionTitle", "Frontend Dojo", "talks", List.of(talk)));
-
-        assertThat(rendered.html()).doesNotContain("<td style=\"font-size:13px; color:#786a7e;\"");
-    }
-
-    @Test
-    void theNameFallbackParagraphsDoNotRenderAlongsideTheAvatarRow() {
-
-        var talk = Map.<String, Object>of("title", "Signals in React", "presenter", "Ada", "presenters",
-                List.of(Map.of("name", "Ada", "initials", "A")));
-
-        var rendered = renderer.render("session-wrap-up",
-                Map.of("sessionTitle", "Frontend Dojo", "talks", List.of(talk)));
-
-        assertThat(rendered.html()).doesNotContain("margin:0 0 8px 0; font-size:13px; font-weight:600; color:#786a7e;");
     }
 
     @Test
@@ -223,51 +105,6 @@ class MailRendererTest {
         assertThat(withLink.text()).contains("Unsubscribe");
         assertThat(withoutLink.html()).doesNotContain("Unsubscribe");
         assertThat(withoutLink.text()).doesNotContain("Unsubscribe");
-    }
-
-    @Test
-    void aTalkWithNoPresenterReadsAsProseNotDatabaseOutput() {
-
-        var talk = mapWithNullPresenter("Lightning round");
-
-        var rendered = renderer.render("session-wrap-up",
-                Map.of("sessionTitle", "Frontend Dojo", "talks", List.of(talk)));
-
-        assertThat(rendered.html()).contains("We did not catch who presented this one.");
-        assertThat(rendered.text()).contains("We did not catch who presented this one.");
-    }
-
-    @Test
-    void multiplePresentersGetCyclingAvatarColoursIncludingTheSurvivingViolet() {
-
-        var talk = Map.<String, Object>of("title", "Signals in React", "presenter", "Ada, Bob, Carol", "presenters",
-                List.of(Map.of("name", "Ada", "initials", "A"), Map.of("name", "Bob", "initials", "B"),
-                        Map.of("name", "Carol", "initials", "C")));
-
-        var rendered = renderer.render("session-wrap-up",
-                Map.of("sessionTitle", "Frontend Dojo", "talks", List.of(talk)));
-
-        assertThat(rendered.html()).contains("background-color:#de3b78").contains("background-color:#6e3ceb")
-                .contains("background-color:#1f9d63").contains(">A<").contains(">B<").contains(">C<");
-    }
-
-    @Test
-    void wrapUpSurfacesSubjectsResourcesRecordingAttendanceAndWhatIsNext() {
-
-        var rendered = renderer.render("session-wrap-up",
-                Map.of("sessionTitle", "Frontend Dojo", "talks",
-                        List.of(Map.of("title", "Signals in React", "presenter", "Ada", "subjects",
-                                List.of("React", "State management"), "resources",
-                                List.of(Map.of("url", "https://axonia.example/slides/42")))),
-                        "recordingUrl", "https://axonia.example/rec/42", "attendeeCount", 12, "nextSession",
-                        "Backend Dojo on 15 August", "sessionUrl", "https://axonia.example/s/42"));
-
-        assertThat(rendered.html()).contains(">React<").contains(">State management<")
-                .contains("https://axonia.example/slides/42").contains("https://axonia.example/rec/42")
-                .contains("12 in the room").contains("Backend Dojo on 15 August");
-        assertThat(rendered.text()).contains("React, State management").contains("https://axonia.example/slides/42")
-                .contains("https://axonia.example/rec/42").contains("12 in the room")
-                .contains("Backend Dojo on 15 August").doesNotContain("<");
     }
 
     @Test
@@ -662,8 +499,8 @@ class MailRendererTest {
 
         var rendered = renderer.render("session-wrap-up", Map.of("sessionTitle", "Frontend Dojo", "talks", List.of()));
 
-        assertThat(rendered.html()).doesNotContain("What we agreed to do");
-        assertThat(rendered.text()).doesNotContain("What we agreed to do");
+        assertThat(rendered.html()).doesNotContain(">Action points</p>");
+        assertThat(rendered.text()).doesNotContain("ACTION POINTS");
     }
 
     @Test
@@ -671,8 +508,8 @@ class MailRendererTest {
 
         var rendered = renderer.render("session-wrap-up", Map.of("sessionTitle", "Frontend Dojo", "talks", List.of()));
 
-        assertThat(rendered.html()).doesNotContain("What was checked");
-        assertThat(rendered.text()).doesNotContain("What was checked");
+        assertThat(rendered.html()).doesNotContain(">Checked</p>");
+        assertThat(rendered.text()).doesNotContain("CHECKED");
     }
 
     @Test
@@ -683,9 +520,9 @@ class MailRendererTest {
         var rendered = renderer.render("session-wrap-up",
                 Map.of("sessionTitle", "Frontend Dojo", "talks", List.of(), "checkedItems", List.of(checkedItem)));
 
-        assertThat(rendered.html()).contains("What was checked").contains("Renew the certificate").contains("Bob")
+        assertThat(rendered.html()).contains(">Checked</p>").contains("Renew the certificate").contains("Bob")
                 .contains("Carried");
-        assertThat(rendered.text()).contains("What was checked").contains("Renew the certificate - Bob (Carried)");
+        assertThat(rendered.text()).contains("CHECKED\n").contains("Renew the certificate - Bob (Carried)");
     }
 
     @Test
@@ -713,12 +550,11 @@ class MailRendererTest {
         var rendered = renderer.render("session-wrap-up",
                 Map.of("sessionTitle", "Frontend Dojo", "talks", List.of(), "actionPoints", List.of(done, open)));
 
-        assertThat(rendered.html()).contains("What we agreed to do").contains("text-decoration:line-through")
+        assertThat(rendered.html()).contains(">Action points</p>").contains("text-decoration:line-through")
                 .contains("Write the runbook").contains("Due 8 Aug").contains("Try the staging config")
                 .contains("Unassigned");
-        assertThat(rendered.text()).contains("What we agreed to do")
-                .contains("Write the runbook - Bob, due 8 Aug (done)").contains("Try the staging config - Unassigned")
-                .doesNotContain("[x]").doesNotContain("[ ]")
+        assertThat(rendered.text()).contains("ACTION POINTS\n").contains("Write the runbook - Bob, due 8 Aug (done)")
+                .contains("Try the staging config - Unassigned").doesNotContain("[x]").doesNotContain("[ ]")
                 .doesNotContain("Try the staging config - Unassigned (done)");
     }
 
@@ -778,23 +614,62 @@ class MailRendererTest {
                 "resources", List.of(Map.of("url", "https://axonia.example/notes"))));
 
         assertThat(rendered.html()).contains("From the session").contains(">https://axonia.example/notes<");
-        assertThat(rendered.text()).contains("From the session").contains("https://axonia.example/notes");
+        assertThat(rendered.text()).contains("FROM THE SESSION\n").contains("https://axonia.example/notes");
     }
 
     @Test
-    void aTalkResourceWhoseTitleMatchesTheTalkTitleRendersTheUrlAsTheLabelInsteadOfRepeatingTheTitle() {
+    void anUntitledSessionResourceIsLabelledByItsHost() {
 
-        var talk = Map.<String, Object>of("title", "It was a beautiful topic", "presenter", "Ada", "resources",
-                List.of(Map.of("title", " It Was A Beautiful Topic ", "url", "https://axonia.example/slides/1"),
-                        Map.of("title", "Slide deck", "url", "https://axonia.example/slides/2")));
+        var resource = Map.of("url", "https://axonia.example/notes", "label", "axonia.example");
+        var rendered = renderer.render("session-wrap-up",
+                Map.of("sessionTitle", "Frontend Dojo", "talks", List.of(), "resources", List.of(resource)));
+
+        assertThat(rendered.html()).contains(">axonia.example</a>").doesNotContain(">https://axonia.example/notes<");
+        assertThat(rendered.text()).contains("FROM THE SESSION\n  axonia.example: https://axonia.example/notes");
+    }
+
+    @Test
+    void aSessionResourceLabelledByItsUrlIsWrittenOnce() {
+
+        var resource = Map.of("url", "not a url", "label", "not a url");
+        var rendered = renderer.render("session-wrap-up",
+                Map.of("sessionTitle", "Frontend Dojo", "talks", List.of(), "resources", List.of(resource)));
+
+        assertThat(rendered.text()).contains("FROM THE SESSION\n  not a url").doesNotContain("not a url: ");
+    }
+
+    @Test
+    void thePlainTextStatesTheDurationTheBandShows() {
+
+        assertThat(renderer.render("session-wrap-up", aWrapUp()).text()).contains("\nDuration: 1h 04\n");
+        assertThat(renderer.render("session-wrap-up", Map.of("sessionTitle", "Frontend Dojo")).text())
+                .doesNotContain("Duration");
+    }
+
+    @Test
+    void thePosterKickerNamesTheDayOnTheClockTheHeldLineUses() {
+
+        var facts = aWrapUp();
+        facts.remove("recordingUrl");
+        facts.put("scheduledAt", Instant.parse("2026-12-01T23:30:00Z"));
+        facts.put("readerTimeZone", "America/New_York");
+        var untimed = new HashMap<>(facts);
+        untimed.put("hasTime", false);
+
+        assertThat(renderer.render("session-wrap-up", facts).html()).contains(">1 December</p>")
+                .doesNotContain(">2 December</p>");
+        assertThat(renderer.render("session-wrap-up", untimed).html()).contains(">2 December</p>")
+                .doesNotContain(">1 December</p>");
+    }
+
+    @Test
+    void aBlankNoteGivesNoTakeaways() {
 
         var rendered = renderer.render("session-wrap-up",
-                Map.of("sessionTitle", "Frontend Dojo", "talks", List.of(talk)));
+                Map.of("sessionTitle", "Frontend Dojo", "talks", List.of(), "followUpNotes", "  \n "));
 
-        assertThat(rendered.html()).contains(">https://axonia.example/slides/1<")
-                .doesNotContain(">It Was A Beautiful Topic<").contains(">Slide deck<");
-        assertThat(rendered.text()).contains("https://axonia.example/slides/1")
-                .doesNotContain("It Was A Beautiful Topic:").contains("Slide deck: https://axonia.example/slides/2");
+        assertThat(rendered.html()).doesNotContain(">Takeaways</p>");
+        assertThat(rendered.text()).doesNotContain("TAKEAWAYS");
     }
 
     @Test
@@ -807,7 +682,7 @@ class MailRendererTest {
                         List.of(Map.of("title", "It was a beautiful topic", "url", "https://axonia.example/notes"))));
 
         assertThat(rendered.html()).contains("From the session").contains(">It was a beautiful topic<");
-        assertThat(rendered.text()).contains("From the session")
+        assertThat(rendered.text()).contains("FROM THE SESSION\n")
                 .contains("It was a beautiful topic: https://axonia.example/notes");
     }
 
@@ -1130,6 +1005,423 @@ class MailRendererTest {
         assertThat(withTalks.text()).containsOnlyOnce("2 talks");
         assertThat(withNone.html()).doesNotContain("talks<");
         assertThat(withNone.text()).doesNotContain("talks");
+    }
+
+    private static final String WRAP_UP_URL = "https://axonia.example/communities/backend-guild/sessions/11?org=acme";
+    private static final String WRAP_UP_RECORDING = "https://video.example/11";
+    private static final String WRAP_UP_THUMBNAIL = "https://cdn.axonia.example/communities/7/thumbnails/11.jpg";
+    private static final String WRAP_UP_NOTE = "Two incidents, both closed. **RBAC** lands in January.\n\n"
+            + "- Quota alerts page the owning team\n- Scope review before 15 December\n\n"
+            + "Plan on the [RBAC page](https://wiki.example/rbac).";
+
+    private static Map<String, Object> aWrapUpTalk(String title, String presenter, Map<String, Object> avatar,
+            int morePresenterCount) {
+
+        var talk = new HashMap<String, Object>();
+        talk.put("title", title);
+        talk.put("presenter", presenter);
+        talk.put("presenters", presenter == null ? List.of() : List.of(Map.of("name", presenter, "initials", "XX")));
+        talk.put("subjects", List.of());
+        talk.put("resources", List.of());
+        talk.put("description", null);
+        talk.put("avatar", avatar);
+        talk.put("morePresenterCount", morePresenterCount);
+        return talk;
+    }
+
+    private static Map<String, Object> aQuotaTalk() {
+
+        var talk = aWrapUpTalk("Database Quotas Alerting", "David Barbarin",
+                aPresenter("David Barbarin", "DB", "#de3b78"), 0);
+        talk.put("description", "How a full disk on the orders database went unnoticed for six hours.");
+        talk.put("subjects", List.of("incident", "observability", "sql-database"));
+        talk.put("resources",
+                List.of(Map.of("title", "Runbook", "url", "https://slides.example/quota", "label", "Runbook"),
+                        Map.of("title", "Database Quotas Alerting", "url", "https://www.grafana.example/d/1", "label",
+                                "grafana.example")));
+        return talk;
+    }
+
+    private static Map<String, Object> aFlakyTalk() {
+
+        var talk = aWrapUpTalk("Flaky Testcontainers on CI", "Sara Keller, Tom Lee",
+                aPresenter("Sara Keller", "SK", "#1f9d63"), 1);
+        talk.put("subjects", List.of("testing"));
+        return talk;
+    }
+
+    /** A realistic wrap-up, mirroring the shape {@code events.domain.SessionFacts} produces, written out by hand. */
+    private static Map<String, Object> aWrapUp() {
+
+        var facts = new HashMap<String, Object>();
+        facts.put("sender", aCommunity());
+        facts.put("sessionTitle", "S26E11");
+        facts.put("seriesTitle", "Backend Guild Weekly");
+        facts.put("scheduledAt", Instant.parse("2026-11-18T09:00:00Z"));
+        facts.put("hasTime", true);
+        facts.put("timeZone", "Europe/Zurich");
+        facts.put("sessionUrl", WRAP_UP_URL);
+        facts.put("recordingUrl", WRAP_UP_RECORDING);
+        facts.put("durationLabel", "1h 04");
+        facts.put("thumbnailUrl", WRAP_UP_THUMBNAIL);
+        facts.put("tints", greenTints());
+        facts.put("attendeeCount", 23);
+        facts.put("talks", List.of(aQuotaTalk(),
+                aWrapUpTalk("Authentication RBAC Update", "Gabriel Dinant",
+                        aPresenter("Gabriel Dinant", "GD", "#6e3ceb"), 0),
+                aWrapUpTalk("P1: Java4Shell CVE", null, null, 0), aFlakyTalk(),
+                aWrapUpTalk("Axonia for the guild", "Lena Moser", aPresenter("Lena Moser", "LM", "#de3b78"), 0)));
+        facts.put("feedbackClosesAt", Instant.parse("2026-11-25T12:00:00Z"));
+        facts.put("followUpNotes", WRAP_UP_NOTE);
+        facts.put("actionPoints", List.of(actionPointFact("Scope review for every service", "Gabriel Dinant",
+                LocalDate.of(2026, 12, 15), false)));
+        facts.put("checkedItems", List.of(checkedItemFact("Renew the certificate", "Bob", "Done", "DONE")));
+        facts.put("resources", List.of(Map.of("title", "Session notes", "url", "https://axonia.example/notes/11")));
+        facts.put("nextUp",
+                Map.of("nextMonth", "DEC", "nextDay", "2", "nextTitle", "S26E12", "nextLabel", "Wednesday 2 December"));
+        facts.put("nextSession", "2 December - S26E12");
+        return facts;
+    }
+
+    private static void assertInOrder(String rendered, String... markers) {
+
+        var from = 0;
+        for (var marker : markers) {
+            var at = rendered.indexOf(marker, from);
+            assertThat(at).as(marker).isGreaterThanOrEqualTo(0);
+            from = at + marker.length();
+        }
+    }
+
+    @Test
+    void theWrapUpLeadsWithTheRecordingThenTheVoteThenTheTakeawaysThenTheTalks() {
+
+        var rendered = renderer.render("session-wrap-up", aWrapUp());
+
+        var body = rendered.html().substring(rendered.html().indexOf("</head>"));
+        assertInOrder(body, ">Watch the session</a>", ">How was it?</p>", ">Takeaways</p>", ">Talks</p>",
+                ">Action points</p>", ">Checked</p>", ">From the session</p>", ">Next up</p>");
+    }
+
+    @Test
+    void theBandPlaysTheRecordingWhenThereIsOne() {
+
+        var rendered = renderer.render("session-wrap-up", aWrapUp());
+
+        assertThat(rendered.html()).contains("<a href=\"" + WRAP_UP_RECORDING + "\" style=\"display:block;")
+                .containsOnlyOnce(PLAY_GLYPH).contains(">Recording</p>").contains(">Watch the session</a>")
+                .contains(">1h 04</span>").doesNotContain("Open the session");
+        assertThat(rendered.html()).as("the thumbnail paints the band for every client, Outlook included")
+                .contains("background=\"" + WRAP_UP_THUMBNAIL + "\"").contains("bgcolor=\"#16382d\"")
+                .contains("<v:fill type=\"frame\" src=\"" + WRAP_UP_THUMBNAIL + "\" color=\"#16382d\"/>")
+                .contains("style=\"width:512px;height:140px;\"");
+        assertThat(rendered.text()).contains("Watch the session: " + WRAP_UP_RECORDING + "\n");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", "javascript:alert(1)"})
+    void withoutAPlayableRecordingTheBandOpensTheSession(String recordingUrl) {
+
+        var facts = aWrapUp();
+        facts.put("recordingUrl", recordingUrl);
+
+        var rendered = renderer.render("session-wrap-up", facts);
+
+        assertThat(rendered.html()).doesNotContain(PLAY_GLYPH).doesNotContain("Watch the session")
+                .doesNotContain("href=\"javascript:").contains("<a href=\"" + WRAP_UP_URL + "\" style=\"display:block;")
+                .contains(">18 November</p>").contains(">Open the session</a>");
+        assertThat(rendered.text()).doesNotContain("Watch the session").doesNotContain("javascript:")
+                .contains("Open the session: " + WRAP_UP_URL);
+    }
+
+    @Test
+    void thePosterFooterCountsTheTalksAndTheRoomAndDropsEachAtZero() {
+
+        var empty = aWrapUp();
+        empty.put("attendeeCount", 0);
+        var lone = aWrapUp();
+        lone.put("talks", List.of(aQuotaTalk()));
+        lone.put("attendeeCount", null);
+        var talkless = aWrapUp();
+        talkless.put("talks", List.of());
+
+        var full = renderer.render("session-wrap-up", aWrapUp());
+        var noRoom = renderer.render("session-wrap-up", empty);
+        var oneTalk = renderer.render("session-wrap-up", lone);
+        var noTalks = renderer.render("session-wrap-up", talkless);
+
+        assertThat(visibleText(full.html())).contains(" 5 talks · 23 in the room Open session ");
+        assertThat(full.text()).contains("\n5 talks, 23 in the room\n");
+        assertThat(visibleText(noRoom.html())).contains(" 5 talks Open session ").doesNotContain("in the room");
+        assertThat(noRoom.text()).contains("\n5 talks\n").doesNotContain("in the room");
+        assertThat(visibleText(oneTalk.html())).contains(" 1 talk Open session ");
+        assertThat(oneTalk.text()).contains("\n1 talk\n");
+        assertThat(visibleText(noTalks.html())).contains(" 23 in the room Open session ").doesNotContain("0 talks");
+        assertThat(noTalks.text()).contains("\n23 in the room\n").doesNotContain("0 talks");
+        assertThat(full.html()).contains("<a href=\"" + WRAP_UP_URL + "\" style=\"color:#1f8357;");
+    }
+
+    @Test
+    void theVoteIsTheOneButtonAndShowsOnlyWhileFeedbackIsOpen() {
+
+        var closed = aWrapUp();
+        closed.put("feedbackClosesAt", null);
+        var sender = (Map<?, ?>) aWrapUp().get("sender");
+
+        var open = renderer.render("session-wrap-up", aWrapUp());
+        var shut = renderer.render("session-wrap-up", closed);
+
+        assertThat(open.html()).contains(">How was it?</p>").contains(">Two taps, anonymous, open until 25 Nov</p>")
+                .contains("<a href=\"" + WRAP_UP_URL + "#feedback\"").contains(">Give feedback</a>")
+                .containsOnlyOnce("background-color:#de3b78;color:#ffffff;").contains("class=\"wv-btn\"")
+                .contains("@media only screen and (max-width:480px) { .wv-text, .wv-btn { display:block !important;");
+        for (var height : List.of(6, 9, 12, 15, 18, 21)) {
+            assertThat(open.html()).containsOnlyOnce("width:5px;height:" + height + "px;font-size:0;line-height:0;"
+                    + "border-radius:1px;background-color:" + sender.get("tintForeground") + ";");
+        }
+        assertThat(open.text())
+                .contains("\n\nHow was it? Two taps, anonymous, open until 25 Nov\n" + WRAP_UP_URL + "#feedback\n");
+        assertThat(shut.html()).doesNotContain("How was it?").doesNotContain("Give feedback")
+                .doesNotContain("#feedback").doesNotContain("background-color:#de3b78;color:#ffffff;");
+        assertThat(shut.text()).doesNotContain("How was it?").doesNotContain("#feedback");
+    }
+
+    @Test
+    void theTakeawaysAreTheFormattedNote() {
+
+        var rendered = renderer.render("session-wrap-up", aWrapUp());
+
+        assertThat(rendered.html()).contains(">Takeaways</p>")
+                .contains("<strong style=\"font-weight:700;\">RBAC</strong>").contains("<li style=\"margin:0 0 4px 0;")
+                .contains(
+                        "<a href=\"https://wiki.example/rbac\" style=\"color:#c32c66;text-decoration:underline;font-weight:600;\">RBAC page</a>");
+        assertThat(rendered.text()).contains("""
+                TAKEAWAYS
+                Two incidents, both closed. RBAC lands in January.
+
+                - Quota alerts page the owning team
+                - Scope review before 15 December
+
+                Plan on the RBAC page (https://wiki.example/rbac).
+
+                TALKS
+                """);
+    }
+
+    @Test
+    void aShortNoteRendersThroughTheNoteRendererInBothTwins() {
+
+        var facts = aWrapUp();
+        facts.put("followUpNotes", "**Bold** [x](https://e.com)");
+
+        var rendered = renderer.render("session-wrap-up", facts);
+
+        assertThat(rendered.html()).contains("<strong").contains("href=\"https://e.com\"");
+        assertThat(rendered.text()).contains("TAKEAWAYS\nBold x (https://e.com)\n");
+    }
+
+    @Test
+    void onlyTheRendererSuppliesTheNoteMarkup() {
+
+        var facts = aWrapUp();
+        facts.put("followUpNotes", "");
+        facts.put("followUpNotesHtml", "<script>alert(1)</script>");
+        facts.put("followUpNotesText", "smuggled");
+
+        var rendered = renderer.render("session-wrap-up", facts);
+
+        assertThat(rendered.html()).doesNotContain("<script>").doesNotContain("Takeaways");
+        assertThat(rendered.text()).doesNotContain("smuggled");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", "  "})
+    void withoutANoteThereAreNoTakeaways(String note) {
+
+        var facts = aWrapUp();
+        facts.put("followUpNotes", note);
+
+        var rendered = renderer.render("session-wrap-up", facts);
+
+        assertThat(rendered.html()).doesNotContain("Takeaways").doesNotContain("<strong");
+        assertThat(rendered.text()).doesNotContain("TAKEAWAYS");
+    }
+
+    @Test
+    void aTalkRowSaysWhoWhatAndWhereToReadMore() {
+
+        var rendered = renderer.render("session-wrap-up", aWrapUp());
+
+        assertThat(rendered.html()).contains(">Database Quotas Alerting</p>").contains(">David Barbarin</p>")
+                .contains(">How a full disk on the orders database went unnoticed for six hours.</p>")
+                .contains("color:#207651;\">incident</span>").contains("color:#207651;\">observability</span>")
+                .contains("color:#207651;margin-right:12px;\">sql-database</span>")
+                .contains("background-color:#ebf6f1;").contains("<a href=\"https://slides.example/quota\"")
+                .contains(">↗ Runbook</a>").contains("<a href=\"https://www.grafana.example/d/1\"")
+                .contains(">↗ grafana.example</a>").contains(">DB</div>").contains(">SK</div>")
+                .contains("color:#786a7e;\">+1</span>").contains(">Sara Keller, Tom Lee</p>");
+        var lastRow = rendered.html().substring(rendered.html().indexOf(">Flaky Testcontainers on CI</p>"));
+        lastRow = lastRow.substring(lastRow.indexOf("</tr>"), lastRow.indexOf("</table>"));
+        assertThat(rendered.html().split("border-bottom:1px dashed #ede4e9;", -1)).as("a rule under four of five rows")
+                .hasSize(9);
+        assertThat(lastRow).contains("Axonia for the guild").doesNotContain("dashed");
+        assertThat(rendered.text()).contains("""
+                TALKS
+                Database Quotas Alerting (David Barbarin)
+                  How a full disk on the orders database went unnoticed for six hours.
+                  incident, observability, sql-database
+                  Runbook: https://slides.example/quota
+                  grafana.example: https://www.grafana.example/d/1
+
+                Authentication RBAC Update (Gabriel Dinant)
+                """);
+    }
+
+    @Test
+    void aTalkNobodyPresentedSaysPresenterUnknownAndDrawsNoAvatar() {
+
+        var rendered = renderer.render("session-wrap-up", aWrapUp());
+
+        var row = rendered.html().substring(rendered.html().indexOf(">P1: Java4Shell CVE</p>") - 600,
+                rendered.html().indexOf(">P1: Java4Shell CVE</p>"));
+        assertThat(rendered.html()).contains(">Presenter unknown</p>");
+        assertThat(row).doesNotContain("border-radius:50%");
+        assertThat(rendered.text()).contains("\nP1: Java4Shell CVE (Presenter unknown)\n");
+        assertThat(rendered.html() + rendered.text()).doesNotContain("We did not catch");
+    }
+
+    @Test
+    void aTalkResourceWithNoLabelFallsBackToItsTitleOrItsUrl() {
+
+        var talk = aWrapUpTalk("It was a beautiful topic", "Ada", null, 0);
+        talk.put("resources",
+                List.of(Map.of("title", " It Was A Beautiful Topic ", "url", "https://axonia.example/slides/1"),
+                        Map.of("title", "Slide deck", "url", "https://axonia.example/slides/2"),
+                        Map.of("title", "Internal doc", "url", "javascript:alert(1)")));
+
+        var rendered = renderer.render("session-wrap-up",
+                Map.of("sessionTitle", "Frontend Dojo", "talks", List.of(talk)));
+
+        assertThat(rendered.html()).contains(">↗ https://axonia.example/slides/1</a>")
+                .doesNotContain("It Was A Beautiful Topic").contains(">↗ Slide deck</a>")
+                .doesNotContain("href=\"javascript:").contains(">Internal doc</span>");
+        assertThat(rendered.text()).contains("\n  https://axonia.example/slides/1\n")
+                .contains("\n  Slide deck: https://axonia.example/slides/2\n");
+    }
+
+    @Test
+    void nextUpIsTheCalendarChip() {
+
+        var rendered = renderer.render("session-wrap-up", aWrapUp());
+
+        assertThat(rendered.html()).containsOnlyOnce(">Next up</p>").contains(">DEC</td>").contains(">2</td>")
+                .contains(">S26E12</p>").contains(">Wednesday 2 December</p>").contains("border:2px dashed #dbefe6;")
+                .doesNotContain("2 December - S26E12");
+        assertThat(rendered.text()).contains("\n\nNEXT UP\nS26E12, Wednesday 2 December\n")
+                .doesNotContain("2 December - S26E12");
+    }
+
+    @Test
+    void thePlainTextStatesTheSameFactsInTheSameOrder() {
+
+        var rendered = renderer.render("session-wrap-up", aWrapUp());
+
+        assertInOrder(rendered.text(), "Watch the session: " + WRAP_UP_RECORDING, "Open the session: " + WRAP_UP_URL,
+                "5 talks, 23 in the room", "How was it? Two taps, anonymous, open until 25 Nov",
+                WRAP_UP_URL + "#feedback", "TAKEAWAYS", "TALKS", "Database Quotas Alerting (David Barbarin)",
+                "  How a full disk", "  incident, observability, sql-database",
+                "  Runbook: https://slides.example/quota", "ACTION POINTS",
+                "Scope review for every service - Gabriel Dinant, due 15 Dec", "CHECKED", "FROM THE SESSION",
+                "Session notes: https://axonia.example/notes/11", "NEXT UP", "Sent to members of Backend Guild.");
+        for (var prefix : List.of("https://video.example/", "https://axonia.example/", "https://slides.example/",
+                "https://www.grafana.example/", "https://wiki.example/")) {
+            assertThat(linksIn(rendered.html(), prefix)).as(prefix).isNotEmpty()
+                    .isEqualTo(linksIn(rendered.text(), prefix));
+        }
+    }
+
+    /**
+     * A wrap-up frozen into the outbox before the poster carries none of its facts: no tints, no thumbnail, no nextUp,
+     * no duration, and talks and resources without their new keys. It still renders in the new layout.
+     */
+    @Test
+    void aWrapUpFrozenBeforeThePosterStillRendersInTheNewLayout() {
+
+        var talk = new HashMap<String, Object>();
+        talk.put("title", "Signals in React");
+        talk.put("presenter", "Ada Lovelace, Bob Martin");
+        talk.put("presenters", List.of(Map.of("name", "Ada Lovelace", "initials", "AL"),
+                Map.of("name", "Bob Martin", "initials", "BM")));
+        talk.put("subjects", List.of("react"));
+        talk.put("durationMinutes", 30);
+        talk.put("resources", List.of(Map.of("title", "Slides", "url", "https://slides.example/signals")));
+        var facts = new HashMap<String, Object>();
+        facts.put("sender", aCommunity());
+        facts.put("sessionTitle", "Frontend Dojo");
+        facts.put("scheduledAt", Instant.parse("2026-08-15T18:30:00Z"));
+        facts.put("timeZone", "UTC");
+        facts.put("sessionUrl", WRAP_UP_URL);
+        facts.put("recordingUrl", WRAP_UP_RECORDING);
+        facts.put("attendeeCount", 9);
+        facts.put("talks", List.of(talk));
+        facts.put("followUpNotes", "Great turnout.");
+        facts.put("nextSession", "Saturday 12 September");
+
+        var rendered = renderer.render("session-wrap-up", facts);
+
+        assertThat(rendered.html()).doesNotContain("null").doesNotContain("v:rect").doesNotContain("background=\"")
+                .contains("background-image:linear-gradient(120deg,#1b1420 0%,#312835 65%,#786a7e 130%)")
+                .contains(">Signals in React</p>").contains(">AL</div>").contains("color:#786a7e;\">+1</span>")
+                .contains("color:#5e5264;margin-right:12px;\">react</span>").contains(">↗ Slides</a>")
+                .contains(">Great turnout.</p>").contains(">Next up</p>").contains(">Saturday 12 September</p>")
+                .doesNotContain(">DEC</td>");
+        assertThat(rendered.text()).doesNotContain("null").contains("Signals in React (Ada Lovelace, Bob Martin)")
+                .contains("  Slides: https://slides.example/signals").contains("NEXT UP\nSaturday 12 September");
+    }
+
+    @Test
+    void theWrapUpDropsItsOldHeadingsAndSpeaksWithoutWeOrYou() {
+
+        var rendered = renderer.render("session-wrap-up", aWrapUp());
+        var talkless = renderer.render("session-wrap-up", Map.of("sessionTitle", "Frontend Dojo", "talks", List.of()));
+
+        for (var copy : List.of(rendered.html(), rendered.text(), talkless.html(), talkless.text())) {
+            assertThat(copy).doesNotContain("What we agreed to do").doesNotContain("What happened")
+                    .doesNotContain("What was checked").doesNotContain("From the organizer")
+                    .doesNotContain("We did not catch").doesNotContain("Recording available")
+                    .doesNotContain("Coming up next");
+        }
+        for (var copy : List.of(visibleText(rendered.html()), visibleText(talkless.html()), talkless.text())) {
+            assertThat(copy.toLowerCase(Locale.ROOT)).doesNotContainPattern("\\b(we|us|our|you|your)\\b");
+        }
+    }
+
+    /** Gmail clips past about 102 KB: twelve talks with three links each, a long note and ten action points. */
+    @Test
+    void theBusiestWrapUpStaysUnderGmailsClip() {
+
+        var facts = aWrapUp();
+        facts.put("talks", IntStream.range(0, 12).mapToObj(index -> {
+            var talk = aQuotaTalk();
+            talk.put("title", "Cloud deploy 3.0 and the database default change, talk " + index);
+            talk.put("description", "x".repeat(199) + "…");
+            talk.put("resources",
+                    IntStream.range(0, 3)
+                            .mapToObj(link -> Map.<String, Object>of("title", "Postmortem " + link, "url",
+                                    "https://confluence.example/wiki/spaces/ENG/pages/123456789" + link, "label",
+                                    "Postmortem " + link))
+                            .toList());
+            return (Map<String, Object>) talk;
+        }).toList());
+        facts.put("followUpNotes", "- **Point** with a [link](https://wiki.example/page) and words\n".repeat(50));
+        facts.put("actionPoints",
+                IntStream.range(0, 10).mapToObj(index -> actionPointFact("Scope review for every service " + index,
+                        "Gabriel Dinant", LocalDate.of(2026, 12, 15), false)).toList());
+
+        var rendered = renderer.render("session-wrap-up", facts);
+
+        assertThat(((String) facts.get("followUpNotes")).length()).isGreaterThanOrEqualTo(3000);
+        assertThat(rendered.html().getBytes(StandardCharsets.UTF_8).length).isLessThan(90_000);
     }
 
     private static final String RECORDING = "https://video.example/41";

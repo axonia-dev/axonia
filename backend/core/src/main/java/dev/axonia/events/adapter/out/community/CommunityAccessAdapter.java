@@ -2,6 +2,7 @@ package dev.axonia.events.adapter.out.community;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.stereotype.Component;
 
@@ -11,6 +12,7 @@ import dev.axonia.community.api.ChatDestinations;
 import dev.axonia.community.api.CommunicationSettings;
 import dev.axonia.community.api.Communities;
 import dev.axonia.community.api.CommunityCapabilities;
+import dev.axonia.community.api.CommunityHero;
 import dev.axonia.community.api.CommunityIdentity;
 import dev.axonia.community.api.CommunityPolicies;
 import dev.axonia.community.api.ContributionPolicy;
@@ -44,6 +46,12 @@ public class CommunityAccessAdapter implements CommunityAccess {
     public CommunityIdentity communityIdentity(String organizationId, long communityId) {
 
         return communityService.identityById(organizationId, communityId);
+    }
+
+    @Override
+    public Optional<CommunityHero> communityHero(String organizationId, long communityId) {
+
+        return communityService.heroById(organizationId, communityId);
     }
 
     @Override

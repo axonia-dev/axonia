@@ -15,6 +15,7 @@ import dev.axonia.expertise.adapter.out.privacy.ExpertiseDataPurger;
 import dev.axonia.identity.adapter.out.privacy.IdentityDataPurger;
 import dev.axonia.knowledge.adapter.out.privacy.KnowledgeDataPurger;
 import dev.axonia.learning.adapter.out.privacy.LearningDataPurger;
+import dev.axonia.media.adapter.out.privacy.HeroThumbnailPurger;
 import dev.axonia.media.api.MediaStorage;
 import dev.axonia.mentoring.adapter.out.privacy.MentoringDataPurger;
 import dev.axonia.recognition.adapter.out.privacy.RecognitionDataPurger;
@@ -42,7 +43,8 @@ import static org.mockito.Mockito.mock;
 @Import({EventsDataPurger.class, CommunityDataPurger.class, KnowledgeDataPurger.class, RecognitionDataPurger.class,
         BookmarksDataPurger.class, ExpertiseDataPurger.class, AccessDataPurger.class, IdentityDataPurger.class,
         AgentDataPurger.class, CommunicationDataPurger.class, RoundupDataPurger.class, LearningDataPurger.class,
-        MentoringDataPurger.class, ReactionImages.class, PurgerTestSupport.MediaStorageTestConfig.class})
+        MentoringDataPurger.class, HeroThumbnailPurger.class, ReactionImages.class,
+        PurgerTestSupport.MediaStorageTestConfig.class})
 public abstract class PurgerTestSupport extends CoreJdbcTestSupport {
 
     @TestConfiguration

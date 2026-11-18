@@ -1,4 +1,4 @@
-package dev.axonia.roundup.adapter.out.thumbnail;
+package dev.axonia.media.adapter.out.thumbnail;
 
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
@@ -19,17 +19,18 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.transaction.PlatformTransactionManager;
 
 import dev.axonia.CoreJdbcTestSupport;
 import dev.axonia.media.api.AbsoluteMediaLinks;
+import dev.axonia.media.api.HeroThumbnailRequest;
 import dev.axonia.media.api.MediaContent;
 import dev.axonia.media.api.MediaKeys;
 import dev.axonia.media.api.MediaStorage;
-import dev.axonia.roundup.domain.ThumbnailRequest;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class JdbcSessionThumbnailsTest extends CoreJdbcTestSupport {
+class JdbcHeroThumbnailsTest extends CoreJdbcTestSupport {
 
     private static final String ORG = "default";
     private static final String HERO_KEY = "communities/7/hero/3f2b8c1e-5d4a-4b6c-9e8f-0a1b2c3d4e5f.png";
@@ -41,17 +42,20 @@ class JdbcSessionThumbnailsTest extends CoreJdbcTestSupport {
     @Autowired
     private Clock clock;
 
+    @Autowired
+    private PlatformTransactionManager transactionManager;
+
     private FakeMediaStorage storage;
 
-    private JdbcSessionThumbnails thumbnails;
+    private JdbcHeroThumbnails thumbnails;
 
     @BeforeEach
     void buildThumbnails() throws IOException {
 
         storage = new FakeMediaStorage();
         storage.objects.put(HERO_KEY, png(new BufferedImage(400, 800, BufferedImage.TYPE_INT_RGB)));
-        thumbnails = new JdbcSessionThumbnails(jdbc, storage, new AbsoluteMediaLinks(MEDIA_BASE),
-                new HeroThumbnailComposer(), clock);
+        thumbnails = new JdbcHeroThumbnails(jdbc, storage, new AbsoluteMediaLinks(MEDIA_BASE),
+                new HeroThumbnailComposer(), clock, transactionManager);
     }
 
     @Test
@@ -124,7 +128,7 @@ class JdbcSessionThumbnailsTest extends CoreJdbcTestSupport {
     void aThumbnailRecordedMeanwhileWinsAndTheNewImageIsDiscarded() {
 
         // given
-        storage.onStore = () -> jdbc.update("INSERT INTO roundup_thumbnail (organization_id, community_id, hero_key, "
+        storage.onStore = () -> jdbc.update("INSERT INTO hero_thumbnail (organization_id, community_id, hero_key, "
                 + "slice_index, accent_hex, media_key, created_at) VALUES (:org, 7, :hero, 0, '#de3b78', "
                 + "'communities/7/roundup/earlier.jpg', now())", Map.of("org", ORG, "hero", HERO_KEY));
 
@@ -142,7 +146,7 @@ class JdbcSessionThumbnailsTest extends CoreJdbcTestSupport {
 
         // given
         storage.failOnDelete = true;
-        storage.onStore = () -> jdbc.update("INSERT INTO roundup_thumbnail (organization_id, community_id, hero_key, "
+        storage.onStore = () -> jdbc.update("INSERT INTO hero_thumbnail (organization_id, community_id, hero_key, "
                 + "slice_index, accent_hex, media_key, created_at) VALUES (:org, 7, :hero, 0, '#de3b78', "
                 + "'communities/7/roundup/earlier.jpg', now())", Map.of("org", ORG, "hero", HERO_KEY));
 
@@ -151,15 +155,30 @@ class JdbcSessionThumbnailsTest extends CoreJdbcTestSupport {
                 .contains(MEDIA_BASE + "/communities/7/roundup/earlier.jpg");
     }
 
-    private static ThumbnailRequest request(int slice, String accentHex) {
+    @Test
+    void aRecordThatCannotBeWrittenGivesNoThumbnailAndLeavesTheCallersTransactionUsable() {
 
-        return ThumbnailRequest.builder().organizationId(ORG).communityId(7L).heroKey(HERO_KEY).heroFocusX(50)
+        // given - a key longer than the column holds fails the INSERT inside the test's own transaction
+        var tooLong = "communities/7/hero/" + "x".repeat(600) + ".png";
+        storage.objects.put(tooLong, storage.objects.get(HERO_KEY));
+        var request = HeroThumbnailRequest.builder().organizationId(ORG).communityId(7L).heroKey(tooLong).heroFocusX(50)
+                .heroFocusY(30).sliceIndex(0).accentHex("#de3b78").build();
+
+        // when / then
+        assertThat(thumbnails.urlFor(request)).isEmpty();
+        assertThat(rows()).isZero();
+        assertThat(thumbnails.urlFor(request(0, "#de3b78"))).isPresent();
+    }
+
+    private static HeroThumbnailRequest request(int slice, String accentHex) {
+
+        return HeroThumbnailRequest.builder().organizationId(ORG).communityId(7L).heroKey(HERO_KEY).heroFocusX(50)
                 .heroFocusY(30).sliceIndex(slice).accentHex(accentHex).build();
     }
 
     private long rows() {
 
-        return jdbc.queryForObject("SELECT count(*) FROM roundup_thumbnail WHERE organization_id = :org",
+        return jdbc.queryForObject("SELECT count(*) FROM hero_thumbnail WHERE organization_id = :org",
                 Map.of("org", ORG), Long.class);
     }
 

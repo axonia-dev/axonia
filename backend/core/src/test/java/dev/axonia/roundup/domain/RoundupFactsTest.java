@@ -21,6 +21,7 @@ import dev.axonia.roundup.api.spi.SessionActivity.HeldTalk;
 import dev.axonia.roundup.api.spi.SessionActivity.UpcomingSession;
 import dev.axonia.roundup.api.spi.TopicActivity.TagCount;
 import dev.axonia.roundup.domain.QuarterActivity.NamedCommunity;
+import dev.axonia.shared.api.colour.GuildTints;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.LIST;

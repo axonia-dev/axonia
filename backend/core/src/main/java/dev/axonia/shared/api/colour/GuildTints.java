@@ -1,4 +1,4 @@
-package dev.axonia.roundup.domain;
+package dev.axonia.shared.api.colour;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -24,7 +24,7 @@ public final class GuildTints {
 
     public static Map<String, String> of(String accentColor) {
 
-        var accentHex = ThumbnailRequest.accentHexOf(accentColor);
+        var accentHex = AccentHex.of(accentColor);
         var accent = Integer.parseInt(accentHex.substring(1), HEX_RADIX);
         var tints = new LinkedHashMap<String, String>();
         tints.put("accent", accentHex);

@@ -2,10 +2,12 @@ package dev.axonia.events.application.port.out;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 import dev.axonia.communication.api.ChatChannelStatus;
 import dev.axonia.communication.api.spi.ChatDestinationsPort.ChatFailure;
 import dev.axonia.community.api.CommunicationSettings;
+import dev.axonia.community.api.CommunityHero;
 import dev.axonia.community.api.CommunityIdentity;
 import dev.axonia.community.api.ContributionPolicy;
 import dev.axonia.community.api.MemberMatch;
@@ -33,6 +35,12 @@ public interface CommunityAccess {
      * meet if their own HTTP-facing callers ever stopped needing them.
      */
     CommunityIdentity communityIdentity(String organizationId, long communityId);
+
+    /**
+     * The community's hero image and where it is focused, empty when it has none. Org-explicit for the same no-JWT
+     * caller as {@link #communityIdentity(String, long)}.
+     */
+    Optional<CommunityHero> communityHero(String organizationId, long communityId);
 
     boolean isMember(long communityId, String userId);
 

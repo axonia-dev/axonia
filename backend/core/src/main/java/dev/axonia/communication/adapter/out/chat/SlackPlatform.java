@@ -41,8 +41,8 @@ class SlackPlatform implements ChatPlatform {
         var blocks = new ArrayList<Map<String, Object>>();
         blocks.add(section(headerMarkdown(post)));
         blocks.add(context(escape(post.whenLine())));
-        if (post.body() != null) {
-            blocks.add(section(escape(post.body())));
+        if (post.note() != null) {
+            blocks.add(section(SlackNote.of(post.note(), ChatPost.MAX_NOTE_LENGTH)));
         }
         post.details().forEach((label, value) -> blocks.add(section("*" + escape(label) + ":* " + escape(value))));
         blocks.add(Map.of("type", "actions", "elements", List.of(Map.of("type", "button", "style", "primary", "url",
@@ -80,6 +80,6 @@ class SlackPlatform implements ChatPlatform {
     /** Slack's own three-character escape set. Order matters: the ampersand goes first or it re-escapes the others. */
     private static String escape(String raw) {
 
-        return raw == null ? "" : raw.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+        return raw == null ? "" : SlackNote.escape(raw);
     }
 }

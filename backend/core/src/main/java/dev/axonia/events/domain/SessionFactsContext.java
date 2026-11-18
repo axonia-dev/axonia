@@ -1,6 +1,8 @@
 package dev.axonia.events.domain;
 
 import java.time.Instant;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -59,12 +61,19 @@ import lombok.Builder;
  * <p>
  * {@code feedbackClosesAt} is set only by the wrap-up, and only while the session's feedback window is open when the
  * wrap-up is assembled; absent, the wrap-up asks nothing.
+ *
+ * <p>
+ * {@code thumbnailUrl} and {@code nextUp} are set only by the wrap-up and are null otherwise: the first is the
+ * community's hero cut for the poster, the second the month, day, own title and label of the series' next occurrence.
+ * {@code poster} is set only by the wrap-up too: it alone draws the poster and the calendar chip, so only its facts
+ * carry them.
  */
 @Builder
 public record SessionFactsContext(String sessionUrl, Map<String, String> displayNamesByUserId, String seriesTitle,
         String nextSession, Map<Long, List<ResourceLink>> resourcesBySlotId, List<ResourceLink> sessionResources,
         List<ActionPointSource> actionPoints, List<CheckedItemSource> checkedItems, CommunityIdentity community,
-        Long communityId, String nudgeArm, String backlogUrl, Instant feedbackClosesAt) {
+        Long communityId, String nudgeArm, String backlogUrl, Instant feedbackClosesAt, String thumbnailUrl,
+        Map<String, String> nextUp, boolean poster) {
 
     public SessionFactsContext {
         if (sessionUrl == null || sessionUrl.isBlank()) {
@@ -76,5 +85,6 @@ public record SessionFactsContext(String sessionUrl, Map<String, String> display
         sessionResources = sessionResources == null ? List.of() : sessionResources;
         actionPoints = actionPoints == null ? List.of() : actionPoints;
         checkedItems = checkedItems == null ? List.of() : checkedItems;
+        nextUp = nextUp == null ? null : Collections.unmodifiableMap(new LinkedHashMap<>(nextUp));
     }
 }

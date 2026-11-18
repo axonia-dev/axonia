@@ -7,6 +7,7 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 import dev.axonia.communication.api.MessageType;
+import dev.axonia.communication.application.note.NoteParser;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -44,9 +45,20 @@ class ChatPostBuildersTest {
                         "recordingUrl", "https://rec.example/1", "attendeeCount", 24, "talks",
                         List.of(Map.of("title", "Event sourcing in anger", "presenter", "Ada")), "sender", SENDER));
 
-        assertThat(post.body()).isEqualTo("We agreed to spike it.");
+        assertThat(post.note()).isEqualTo(NoteParser.parse("We agreed to spike it."));
         assertThat(post.details()).contains(Map.entry("Recording", "https://rec.example/1"));
         assertThat(post.details()).contains(Map.entry("Attended", "24"));
+    }
+
+    @Test
+    void anOpenTalkIsNamedAloneAndAnEmptyRoomIsNoAttendance() {
+
+        var post = sut.build(readBack("session_wrap_up"),
+                Map.of("sessionTitle", "Untitled", "scheduledAt", Instant.parse("2026-09-01T16:00:00Z"), "sessionUrl",
+                        "https://axonia.example/s/1", "attendeeCount", 0, "talks",
+                        List.of(Map.of("title", "Open floor")), "sender", SENDER));
+
+        assertThat(post.details()).contains(Map.entry("Talks", "Open floor")).doesNotContainKey("Attended");
     }
 
     @Test
@@ -56,7 +68,7 @@ class ChatPostBuildersTest {
                 Map.of("sessionTitle", "Untitled", "scheduledAt", Instant.parse("2026-09-01T16:00:00Z"), "sessionUrl",
                         "https://axonia.example/s/1", "talks", List.of(), "sender", SENDER));
 
-        assertThat(post.body()).isNull();
+        assertThat(post.note()).isNull();
         assertThat(post.details()).doesNotContainKey("Recording");
         assertThat(post.details()).doesNotContainKey("Attended");
         assertThat(post.details()).doesNotContainKey("Resources");

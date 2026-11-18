@@ -1,3 +1,4 @@
+import { FormattedNote } from "@/components/patterns/FormattedNote";
 import type { Session } from "@/features/events/domain/session";
 
 interface Props {
@@ -16,8 +17,9 @@ export function SessionNote({ session }: Readonly<Props>) {
     return null;
   }
   return (
-    <p className="text-foreground border-primary/40 border-l-2 pl-3 text-sm leading-relaxed whitespace-pre-line">
-      {session.notes}
-    </p>
+    <FormattedNote
+      className="text-foreground border-primary/40 border-l-2 pl-3 text-sm leading-relaxed"
+      text={session.notes}
+    />
   );
 }

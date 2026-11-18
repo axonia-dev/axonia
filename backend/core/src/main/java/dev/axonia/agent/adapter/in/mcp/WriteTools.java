@@ -192,7 +192,9 @@ class WriteTools {
             @McpToolParam(description = "Optional http(s) link to the recording of the whole session, shown on the "
                     + "session as its Recording. A recording of one talk belongs in the library instead: "
                     + "library.contribute, then session.attachArtifact with that slot's id.", required = false) String recordingUrl,
-            @McpToolParam(description = "Optional follow-up notes, shown on the held session", required = false) String notes) {
+            @McpToolParam(description = "Optional follow-up notes, shown on the held session and in its wrap-up. "
+                    + "Markdown bold, italics, links and bullet or numbered lists render as such; anything else stays "
+                    + "the text written.", required = false) String notes) {
     }
 
     /**

@@ -999,13 +999,13 @@ class RlsIsolationTest {
     }
 
     @Test
-    @IsolationProbe("roundup_thumbnail")
-    void roundupThumbnailIsOrganizationIsolated() throws Exception {
-        assertRowIsolated("roundup_thumbnail", "media_key = 'rls-thumbnail.jpg'",
-                "INSERT INTO roundup_thumbnail (organization_id, community_id, hero_key, slice_index, accent_hex,"
+    @IsolationProbe("hero_thumbnail")
+    void heroThumbnailIsOrganizationIsolated() throws Exception {
+        assertRowIsolated("hero_thumbnail", "media_key = 'rls-thumbnail.jpg'",
+                "INSERT INTO hero_thumbnail (organization_id, community_id, hero_key, slice_index, accent_hex,"
                         + " media_key, created_at) VALUES ('default', 1, 'rls-hero.png', 0, '#786a7e',"
                         + " 'rls-thumbnail.jpg', now())",
-                "INSERT INTO roundup_thumbnail (organization_id, community_id, hero_key, slice_index, accent_hex,"
+                "INSERT INTO hero_thumbnail (organization_id, community_id, hero_key, slice_index, accent_hex,"
                         + " media_key, created_at) VALUES ('default', 1, 'rls-hero.png', 1, '#786a7e',"
                         + " 'rls-sneaky.jpg', now())");
     }

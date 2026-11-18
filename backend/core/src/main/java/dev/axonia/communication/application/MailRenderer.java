@@ -9,6 +9,9 @@ import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 import org.unbescape.html.HtmlEscape;
 
+import dev.axonia.communication.application.note.NoteHtml;
+import dev.axonia.communication.application.note.NoteParser;
+import dev.axonia.communication.application.note.NotePlainText;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -33,9 +36,18 @@ import lombok.RequiredArgsConstructor;
 public class MailRenderer {
 
     private static final String SUBJECT_FRAGMENT = "subject";
+    private static final String FOLLOW_UP_NOTES = "followUpNotes";
     private static final Pattern EXCESS_BLANK_LINES = Pattern.compile("\n{3,}");
 
     private final TemplateEngine mailTemplateEngine;
+
+    private static void addFollowUpNotes(Context context, Map<String, Object> facts) {
+
+        var note = NoteParser.parse(facts.get(FOLLOW_UP_NOTES) instanceof String markdown ? markdown : null);
+        var empty = note.isEmpty();
+        context.setVariable("followUpNotesHtml", empty ? null : NoteHtml.mail(note));
+        context.setVariable("followUpNotesText", empty ? null : NotePlainText.of(note));
+    }
 
     /**
      * {@code scheduledAtLabel} is derived here rather than by each caller, and here rather than in each template: it is
@@ -48,6 +60,8 @@ public class MailRenderer {
         var context = new Context();
         context.setVariables(facts);
         context.setVariable(MomentLine.LABEL_FACT, MomentLine.full(facts));
+        context.setVariable(MomentLine.DAY_FACT, MomentLine.day(facts));
+        addFollowUpNotes(context, facts);
 
         // Two passes over the same .html file: the fragment selector below extracts only the subject th:block, and
         // the unqualified process() call further down renders the whole document. Thymeleaf caches each combination

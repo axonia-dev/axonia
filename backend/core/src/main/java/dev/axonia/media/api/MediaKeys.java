@@ -34,7 +34,7 @@ public class MediaKeys {
         return mint("communities/" + communityId + "/" + segment, contentType);
     }
 
-    public String roundupThumbnail(long communityId) {
+    public String heroThumbnail(long communityId) {
 
         return communityAsset(communityId, "roundup", "image/jpeg");
     }

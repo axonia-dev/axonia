@@ -17,6 +17,7 @@ import org.springframework.data.domain.PageRequest;
 import dev.axonia.access.api.AuthorizationGate;
 import dev.axonia.access.api.Permission;
 import dev.axonia.community.api.CommunityDetailsChanged;
+import dev.axonia.community.api.CommunityHero;
 import dev.axonia.community.api.CommunityIdentity;
 import dev.axonia.community.api.CommunityListing;
 import dev.axonia.community.api.CommunityRole;
@@ -365,6 +366,39 @@ class CommunityServiceTest {
         assertThat(sut.identityById("acme", 7L))
                 .isEqualTo(new CommunityIdentity("backend-guild", "Backend Guild", "#1aa6a0"));
         verifyNoInteractions(membershipLedger, communityKindStore);
+    }
+
+    @Test
+    void heroById_carriesTheHeroKeyAndItsFocus() {
+
+        // given
+        var entity = CommunityRecordMother.any().id(7L).heroKey("heroes/a.jpg").heroFocusX(20).heroFocusY(80).build();
+        when(communities.findByIdOrThrow("acme", 7L)).thenReturn(entity);
+
+        // when / then
+        assertThat(sut.heroById("acme", 7L)).contains(new CommunityHero("heroes/a.jpg", 20, 80));
+    }
+
+    @Test
+    void heroById_isEmptyWhenTheCommunityHasNoHero() {
+
+        // given
+        var entity = CommunityRecordMother.any().id(7L).heroKey(null).build();
+        when(communities.findByIdOrThrow("acme", 7L)).thenReturn(entity);
+
+        // when / then
+        assertThat(sut.heroById("acme", 7L)).isEmpty();
+    }
+
+    @Test
+    void heroById_treatsABlankHeroKeyAsNoHero() {
+
+        // given
+        var entity = CommunityRecordMother.any().id(7L).heroKey("  ").build();
+        when(communities.findByIdOrThrow("acme", 7L)).thenReturn(entity);
+
+        // when / then
+        assertThat(sut.heroById("acme", 7L)).isEmpty();
     }
 
     @Test

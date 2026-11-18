@@ -44,7 +44,7 @@ import lombok.RequiredArgsConstructor;
  *
  * <p>
  * {@code @Transactional}, and never {@code readOnly}: a live preview composes the posters' thumbnails, which stores
- * images and inserts {@code roundup_thumbnail} rows the send then reuses. It also needs the transaction for the reason
+ * images and inserts {@code hero_thumbnail} rows the send then reuses. It also needs the transaction for the reason
  * {@code SessionReleaseService#preview}'s javadoc gives in full: {@link MessageRenderPort#renderEnqueued} decides
  * whether a row exists by reading through a connection scoped by the {@code app.current_org} GUC rather than by the
  * {@code organizationId} it is handed, and an unscoped read there answers "no row" instead of failing - which would

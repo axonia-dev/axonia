@@ -21,6 +21,8 @@ import dev.axonia.events.api.ResourceLink;
 import dev.axonia.events.api.Section;
 import dev.axonia.events.api.SessionMother;
 import dev.axonia.events.api.Slot;
+import dev.axonia.shared.api.colour.GuildTints;
+import dev.axonia.shared.api.colour.PersonTints;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -32,8 +34,9 @@ class SessionFactsTest {
             "timeZone", "sessionUrl", "talks", "resources", "actionPoints", "checkedItems", "followUpNotes",
             "recordingUrl", "attendeeCount", "nextSession", "sender", "nudgeArm", "openSlotCount", "backlogUrl",
             "feedbackClosesAt");
+    private static final Set<String> POSTER_KEYS = Set.of("durationLabel", "tints", "thumbnailUrl", "nextUp");
     private static final Set<String> TALK_KEYS = Set.of("title", "presenter", "presenters", "subjects",
-            "durationMinutes", "resources");
+            "durationMinutes", "resources", "description", "avatar", "morePresenterCount");
 
     private TemplateEngine mailTemplateEngine;
 
@@ -91,12 +94,12 @@ class SessionFactsTest {
 
         assertThat(facts).containsEntry("followUpNotes", "Recording went up late.").containsEntry("recordingUrl",
                 "https://example.com/rec");
-        assertThat((List<?>) facts.get("talks")).singleElement()
-                .satisfies(t -> assertThat(t).hasFieldOrPropertyWithValue("title", "Signals in React")
-                        .hasFieldOrPropertyWithValue("presenter", "Ada")
-                        .hasFieldOrPropertyWithValue("subjects", List.of("react", "signals"))
-                        .hasFieldOrPropertyWithValue("resources",
-                                List.of(Map.of("title", "Slides", "url", "https://example.com/deck.pdf"))));
+        assertThat((List<?>) facts.get("talks")).singleElement().satisfies(t -> assertThat(t)
+                .hasFieldOrPropertyWithValue("title", "Signals in React")
+                .hasFieldOrPropertyWithValue("presenter", "Ada")
+                .hasFieldOrPropertyWithValue("subjects", List.of("react", "signals"))
+                .hasFieldOrPropertyWithValue("resources",
+                        List.of(Map.of("title", "Slides", "url", "https://example.com/deck.pdf", "label", "Slides"))));
     }
 
     @Test
@@ -203,7 +206,7 @@ class SessionFactsTest {
 
         // identity_user.display_name is NOT NULL with no check against empty (V1__baseline.sql:433), so a blank
         // name is a real row shape, not a hypothetical. presenter and presenters must agree it is absent, or a
-        // member sees "We did not catch who presented this one." next to one empty coloured circle.
+        // member sees "Presenter unknown" next to one empty coloured circle.
         var facts = SessionFacts.of(SessionMother.aHeldSession().sections(List.of(aSection()
                 .slots(List.of(aSlot().title("Blank name talk").presenterUserIds(List.of("user-blank")).build()))
                 .build())).build(), aContext().displayNamesByUserId(Map.of("user-blank", "  ")).build());
@@ -304,10 +307,10 @@ class SessionFactsTest {
         var talks = (List<?>) facts.get("talks");
         assertThat(talks).hasSize(2);
         assertThat((Map<?, ?>) talks.get(0)).hasFieldOrPropertyWithValue("resources",
-                List.of(Map.of("title", "Slides", "url", "https://example.com/deck.pdf")));
+                List.of(Map.of("title", "Slides", "url", "https://example.com/deck.pdf", "label", "Slides")));
         assertThat((Map<?, ?>) talks.get(1)).hasFieldOrPropertyWithValue("resources",
-                List.of(Map.of("title", "Repo", "url", "https://example.com/repo"),
-                        Map.of("title", "Handout", "url", "https://example.com/handout.pdf")));
+                List.of(Map.of("title", "Repo", "url", "https://example.com/repo", "label", "Repo"),
+                        Map.of("title", "Handout", "url", "https://example.com/handout.pdf", "label", "Handout")));
     }
 
     @Test
@@ -324,14 +327,15 @@ class SessionFactsTest {
 
         assertThat((List<?>) facts.get("talks")).singleElement()
                 .satisfies(t -> assertThat(t).hasFieldOrPropertyWithValue("resources",
-                        List.of(mapOfTitleAndUrl(null, "https://example.com/deck.pdf"))));
+                        List.of(mapOfTitleUrlAndLabel(null, "https://example.com/deck.pdf", "example.com"))));
     }
 
-    private static Map<String, Object> mapOfTitleAndUrl(String title, String url) {
+    private static Map<String, Object> mapOfTitleUrlAndLabel(String title, String url, String label) {
 
         var map = new LinkedHashMap<String, Object>();
         map.put("title", title);
         map.put("url", url);
+        map.put("label", label);
         return map;
     }
 
@@ -493,7 +497,8 @@ class SessionFactsTest {
         var facts = SessionFacts.of(
                 SessionMother.aHeldSession()
                         .sections(List.of(aSection().slots(List.of(aSlot().title("Talk").build())).build())).build(),
-                aContext().build());
+                aContext().community(new CommunityIdentity("frontend-guild", "Frontend Guild", "#1aa6a0"))
+                        .communityId(7L).build());
 
         assertThat(facts).containsOnlyKeys(FACT_KEYS);
         assertThat(onlyTalk(facts)).containsOnlyKeys(TALK_KEYS);
@@ -526,7 +531,7 @@ class SessionFactsTest {
                 .sessionResources(List.of(new ResourceLink("Agenda", "https://example.com/agenda.pdf"))).build());
 
         assertThat(facts).containsEntry("resources",
-                List.of(Map.of("title", "Agenda", "url", "https://example.com/agenda.pdf")));
+                List.of(Map.of("title", "Agenda", "url", "https://example.com/agenda.pdf", "label", "Agenda")));
     }
 
     @Test
@@ -689,7 +694,9 @@ class SessionFactsTest {
                 aContext().displayNamesByUserId(Map.of("user-ada", "Ada"))
                         .resourcesBySlotId(
                                 Map.of(11L, List.of(new ResourceLink("Slides", "https://example.com/deck.pdf"))))
-                        .seriesTitle("Frontend Dojo").build());
+                        .seriesTitle("Frontend Dojo")
+                        .community(new CommunityIdentity("frontend-guild", "Frontend Guild", "#1aa6a0")).communityId(7L)
+                        .build());
 
         assertThat(facts).containsOnlyKeys(FACT_KEYS);
         assertThat(onlyTalk(facts)).containsOnlyKeys(TALK_KEYS);
@@ -697,14 +704,13 @@ class SessionFactsTest {
         var html = render("session-wrap-up.html", facts);
         var text = render("session-wrap-up.txt", facts);
 
-        assertThat(html).contains("Signals in React").contains("Ada").contains("Great turnout.")
-                .contains("https://example.com/rec").contains("https://example.com/deck.pdf").contains(SESSION_URL)
-                .contains("Frontend Dojo").doesNotContain("user-ada");
-        assertThat(text).contains("Signals in React").contains("Ada").contains("Great turnout.")
-                .contains("https://example.com/rec").contains("https://example.com/deck.pdf").contains("9 in the room.")
+        assertThat(html).contains("Signals in React").contains("Ada").contains("https://example.com/rec")
+                .contains("https://example.com/deck.pdf").contains(SESSION_URL).contains("Frontend Dojo")
                 .doesNotContain("user-ada");
-        assertThat(html).doesNotContain("What was checked");
-        assertThat(text).doesNotContain("What was checked");
+        assertThat(text).contains("Signals in React").contains("Ada").contains("https://example.com/rec")
+                .contains("https://example.com/deck.pdf").contains("9 in the room").doesNotContain("user-ada");
+        assertThat(html).doesNotContain(">Checked</p>");
+        assertThat(text).doesNotContain("CHECKED");
         assertThat(facts).containsEntry("feedbackClosesAt", null);
         assertThat(html).doesNotContain("How was it?").doesNotContain("Give feedback").doesNotContain("#feedback");
         assertThat(text).doesNotContain("How was it?").doesNotContain("#feedback");
@@ -730,15 +736,14 @@ class SessionFactsTest {
         assertThat(facts).containsEntry("feedbackClosesAt", Instant.parse("2026-11-12T23:30:00Z"));
         assertThat(html).contains("How was it?").contains("Two taps, anonymous, open until 13 Nov")
                 .contains("href=\"" + SESSION_URL + "#feedback\"").contains("Give feedback");
-        assertThat(text).contains("How was it? Two taps, anonymous, open until 13 Nov: " + SESSION_URL + "#feedback");
+        assertThat(text).contains("How was it? Two taps, anonymous, open until 13 Nov\n" + SESSION_URL + "#feedback");
     }
 
     /**
-     * The ask is a link beside a rising row of bars in the community's ink, never a second button: the message's one
-     * call to action stays "Open the session" at its foot.
+     * The vote card carries the letter's one pink button, beside a rising row of bars in the community's ink.
      */
     @Test
-    void theWrapUpFeedbackAskIsALinkUnderARisingRowAndNotASecondButton() {
+    void theWrapUpVoteIsTheOneButtonBesideARisingRow() {
 
         // given
         var facts = SessionFacts.of(SessionMother.aHeldSession().build(),
@@ -752,11 +757,11 @@ class SessionFactsTest {
         var html = render("session-wrap-up.html", facts);
 
         // then
-        assertThat(html).containsOnlyOnce(
-                "display:inline-block; background-color:#de3b78; color:#ffffff; text-decoration:none;");
-        assertThat(html).contains("Open the session").contains("<a href=\"" + SESSION_URL + "#feedback\"");
-        for (var height : List.of(4, 6, 8, 10, 12, 14)) {
-            assertThat(html).containsOnlyOnce("width:4px;height:" + height + "px;font-size:0;line-height:0;"
+        assertThat(html).containsOnlyOnce("background-color:#de3b78;color:#ffffff;")
+                .doesNotContain("display:inline-block; background-color:#de3b78; color:#ffffff;")
+                .contains("<a href=\"" + SESSION_URL + "#feedback\"");
+        for (var height : List.of(6, 9, 12, 15, 18, 21)) {
+            assertThat(html).containsOnlyOnce("width:5px;height:" + height + "px;font-size:0;line-height:0;"
                     + "border-radius:1px;background-color:" + ink + ";");
         }
     }
@@ -775,7 +780,7 @@ class SessionFactsTest {
         // then
         assertThat(facts).containsEntry("sender", null);
         assertThat(html).contains(
-                "width:4px;height:14px;font-size:0;line-height:0;border-radius:1px;" + "background-color:#de3b78;");
+                "width:5px;height:21px;font-size:0;line-height:0;border-radius:1px;" + "background-color:#de3b78;");
     }
 
     /**
@@ -797,10 +802,8 @@ class SessionFactsTest {
         var html = render("session-wrap-up.html", facts);
         var text = render("session-wrap-up.txt", facts);
 
-        assertThat(html).contains("What was checked").contains("Renew the certificate").contains("Bob")
-                .contains("Carried");
-        assertThat(text).contains("What was checked").contains("Renew the certificate").contains("Bob")
-                .contains("Carried");
+        assertThat(html).contains(">Checked</p>").contains("Renew the certificate").contains("Bob").contains("Carried");
+        assertThat(text).contains("CHECKED").contains("Renew the certificate").contains("Bob").contains("Carried");
     }
 
     /**
@@ -954,5 +957,186 @@ class SessionFactsTest {
                 .build(), aContext().build());
 
         assertThat(facts).containsEntry("openSlotCount", 1);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> factsOfTalk(Slot slot, Map<String, String> names) {
+
+        var session = SessionMother.aHeldSession().sections(List.of(aSection().slots(List.of(slot)).build())).build();
+        var facts = SessionFacts.of(session, aContext().displayNamesByUserId(names).build());
+        return (Map<String, Object>) ((List<?>) facts.get("talks")).get(0);
+    }
+
+    @Test
+    void aLongDescriptionIsCutAtTheLastSpaceBeforeTheLimitAndEndsWithAnEllipsis() {
+
+        var notes = "word ".repeat(50).strip();
+
+        var description = (String) factsOfTalk(aSlot().title("T").notes(notes).build(), Map.of()).get("description");
+
+        assertThat(description).hasSizeLessThanOrEqualTo(200).endsWith("word…");
+    }
+
+    @Test
+    void aDescriptionWhoseLastSpaceIsFarBackIsCutHardRatherThanAfterItsFirstWord() {
+
+        var description = (String) factsOfTalk(aSlot().title("T").notes("See https://a.dev/" + "x".repeat(250)).build(),
+                Map.of()).get("description");
+
+        assertThat(description).hasSize(200).startsWith("See https://a.dev/x").endsWith("x…");
+    }
+
+    @Test
+    void aDescriptionWithNoSpaceIsCutHardAtTheLimit() {
+
+        var description = (String) factsOfTalk(aSlot().title("T").notes("x".repeat(250)).build(), Map.of())
+                .get("description");
+
+        assertThat(description).hasSize(200).endsWith("x…");
+    }
+
+    @Test
+    void aDescriptionOfExactlyTheLimitIsKeptWhole() {
+
+        var notes = "x".repeat(200);
+
+        assertThat(factsOfTalk(aSlot().title("T").notes(notes).build(), Map.of())).containsEntry("description", notes);
+    }
+
+    @Test
+    void aDescriptionReadsOnOneLine() {
+
+        assertThat(factsOfTalk(aSlot().title("T").notes(" First line.\n\n  Second\tline. ").build(), Map.of()))
+                .containsEntry("description", "First line. Second line.");
+    }
+
+    @Test
+    void aDescriptionCutNeverSplitsACharacterOutsideTheBasicPlane() {
+
+        var description = (String) factsOfTalk(aSlot().title("T").notes("😀".repeat(150)).build(), Map.of())
+                .get("description");
+
+        assertThat(description).isEqualTo("😀".repeat(99) + "…");
+    }
+
+    @Test
+    void blankOrMissingNotesGiveNoDescription() {
+
+        assertThat(factsOfTalk(aSlot().title("T").notes("  \n ").build(), Map.of())).containsEntry("description", null);
+        assertThat(factsOfTalk(aSlot().title("T").notes(null).build(), Map.of())).containsEntry("description", null);
+    }
+
+    @Test
+    void twoPresentersGiveTheFirstOnesAvatarAndOneMore() {
+
+        var slot = aSlot().title("T").presenterUserIds(List.of("u1", "u2")).build();
+
+        var talk = factsOfTalk(slot, Map.of("u1", "Ada Lovelace", "u2", "Alan Turing"));
+
+        assertThat(talk.get("avatar")).isEqualTo(Map.of("initials", "AL", "tint", PersonTints.of("Ada Lovelace")));
+        assertThat(talk).containsEntry("morePresenterCount", 1);
+    }
+
+    @Test
+    void aTalkWithNoPresenterHasNoAvatarAndNoMorePresenters() {
+
+        var talk = factsOfTalk(aSlot().title("T").build(), Map.of());
+
+        assertThat(talk).containsEntry("avatar", null).containsEntry("morePresenterCount", 0);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void aResourceTitledLikeItsTalkIsLabelledByItsHostWithoutWww() {
+
+        var slot = aSlot().title("Structured Concurrency").build();
+        var session = SessionMother.aHeldSession().sections(List.of(aSection().slots(List.of(slot)).build())).build();
+        var context = aContext().resourcesBySlotId(Map.of(11L,
+                List.of(new ResourceLink("  structured   concurrency ", "https://www.acme.atlassian.net/wiki/x"),
+                        new ResourceLink("Slides", "https://example.com/s"), new ResourceLink(null, "not a url"),
+                        new ResourceLink(null, "mailto:team@example.com"))))
+                .build();
+
+        var resources = (List<Map<String, Object>>) onlyTalk(SessionFacts.of(session, context)).get("resources");
+
+        assertThat(resources).extracting(resource -> resource.get("label")).containsExactly("acme.atlassian.net",
+                "Slides", "not a url", "mailto:team@example.com");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void aSessionResourceKeepsItsTitleAndFallsBackToTheHostWhenUntitled() {
+
+        var session = SessionMother.aHeldSession().build();
+        var context = aContext().sessionResources(
+                List.of(new ResourceLink("Notes", "https://a.dev/n"), new ResourceLink("", "https://www.b.dev/n")))
+                .build();
+
+        var resources = (List<Map<String, Object>>) SessionFacts.of(session, context).get("resources");
+
+        assertThat(resources).extracting(resource -> resource.get("label")).containsExactly("Notes", "b.dev");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void anUntitledResourceIsLabelledByItsHostWhereverJavaNetUriFindsNone() {
+
+        var session = SessionMother.aHeldSession().build();
+        var urls = List.of("https://例え.jp/x", "https://build_box.corp:8443/job", "https://docs.a.dev/a b",
+                "https://user:pw@www.c.dev?q=1", "http://[::1]:8080/x", "https:///nohost", "https://d.dev#top",
+                "https://plain.dev");
+        var context = aContext().sessionResources(urls.stream().map(url -> new ResourceLink(null, url)).toList())
+                .build();
+
+        var resources = (List<Map<String, Object>>) SessionFacts.of(session, context).get("resources");
+
+        assertThat(resources).extracting(resource -> resource.get("label")).containsExactly("例え.jp", "build_box.corp",
+                "docs.a.dev", "c.dev", "[::1]", "https:///nohost", "d.dev", "plain.dev");
+    }
+
+    @Test
+    void theDurationIsLabelledAndTheTintsComeFromTheCommunityAccent() {
+
+        var session = SessionMother.aHeldSession().durationMinutes(64).build();
+        var withCommunity = aContext().community(new CommunityIdentity("g", "G", "#1aa6a0")).communityId(7L)
+                .poster(true).build();
+
+        var facts = SessionFacts.of(session, withCommunity);
+
+        assertThat(facts).containsEntry("durationLabel", "1h 04");
+        assertThat(facts.get("tints")).isEqualTo(GuildTints.of("#1aa6a0"));
+        assertThat(SessionFacts.of(session, aContext().poster(true).build())).doesNotContainKey("tints")
+                .containsKeys("durationLabel", "thumbnailUrl", "nextUp");
+    }
+
+    @Test
+    void onlyThePosterCarriesThePosterFacts() {
+
+        var session = SessionMother.aHeldSession().durationMinutes(64).build();
+        var withCommunity = aContext().community(new CommunityIdentity("g", "G", "#1aa6a0")).communityId(7L)
+                .thumbnailUrl("https://x/t.png").nextUp(Map.of("nextMonth", "DEC"));
+
+        assertThat(SessionFacts.of(session, withCommunity.build()))
+                .doesNotContainKeys(POSTER_KEYS.toArray(String[]::new));
+        assertThat(SessionFacts.of(session, withCommunity.poster(true).build()))
+                .containsKeys(POSTER_KEYS.toArray(String[]::new));
+    }
+
+    @Test
+    void everyNewFactIsAStringIntegerListOrMap() {
+
+        var slot = aSlot().title("T").notes("hello").presenterUserIds(List.of("u1")).build();
+        var session = SessionMother.aHeldSession().sections(List.of(aSection().slots(List.of(slot)).build())).build();
+        var context = aContext().displayNamesByUserId(Map.of("u1", "Ada Lovelace"))
+                .community(new CommunityIdentity("g", "G", "#1aa6a0")).communityId(7L).thumbnailUrl("https://x/t.png")
+                .nextUp(Map.of("nextMonth", "DEC")).poster(true).build();
+
+        var facts = SessionFacts.of(session, context);
+        var talk = onlyTalk(facts);
+
+        var values = List.of(facts.get("durationLabel"), facts.get("tints"), facts.get("thumbnailUrl"),
+                facts.get("nextUp"), talk.get("description"), talk.get("avatar"), talk.get("morePresenterCount"));
+        assertThat(values).allSatisfy(
+                value -> assertThat(value).isInstanceOfAny(String.class, Integer.class, List.class, Map.class));
     }
 }

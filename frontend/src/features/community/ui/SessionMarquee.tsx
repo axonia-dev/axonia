@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 
+import { FormattedNote } from "@/components/patterns/FormattedNote";
 import type { FacepileMember } from "@/components/patterns/MemberFacepile";
 import { MemberFacepile } from "@/components/patterns/MemberFacepile";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -153,9 +154,10 @@ function MarqueeRecap({ slug, session }: Readonly<RecapBodyProps>) {
         facts={factsOf(recap)}
       />
       {recap.notes !== null && (
-        <p className="text-foreground border-primary/40 mt-3 border-l-2 pl-3 text-sm leading-relaxed">
-          {recap.notes}
-        </p>
+        <FormattedNote
+          className="text-foreground border-primary/40 mt-3 border-l-2 pl-3 text-sm leading-relaxed"
+          text={recap.notes}
+        />
       )}
       <MarqueeTalks
         talks={recap.strip}

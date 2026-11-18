@@ -1,4 +1,4 @@
-package dev.axonia.roundup.adapter.out.thumbnail;
+package dev.axonia.media.adapter.out.thumbnail;
 
 import java.awt.Color;
 import java.awt.image.BufferedImage;
@@ -11,7 +11,7 @@ import javax.imageio.metadata.IIOMetadataNode;
 
 import org.junit.jupiter.api.Test;
 
-import dev.axonia.roundup.adapter.out.thumbnail.HeroThumbnailComposer.Slice;
+import dev.axonia.media.adapter.out.thumbnail.HeroThumbnailComposer.Slice;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;

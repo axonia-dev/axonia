@@ -31,6 +31,7 @@ import dev.axonia.events.application.port.out.SeriesStore;
 import dev.axonia.events.application.port.out.SessionStore;
 import dev.axonia.events.application.port.out.UserProfileAccess;
 import dev.axonia.events.domain.SessionRecordMother;
+import dev.axonia.media.api.HeroThumbnails;
 import dev.axonia.shared.api.tenancy.OrganizationResolver;
 import dev.axonia.shared.configuration.PublicUrlProperties;
 
@@ -223,7 +224,7 @@ class UpcomingSessionProducerTest {
 
         var realAssembler = new SessionFactsAssembler(sessionMapper, seriesStore, loopSessionRepository,
                 loopCommunityAccess, userProfileAccess, sessionResourceAccess, actionItemStore,
-                actionItemCheckpointStore, publicUrlProperties, () -> Duration.ofDays(30));
+                actionItemCheckpointStore, publicUrlProperties, () -> Duration.ofDays(30), mock(HeroThumbnails.class));
         var loopProducer = new UpcomingSessionProducer(loopSessionRepository, loopCommunityAccess, realAssembler, port,
                 organizationResolver, watermark);
 

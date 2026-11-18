@@ -23,6 +23,9 @@ public interface Communities {
     /** Org-explicit, for a caller with no request to read the Organization from. */
     CommunityIdentity identityById(String organizationId, Long id);
 
+    /** The community's hero image, empty when it has none. An id that does not resolve is an exception. */
+    Optional<CommunityHero> heroById(String organizationId, long id);
+
     /** Keyed by id; an id that no longer resolves is absent rather than an exception. */
     Map<Long, CommunityIdentity> identitiesByIds(Collection<Long> ids);
 

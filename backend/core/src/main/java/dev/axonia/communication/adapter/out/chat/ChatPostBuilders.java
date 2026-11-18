@@ -10,6 +10,8 @@ import org.springframework.stereotype.Component;
 
 import dev.axonia.communication.api.MessageType;
 import dev.axonia.communication.application.FactStrings;
+import dev.axonia.communication.application.note.FormattedNote;
+import dev.axonia.communication.application.note.NoteParser;
 
 /**
  * Turns one message's frozen facts into a {@link ChatPost}. Reads exactly the keys {@code events}' {@code SessionFacts}
@@ -49,9 +51,14 @@ public class ChatPostBuilders {
         putIfPresent(details, "Recording", FactStrings.text(facts.get("recordingUrl")));
         putIfPresent(details, "Attended", positiveCount(facts.get("attendeeCount")));
         putIfPresent(details, "How was it?", feedbackLine(facts));
-        return common(facts).whenLine(FactStrings.when(facts, "Held"))
-                .body(FactStrings.text(facts.get("followUpNotes"))).details(details).actionLabel("View the wrap-up")
-                .build();
+        return common(facts).whenLine(FactStrings.when(facts, "Held")).note(noteOf(facts)).details(details)
+                .actionLabel("View the wrap-up").build();
+    }
+
+    private static FormattedNote noteOf(Map<String, Object> facts) {
+
+        var note = NoteParser.parse(FactStrings.text(facts.get("followUpNotes")));
+        return note.isEmpty() ? null : note;
     }
 
     private ChatPost.ChatPostBuilder common(Map<String, Object> facts) {

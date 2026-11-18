@@ -148,7 +148,7 @@ public final class OpenSeed {
                 Map.of("org", ORG));
         jdbc.update("INSERT INTO roundup_settings (organization_id, enabled, created_at, updated_at, version) "
                 + "VALUES (:org, true, now(), now(), 0)", Map.of("org", ORG));
-        jdbc.update("INSERT INTO roundup_thumbnail (organization_id, community_id, hero_key, slice_index, accent_hex, "
+        jdbc.update("INSERT INTO hero_thumbnail (organization_id, community_id, hero_key, slice_index, accent_hex, "
                 + "media_key, created_at) VALUES (:org, :communityId, 'layer3-hero.png', 0, '#786a7e', "
                 + "'layer3-thumbnail.jpg', now())", Map.of("org", ORG, "communityId", communityId));
         seedOnboarding();

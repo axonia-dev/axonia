@@ -25,8 +25,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * <p>
  * The two safe placements remain available and are not flagged: a wrapping {@code <th:block th:if=...>} around the
- * including element, or a {@code th:if} on the fragment's own definition (what {@code statStrip}, {@code
- * talkCountCell} and {@code nudgeStrip} do).
+ * including element, or a {@code th:if} on the fragment's own definition (what {@code talkCountCell} and {@code
+ * nudgeStrip} do).
  *
  * <p>
  * Each build unit lists exactly the templates of its own directory: this class core's,
@@ -85,8 +85,8 @@ class MailTemplateAttributePrecedenceTest {
 
     /**
      * The trap that makes a naive {@code <[a-zA-Z][^<>]*?>} scanner useless, and the reason {@link #elementsOf} tracks
-     * quotes rather than stopping at the first {@code >}: a condition routinely CONTAINS a {@code >} comparison, and
-     * {@code statStrip}'s real one does. A naive scanner truncates such a tag at the {@code >} inside its own
+     * quotes rather than stopping at the first {@code >}: a condition routinely CONTAINS a {@code >} comparison, as the
+     * wrap-up poster's talk and room counts do. A naive scanner truncates such a tag at the {@code >} inside its own
      * condition, never sees the inclusion that follows, and so goes blind on exactly the elements most likely to carry
      * a condition. Do not "simplify" the scanner back into that.
      */

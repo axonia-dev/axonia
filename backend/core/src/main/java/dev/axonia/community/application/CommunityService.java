@@ -17,6 +17,7 @@ import dev.axonia.access.api.Permission;
 import dev.axonia.community.api.Communities;
 import dev.axonia.community.api.Community;
 import dev.axonia.community.api.CommunityDetailsChanged;
+import dev.axonia.community.api.CommunityHero;
 import dev.axonia.community.api.CommunityIdentity;
 import dev.axonia.community.api.CommunityListing;
 import dev.axonia.community.api.CommunityRole;
@@ -182,6 +183,15 @@ public class CommunityService implements Communities {
 
         var entity = communities.findByIdOrThrow(organizationId, id);
         return new CommunityIdentity(entity.getSlug(), entity.getName(), entity.getAccentColor());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<CommunityHero> heroById(String organizationId, long id) {
+
+        var entity = communities.findByIdOrThrow(organizationId, id);
+        return Optional.ofNullable(entity.getHeroKey()).filter(key -> !key.isBlank())
+                .map(key -> new CommunityHero(key, entity.getHeroFocusX(), entity.getHeroFocusY()));
     }
 
     /**

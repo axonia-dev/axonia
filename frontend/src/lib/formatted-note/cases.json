@@ -1,0 +1,351 @@
+[
+  { "name": "plain text", "input": "Hello", "html": "<p>Hello</p>" },
+  { "name": "empty", "input": "", "html": "" },
+  { "name": "whitespace only", "input": "  \n\n  ", "html": "" },
+  {
+    "name": "single newline is a line break",
+    "input": "Line one\nLine two",
+    "html": "<p>Line one<br>Line two</p>"
+  },
+  {
+    "name": "blank line separates paragraphs",
+    "input": "One\n\nTwo",
+    "html": "<p>One</p><p>Two</p>"
+  },
+  {
+    "name": "bold in both spellings",
+    "input": "**bold** and __also__",
+    "html": "<p><strong>bold</strong> and <strong>also</strong></p>"
+  },
+  {
+    "name": "italics in both spellings",
+    "input": "*it* and _it_",
+    "html": "<p><em>it</em> and <em>it</em></p>"
+  },
+  {
+    "name": "markdown link",
+    "input": "[RBAC page](https://example.com/rbac)",
+    "html": "<p><a href=\"https://example.com/rbac\">RBAC page</a></p>"
+  },
+  {
+    "name": "http link",
+    "input": "[old](http://example.com)",
+    "html": "<p><a href=\"http://example.com\">old</a></p>"
+  },
+  {
+    "name": "bare url",
+    "input": "See https://example.com/a for more",
+    "html": "<p>See <a href=\"https://example.com/a\">https://example.com/a</a> for more</p>"
+  },
+  {
+    "name": "bare url drops a trailing full stop",
+    "input": "Go to https://example.com.",
+    "html": "<p>Go to <a href=\"https://example.com\">https://example.com</a>.</p>"
+  },
+  {
+    "name": "www without a scheme stays text",
+    "input": "www.example.com",
+    "html": "<p>www.example.com</p>"
+  },
+  {
+    "name": "email address stays text",
+    "input": "a@b.com",
+    "html": "<p>a@b.com</p>"
+  },
+  {
+    "name": "javascript link keeps only its label",
+    "input": "[x](javascript:alert(1))",
+    "html": "<p>x</p>"
+  },
+  {
+    "name": "mailto link keeps only its label",
+    "input": "[mail](mailto:a@b.com)",
+    "html": "<p>mail</p>"
+  },
+  {
+    "name": "relative link keeps only its label",
+    "input": "[x](/path)",
+    "html": "<p>x</p>"
+  },
+  {
+    "name": "ampersand in a url is escaped",
+    "input": "[q](https://e.com/?a=1&b=2)",
+    "html": "<p><a href=\"https://e.com/?a=1&amp;b=2\">q</a></p>"
+  },
+  {
+    "name": "dash bullets",
+    "input": "- one\n- two",
+    "html": "<ul><li>one</li><li>two</li></ul>"
+  },
+  {
+    "name": "star bullets",
+    "input": "* one\n* two",
+    "html": "<ul><li>one</li><li>two</li></ul>"
+  },
+  {
+    "name": "loose list",
+    "input": "- a\n\n- b",
+    "html": "<ul><li>a</li><li>b</li></ul>"
+  },
+  {
+    "name": "numbered list from one",
+    "input": "1. one\n2. two",
+    "html": "<ol><li>one</li><li>two</li></ol>"
+  },
+  {
+    "name": "numbered list with parentheses from one",
+    "input": "1) one\n2) two",
+    "html": "<ol><li>one</li><li>two</li></ol>"
+  },
+  {
+    "name": "a year at line start stays text",
+    "input": "2025. was a good year",
+    "html": "<p>2025. was a good year</p>"
+  },
+  {
+    "name": "a number with a parenthesis stays text",
+    "input": "3) third",
+    "html": "<p>3) third</p>"
+  },
+  {
+    "name": "a year at line start keeps its formatting and links",
+    "input": "2025. was a **great** year, see https://a.com",
+    "html": "<p>2025. was a <strong>great</strong> year, see <a href=\"https://a.com\">https://a.com</a></p>"
+  },
+  {
+    "name": "consecutive numbered lines from a year stay one paragraph",
+    "input": "2025. one\n2026. two",
+    "html": "<p>2025. one<br>2026. two</p>"
+  },
+  {
+    "name": "a year inside a bullet stays text",
+    "input": "- a\n\n  2025. was a year",
+    "html": "<ul><li>a<br>2025. was a year</li></ul>"
+  },
+  {
+    "name": "windows line endings",
+    "input": "Line one\r\nLine two",
+    "html": "<p>Line one<br>Line two</p>"
+  },
+  {
+    "name": "link title is dropped",
+    "input": "[x](https://a.com \"title\")",
+    "html": "<p><a href=\"https://a.com\">x</a></p>"
+  },
+  {
+    "name": "one nested level",
+    "input": "- a\n  - b",
+    "html": "<ul><li>a<ul><li>b</li></ul></li></ul>"
+  },
+  {
+    "name": "deeper levels flatten into the second",
+    "input": "- a\n  - b\n    - c",
+    "html": "<ul><li>a<ul><li>b</li><li>c</li></ul></li></ul>"
+  },
+  {
+    "name": "lazy continuation joins the bullet",
+    "input": "- item\ncontinued",
+    "html": "<ul><li>item<br>continued</li></ul>"
+  },
+  {
+    "name": "paragraph then list",
+    "input": "Two incidents.\n\n- **Quota alerts** page the team\n- see [notes](https://e.com)",
+    "html": "<p>Two incidents.</p><ul><li><strong>Quota alerts</strong> page the team</li><li>see <a href=\"https://e.com\">notes</a></li></ul>"
+  },
+  {
+    "name": "heading stays text",
+    "input": "# Title",
+    "html": "<p># Title</p>"
+  },
+  {
+    "name": "setext underline stays text",
+    "input": "Title\n---",
+    "html": "<p>Title<br>---</p>"
+  },
+  { "name": "thematic break stays text", "input": "***", "html": "<p>***</p>" },
+  {
+    "name": "block quote stays text",
+    "input": "> quote",
+    "html": "<p>&gt; quote</p>"
+  },
+  {
+    "name": "fenced code stays text",
+    "input": "```\ncode\n```",
+    "html": "<p>```<br>code<br>```</p>"
+  },
+  {
+    "name": "inline code stays text",
+    "input": "use `mvn verify`",
+    "html": "<p>use `mvn verify`</p>"
+  },
+  {
+    "name": "raw html stays text",
+    "input": "<b>x</b>",
+    "html": "<p>&lt;b&gt;x&lt;/b&gt;</p>"
+  },
+  {
+    "name": "image stays text",
+    "input": "![alt](https://example.com/x.png)",
+    "html": "<p>![alt](https://example.com/x.png)</p>"
+  },
+  {
+    "name": "entities decode",
+    "input": "Q&amp;A &copy;",
+    "html": "<p>Q&amp;A ©</p>"
+  },
+  {
+    "name": "backslash escapes",
+    "input": "\\*not italic\\*",
+    "html": "<p>*not italic*</p>"
+  },
+  {
+    "name": "quotes are escaped",
+    "input": "say \"hi\"",
+    "html": "<p>say &quot;hi&quot;</p>"
+  },
+  {
+    "name": "an item keeps every line and every list it holds",
+    "input": "- a\n\n  3. x\n\n  1. y\n\n  - b\n\n  7. q",
+    "html": "<ul><li>a<br>3. x<ol><li>y</li><li>b</li></ol>7. q</li></ul>"
+  },
+  {
+    "name": "lists of another kind in one item join the first",
+    "input": "- a\n  - b\n\n  1. c",
+    "html": "<ul><li>a<ul><li>b</li><li>c</li></ul></li></ul>"
+  },
+  {
+    "name": "numbers separated by blank lines stay separate paragraphs",
+    "input": "2. x\n\n3. y\n\n4. z",
+    "html": "<p>2. x</p><p>3. y</p><p>4. z</p>"
+  },
+  {
+    "name": "a link reference definition stays text",
+    "input": "See [x][1] and [1].\n\n[1]: https://a.com",
+    "html": "<p>See [x][1] and [1].</p><p>[1]: <a href=\"https://a.com\">https://a.com</a></p>"
+  },
+  {
+    "name": "both hard line break spellings break the line",
+    "input": "a  \nb\\\nc",
+    "html": "<p>a<br>b<br>c</p>"
+  },
+  {
+    "name": "plus bullets",
+    "input": "+ one\n+ two",
+    "html": "<ul><li>one</li><li>two</li></ul>"
+  },
+  {
+    "name": "text after a nested list stays after it",
+    "input": "- a\n\n  - b\n\n  after",
+    "html": "<ul><li>a<ul><li>b</li></ul>after</li></ul>"
+  },
+  {
+    "name": "text between two nested lists keeps both lists in place",
+    "input": "- a\n  - b\n\n  middle\n\n  - c",
+    "html": "<ul><li>a<ul><li>b</li></ul>middle<ul><li>c</li></ul></li></ul>"
+  },
+  {
+    "name": "an item with no text of its own holds its list",
+    "input": "-\n  - b",
+    "html": "<ul><li><ul><li>b</li></ul></li></ul>"
+  },
+  {
+    "name": "text after a list too deep to keep is lifted after that list",
+    "input": "- a\n  - b\n    - c\n\n    after\n  - d",
+    "html": "<ul><li>a<ul><li>b</li><li>c</li><li>after</li><li>d</li></ul></li></ul>"
+  },
+  {
+    "name": "a year after a nested list stays text after it",
+    "input": "- a\n  - b\n\n  2025. was a year",
+    "html": "<ul><li>a<ul><li>b</li></ul>2025. was a year</li></ul>"
+  },
+  {
+    "name": "a second level item holding only a list keeps its place when lifted",
+    "input": "- a\n\n  -\n    - c",
+    "html": "<ul><li>a<ul><li></li><li>c</li></ul></li></ul>"
+  },
+  {
+    "name": "an empty second level item is kept",
+    "input": "- a\n\n  -\n  - c",
+    "html": "<ul><li>a<ul><li></li><li>c</li></ul></li></ul>"
+  },
+  {
+    "name": "markup inside backticks stays as typed",
+    "input": "Call `__init__` first, then `a*b*c` and `*args` / `**kwargs`",
+    "html": "<p>Call `__init__` first, then `a*b*c` and `*args` / `**kwargs`</p>"
+  },
+  {
+    "name": "a url inside backticks stays text",
+    "input": "see `https://staging.a.com/x` for it",
+    "html": "<p>see `https://staging.a.com/x` for it</p>"
+  },
+  {
+    "name": "a link inside backticks stays text",
+    "input": "`[x](https://a.com)`",
+    "html": "<p>`[x](https://a.com)`</p>"
+  },
+  {
+    "name": "backticks across lines keep their indentation",
+    "input": "- a\n\n  ```\n  code\n  ```",
+    "html": "<ul><li>a<br>```<br>  code<br>  ```</li></ul>"
+  },
+  {
+    "name": "a link with no label is no link",
+    "input": "a [](https://a.com) b [ ](https://a.com) c",
+    "html": "<p>a  b   c</p>"
+  },
+  {
+    "name": "a paragraph of only an empty link is dropped",
+    "input": "[](https://a.com)\n\n[ ](https://a.com)\n\n&#32;",
+    "html": ""
+  },
+  {
+    "name": "bare url leaves trailing emphasis marks out",
+    "input": "https://a.com* https://a.com_ https://a.com/x_ https://a.com~ https://a.com.*",
+    "html": "<p><a href=\"https://a.com\">https://a.com</a>* <a href=\"https://a.com\">https://a.com</a>_ <a href=\"https://a.com/x\">https://a.com/x</a>_ <a href=\"https://a.com\">https://a.com</a>~ <a href=\"https://a.com\">https://a.com</a>.*</p>"
+  },
+  {
+    "name": "bare url in emphasis leaves its trailing underscore out",
+    "input": "**https://a.com/x_** (https://a.com/x_)",
+    "html": "<p><strong><a href=\"https://a.com/x\">https://a.com/x</a>_</strong> (<a href=\"https://a.com/x\">https://a.com/x</a>_)</p>"
+  },
+  {
+    "name": "bare url keeps a quote followed by more of it",
+    "input": "https://a.com/x\"y z",
+    "html": "<p><a href=\"https://a.com/x&quot;y\">https://a.com/x&quot;y</a> z</p>"
+  },
+  {
+    "name": "bare url leaves an entity-like ending out",
+    "input": "https://a.com/x&y; z",
+    "html": "<p><a href=\"https://a.com/x\">https://a.com/x</a>&amp;y; z</p>"
+  },
+  {
+    "name": "bare url after an open bracket ends the same way",
+    "input": "[WIP https://a.com/x_ and [x https://a.com/p> y",
+    "html": "<p>[WIP <a href=\"https://a.com/x\">https://a.com/x</a>_ and [x <a href=\"https://a.com/p&gt;\">https://a.com/p&gt;</a> y</p>"
+  },
+  {
+    "name": "www after an open bracket stays text",
+    "input": "[x www.a.com",
+    "html": "<p>[x www.a.com</p>"
+  },
+  {
+    "name": "spaced rule stays text",
+    "input": "* * *\n\n- - -\n\nx\n* * *\ny",
+    "html": "<p>* * *</p><p>- - -</p><p>x<br>* * *<br>y</p>"
+  },
+  {
+    "name": "list nested past the limit reads as plain text",
+    "input": "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - x\n\n**kept as typed**",
+    "html": "<p>- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - x</p><p>**kept as typed**</p>"
+  },
+  {
+    "name": "emphasis nested past the limit reads as plain text",
+    "input": "*****************************************************************************************************a*****************************************************************************************************",
+    "html": "<p>*****************************************************************************************************a*****************************************************************************************************</p>"
+  },
+  {
+    "name": "bare urls after an open bracket end as the parser ends them",
+    "input": "[x https://a.com/(x)_ https://a.com/x)y. https://a.com/x&y; https://a.com/x&Y; https://a.com/x&y https://a.com/x&;y https://a.com/x&y1;z https://a.com/x&~y https://a.com/x] https://a.com/x][y https://a.com/x]. https://a.com/x](y https://a.com/x]y https://a.com/x._y https://a.com/x\"y https://a.com/x* https://a.com/x~",
+    "html": "<p>[x <a href=\"https://a.com/(x)\">https://a.com/(x)</a>_ <a href=\"https://a.com/x)y\">https://a.com/x)y</a>. <a href=\"https://a.com/x\">https://a.com/x</a>&amp;y; <a href=\"https://a.com/x\">https://a.com/x</a>&amp;Y; <a href=\"https://a.com/x&amp;y\">https://a.com/x&amp;y</a> <a href=\"https://a.com/x&amp;;y\">https://a.com/x&amp;;y</a> <a href=\"https://a.com/x&amp;y1;z\">https://a.com/x&amp;y1;z</a> <a href=\"https://a.com/x&amp;~y\">https://a.com/x&amp;~y</a> <a href=\"https://a.com/x\">https://a.com/x</a>] <a href=\"https://a.com/x\">https://a.com/x</a>][y <a href=\"https://a.com/x\">https://a.com/x</a>]. <a href=\"https://a.com/x\">https://a.com/x</a>](y <a href=\"https://a.com/x]y\">https://a.com/x]y</a> <a href=\"https://a.com/x._y\">https://a.com/x._y</a> <a href=\"https://a.com/x&quot;y\">https://a.com/x&quot;y</a> <a href=\"https://a.com/x\">https://a.com/x</a>* <a href=\"https://a.com/x\">https://a.com/x</a>~</p>"
+  }
+]

@@ -45,6 +45,7 @@
 
 		<!-- test libraries -->
 		<htmlunit.version>5.7.0</htmlunit.version>
+		<commonmark.version>0.32.0</commonmark.version>
 
 		<!--
 			Surefire's own default, declared so ${skipTests} resolves for the exec execution of
@@ -77,6 +78,16 @@
 	<dependencyManagement>
 
 		<dependencies>
+			<dependency>
+				<groupId>org.commonmark</groupId>
+				<artifactId>commonmark</artifactId>
+				<version>${commonmark.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.commonmark</groupId>
+				<artifactId>commonmark-ext-autolink</artifactId>
+				<version>${commonmark.version}</version>
+			</dependency>
 			<dependency>
 				<groupId>org.springframework.modulith</groupId>
 				<artifactId>spring-modulith-bom</artifactId>
