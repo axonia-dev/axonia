@@ -70,6 +70,9 @@ public class MentoringMemberDataEraser implements MemberDataEraser {
                 "UPDATE mentoring_pairing SET next_meeting_on = NULL, next_meeting_set_by = NULL,"
                         + " next_meeting_set_at = NULL WHERE organization_id = :org AND next_meeting_set_by = :user",
                 params);
+        cleared += jdbc.update(
+                "UPDATE mentoring_meeting SET planned_by = NULL WHERE organization_id = :org AND planned_by = :user",
+                params);
         cleared += jdbc.update("UPDATE mentoring_pairing SET mentor_user_id = NULL"
                 + " WHERE organization_id = :org AND mentor_user_id = :user", params);
         cleared += jdbc.update("UPDATE mentoring_pairing SET mentee_user_id = NULL"

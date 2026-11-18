@@ -963,6 +963,30 @@ class RlsIsolationTest {
     }
 
     @Test
+    @IsolationProbe("mentoring_meeting")
+    void mentoringMeetingIsOrganizationIsolated() throws Exception {
+        assertRowIsolated("mentoring_meeting", "pairing_id = 91051",
+                mentoringPairing(91051) + "INSERT INTO mentoring_meeting (organization_id, pairing_id, meeting_on,"
+                        + " planned_at) VALUES ('default', 91051, '2026-11-26', now())",
+                "INSERT INTO mentoring_meeting (organization_id, pairing_id, meeting_on, planned_at)"
+                        + " VALUES ('default', 91051, '2026-11-27', now())");
+    }
+
+    @Test
+    @IsolationProbe("mentoring_meeting_topic")
+    void mentoringMeetingTopicIsOrganizationIsolated() throws Exception {
+        var fixture = mentoringPairing(91061) + "INSERT INTO mentoring_topic (id, organization_id, pairing_id,"
+                + " label, state, \"position\", created_at) VALUES (91064, 'default', 91061, 'rls-named', 'TODO', 0,"
+                + " now());INSERT INTO mentoring_meeting (id, organization_id, pairing_id, meeting_on, planned_at)"
+                + " VALUES (91063, 'default', 91061, '2026-11-26', now());";
+        assertRowIsolated("mentoring_meeting_topic", "meeting_id = 91063",
+                fixture + "INSERT INTO mentoring_meeting_topic (organization_id, meeting_id, topic_id)"
+                        + " VALUES ('default', 91063, 91064)",
+                "INSERT INTO mentoring_meeting_topic (organization_id, meeting_id, topic_id)"
+                        + " VALUES ('default', 91063, 91064)");
+    }
+
+    @Test
     @IsolationProbe("mentoring_words")
     void mentoringWordsIsOrganizationIsolated() throws Exception {
         assertRowIsolated("mentoring_words", "body = 'rls-words'",

@@ -51,6 +51,10 @@ public class MentoringPersonalDataExporter implements PersonalDataExporter {
             + " JOIN mentoring_topic t ON t.id = nt.topic_id AND t.organization_id = nt.organization_id"
             + " WHERE nt.note_id = n.id AND nt.organization_id = n.organization_id ORDER BY t.label)";
 
+    private static final String TOPICS_OF_MEETING = "ARRAY(SELECT t.label FROM mentoring_meeting_topic mt"
+            + " JOIN mentoring_topic t ON t.id = mt.topic_id AND t.organization_id = mt.organization_id"
+            + " WHERE mt.meeting_id = m.id AND mt.organization_id = m.organization_id ORDER BY t.label)";
+
     private static final String ROLE_IN_PAIRING = "CASE WHEN p.mentor_user_id = :user THEN 'MENTOR' ELSE 'MENTEE' END";
 
     /** A proposal's {@code topics} is a SQL array, which an export carries as a plain list. */
@@ -86,6 +90,7 @@ public class MentoringPersonalDataExporter implements PersonalDataExporter {
         payload.put(MentoringPersonalDataFootprint.PAIRING, pairings(scope));
         payload.put(MentoringPersonalDataFootprint.TOPIC, topics(scope));
         payload.put(MentoringPersonalDataFootprint.NOTE, notes(scope));
+        payload.put(MentoringPersonalDataFootprint.MEETING, meetings(scope));
         payload.put(MentoringPersonalDataFootprint.POINTER, pointers(scope));
         payload.put(MentoringPersonalDataFootprint.WORDS, words(scope));
         return payload;
@@ -129,6 +134,13 @@ public class MentoringPersonalDataExporter implements PersonalDataExporter {
         var select = childColumns(MentoringPersonalDataFootprint.NOTE, scope, "author_user_id", "n") + ", "
                 + TOPICS_OF_NOTE + " AS " + MentoringPersonalDataFootprint.TOPICS_LABEL;
         return rows(scope, select, childOf("mentoring_note n", "n"), " AND n.author_user_id = :user");
+    }
+
+    private List<Map<String, Object>> meetings(ExportScope.InOrganization scope) {
+
+        var select = childColumns(MentoringPersonalDataFootprint.MEETING, scope, "planned_by", "m") + ", "
+                + TOPICS_OF_MEETING + " AS " + MentoringPersonalDataFootprint.TOPICS_LABEL;
+        return rows(scope, select, childOf("mentoring_meeting m", "m"), " AND m.planned_by = :user");
     }
 
     private List<Map<String, Object>> pointers(ExportScope.InOrganization scope) {

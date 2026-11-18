@@ -13,8 +13,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class MentoringDataPurgerTest extends PurgerTestSupport {
 
     private static final List<String> TABLES = List.of("mentoring_availability", "mentoring_proposal",
-            "mentoring_pairing", "mentoring_topic", "mentoring_note", "mentoring_note_topic", "mentoring_pointer",
-            "mentoring_words");
+            "mentoring_pairing", "mentoring_topic", "mentoring_note", "mentoring_note_topic", "mentoring_meeting",
+            "mentoring_meeting_topic", "mentoring_pointer", "mentoring_words");
 
     @Autowired
     private NamedParameterJdbcTemplate jdbc;
@@ -45,6 +45,7 @@ class MentoringDataPurgerTest extends PurgerTestSupport {
         var pairing = rows.pairing(1L, "mia", "noah");
         var topic = rows.topic(pairing, "Kafka");
         rows.noteTopic(rows.note(pairing, "noah", "A note"), topic);
+        rows.meeting(pairing, "noah", topic);
         rows.memberOnTopic(pairing, topic, "leo");
         rows.words(pairing, "Thanks");
         return rows;

@@ -73,6 +73,8 @@ TRUNCATE TABLE
     learning_intent,
     memberships,
     mentoring_availability,
+    mentoring_meeting,
+    mentoring_meeting_topic,
     mentoring_note,
     mentoring_note_topic,
     mentoring_pairing,

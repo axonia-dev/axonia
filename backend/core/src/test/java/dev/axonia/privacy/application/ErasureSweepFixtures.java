@@ -243,6 +243,13 @@ public final class ErasureSweepFixtures {
                 + "current_date, now()) RETURNING id", pairing, Long.class);
         jdbc.update("INSERT INTO mentoring_note_topic (organization_id, note_id, topic_id) VALUES (:org, :noteId, "
                 + ":topicId)", Map.of("org", organizationId, "noteId", targetNote, "topicId", topicId));
+        var meetingId = jdbc.queryForObject("INSERT INTO mentoring_meeting (organization_id, pairing_id, meeting_on, "
+                + "planned_by, planned_at) VALUES (:org, :pairingId, current_date + 3, :user, now()) RETURNING id",
+                pairing, Long.class);
+        jdbc.update(
+                "INSERT INTO mentoring_meeting_topic (organization_id, meeting_id, topic_id) VALUES (:org, "
+                        + ":meetingId, :topicId)",
+                Map.of("org", organizationId, "meetingId", meetingId, "topicId", topicId));
         jdbc.update("UPDATE mentoring_pairing SET next_meeting_on = current_date + 3, next_meeting_set_by = :user, "
                 + "next_meeting_set_at = now() WHERE id = :pairingId", pairing);
         jdbc.update(

@@ -15,7 +15,8 @@ import lombok.RequiredArgsConstructor;
 public class MentoringDataPurger implements OrganizationDataPurger {
 
     private static final List<String> TABLES = List.of("mentoring_words", "mentoring_pointer", "mentoring_note_topic",
-            "mentoring_note", "mentoring_topic", "mentoring_pairing", "mentoring_proposal", "mentoring_availability");
+            "mentoring_note", "mentoring_meeting_topic", "mentoring_meeting", "mentoring_topic", "mentoring_pairing",
+            "mentoring_proposal", "mentoring_availability");
 
     private final NamedParameterJdbcTemplate jdbc;
 

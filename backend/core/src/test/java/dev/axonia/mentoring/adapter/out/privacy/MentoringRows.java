@@ -84,6 +84,15 @@ final class MentoringRows {
                 + ":topicId)", Map.of("org", org, "noteId", noteId, "topicId", topicId));
     }
 
+    void meeting(long pairingId, String plannedBy, long topicId) {
+
+        var meetingId = jdbc.queryForObject("INSERT INTO mentoring_meeting (organization_id, pairing_id, meeting_on, "
+                + "planned_by, planned_at) VALUES (:org, :pairingId, '2026-11-26', :plannedBy, now()) RETURNING id",
+                Map.of("org", org, "pairingId", pairingId, "plannedBy", plannedBy), Long.class);
+        jdbc.update("INSERT INTO mentoring_meeting_topic (organization_id, meeting_id, topic_id) VALUES (:org, "
+                + ":meetingId, :topicId)", Map.of("org", org, "meetingId", meetingId, "topicId", topicId));
+    }
+
     void nextMeeting(long pairingId, String setBy) {
 
         jdbc.update(

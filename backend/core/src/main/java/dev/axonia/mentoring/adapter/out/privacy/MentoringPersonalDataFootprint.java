@@ -38,6 +38,8 @@ public class MentoringPersonalDataFootprint implements PersonalDataFootprint {
     static final String TOPIC = "mentoring_topic";
     static final String NOTE = "mentoring_note";
     static final String NOTE_TOPIC = "mentoring_note_topic";
+    static final String MEETING = "mentoring_meeting";
+    static final String MEETING_TOPIC = "mentoring_meeting_topic";
     static final String POINTER = "mentoring_pointer";
     static final String WORDS = "mentoring_words";
 
@@ -53,7 +55,8 @@ public class MentoringPersonalDataFootprint implements PersonalDataFootprint {
     @Override
     public List<TableFootprint> tables() {
 
-        return List.of(availability(), proposal(), pairing(), topic(), note(), noteTopic(), pointer(), words());
+        return List.of(availability(), proposal(), pairing(), topic(), note(), noteTopic(), meeting(), meetingTopic(),
+                pointer(), words());
     }
 
     private static TableFootprint availability() {
@@ -113,6 +116,22 @@ public class MentoringPersonalDataFootprint implements PersonalDataFootprint {
 
         return TableFootprint.builder().table(NOTE_TOPIC).category(DataCategory.MENTORING).personal(List.of())
                 .notPersonal(Set.of("organization_id", "note_id", "topic_id")).build();
+    }
+
+    private static TableFootprint meeting() {
+
+        return TableFootprint.builder().table(MEETING).category(DataCategory.MENTORING)
+                .personal(List.of(subject("planned_by", Disposition.CLEAR)))
+                .notPersonal(Set.of("id", "organization_id", "pairing_id", "meeting_on", "planned_at"))
+                .exportedContext(Set.of("meeting_on", "planned_at"))
+                .exportedLabels(Set.of(COMMUNITY_LABEL, PAIRING_STARTED_LABEL, TOPICS_LABEL)).build();
+    }
+
+    /** Which topics a meeting names: exported as the labels of its meeting's topics, never on its own. */
+    private static TableFootprint meetingTopic() {
+
+        return TableFootprint.builder().table(MEETING_TOPIC).category(DataCategory.MENTORING).personal(List.of())
+                .notPersonal(Set.of("organization_id", "meeting_id", "topic_id")).build();
     }
 
     private static TableFootprint pointer() {

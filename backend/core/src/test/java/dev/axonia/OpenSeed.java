@@ -178,6 +178,11 @@ public final class OpenSeed {
                 + "RETURNING id", pairing, Long.class);
         jdbc.update("INSERT INTO mentoring_note_topic (organization_id, note_id, topic_id) VALUES (:org, :noteId, "
                 + ":topicId)", Map.of("org", ORG, "noteId", noteId, "topicId", topicId));
+        var meetingId = jdbc.queryForObject("INSERT INTO mentoring_meeting (organization_id, pairing_id, meeting_on, "
+                + "planned_by, planned_at) VALUES (:org, :pairingId, current_date + 3, :user, now()) RETURNING id",
+                pairing, Long.class);
+        jdbc.update("INSERT INTO mentoring_meeting_topic (organization_id, meeting_id, topic_id) VALUES (:org, "
+                + ":meetingId, :topicId)", Map.of("org", ORG, "meetingId", meetingId, "topicId", topicId));
         jdbc.update(
                 "INSERT INTO mentoring_pointer (organization_id, pairing_id, topic_id, kind, target_user_id, "
                         + "created_at) VALUES (:org, :pairingId, :topicId, 'MEMBER', :user, now())",
