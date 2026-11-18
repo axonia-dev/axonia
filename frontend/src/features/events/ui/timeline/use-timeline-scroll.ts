@@ -32,32 +32,10 @@ export function readingLine(scroller: HTMLElement): number {
   return scroller.getBoundingClientRect().top + ribbonHeight + READING_GAP_PX;
 }
 
-/** The ribbon's natural top inside `<main>`'s content: the ribbon opens the root, and unlike the ribbon the root never sticks. */
-function ribbonTopIn(main: HTMLElement, root: HTMLElement | null): number {
-  if (root === null) return 0;
-  return (
-    root.getBoundingClientRect().top -
-    main.getBoundingClientRect().top +
-    main.scrollTop
-  );
-}
-
 /**
- * A target short of the ribbon's top would leave the page controls half cut, so it snaps to the
- * nearer of 0 and the ribbon's top. It never snaps past `memoryLimit`, the scroll that keeps the
- * newest memory just under the ribbon: hiding that memory loses the history above Today.
+ * The largest scroll that still shows the memory right above Today under the sticky band, or
+ * Infinity with none: hiding that memory loses the history above Today.
  */
-function openingTop(
-  target: number,
-  ribbonTop: number,
-  memoryLimit: number,
-): number {
-  if (target <= 0 || target >= ribbonTop) return target;
-  const up = target >= ribbonTop / 2 && ribbonTop <= memoryLimit;
-  return up ? ribbonTop : 0;
-}
-
-/** The largest scroll that still shows the memory right above Today under the ribbon, or Infinity with none. */
 function memoryLimitIn(
   main: HTMLElement,
   root: HTMLElement | null,
@@ -65,15 +43,15 @@ function memoryLimitIn(
 ): number {
   const rows = rowsOf(root);
   const newest = rows[rows.indexOf(today) - 1];
-  const ribbon = root?.querySelector("[data-time-ribbon]");
-  if (newest === undefined || ribbon === null || ribbon === undefined) {
+  const band = root?.querySelector("[data-time-ribbon]");
+  if (newest === undefined || band === null || band === undefined) {
     return Infinity;
   }
   return (
     newest.getBoundingClientRect().top -
     main.getBoundingClientRect().top +
     main.scrollTop -
-    ribbon.getBoundingClientRect().height
+    band.getBoundingClientRect().height
   );
 }
 
@@ -161,10 +139,12 @@ export function useTimelineScroll({
       today.getBoundingClientRect().top -
       main.getBoundingClientRect().top +
       main.scrollTop;
-    main.scrollTop = openingTop(
-      todayTop - main.clientHeight / 3,
-      ribbonTopIn(main, rootRef.current),
-      memoryLimitIn(main, rootRef.current, today),
+    main.scrollTop = Math.max(
+      0,
+      Math.min(
+        todayTop - main.clientHeight / 3,
+        memoryLimitIn(main, rootRef.current, today),
+      ),
     );
   }, [ready, restored, rootRef, scroller, todayRef]);
 

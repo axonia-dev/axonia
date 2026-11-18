@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -34,7 +35,9 @@ vi.mock("@/features/events/ui/MonthCalendar", () => ({
   MonthCalendar: () => <div data-testid="month-calendar" />,
 }));
 vi.mock("@/features/events/ui/ScheduleTimeline", () => ({
-  ScheduleTimeline: () => <div data-testid="schedule-timeline" />,
+  ScheduleTimeline: ({ header }: { header: ReactNode }) => (
+    <div data-testid="schedule-timeline">{header}</div>
+  ),
 }));
 vi.mock("@/features/events/ui/OneOffSessionForm", () => ({
   OneOffSessionForm: () => <div data-testid="one-off-form" />,

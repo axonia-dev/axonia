@@ -68,13 +68,22 @@ async function expectOpeningPosition(page: Page) {
   const memoryTop = await topOf(rowAt(page, newest.entry.scheduledAt));
   expect(memoryTop).toBeGreaterThanOrEqual(ribbonBottom);
   expect(memoryTop).toBeLessThan(today.y);
-  const controls = (await page
-    .getByText("Timeline", { exact: true })
-    .first()
-    .boundingBox())!;
-  const whole = controls.y >= area.y;
-  const scrolledAway = controls.y + controls.height <= area.y;
-  expect(whole || scrolledAway).toBe(true);
+  await expectControlsInBand(page);
+}
+
+/** The page controls ride whole in the sticky band, inside `<main>` and above the ribbon. */
+async function expectControlsInBand(page: Page) {
+  const area = (await main(page).boundingBox())!;
+  const ribbon = (await slider(page).boundingBox())!;
+  for (const control of [
+    page.getByRole("heading", { name: "Schedule" }),
+    page.getByRole("radio", { name: "Saved" }),
+    page.getByRole("button", { name: "Schedule actions" }),
+  ]) {
+    const box = (await control.boundingBox())!;
+    expect(box.y).toBeGreaterThanOrEqual(area.y);
+    expect(box.y + box.height).toBeLessThanOrEqual(ribbon.y);
+  }
 }
 
 test("opens with the Today marker in the upper third of the page", async ({
@@ -233,6 +242,8 @@ test("the keyboard jumps to the oldest memory and back to Today", async ({
       Math.abs((await topOf(oldestRow)) - (await readingLine(page))),
     )
     .toBeLessThanOrEqual(40);
+
+  await expectControlsInBand(page);
 
   // when
   await page.keyboard.press("t");

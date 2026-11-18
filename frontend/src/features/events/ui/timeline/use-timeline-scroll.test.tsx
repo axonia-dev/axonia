@@ -16,7 +16,6 @@ import { useTimelineScroll } from "@/features/events/ui/timeline/use-timeline-sc
 interface Given {
   ready: boolean;
   count: number;
-  ribbonTop?: number;
   memoryTop?: number;
 }
 
@@ -26,7 +25,7 @@ const ROWS = [
   { at: 3000, top: 300 },
 ];
 
-function Timeline({ ready, count, ribbonTop, memoryTop }: Readonly<Given>) {
+function Timeline({ ready, count, memoryTop }: Readonly<Given>) {
   const rootRef = useRef<HTMLDivElement>(null);
   const todayRef = useRef<HTMLDivElement>(null);
   const { lens, scrollToAt } = useTimelineScroll({
@@ -37,7 +36,7 @@ function Timeline({ ready, count, ribbonTop, memoryTop }: Readonly<Given>) {
   });
   const lensMs = useLensMs(lens);
   return (
-    <div ref={rootRef} data-top={ribbonTop}>
+    <div ref={rootRef}>
       <div data-time-ribbon="" />
       {ROWS.map((row, index) => (
         <p
@@ -107,41 +106,26 @@ afterEach(() => {
 describe("useTimelineScroll", () => {
   it("opens with Today a third of the way down, once", () => {
     // given
-    const { main, update } = setup({ ready: false, count: 0 });
+    const given = { count: 0, memoryTop: 800 };
+    const { main, update } = setup({ ...given, ready: false });
     // when
-    update({ ready: true, count: 0 });
+    update({ ...given, ready: true });
     // then: today sits 800px into main, less a third of 600
     expect(main.scrollTop).toBe(600);
     main.scrollTop = 5;
-    update({ ready: false, count: 0 });
-    update({ ready: true, count: 0 });
+    update({ ...given, ready: false });
+    update({ ...given, ready: true });
     expect(main.scrollTop).toBe(5);
   });
 
-  it.each([
-    ["snaps up to the ribbon when it is nearer", 750, 850, 650],
-    ["snaps down to the top when that is nearer", 1600, 850, 0],
-    ["never snaps up past the newest memory", 750, 700, 0],
-  ])(
-    "a target short of the ribbon %s",
-    (_name, rootTop, memoryTop, expected) => {
-      // given: the target is 600; root top less main top (100) is the ribbon's top
-      const given = { count: 0, ribbonTop: rootTop, memoryTop };
-      const { main, update } = setup({ ...given, ready: false });
-      // when
-      update({ ...given, ready: true });
-      // then
-      expect(main.scrollTop).toBe(expected);
-    },
-  );
-
-  it("keeps an opening target at or past the ribbon's top", () => {
-    // given
-    const { main, update } = setup({ ready: false, count: 0, ribbonTop: 300 });
+  it("never opens past the newest memory, so the band cannot cover it", () => {
+    // given: the target is 600, the memory above Today 550px into main
+    const given = { count: 0, memoryTop: 650 };
+    const { main, update } = setup({ ...given, ready: false });
     // when
-    update({ ready: true, count: 0, ribbonTop: 300 });
+    update({ ...given, ready: true });
     // then
-    expect(main.scrollTop).toBe(600);
+    expect(main.scrollTop).toBe(550);
   });
 
   it("leaves a position the back step restored alone", () => {

@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ReactNode } from "react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -15,7 +16,9 @@ vi.mock("@/features/community/api/use-contribution-policy", () => ({
   useContributionPolicy: vi.fn(() => ({ canStartSeries: false })),
 }));
 vi.mock("@/features/events/ui/ScheduleTimeline", () => ({
-  ScheduleTimeline: () => <div data-testid="schedule-timeline" />,
+  ScheduleTimeline: ({ header }: { header: ReactNode }) => (
+    <div data-testid="schedule-timeline">{header}</div>
+  ),
 }));
 vi.mock("@/features/events/ui/MonthCalendar", () => ({
   MonthCalendar: () => <div data-testid="month-calendar" />,

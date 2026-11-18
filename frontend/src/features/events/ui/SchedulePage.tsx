@@ -1,18 +1,8 @@
-import { CalendarSync, ChevronDown, MoreHorizontal } from "lucide-react";
 import { useEffect, useState } from "react";
-import {
-  type Key,
-  Menu as AriaMenu,
-  MenuTrigger,
-  Popover,
-} from "react-aria-components";
+import type { Key } from "react-aria-components";
 import { useSearchParams } from "react-router-dom";
 
-import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
-import { IconButton } from "@/components/ui/IconButton";
-import { MenuItem, menuPopoverClass } from "@/components/ui/Menu";
-import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { CommunitySavedSessions } from "@/features/bookmarks/ui/CommunitySavedSessions";
 import { useContributionPolicy } from "@/features/community/api/use-contribution-policy";
 import { useIsOrganizer } from "@/features/community/api/use-organizer";
@@ -28,7 +18,6 @@ import {
   TIMELINE_BLOCK,
 } from "@/features/events/ui/calendar-layout";
 import { CalendarSubscribeDialog } from "@/features/events/ui/CalendarSubscribeDialog";
-import { CalendarSyncChip } from "@/features/events/ui/CalendarSyncChip";
 import { MonthCalendar } from "@/features/events/ui/MonthCalendar";
 import { OneOffSessionForm } from "@/features/events/ui/OneOffSessionForm";
 import type { ScheduleView } from "@/features/events/ui/schedule-preferences";
@@ -39,19 +28,14 @@ import {
   storeMonth,
   storeView,
 } from "@/features/events/ui/schedule-preferences";
+import {
+  SAVED_VIEW,
+  ScheduleHeader,
+} from "@/features/events/ui/ScheduleHeader";
 import { ScheduleTimeline } from "@/features/events/ui/ScheduleTimeline";
 import { SeriesForm } from "@/features/events/ui/SeriesForm";
-import { cn } from "@/lib/cn";
 
 const SAVED_PARAM = "saved";
-
-const SAVED_VIEW = "saved";
-
-const VIEW_OPTIONS = [
-  { id: "timeline", label: "Timeline" },
-  { id: "calendar", label: "Calendar" },
-  { id: SAVED_VIEW, label: "Saved" },
-] as const;
 
 /** Saved rides its own URL flag so the remembered calendar or timeline survives a visit to it. */
 function viewChange(next: string): Record<string, string | null> {
@@ -150,76 +134,36 @@ export function SchedulePage({ slug }: Readonly<{ slug: string }>) {
   // never reaches: the calendar's own block for the calendar, a reading width for the timeline,
   // which is one column of cards and gains nothing from the room.
   const block = blockFor(saved, view);
+  // The timeline holds the controls in its sticky band, the other views leave them at the top.
+  const onTimeline = !saved && view === "timeline";
+
+  const header = (
+    <ScheduleHeader
+      slug={slug}
+      canStartSeries={canStartSeries}
+      view={saved ? SAVED_VIEW : view}
+      onViewChange={(next) => setParams(viewChange(next))}
+      onNew={handleNewAction}
+      onSubscribe={() => setSubscribeOpen(true)}
+    />
+  );
 
   return (
     <section className="flex flex-col gap-4">
-      <div
-        className={cn(
-          "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between",
-          block,
-        )}
-      >
-        <h1 className="text-foreground font-display text-xl font-semibold">
-          Schedule
-        </h1>
-        <div className="flex flex-wrap items-center gap-3">
-          <CalendarSyncChip
-            slug={slug}
-            onManage={() => setSubscribeOpen(true)}
-          />
-          {canStartSeries && (
-            <MenuTrigger>
-              <Button variant="ghost" size="sm">
-                + New
-                <ChevronDown size={14} aria-hidden="true" />
-              </Button>
-              <Popover className={menuPopoverClass}>
-                <AriaMenu onAction={handleNewAction} className="outline-none">
-                  <MenuItem id="series">New series</MenuItem>
-                  <MenuItem id="oneoff">One-off session</MenuItem>
-                </AriaMenu>
-              </Popover>
-            </MenuTrigger>
-          )}
-          <SegmentedControl
-            label="Schedule view"
-            hideLabel
-            value={saved ? SAVED_VIEW : view}
-            options={VIEW_OPTIONS}
-            onChange={(next) => setParams(viewChange(next))}
-          />
-          {/* A neutral glyph over a labelled item, not a calendar icon: a calendar with a
-              plus beside a calendar view reads as "add a session", which + New already is. */}
-          <MenuTrigger>
-            <IconButton label="Schedule actions">
-              <MoreHorizontal size={15} />
-            </IconButton>
-            <Popover className={menuPopoverClass}>
-              <AriaMenu
-                onAction={() => setSubscribeOpen(true)}
-                className="outline-none"
-              >
-                <MenuItem id="subscribe">
-                  <CalendarSync size={14} />
-                  Add to calendar
-                </MenuItem>
-              </AriaMenu>
-            </Popover>
-          </MenuTrigger>
-        </div>
-      </div>
+      {!onTimeline && <div className={block}>{header}</div>}
 
       {saved && (
         <div className={block}>
           <CommunitySavedSessions slug={slug} />
         </div>
       )}
-      {!saved && view === "timeline" && (
+      {onTimeline && (
         <div className={block}>
           <ScheduleTimeline
             slug={slug}
             fromIso={fromIso}
             canManage={canManage}
+            header={header}
           />
         </div>
       )}

@@ -1,6 +1,6 @@
-import { act, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import type { RibbonSpan, RibbonTick } from "@/features/events/domain/ribbon";
 import {
@@ -199,63 +199,5 @@ describe("TimeRibbon", () => {
     setup();
     // then
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
-  });
-
-  describe("cover", () => {
-    const real = window.IntersectionObserver;
-    let report: (sentinelTop: number) => void = () => {};
-
-    beforeAll(() => {
-      window.IntersectionObserver = class {
-        constructor(private readonly callback: IntersectionObserverCallback) {}
-        observe(target: Element) {
-          report = (sentinelTop) =>
-            this.callback(
-              [
-                {
-                  target,
-                  boundingClientRect: { top: sentinelTop } as DOMRectReadOnly,
-                  rootBounds: { top: 60 } as DOMRectReadOnly,
-                } as IntersectionObserverEntry,
-              ],
-              this as unknown as IntersectionObserver,
-            );
-        }
-        disconnect() {}
-      } as unknown as typeof IntersectionObserver;
-    });
-
-    afterAll(() => {
-      window.IntersectionObserver = real;
-    });
-
-    const cover = (container: HTMLElement) =>
-      container.querySelector<HTMLElement>("[data-ribbon-cover]");
-
-    it("stays clear at rest, so the band sits on the page", () => {
-      // given
-      const { container } = setup();
-      // when
-      act(() => report(120));
-      // then
-      expect(cover(container)?.className).toContain("opacity-0");
-    });
-
-    it("covers the band once stuck under the topbar, and clears again on the way back", () => {
-      // given
-      const { container } = setup();
-      // when
-      act(() => report(59));
-      // then
-      expect(cover(container)?.className).toContain("opacity-100");
-      expect(cover(container)?.className).not.toContain("transition");
-      // when
-      act(() => report(60));
-      // then
-      expect(cover(container)?.className).toContain("opacity-0");
-      expect(cover(container)?.className).toContain(
-        "motion-safe:transition-opacity",
-      );
-    });
   });
 });

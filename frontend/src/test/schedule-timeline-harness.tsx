@@ -54,7 +54,14 @@ function seeEverythingInView() {
       constructor(private readonly callback: IntersectionObserverCallback) {}
       observe(target: Element) {
         this.callback(
-          [{ target, isIntersecting: true } as IntersectionObserverEntry],
+          [
+            {
+              target,
+              isIntersecting: true,
+              boundingClientRect: target.getBoundingClientRect(),
+              rootBounds: null,
+            } as IntersectionObserverEntry,
+          ],
           this as unknown as IntersectionObserver,
         );
       }
@@ -111,6 +118,7 @@ export function renderTimeline(given: TimelineGiven = {}) {
             slug={next.slug ?? "x"}
             fromIso={fromIso}
             canManage={next.canManage ?? false}
+            header={<h1>Schedule</h1>}
           />
         </main>
       </MemoryRouter>

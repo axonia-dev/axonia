@@ -1,6 +1,6 @@
 import { Undo2 } from "lucide-react";
 import type { CSSProperties, KeyboardEvent } from "react";
-import { useRef, useState } from "react";
+import { useRef } from "react";
 
 import type { RibbonSpan, RibbonTick } from "@/features/events/domain/ribbon";
 import {
@@ -12,13 +12,11 @@ import {
 } from "@/features/events/domain/ribbon";
 import { upcomingGlow } from "@/features/events/domain/upcoming-glow";
 import {
-  Cover,
   MonthLabels,
   percent,
   StepButton,
 } from "@/features/events/ui/timeline/ribbon-parts";
 import { useScrubbing } from "@/features/events/ui/timeline/use-scrubbing";
-import { useStuck } from "@/features/events/ui/timeline/use-stuck";
 import { cn } from "@/lib/cn";
 
 interface Props {
@@ -124,8 +122,6 @@ export function TimeRibbon({
     onHold,
   });
   const nowInView = nowMs >= span.fromMs && nowMs <= span.toMs;
-  const [sentinel, setSentinel] = useState<HTMLDivElement | null>(null);
-  const stuck = useStuck(sentinel);
   const slider = useRef<HTMLDivElement>(null);
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
@@ -143,78 +139,71 @@ export function TimeRibbon({
   }
 
   return (
-    <>
-      <div ref={setSentinel} aria-hidden="true" className="-mb-px h-px" />
-      <div
-        data-time-ribbon=""
-        className="sticky top-0 z-10 mb-3 px-1 pt-2 pb-1.5"
-      >
-        <Cover shown={stuck} />
-        <div className="flex items-center gap-2">
-          <div className="min-w-0 flex-1">
+    <div className="px-1">
+      <div className="flex items-center gap-2">
+        <div className="min-w-0 flex-1">
+          <div
+            ref={slider}
+            role="slider"
+            tabIndex={0}
+            aria-label="Schedule timeline"
+            aria-valuemin={bounds.fromMs}
+            aria-valuemax={bounds.toMs}
+            aria-valuenow={Math.min(
+              bounds.toMs,
+              Math.max(bounds.fromMs, lensMs),
+            )}
+            aria-valuetext={valueText(lensMs)}
+            onKeyDown={onKeyDown}
+            {...pointer}
+            className="focus-visible:ring-focus-ring relative h-11 cursor-ew-resize touch-none rounded-lg outline-none select-none focus-visible:ring-2"
+          >
             <div
-              ref={slider}
-              role="slider"
-              tabIndex={0}
-              aria-label="Schedule timeline"
-              aria-valuemin={bounds.fromMs}
-              aria-valuemax={bounds.toMs}
-              aria-valuenow={Math.min(
-                bounds.toMs,
-                Math.max(bounds.fromMs, lensMs),
-              )}
-              aria-valuetext={valueText(lensMs)}
-              onKeyDown={onKeyDown}
-              {...pointer}
-              className="focus-visible:ring-focus-ring relative h-11 cursor-ew-resize touch-none rounded-lg outline-none select-none focus-visible:ring-2"
+              data-ribbon-track=""
+              aria-hidden="true"
+              className="border-border-strong absolute inset-x-0 top-[5px] h-[34px] rounded-lg border"
+            />
+            <span
+              aria-hidden="true"
+              style={{ left: lensLeft(fractionOf(lensMs, span)) }}
+              data-ribbon-lens=""
+              className="border-focus-ring bg-primary/6 pointer-events-none absolute inset-y-0 z-10 w-[46px] -translate-x-1/2 rounded-lg border-[1.5px] motion-safe:transition-[left] motion-safe:duration-75"
+            />
+            <div
+              data-ribbon-marks=""
+              className="pointer-events-none absolute inset-x-0 top-[5px] z-20 h-[34px] overflow-hidden rounded-lg"
             >
-              <div
-                data-ribbon-track=""
-                aria-hidden="true"
-                className="border-border-strong absolute inset-x-0 top-[5px] h-[34px] rounded-lg border"
-              />
-              <span
-                aria-hidden="true"
-                style={{ left: lensLeft(fractionOf(lensMs, span)) }}
-                data-ribbon-lens=""
-                className="border-focus-ring bg-primary/6 pointer-events-none absolute inset-y-0 z-10 w-[46px] -translate-x-1/2 rounded-lg border-[1.5px] motion-safe:transition-[left] motion-safe:duration-75"
-              />
-              <div
-                data-ribbon-marks=""
-                className="pointer-events-none absolute inset-x-0 top-[5px] z-20 h-[34px] overflow-hidden rounded-lg"
-              >
-                {shown.map((tick, index) => (
-                  <span
-                    key={`${tick.kind}-${tick.at}-${index}`}
-                    data-kind={tick.kind}
-                    aria-hidden="true"
-                    style={tickStyle(tick, span, nowMs)}
-                    className={cn(
-                      "absolute bottom-1 -translate-x-1/2 rounded-sm",
-                      TICK_CLASS[tick.kind],
-                    )}
-                  />
-                ))}
-                {nowInView && (
-                  <span
-                    data-now-line=""
-                    aria-hidden="true"
-                    style={{ left: percent(fractionOf(nowMs, span)) }}
-                    className="bg-primary absolute inset-y-0 w-0.5 -translate-x-1/2"
-                  />
-                )}
-              </div>
+              {shown.map((tick, index) => (
+                <span
+                  key={`${tick.kind}-${tick.at}-${index}`}
+                  data-kind={tick.kind}
+                  aria-hidden="true"
+                  style={tickStyle(tick, span, nowMs)}
+                  className={cn(
+                    "absolute bottom-1 -translate-x-1/2 rounded-sm",
+                    TICK_CLASS[tick.kind],
+                  )}
+                />
+              ))}
+              {nowInView && (
+                <span
+                  data-now-line=""
+                  aria-hidden="true"
+                  style={{ left: percent(fractionOf(nowMs, span)) }}
+                  className="bg-primary absolute inset-y-0 w-0.5 -translate-x-1/2"
+                />
+              )}
             </div>
-            <MonthLabels span={span} nowMs={nowMs} />
           </div>
-          {!nowInView && (
-            <StepButton onPress={backToToday}>
-              <Undo2 size={14} aria-hidden="true" />
-              <span className="max-sm:sr-only">Back to today</span>
-            </StepButton>
-          )}
+          <MonthLabels span={span} nowMs={nowMs} />
         </div>
+        {!nowInView && (
+          <StepButton onPress={backToToday}>
+            <Undo2 size={14} aria-hidden="true" />
+            <span className="max-sm:sr-only">Back to today</span>
+          </StepButton>
+        )}
       </div>
-    </>
+    </div>
   );
 }

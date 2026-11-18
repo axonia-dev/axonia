@@ -1,5 +1,10 @@
 // frontend/src/features/events/ui/ScheduleTimeline.tsx
-import { type MouseEvent as ReactMouseEvent, useRef, useState } from "react";
+import {
+  type MouseEvent as ReactMouseEvent,
+  type ReactNode,
+  useRef,
+  useState,
+} from "react";
 
 import type { Memory } from "@/features/events/domain/memory";
 import type { ScheduleEntry } from "@/features/events/domain/schedule";
@@ -11,6 +16,7 @@ import {
 import { MemoriesSection } from "@/features/events/ui/timeline/MemoriesSection";
 import { ribbonValueText } from "@/features/events/ui/timeline/ribbon-value-text";
 import { RibbonBar } from "@/features/events/ui/timeline/RibbonBar";
+import { StickyBand } from "@/features/events/ui/timeline/StickyBand";
 import type { TimelineItem } from "@/features/events/ui/timeline/timeline";
 import {
   buildTimeline,
@@ -39,6 +45,8 @@ interface Props {
   /** Start of today UTC: the timeline's origin, from which it loads ahead as the reader nears its end. */
   fromIso: string;
   canManage?: boolean;
+  /** The page controls, held above the ribbon so they stay in reach wherever the reader is. */
+  header: ReactNode;
 }
 
 function presenterIdsIn(items: TimelineItem[]): string[] {
@@ -69,6 +77,7 @@ export function ScheduleTimeline({
   slug,
   fromIso,
   canManage = false,
+  header,
 }: Readonly<Props>) {
   const [menu, setMenu] = useState<MenuState | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -132,24 +141,27 @@ export function ScheduleTimeline({
       ref={rootRef}
       className="relative flex flex-col [overflow-anchor:none]"
     >
-      <RibbonBar
-        slug={slug}
-        todayIso={fromIso}
-        nowMs={nowMs}
-        lens={lens}
-        hasContent={items.length > 0 || memories.length > 0}
-        ready={ready}
-        oldestShownMs={oldestOf(memories)}
-        reachedMs={reachedMs}
-        reachForward={reachForward}
-        memoriesQuery={memoriesQuery}
-        valueText={ribbonValueText(entriesOf(memories, ahead), {
-          labelOf,
-          nowMs,
-          todayIso: fromIso,
-        })}
-        scrollToAt={scrollToAt}
-      />
+      <StickyBand>
+        {header}
+        <RibbonBar
+          slug={slug}
+          todayIso={fromIso}
+          nowMs={nowMs}
+          lens={lens}
+          hasContent={items.length > 0 || memories.length > 0}
+          ready={ready}
+          oldestShownMs={oldestOf(memories)}
+          reachedMs={reachedMs}
+          reachForward={reachForward}
+          memoriesQuery={memoriesQuery}
+          valueText={ribbonValueText(entriesOf(memories, ahead), {
+            labelOf,
+            nowMs,
+            todayIso: fromIso,
+          })}
+          scrollToAt={scrollToAt}
+        />
+      </StickyBand>
       <MemoriesSection
         memories={memories}
         arriving={arriving}
