@@ -7,12 +7,13 @@ import lombok.Builder;
 
 /**
  * An invitation between two members; {@code id} is null until stored. {@code reopenedAt} is the last time the person
- * who declined it opened it again, null if never.
+ * who declined it opened it again, null if never. {@code pairsShown} says whether accepting it pairs shown: a proposal
+ * sent before pairings showed was sent under a promise of privacy, so accepting it asks both people first.
  */
 @Builder(toBuilder = true)
 public record Proposal(Long id, long communityId, String mentorUserId, String menteeUserId, Role proposedBy,
         List<String> topics, String message, ProposalStatus status, Instant createdAt, Instant answeredAt,
-        Instant reopenedAt) {
+        Instant reopenedAt, boolean pairsShown) {
 
     public String senderId() {
 
