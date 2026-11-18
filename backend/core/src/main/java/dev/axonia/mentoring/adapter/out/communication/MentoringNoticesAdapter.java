@@ -175,7 +175,10 @@ public class MentoringNoticesAdapter implements MentoringNotices {
         return MentoringSubject.meeting(meeting.id(), kind.occasionOf(meeting), meeting.plannedBy());
     }
 
-    /** A reminder names the meeting and its day, so a meeting moved since is reminded of for its new day alone. */
+    /**
+     * A reminder names the meeting, its day and its planning's moment, so a meeting moved since is reminded of for its
+     * new day alone, and one moved away and back is reminded of again.
+     */
     @Override
     public void meetingReminder(MeetingReminder reminder) {
 
@@ -183,7 +186,7 @@ public class MentoringNoticesAdapter implements MentoringNotices {
         var meeting = reminder.meeting();
         var recipientId = reminder.recipientId();
         var partnerId = recipientId.equals(pairing.mentorUserId()) ? pairing.menteeUserId() : pairing.mentorUserId();
-        var subject = MentoringSubject.meeting(meeting.id(), meeting.on().toString(), partnerId);
+        var subject = MentoringSubject.meeting(meeting.id(), reminderOccasion(meeting), partnerId);
         var facts = facts(reminder.guild(), "Mentoring tomorrow with " + reminder.partnerName(),
                 DAY.format(meeting.on()),
                 OrganizationLinks.withOrganization(journalUrl(reminder.guild(), pairing), reminder.organizationId()));
@@ -191,6 +194,12 @@ public class MentoringNoticesAdapter implements MentoringNotices {
         communication.enqueue(OutboundMessage.builder().type(MessageType.MENTORING_MEETING_REMINDER)
                 .subjectRef(subject.ref()).recipientUserIds(List.of(recipientId)).template(REMINDER_TEMPLATE)
                 .aboutUserId(partnerId).facts(Map.copyOf(facts)).build());
+    }
+
+    /** {@code <yyyy-MM-dd>.<epoch millis of the planning>}. */
+    static String reminderOccasion(PlannedMeeting meeting) {
+
+        return meeting.on() + "." + meeting.plannedAt().toEpochMilli();
     }
 
     private void inApp(MessageType type, MentoringSubject subject, String recipientId, Map<String, Object> facts) {

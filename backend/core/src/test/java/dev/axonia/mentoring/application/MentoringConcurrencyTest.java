@@ -2,6 +2,7 @@ package dev.axonia.mentoring.application;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,9 +29,12 @@ import org.springframework.transaction.support.TransactionTemplate;
 import dev.axonia.CoreJdbcTestSupport;
 import dev.axonia.expertise.api.CommunityAreas;
 import dev.axonia.mentoring.adapter.out.persistence.JournalRepositoryImpl;
+import dev.axonia.mentoring.adapter.out.persistence.MeetingRepositoryImpl;
 import dev.axonia.mentoring.adapter.out.persistence.PairingRepositoryImpl;
 import dev.axonia.mentoring.adapter.out.persistence.ProposalRepositoryImpl;
+import dev.axonia.mentoring.api.MeetingRequest;
 import dev.axonia.mentoring.api.NoteRequest;
+import dev.axonia.mentoring.api.PlannedMeetingView;
 import dev.axonia.mentoring.api.ProposeRequest;
 import dev.axonia.mentoring.api.TopicRequest;
 import dev.axonia.mentoring.application.port.out.AvailabilityRepository;
@@ -52,6 +56,7 @@ import dev.axonia.mentoring.domain.EndReason;
 import dev.axonia.mentoring.domain.MentoringCommunity;
 import dev.axonia.mentoring.domain.MentoringPerson;
 import dev.axonia.mentoring.domain.Pairing;
+import dev.axonia.mentoring.domain.PlannedMeeting;
 import dev.axonia.mentoring.domain.Proposal;
 import dev.axonia.mentoring.domain.ProposalStatus;
 import dev.axonia.mentoring.domain.Role;
@@ -73,7 +78,8 @@ import static org.mockito.Mockito.when;
  * test is not transactional and deletes what it wrote.
  */
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
-@Import({ProposalRepositoryImpl.class, PairingRepositoryImpl.class, JournalRepositoryImpl.class})
+@Import({ProposalRepositoryImpl.class, PairingRepositoryImpl.class, JournalRepositoryImpl.class,
+        MeetingRepositoryImpl.class})
 class MentoringConcurrencyTest extends CoreJdbcTestSupport {
 
     private static final String ORG = "default";
@@ -90,6 +96,8 @@ class MentoringConcurrencyTest extends CoreJdbcTestSupport {
     private PairingRepository pairings;
     @Autowired
     private JournalRepository journal;
+    @Autowired
+    private MeetingRepository meetings;
     @Autowired
     private NamedParameterJdbcTemplate jdbc;
     @Autowired
@@ -149,6 +157,12 @@ class MentoringConcurrencyTest extends CoreJdbcTestSupport {
                 journal, vocabulary, reads, clocks, publicUrls, clock);
     }
 
+    private MeetingPlanService meetingPlanService() {
+
+        return new MeetingPlanService(new PairingParties(organizationContext, currentUser, pairings), meetings, journal,
+                utc(), communityAccess, personDirectory, mock(MentoringNotices.class), clock);
+    }
+
     private ProposalService proposalService() {
 
         return new ProposalService(organizationContext, currentUser, communityAccess, proposals, pairings,
@@ -197,6 +211,57 @@ class MentoringConcurrencyTest extends CoreJdbcTestSupport {
         assertThat(outcomes.stream().filter(String.class::isInstance)).hasSize(4);
         assertThat(outcomes.stream().filter(ConflictException.class::isInstance).map(ConflictException.class::cast)
                 .map(ConflictException::getCode)).hasSize(PARALLEL_REQUESTS - 4).containsOnly("MENTORING_JOURNAL_FULL");
+    }
+
+    @Test
+    void twoPlansOntoOneDayLeaveOneMeeting() throws Exception {
+
+        // given
+        when(currentUser.userId()).thenReturn(MENTEE);
+        var pairing = ongoingPairing();
+        var service = meetingPlanService();
+        var day = LocalDate.parse("2026-11-26");
+        var requests = new ArrayList<Supplier<Object>>();
+        for (var i = 0; i < 2; i++) {
+            requests.add(() -> service.plan(pairing, new MeetingRequest(day, List.of())));
+        }
+
+        // when
+        var outcomes = runTogether(requests);
+
+        // then
+        assertThat(meetings.meetingsOf(ORG, pairing)).singleElement().satisfies(m -> assertThat(m.on()).isEqualTo(day));
+        assertThat(outcomes.stream().filter(PlannedMeetingView.class::isInstance)).hasSize(1);
+        assertThat(outcomes.stream().filter(ConflictException.class::isInstance).map(ConflictException.class::cast)
+                .map(ConflictException::getCode)).containsExactly("MENTORING_MEETING_TAKEN");
+    }
+
+    @Test
+    void parallelPlansStopAtTwelveAhead() throws Exception {
+
+        // given
+        when(currentUser.userId()).thenReturn(MENTEE);
+        var pairing = ongoingPairing();
+        for (var i = 1; i <= 11; i++) {
+            meetings.insert(ORG,
+                    PlannedMeeting.builder().pairingId(pairing).on(LocalDate.parse("2026-11-16").plusDays(i))
+                            .topicIds(List.of()).plannedBy(MENTEE).plannedAt(NOW).build());
+        }
+        var service = meetingPlanService();
+        var requests = new ArrayList<Supplier<Object>>();
+        for (var i = 0; i < 2; i++) {
+            var day = LocalDate.parse("2026-12-20").plusDays(i);
+            requests.add(() -> service.plan(pairing, new MeetingRequest(day, List.of())));
+        }
+
+        // when
+        var outcomes = runTogether(requests);
+
+        // then
+        assertThat(meetings.meetingsOf(ORG, pairing)).hasSize(12);
+        assertThat(outcomes.stream().filter(PlannedMeetingView.class::isInstance)).hasSize(1);
+        assertThat(outcomes.stream().filter(ConflictException.class::isInstance).map(ConflictException.class::cast)
+                .map(ConflictException::getCode)).containsExactly("MENTORING_MEETING_LIMIT");
     }
 
     @Test

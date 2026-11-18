@@ -1,6 +1,8 @@
 package dev.axonia.mentoring.adapter.out.communication;
 
 import java.time.Clock;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.Set;
 import java.util.function.Predicate;
 
@@ -14,6 +16,7 @@ import dev.axonia.mentoring.application.port.out.MeetingRepository;
 import dev.axonia.mentoring.application.port.out.PairingRepository;
 import dev.axonia.mentoring.application.port.out.PersonDirectory;
 import dev.axonia.mentoring.application.port.out.ProposalRepository;
+import dev.axonia.mentoring.domain.MeetingPlan;
 import dev.axonia.mentoring.domain.MentoringSubject;
 import dev.axonia.mentoring.domain.MentoringWindows;
 import dev.axonia.mentoring.domain.PlannedMeeting;
@@ -25,11 +28,12 @@ import lombok.RequiredArgsConstructor;
  * The mentoring notices' answers to the delivery gate, judged again at delivery. A proposal answered, withdrawn or
  * lapsed since is owed no notice, and its receiver must still be in the guild, and so is a reopening; a decline is owed
  * its "not this time" while the proposal stays declined by that answer, a planned or moved meeting's notice while that
- * very planning stands and its pairing is ongoing, and a reminder while its meeting stays on that day, unheld, in an
- * ongoing pairing. A meeting notice or reminder from before meetings were planned one by one names the pairing, and is
- * owed nothing. A pairing notice is owed while the pairing exists, to anyone still in the organization: a pairing
- * belongs to its two people, not to the guild. Asking for words is retired, so an ask still waiting in the outbox is
- * owed nothing; panel entries still render.
+ * very planning stands, its meeting is upcoming (unheld, its day not before today in UTC) and its pairing ongoing, and
+ * a reminder while its meeting stays unheld on that day by that planning, in an ongoing pairing. A meeting notice or
+ * reminder from before meetings were planned one by one names the pairing, and is owed nothing. A pairing notice is
+ * owed while the pairing exists, to anyone still in the organization: a pairing belongs to its two people, not to the
+ * guild. Asking for words is retired, so an ask still waiting in the outbox is owed nothing; panel entries still
+ * render.
  */
 @Component("mentoringSubjectPolicy")
 @RequiredArgsConstructor
@@ -68,12 +72,13 @@ class MentoringSubjectPolicy implements MessageSubjectPolicy {
                     .filter(proposal -> MentoringWindows.isOpen(proposal, clock.instant())).isPresent();
         }
         if (MessageType.MENTORING_MEETING_SET.equals(type)) {
-            return isOwedOfAnOngoingPairing(organizationId, subject,
-                    meeting -> MeetingNoticeKind.namesThePlanning(meeting, subject.occasion()));
+            var today = LocalDate.ofInstant(clock.instant(), ZoneOffset.UTC);
+            return isOwedOfAnOngoingPairing(organizationId, subject, meeting -> MeetingPlan.isUpcoming(meeting, today)
+                    && MeetingNoticeKind.namesThePlanning(meeting, subject.occasion()));
         }
         if (MessageType.MENTORING_MEETING_REMINDER.equals(type)) {
-            return isOwedOfAnOngoingPairing(organizationId, subject,
-                    meeting -> !meeting.held() && meeting.on().toString().equals(subject.occasion()));
+            return isOwedOfAnOngoingPairing(organizationId, subject, meeting -> !meeting.held()
+                    && MentoringNoticesAdapter.reminderOccasion(meeting).equals(subject.occasion()));
         }
         return pairings.find(organizationId, subject.id()).isPresent();
     }

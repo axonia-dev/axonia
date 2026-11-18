@@ -107,6 +107,26 @@ class MentoringMemberDataEraserTest extends FootprintTestSupport {
     }
 
     @Test
+    void erasureRemovesAMeetingHeldOnlyByTheirNotes() {
+
+        // given
+        var pairing = rows.pairing(guild, MENTOR, MENTEE);
+        var heldByThemAlone = rows.meeting(pairing, MENTOR, "2026-11-10");
+        rows.noteOn(pairing, MENTEE, "2026-11-10");
+        var heldByBoth = rows.meeting(pairing, MENTOR, "2026-11-12");
+        rows.noteOn(pairing, MENTEE, "2026-11-12");
+        rows.noteOn(pairing, MENTOR, "2026-11-12");
+
+        // when
+        var actual = eraser.erase(erasureOf(MENTEE));
+
+        // then
+        assertThat(actual).isEqualTo(new ErasureCounts(3, 1, 0, 0));
+        assertThat(jdbc.queryForList("SELECT id FROM mentoring_meeting WHERE organization_id = :org",
+                Map.of("org", ORG), Long.class)).containsExactly(heldByBoth).doesNotContain(heldByThemAlone);
+    }
+
+    @Test
     void erasingBothSidesDeletesThePairing() {
 
         // given

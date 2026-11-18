@@ -156,7 +156,7 @@ class MentoringSubjectPolicyTest {
 
     private static String reminderRef(String day) {
 
-        return MentoringSubject.meeting(12L, day, "mia").ref();
+        return MentoringSubject.meeting(12L, day + "." + NOW.toEpochMilli(), "mia").ref();
     }
 
     @Test
@@ -174,9 +174,43 @@ class MentoringSubjectPolicyTest {
         assertThat(policy.isEnabledFor(ORG, MessageType.MENTORING_MEETING_REMINDER, reminderRef("2026-11-27")))
                 .isFalse();
         assertThat(policy.isEnabledFor(ORG, MessageType.MENTORING_MEETING_REMINDER,
-                MentoringSubject.meeting(13L, "2026-11-26", "mia").ref())).isFalse();
+                MentoringSubject.meeting(13L, "2026-11-26." + NOW.toEpochMilli(), "mia").ref())).isFalse();
         assertThat(policy.isEnabledFor(ORG, MessageType.MENTORING_MEETING_REMINDER,
-                MentoringSubject.meeting(14L, "2026-11-26", "mia").ref())).isFalse();
+                MentoringSubject.meeting(14L, "2026-11-26." + NOW.toEpochMilli(), "mia").ref())).isFalse();
+    }
+
+    @Test
+    void aReminderOfAnEarlierPlanningOfTheSameDayIsOwedNothing() {
+
+        // given: moved away and back, so planned again since the reminder was queued
+        when(meetings.find(ORG, 12L)).thenReturn(Optional.of(plannedAt(NOW.plusSeconds(60))));
+        lenient().when(pairings.find(ORG, 90L)).thenReturn(Optional.of(ongoing().build()));
+
+        // when / then
+        assertThat(policy.isEnabledFor(ORG, MessageType.MENTORING_MEETING_REMINDER, reminderRef("2026-11-26")))
+                .isFalse();
+        assertThat(policy.isEnabledFor(ORG, MessageType.MENTORING_MEETING_REMINDER,
+                MentoringSubject.meeting(12L, "2026-11-26." + NOW.plusSeconds(60).toEpochMilli(), "mia").ref()))
+                .isTrue();
+    }
+
+    @Test
+    void aPlannedNoticeOfAMeetingHeldOrPassedIsOwedNothing() {
+
+        // given: today is 2026-11-16 in UTC
+        when(meetings.find(ORG, 12L)).thenReturn(Optional.of(plannedAt(NOW).toBuilder().held(true).build()));
+        when(meetings.find(ORG, 13L))
+                .thenReturn(Optional.of(plannedAt(NOW).toBuilder().id(13L).on(LocalDate.parse("2026-11-15")).build()));
+        when(meetings.find(ORG, 14L))
+                .thenReturn(Optional.of(plannedAt(NOW).toBuilder().id(14L).on(LocalDate.parse("2026-11-16")).build()));
+        when(pairings.find(ORG, 90L)).thenReturn(Optional.of(ongoing().build()));
+
+        // when / then
+        assertThat(policy.isEnabledFor(ORG, MessageType.MENTORING_MEETING_SET, meetingRef("planned", NOW))).isFalse();
+        assertThat(policy.isEnabledFor(ORG, MessageType.MENTORING_MEETING_SET,
+                MentoringSubject.meeting(13L, "planned-" + NOW.toEpochMilli(), "noah").ref())).isFalse();
+        assertThat(policy.isEnabledFor(ORG, MessageType.MENTORING_MEETING_SET,
+                MentoringSubject.meeting(14L, "moved-" + NOW.toEpochMilli(), "noah").ref())).isTrue();
     }
 
     @Test

@@ -67,8 +67,13 @@ public final class MeetingPlan {
     public static void requireFree(List<PlannedMeeting> meetings, LocalDate day) {
 
         if (meetings.stream().anyMatch(m -> m.on().equals(day))) {
-            throw new ConflictException("MENTORING_MEETING_TAKEN", "A meeting is already planned for that day.");
+            throw taken();
         }
+    }
+
+    public static ConflictException taken() {
+
+        return new ConflictException("MENTORING_MEETING_TAKEN", "A meeting is already planned for that day.");
     }
 
     public static void requireRoom(List<PlannedMeeting> meetings, LocalDate today) {

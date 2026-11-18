@@ -9,6 +9,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -64,7 +65,7 @@ public class MeetingPlanService {
         MeetingPlan.requireRoom(planned, today);
         var meeting = PlannedMeeting.builder().pairingId(pairingId).on(day).topicIds(topicIds).plannedBy(party.me())
                 .plannedAt(now()).build();
-        meeting = meeting.toBuilder().id(meetings.insert(party.org(), meeting)).build();
+        meeting = meeting.toBuilder().id(insert(party.org(), meeting)).build();
         notice(party, meeting, board).ifPresent(notices::meetingPlanned);
         var plannedBy = personDirectory.resolve(List.of(party.me())).get(party.me());
         return PlannedMeetingView.builder().id(meeting.id()).on(day).topicIds(topicIds).plannedById(plannedBy.userId())
@@ -89,9 +90,9 @@ public class MeetingPlanService {
             changed.on(day).plannedBy(party.me()).plannedAt(now());
         }
         var updated = changed.build();
-        meetings.update(party.org(), updated);
+        update(party.org(), updated);
         if (moved) {
-            notice(party, updated, board).ifPresent(notice -> announceMove(meeting, notice));
+            notice(party, updated, board).ifPresent(notice -> announceMove(party, meeting, notice));
         }
     }
 
@@ -108,6 +109,25 @@ public class MeetingPlanService {
         notices.withdrawMeetingMoved(meeting);
     }
 
+    /** The unique day catches a write that raced past the check. */
+    private long insert(String org, PlannedMeeting meeting) {
+
+        try {
+            return meetings.insert(org, meeting);
+        } catch (DuplicateKeyException e) {
+            throw MeetingPlan.taken();
+        }
+    }
+
+    private void update(String org, PlannedMeeting meeting) {
+
+        try {
+            meetings.update(org, meeting);
+        } catch (DuplicateKeyException e) {
+            throw MeetingPlan.taken();
+        }
+    }
+
     private PlannedMeeting meetingOf(Party party, long meetingId) {
 
         return meetings.find(party.org(), meetingId).filter(m -> m.pairingId() == party.pairingId())
@@ -120,12 +140,14 @@ public class MeetingPlanService {
     }
 
     /**
-     * A move before the plan's notice left withdraws it and announces the plan anew, on its new day; a move before an
-     * earlier move's notice left withdraws that one and stays a move, since the partner already heard of the plan.
+     * A move of one's own meeting before its plan's notice left withdraws it and announces the plan anew, on its new
+     * day. A move of the partner's meeting withdraws the partner's plan notice, which the mover would only read stale,
+     * and tells the partner of the move. A move before an earlier move's notice left withdraws that one and stays a
+     * move, since the partner already heard of the plan.
      */
-    private void announceMove(PlannedMeeting before, MeetingNotice notice) {
+    private void announceMove(Party party, PlannedMeeting before, MeetingNotice notice) {
 
-        if (notices.withdrawMeetingPlanned(before)) {
+        if (notices.withdrawMeetingPlanned(before) && party.me().equals(before.plannedBy())) {
             notices.meetingPlanned(notice);
         } else {
             notices.withdrawMeetingMoved(before);

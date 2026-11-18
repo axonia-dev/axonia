@@ -314,7 +314,7 @@ class MentoringNoticesAdapterTest {
         assertThat(actual.inAppOnly()).isFalse();
         assertThat(actual.recipientUserIds()).containsExactly("noah");
         assertThat(actual.aboutUserId()).isEqualTo("mia");
-        assertThat(actual.subjectRef()).isEqualTo("meeting:12@2026-11-19:mia");
+        assertThat(actual.subjectRef()).isEqualTo("meeting:12@2026-11-19." + PLANNED_AT.toEpochMilli() + ":mia");
         assertThat(actual.facts()).containsOnlyKeys("sender", "sessionTitle", "line", "mentoringUrl", "partner")
                 .containsEntry("sessionTitle", "Mentoring tomorrow with Mia")
                 .containsEntry("line", "Thursday 19 November").containsEntry("partner", "Mia")
@@ -332,7 +332,7 @@ class MentoringNoticesAdapterTest {
         // then
         var actual = sent();
         assertThat(actual.aboutUserId()).isEqualTo("noah");
-        assertThat(actual.subjectRef()).isEqualTo("meeting:12@2026-11-19:noah");
+        assertThat(actual.subjectRef()).isEqualTo("meeting:12@2026-11-19." + PLANNED_AT.toEpochMilli() + ":noah");
     }
 
     @Test

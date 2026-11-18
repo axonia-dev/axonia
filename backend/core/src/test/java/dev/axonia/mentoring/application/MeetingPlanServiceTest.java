@@ -17,6 +17,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.dao.DuplicateKeyException;
 
 import dev.axonia.mentoring.api.MeetingRequest;
 import dev.axonia.mentoring.api.PlannedMeetingView;
@@ -296,10 +297,10 @@ class MeetingPlanServiceTest {
     }
 
     @Test
-    void aMoveBeforeTheNoticeLeftReannouncesThePlan() {
+    void movingMyOwnMeetingBeforeItsNoticeLeftReannouncesThePlan() {
 
         // given
-        var original = meeting(1L, THURSDAY).build();
+        var original = meeting(1L, THURSDAY).plannedBy(NOAH).build();
         store(pairing().build(), original);
         when(notices.withdrawMeetingPlanned(original)).thenReturn(true);
         var friday = THURSDAY.plusDays(1);
@@ -313,6 +314,44 @@ class MeetingPlanServiceTest {
                 .byName("Noah").recipientId(MIA).build());
         verify(notices, never()).meetingMoved(any());
         verify(notices, never()).withdrawMeetingMoved(any());
+    }
+
+    @Test
+    void movingThePartnersMeetingBeforeItsNoticeLeftIsAMove() {
+
+        // given: Mia planned it, her notice to Noah still waits, and Noah moves it
+        var original = meeting(1L, THURSDAY).build();
+        store(pairing().build(), original);
+        when(notices.withdrawMeetingPlanned(original)).thenReturn(true);
+        var friday = THURSDAY.plusDays(1);
+
+        // when
+        service.change(PAIRING, 1L, new MeetingRequest(friday, List.of()));
+
+        // then
+        var moved = meeting(1L, friday).topicIds(List.of()).plannedBy(NOAH).plannedAt(AT).build();
+        verify(notices).withdrawMeetingPlanned(original);
+        verify(notices).meetingMoved(MeetingNotice.builder().pairing(pairing().build()).meeting(moved).guild(GUILD)
+                .byName("Noah").recipientId(MIA).build());
+        verify(notices, never()).meetingPlanned(any());
+    }
+
+    @Test
+    void aDayTakenByARacingWriteIsRefusedAsTaken() {
+
+        // given
+        store(pairing().build(), meeting(1L, THURSDAY).build());
+        when(meetings.insert(any(), any())).thenThrow(new DuplicateKeyException("mentoring_meeting_day_key"));
+        org.mockito.Mockito.doThrow(new DuplicateKeyException("mentoring_meeting_day_key")).when(meetings).update(any(),
+                any());
+
+        // when / then
+        assertThatThrownBy(() -> service.plan(PAIRING, new MeetingRequest(THURSDAY.plusDays(7), List.of())))
+                .isInstanceOf(ConflictException.class).hasFieldOrPropertyWithValue("code", "MENTORING_MEETING_TAKEN")
+                .hasMessage("A meeting is already planned for that day.");
+        assertThatThrownBy(() -> service.change(PAIRING, 1L, new MeetingRequest(THURSDAY.plusDays(8), List.of())))
+                .isInstanceOf(ConflictException.class).hasFieldOrPropertyWithValue("code", "MENTORING_MEETING_TAKEN");
+        verifyNoInteractions(notices);
     }
 
     @Test
