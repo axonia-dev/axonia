@@ -34,7 +34,12 @@ const meeting: PlannedMeeting = {
 };
 
 function show(planned: PlannedMeeting | null = null) {
-  const handlers = { onSaved: vi.fn(), onCancel: vi.fn(), onRemoved: vi.fn() };
+  const handlers = {
+    onSaved: vi.fn(),
+    onCancel: vi.fn(),
+    onRemoved: vi.fn(),
+    onGone: vi.fn(),
+  };
   render(<MeetingEditor journal={journal} meeting={planned} {...handlers} />);
   return handlers;
 }
@@ -143,5 +148,41 @@ describe("MeetingEditor", () => {
 
     // then
     expect(screen.getByRole("alert")).toHaveTextContent("Could not save that.");
+  });
+
+  it("drops a topic that left the board from the draft and its count", async () => {
+    // given
+    const { meeting: plan } = logbookHooks();
+    const five = { ...meeting, topicIds: [1, 2, 3, 4, 5] };
+    const { rerender } = render(
+      <MeetingEditor
+        journal={journal}
+        meeting={five}
+        onSaved={vi.fn()}
+        onCancel={vi.fn()}
+        onRemoved={vi.fn()}
+        onGone={vi.fn()}
+      />,
+    );
+
+    // when
+    rerender(
+      <MeetingEditor
+        journal={{ ...journal, topics: journal.topics.slice(1) }}
+        meeting={five}
+        onSaved={vi.fn()}
+        onCancel={vi.fn()}
+        onRemoved={vi.fn()}
+        onGone={vi.fn()}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Feedback" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    // then
+    expect(plan.change.mutate).toHaveBeenCalledWith(
+      { id: 8, input: { on: "2026-11-26", topicIds: [2, 3, 4, 5, 6] } },
+      expect.anything(),
+    );
   });
 });

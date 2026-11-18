@@ -40,6 +40,11 @@ describe("mentoringErrorMessage", () => {
       "Twelve meetings are planned already. Remove one first.",
     ],
     ["MENTORING_MEETING_PASSED", "This meeting has passed."],
+    [
+      "MENTORING_MEETING_TOPIC_GONE",
+      "A topic of this meeting is no longer on the board.",
+    ],
+    ["MENTORING_MEETING_HELD", "That day already has its notes."],
     ["MENTORING_TOO_LONG", "That is too long. Shorten it and try again."],
     ["MENTORING_JOURNAL_FULL", "This journal is full. Remove something first."],
     ["REQUIRES_OWN_SESSION", "Mentoring needs the person’s own sign-in."],

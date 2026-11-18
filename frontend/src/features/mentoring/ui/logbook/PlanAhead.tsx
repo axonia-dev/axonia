@@ -1,14 +1,26 @@
 import { Plus } from "lucide-react";
 import { type ReactNode, useLayoutEffect, useRef } from "react";
 
+import { notify } from "@/components/ui/toast";
 import type { Journal } from "@/features/mentoring/domain/mentoring";
+import { MEETING_PASSED } from "@/features/mentoring/mentoring-errors";
 import { MeetingEditor } from "@/features/mentoring/ui/logbook/MeetingEditor";
-import { upcomingOf } from "@/features/mentoring/ui/logbook/plan";
+import {
+  type Gone,
+  goneWhy,
+  upcomingOf,
+} from "@/features/mentoring/ui/logbook/plan";
 import { ThenRow, Ticket } from "@/features/mentoring/ui/logbook/PlannedRows";
 import { useFollowFocus } from "@/features/mentoring/ui/use-follow-focus";
 
 /** The meeting whose editor is open, or the new one. */
 export type Editing = number | "new" | null;
+
+const GONE = new Map<Gone, string>([
+  ["passed", MEETING_PASSED],
+  ["held", "This meeting has its notes now."],
+  ["removed", "This meeting was removed."],
+]);
 
 /** Where focus goes once a meeting and its editor have swapped places, or a meeting has left. */
 type Landing = number | "plan" | "editor" | { removed: number };
@@ -67,10 +79,18 @@ export function PlanAhead({ journal, editing, onEditing }: Readonly<Props>) {
   const vanished =
     typeof editing === "number" &&
     !upcoming.some((meeting) => meeting.id === editing);
-  useLayoutEffect(() => {
-    if (!vanished) return;
+  const editedOn = useRef<string | undefined>(undefined);
+
+  function gone(why: Gone) {
     onEditing(null);
     focusOn("plan");
+    notify(GONE.get(why) ?? "");
+  }
+
+  useLayoutEffect(() => {
+    if (typeof editing !== "number") return;
+    if (vanished) gone(goneWhy(journal, editing, editedOn.current));
+    else editedOn.current = upcoming.find(({ id }) => id === editing)?.on;
   });
 
   function open(next: Editing) {
@@ -96,6 +116,7 @@ export function PlanAhead({ journal, editing, onEditing }: Readonly<Props>) {
           onSaved={closed}
           onCancel={() => closed(meeting.id)}
           onRemoved={() => closed("plan")}
+          onGone={gone}
         />,
       );
     } else if (index === 0) {
@@ -135,6 +156,7 @@ export function PlanAhead({ journal, editing, onEditing }: Readonly<Props>) {
           onSaved={closed}
           onCancel={() => closed("plan")}
           onRemoved={() => closed("plan")}
+          onGone={gone}
         />
       ) : (
         <PlanButton onPress={() => open("new")} />

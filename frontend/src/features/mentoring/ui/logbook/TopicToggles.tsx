@@ -2,6 +2,7 @@ import { useId } from "react";
 import { Label, ToggleButton, ToggleButtonGroup } from "react-aria-components";
 
 import type { Journal } from "@/features/mentoring/domain/mentoring";
+import { onBoard } from "@/features/mentoring/ui/logbook/plan";
 import { trailOrder } from "@/features/mentoring/ui/trail/trail-layout";
 
 /** The board's topics as toggles; with a cap, the rest wait once that many are ticked. */
@@ -18,7 +19,7 @@ export function TopicToggles({
 }>) {
   const labelId = useId();
   if (journal.topics.length === 0) return null;
-  const full = max !== undefined && selected.length >= max;
+  const full = max !== undefined && onBoard(journal, selected).length >= max;
   return (
     <div className="flex flex-col gap-1.5">
       <Label id={labelId} className="text-foreground text-sm font-medium">

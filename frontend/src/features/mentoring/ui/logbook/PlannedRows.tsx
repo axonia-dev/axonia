@@ -6,6 +6,7 @@ import type {
   Journal,
   PlannedMeeting,
 } from "@/features/mentoring/domain/mentoring";
+import { removalHandlers } from "@/features/mentoring/ui/logbook/meeting-removal";
 import { PlannedTopics } from "@/features/mentoring/ui/logbook/TopicChips";
 import {
   dayOfMonth,
@@ -13,7 +14,6 @@ import {
   longWeekdayOf,
   monthOf,
 } from "@/features/mentoring/ui/meeting-day";
-import { onFailure } from "@/features/mentoring/ui/notify-failure";
 import { personName } from "@/features/mentoring/ui/PartnerFace";
 
 /** The soonest upcoming meeting, as the ticket the pair holds for it. */
@@ -68,10 +68,7 @@ export function Ticket({
             size="sm"
             isDisabled={remove.isPending}
             onPress={() =>
-              remove.mutate(meeting.id, {
-                onSuccess: onRemoved,
-                onError: onFailure,
-              })
+              remove.mutate(meeting.id, removalHandlers(onRemoved))
             }
           >
             Remove

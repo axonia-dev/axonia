@@ -7,6 +7,8 @@ export const WORDS_CLOSED = "Words are closed for this pairing.";
 export const MEETING_DAY_RANGE =
   "Pick a day between the start of the mentoring and today.";
 
+export const MEETING_PASSED = "This meeting has passed.";
+
 const REFUSALS = new Map([
   ["MENTORING_OFF", MENTORING_IS_OFF],
   ["COMMUNITY_ARCHIVED", "This community is archived."],
@@ -35,14 +37,20 @@ const REFUSALS = new Map([
     "MENTORING_MEETING_LIMIT",
     "Twelve meetings are planned already. Remove one first.",
   ],
-  ["MENTORING_MEETING_PASSED", "This meeting has passed."],
+  ["MENTORING_MEETING_PASSED", MEETING_PASSED],
+  [
+    "MENTORING_MEETING_TOPIC_GONE",
+    "A topic of this meeting is no longer on the board.",
+  ],
+  ["MENTORING_MEETING_HELD", "That day already has its notes."],
   ["MENTORING_TOO_LONG", "That is too long. Shorten it and try again."],
   ["MENTORING_JOURNAL_FULL", "This journal is full. Remove something first."],
 ]);
 
 const NOT_A_WEB_ADDRESS = "Paste a full web address starting with https.";
 
-function codeOf(error: unknown): string | undefined {
+/** The refusal's code, when the server named one. */
+export function codeOf(error: unknown): string | undefined {
   return error instanceof ApiError ? error.code : undefined;
 }
 
@@ -66,4 +74,9 @@ export function isKnownRefusal(error: unknown): boolean {
     isOwnSignInRefusal(error) ||
     (error instanceof ApiError && SETTLED_STATUSES.has(error.status))
   );
+}
+
+/** The thing asked about is not there (any more). */
+export function isNotFound(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 404;
 }

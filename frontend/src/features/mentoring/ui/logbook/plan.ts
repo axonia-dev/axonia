@@ -50,3 +50,22 @@ export function behindOf(owed: PlannedMeeting[], held: Meeting[]): Behind[] {
   ];
   return entries.sort((a, b) => b.meeting.on.localeCompare(a.meeting.on));
 }
+
+/** Why an open editor's meeting is no longer upcoming. */
+export type Gone = "passed" | "held" | "removed";
+
+/** Passed when the journal still lists it as passed, held when a note now names its day, else removed. */
+export function goneWhy(journal: Journal, id: number, on?: string): Gone {
+  if (journal.meetings.some((meeting) => meeting.id === id && meeting.passed)) {
+    return "passed";
+  }
+  if (journal.notes.some((note) => note.meetingOn === on)) return "held";
+  return "removed";
+}
+
+/** Only the topics still on the board; a topic removed from it drops out of every plan. */
+export function onBoard(journal: Journal, topicIds: number[]): number[] {
+  return topicIds.filter((id) =>
+    journal.topics.some((topic) => topic.id === id),
+  );
+}

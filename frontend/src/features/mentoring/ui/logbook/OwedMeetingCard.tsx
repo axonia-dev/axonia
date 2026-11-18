@@ -8,9 +8,9 @@ import type {
   Journal,
   PlannedMeeting,
 } from "@/features/mentoring/domain/mentoring";
+import { removalHandlers } from "@/features/mentoring/ui/logbook/meeting-removal";
 import { PlannedTopics } from "@/features/mentoring/ui/logbook/TopicChips";
 import { longDay } from "@/features/mentoring/ui/meeting-day";
-import { onFailure } from "@/features/mentoring/ui/notify-failure";
 import { personName } from "@/features/mentoring/ui/PartnerFace";
 
 interface Props {
@@ -33,8 +33,7 @@ export function OwedMeetingCard({
 
   function act(key: Key) {
     if (key === "note") onAddNote(meeting.on);
-    else
-      remove.mutate(meeting.id, { onSuccess: onRemoved, onError: onFailure });
+    else remove.mutate(meeting.id, removalHandlers(onRemoved));
   }
 
   return (

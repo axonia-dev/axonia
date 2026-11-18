@@ -8,10 +8,16 @@ import type {
   Journal,
   PlannedMeeting,
 } from "@/features/mentoring/domain/mentoring";
-import { mentoringErrorMessage } from "@/features/mentoring/mentoring-errors";
 import {
+  codeOf,
+  isNotFound,
+  mentoringErrorMessage,
+} from "@/features/mentoring/mentoring-errors";
+import {
+  type Gone,
   latestPlannableDay,
   MAX_MEETING_TOPICS,
+  onBoard,
 } from "@/features/mentoring/ui/logbook/plan";
 import { TopicToggles } from "@/features/mentoring/ui/logbook/TopicToggles";
 
@@ -23,6 +29,8 @@ interface Props {
   onSaved: (meetingId: number) => void;
   onCancel: () => void;
   onRemoved: () => void;
+  /** The meeting turned out to have passed or to be gone while being changed. */
+  onGone: (why: Gone) => void;
 }
 
 /** Plans a meeting, or changes one: its day and the board topics it means to cover. */
@@ -32,13 +40,20 @@ export function MeetingEditor({
   onSaved,
   onCancel,
   onRemoved,
+  onGone,
 }: Readonly<Props>) {
   const { plan, change, remove } = useMeetingPlan(journal.pairing.id);
   const save = meeting === null ? plan : change;
   const [day, setDay] = useState(meeting?.on ?? "");
-  const [topicIds, setTopicIds] = useState(meeting?.topicIds ?? []);
+  const [ticked, setTicked] = useState(meeting?.topicIds ?? []);
+  const topicIds = onBoard(journal, ticked);
   const pending = save.isPending || remove.isPending;
   const error = save.error ?? remove.error;
+
+  function lost(error: unknown) {
+    if (codeOf(error) === "MENTORING_MEETING_PASSED") onGone("passed");
+    else if (isNotFound(error)) onGone("removed");
+  }
 
   function submit() {
     const input = { on: day, topicIds };
@@ -47,7 +62,7 @@ export function MeetingEditor({
     } else {
       change.mutate(
         { id: meeting.id, input },
-        { onSuccess: () => onSaved(meeting.id) },
+        { onSuccess: () => onSaved(meeting.id), onError: lost },
       );
     }
   }
@@ -71,7 +86,7 @@ export function MeetingEditor({
       <TopicToggles
         journal={journal}
         selected={topicIds}
-        onChange={setTopicIds}
+        onChange={setTicked}
         max={MAX_MEETING_TOPICS}
       />
       <FormError error={error} message={mentoringErrorMessage(error)} />
@@ -81,7 +96,15 @@ export function MeetingEditor({
             variant="ghost"
             className="mr-auto"
             isDisabled={pending}
-            onPress={() => remove.mutate(meeting.id, { onSuccess: onRemoved })}
+            onPress={() =>
+              remove.mutate(meeting.id, {
+                onSuccess: onRemoved,
+                onError: (failure) => {
+                  if (isNotFound(failure)) onRemoved();
+                  else lost(failure);
+                },
+              })
+            }
           >
             Remove
           </Button>

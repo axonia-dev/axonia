@@ -2,12 +2,18 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { notifyError } from "@/components/ui/toast";
 import type { PlannedMeeting } from "@/features/mentoring/domain/mentoring";
 import { journalOf, topicOf } from "@/features/mentoring/test-data";
 import { Logbook } from "@/features/mentoring/ui/logbook/Logbook";
+import { ApiError } from "@/lib/api-client";
 import { logbookHooks } from "@/test/logbook-view";
 
 vi.mock("@/features/identity/api/use-me", () => ({ useMe: vi.fn() }));
+vi.mock("@/components/ui/toast", () => ({
+  notify: vi.fn(),
+  notifyError: vi.fn(),
+}));
 vi.mock("@/features/mentoring/api/use-mentoring", () => ({
   useJournalWrite: vi.fn(),
   useMeetingPlan: vi.fn(),
@@ -100,6 +106,25 @@ describe("OwedMeetingCard", () => {
     rerender(<Logbook journal={{ ...journal, meetings: [] }} />);
 
     // then
+    expect(screen.getByRole("button", { name: "Write a note" })).toHaveFocus();
+  });
+
+  it("takes a removal answered 404 as done, without a failure", async () => {
+    // given
+    const { meeting } = logbookHooks();
+    meeting.remove.mutate.mockImplementation(
+      (_: unknown, options: { onError: (error: unknown) => void }) =>
+        options.onError(new ApiError(404, "gone")),
+    );
+    const { rerender } = render(<Logbook journal={journal} />);
+    await choose("Remove");
+    (document.activeElement as HTMLElement).blur();
+
+    // when
+    rerender(<Logbook journal={{ ...journal, meetings: [] }} />);
+
+    // then
+    expect(notifyError).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "Write a note" })).toHaveFocus();
   });
 });
