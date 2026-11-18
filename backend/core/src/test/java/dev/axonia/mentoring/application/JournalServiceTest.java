@@ -31,6 +31,7 @@ import dev.axonia.mentoring.api.NoteView;
 import dev.axonia.mentoring.api.PlannedMeetingView;
 import dev.axonia.mentoring.api.PointerRequest;
 import dev.axonia.mentoring.api.PointerView;
+import dev.axonia.mentoring.api.ShowingView;
 import dev.axonia.mentoring.api.TopicPlacement;
 import dev.axonia.mentoring.api.TopicRequest;
 import dev.axonia.mentoring.api.TopicView;
@@ -54,6 +55,9 @@ import dev.axonia.mentoring.domain.PlannedMeeting;
 import dev.axonia.mentoring.domain.Pointer;
 import dev.axonia.mentoring.domain.PointerKind;
 import dev.axonia.mentoring.domain.PointerTarget;
+import dev.axonia.mentoring.domain.Role;
+import dev.axonia.mentoring.domain.ShowAnswer;
+import dev.axonia.mentoring.domain.Showing;
 import dev.axonia.mentoring.domain.Topic;
 import dev.axonia.mentoring.domain.TopicState;
 import dev.axonia.mentoring.domain.Words;
@@ -164,7 +168,7 @@ class JournalServiceTest {
     private static Pairing.PairingBuilder pairing(long community, String mentor, String mentee) {
 
         return Pairing.builder().id(PAIRING).communityId(community).mentorUserId(mentor).menteeUserId(mentee)
-                .startedAt(NOW.minus(Duration.ofDays(20)));
+                .startedAt(NOW.minus(Duration.ofDays(20))).showing(Showing.SHOWN);
     }
 
     private void store(Pairing pairing) {
@@ -1057,5 +1061,35 @@ class JournalServiceTest {
         assertCode(() -> service.addPointer(PAIRING, new PointerRequest(1L, null, url)), ConflictException.class,
                 "MENTORING_JOURNAL_FULL");
         verify(journal, org.mockito.Mockito.times(2)).insertPointer(any(), any());
+    }
+
+    @Test
+    void journalReportsTheCallersAnswer() {
+
+        // given
+        var menteeSaidYes = Showing.ASKING.answer(Role.MENTEE, ShowAnswer.YES);
+        store(pairing(PLATFORM, MIA, ME).showing(menteeSaidYes).build());
+
+        // when
+        var asMentee = service.journal(PAIRING);
+        when(currentUser.userId()).thenReturn(MIA);
+        var asMentor = service.journal(PAIRING);
+
+        // then
+        assertThat(asMentee.showing()).isEqualTo(new ShowingView("ASKING", true));
+        assertThat(asMentor.showing()).isEqualTo(new ShowingView("ASKING", false));
+    }
+
+    @Test
+    void journalReportsAShownPairing() {
+
+        // given
+        store(pairing(PLATFORM, ME, MIA).build());
+
+        // when
+        var actual = service.journal(PAIRING);
+
+        // then
+        assertThat(actual.showing()).isEqualTo(new ShowingView("SHOWN", false));
     }
 }

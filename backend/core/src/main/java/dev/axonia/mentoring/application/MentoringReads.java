@@ -18,6 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 import dev.axonia.mentoring.api.Availability;
 import dev.axonia.mentoring.api.DirectoryPerson;
 import dev.axonia.mentoring.api.MentoringPage;
+import dev.axonia.mentoring.api.ShownPairing;
+import dev.axonia.mentoring.api.ShownPairing.DirectoryFace;
 import dev.axonia.mentoring.application.port.out.AvailabilityRepository;
 import dev.axonia.mentoring.application.port.out.CommunityAccess;
 import dev.axonia.mentoring.application.port.out.CurrentUser;
@@ -43,7 +45,7 @@ import lombok.RequiredArgsConstructor;
 
 /**
  * The guild's mentoring page: who offers to mentor and who looks for a mentor, in a neutral order, save the people the
- * caller waits on after a decline, who come last.
+ * caller waits on after a decline, who come last; and who is helping whom, by mentor then mentee name, with no tally.
  */
 @Service
 @RequiredArgsConstructor
@@ -92,10 +94,14 @@ public class MentoringReads {
         var mentorIds = others.stream().filter(a -> a.takingMentees() && hasRoom(ongoing, a)).map(a -> a.userId())
                 .toList();
         var menteeIds = others.stream().filter(a -> a.lookingForMentor()).map(a -> a.userId()).toList();
-        var people = personDirectory.resolve(Stream.concat(mentorIds.stream(), menteeIds.stream()).distinct().toList());
+        var shown = pairings.shownIn(org, community.id());
+        var people = personDirectory.resolve(Stream
+                .of(mentorIds.stream(), menteeIds.stream(),
+                        shown.stream().flatMap(p -> Stream.of(p.mentorUserId(), p.menteeUserId())))
+                .flatMap(s -> s).distinct().toList());
+        var zone = memberClocks.zoneOf(org, me);
         var involved = proposals.involvingIn(org, community.id(), me);
-        var context = Context.builder().community(community).me(me).zone(memberClocks.zoneOf(org, me))
-                .now(clock.instant())
+        var context = Context.builder().community(community).me(me).zone(zone).now(clock.instant())
                 .partners(Context.partnersOf(me, pairings.ongoingInvolving(org, community.id(), me)))
                 .proposalsWith(Context.byOtherPerson(me, involved)).build();
         var declared = mentorAreas.declaredIn(slug);
@@ -104,7 +110,28 @@ public class MentoringReads {
                 .mentors(directory(new Listing(mentorIds, declared), people, context))
                 .mentees(directory(new Listing(menteeIds, wanted), people, context))
                 .canMentorOn(declared.getOrDefault(me, List.of())).wantsToGrowIn(wanted.getOrDefault(me, List.of()))
-                .guidedStart(isFirstVisit(org, community.id(), mine, involved)).build();
+                .guidedStart(isFirstVisit(org, community.id(), mine, involved))
+                .pairings(shownPairings(shown, people, zone)).build();
+    }
+
+    /** By mentor name, then mentee name, then the people's ids, then the pairing's: a neutral order, never a tally. */
+    private static List<ShownPairing> shownPairings(List<Pairing> shown, Map<String, MentoringPerson> people,
+            ZoneId zone) {
+
+        return shown.stream()
+                .map(p -> new ShownPairing(p.id(), face(people.get(p.mentorUserId())),
+                        face(people.get(p.menteeUserId())), MeetingDays.dayOf(p.startedAt(), zone)))
+                .sorted(Comparator
+                        .comparing((ShownPairing p) -> p.mentor().displayName(), String.CASE_INSENSITIVE_ORDER)
+                        .thenComparing(p -> p.mentee().displayName(), String.CASE_INSENSITIVE_ORDER)
+                        .thenComparing(p -> p.mentor().userId()).thenComparing(p -> p.mentee().userId())
+                        .thenComparingLong(ShownPairing::id))
+                .toList();
+    }
+
+    private static DirectoryFace face(MentoringPerson person) {
+
+        return new DirectoryFace(person.userId(), person.displayName(), person.avatarUrl());
     }
 
     /** Both switches off, and never a proposal or a pairing here, whatever became of it. */

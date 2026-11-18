@@ -16,6 +16,8 @@ import dev.axonia.mentoring.api.DirectoryPerson;
 import dev.axonia.mentoring.api.MentoringPage;
 import dev.axonia.mentoring.api.ProposalView;
 import dev.axonia.mentoring.api.ProposeRequest;
+import dev.axonia.mentoring.api.ShownPairing;
+import dev.axonia.mentoring.api.ShownPairing.DirectoryFace;
 import dev.axonia.mentoring.application.AvailabilityService;
 import dev.axonia.mentoring.application.MentoringReads;
 import dev.axonia.mentoring.application.ProposalService;
@@ -43,7 +45,10 @@ class GuildMentoringControllerTest extends ControllerTestSupport {
                 .mentors(List.of(new DirectoryPerson("u1", "Lea", null, List.of("kafka"), true, null, null)))
                 .mentees(List.of(new DirectoryPerson("u2", "Ana", "a.png", List.of(), false, "DECLINED_RECENTLY",
                         LocalDate.parse("2026-12-16"))))
-                .canMentorOn(List.of("kafka", "helm")).wantsToGrowIn(List.of()).guidedStart(false).build());
+                .canMentorOn(List.of("kafka", "helm")).wantsToGrowIn(List.of()).guidedStart(false)
+                .pairings(List.of(new ShownPairing(9L, new DirectoryFace("u1", "Lea", null),
+                        new DirectoryFace("u3", "Max", "m.png"), LocalDate.parse("2026-11-01"))))
+                .build());
 
         // when
         var actual = mvc.get().uri("/axonia/communities/{slug}/mentoring", "platform").exchange();
@@ -57,7 +62,10 @@ class GuildMentoringControllerTest extends ControllerTestSupport {
                  "mentees": [{"userId": "u2", "displayName": "Ana", "avatarUrl": "a.png", "areas": [],
                               "proposable": false, "proposalState": "DECLINED_RECENTLY",
                               "proposalsOpenOn": "2026-12-16"}],
-                 "canMentorOn": ["kafka", "helm"], "wantsToGrowIn": [], "guidedStart": false}
+                 "canMentorOn": ["kafka", "helm"], "wantsToGrowIn": [], "guidedStart": false,
+                 "pairings": [{"id": 9, "mentor": {"userId": "u1", "displayName": "Lea", "avatarUrl": null},
+                               "mentee": {"userId": "u3", "displayName": "Max", "avatarUrl": "m.png"},
+                               "startedOn": "2026-11-01"}]}
                 """);
     }
 

@@ -15,6 +15,7 @@ import dev.axonia.mentoring.api.Journal;
 import dev.axonia.mentoring.api.NoteView;
 import dev.axonia.mentoring.api.PlannedMeetingView;
 import dev.axonia.mentoring.api.PointerView;
+import dev.axonia.mentoring.api.ShowingView;
 import dev.axonia.mentoring.api.TopicView;
 import dev.axonia.mentoring.application.port.out.CommunityAccess;
 import dev.axonia.mentoring.application.port.out.JournalRepository;
@@ -35,6 +36,7 @@ import dev.axonia.mentoring.domain.Pointer;
 import dev.axonia.mentoring.domain.PointerAddress;
 import dev.axonia.mentoring.domain.PointerKind;
 import dev.axonia.mentoring.domain.PointerTarget;
+import dev.axonia.mentoring.domain.Role;
 import dev.axonia.mentoring.domain.TopicBoard;
 import dev.axonia.mentoring.domain.Words;
 import lombok.RequiredArgsConstructor;
@@ -98,7 +100,10 @@ class JournalReads {
                 .wordsWritten(written.isPresent())
                 .canWriteWords(
                         mentee && MentoringWindows.isWordsWritable(pairing, written.isPresent(), clock.instant()))
-                .myWords(mentee ? written.map(Words::body).orElse(null) : null).build();
+                .myWords(mentee ? written.map(Words::body).orElse(null) : null)
+                .showing(new ShowingView(pairing.showing().visibility().name(),
+                        pairing.showing().saidYes(mentee ? Role.MENTEE : Role.MENTOR)))
+                .build();
     }
 
     private static PlannedMeetingView meeting(PlannedMeeting meeting, Map<String, MentoringPerson> people,

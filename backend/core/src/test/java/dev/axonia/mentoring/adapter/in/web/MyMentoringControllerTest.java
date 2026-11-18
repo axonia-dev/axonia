@@ -23,6 +23,7 @@ import dev.axonia.mentoring.api.PlannedMeetingView;
 import dev.axonia.mentoring.api.PointerRequest;
 import dev.axonia.mentoring.api.PointerView;
 import dev.axonia.mentoring.api.ProposalView;
+import dev.axonia.mentoring.api.ShowingView;
 import dev.axonia.mentoring.api.TopicPlacement;
 import dev.axonia.mentoring.api.TopicRequest;
 import dev.axonia.mentoring.api.TopicView;
@@ -236,7 +237,7 @@ class MyMentoringControllerTest extends ControllerTestSupport {
                 .meetings(List.of(PlannedMeetingView.builder().id(12L).on(LocalDate.parse("2026-11-19"))
                         .topicIds(List.of(1L)).plannedById(null).plannedByName("Deleted member").passed(false).build()))
                 .writable(true).topics(List.of(topic)).notes(List.of(note)).wordsWritten(true).canWriteWords(true)
-                .myWords(null).build());
+                .myWords(null).showing(new ShowingView("ASKING", true)).build());
 
         // when
         var actual = mvc.get().uri("/axonia/mentoring/pairings/{id}", 90).exchange();
@@ -262,7 +263,8 @@ class MyMentoringControllerTest extends ControllerTestSupport {
                                                   "available": true}]}],
                          "meetings": [{"id": 12, "on": "2026-11-19", "topicIds": [1], "plannedById": null,
                                        "plannedByName": "Deleted member", "passed": false}],
-                         "wordsWritten": true, "canWriteWords": true, "myWords": null}
+                         "wordsWritten": true, "canWriteWords": true, "myWords": null,
+                         "showing": {"visibility": "ASKING", "iSaidYes": true}}
                         """);
     }
 

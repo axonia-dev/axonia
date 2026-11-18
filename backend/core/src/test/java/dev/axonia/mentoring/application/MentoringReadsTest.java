@@ -21,6 +21,8 @@ import org.mockito.quality.Strictness;
 
 import dev.axonia.mentoring.api.Availability;
 import dev.axonia.mentoring.api.DirectoryPerson;
+import dev.axonia.mentoring.api.ShownPairing;
+import dev.axonia.mentoring.api.ShownPairing.DirectoryFace;
 import dev.axonia.mentoring.application.port.out.AvailabilityRepository;
 import dev.axonia.mentoring.application.port.out.CommunityAccess;
 import dev.axonia.mentoring.application.port.out.CurrentUser;
@@ -37,6 +39,7 @@ import dev.axonia.mentoring.domain.Pairing;
 import dev.axonia.mentoring.domain.Proposal;
 import dev.axonia.mentoring.domain.ProposalStatus;
 import dev.axonia.mentoring.domain.Role;
+import dev.axonia.mentoring.domain.Showing;
 import dev.axonia.shared.api.error.ConflictException;
 import dev.axonia.shared.api.error.ForbiddenException;
 import dev.axonia.shared.api.error.OwnSignInRequiredException;
@@ -47,6 +50,7 @@ import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -594,5 +598,67 @@ class MentoringReadsTest {
         assertThat(actual.mentees()).extracting(DirectoryPerson::proposalState).containsExactly("PROPOSAL_SENT");
         verify(proposals).involvingIn(ORG, COMMUNITY, ME);
         verifyNoMoreInteractions(proposals);
+    }
+
+    private static Pairing shown(long id, String mentor, String mentee, Instant startedAt) {
+
+        return Pairing.builder().id(id).communityId(COMMUNITY).mentorUserId(mentor).menteeUserId(mentee)
+                .startedAt(startedAt).showing(Showing.SHOWN).build();
+    }
+
+    private static DirectoryFace face(String id) {
+
+        return new DirectoryFace(id, name(id), "avatar/" + id);
+    }
+
+    @Test
+    void pageListsShownPairingsByMentorThenMenteeName() {
+
+        // given: just after midnight UTC is still the day before west of UTC
+        when(memberClocks.zoneOf(ORG, ME)).thenReturn(ZoneId.of("America/New_York"));
+        var started = Instant.parse("2026-11-02T03:00:00Z");
+        when(pairings.shownIn(ORG, COMMUNITY)).thenReturn(List.of(shown(3L, "zoe", "ana", started),
+                shown(1L, "ben", "max", started), shown(2L, "ben", "Ana", started), shown(4L, "ben", "ana", started)));
+
+        // when
+        var actual = reads.page(SLUG);
+
+        // then
+        var firstDay = LocalDate.parse("2026-11-01");
+        assertThat(actual.pairings()).containsExactly(
+                new ShownPairing(2L, face("ben"), new DirectoryFace("Ana", "Ana", "avatar/Ana"), firstDay),
+                new ShownPairing(4L, face("ben"), face("ana"), firstDay),
+                new ShownPairing(1L, face("ben"), face("max"), firstDay),
+                new ShownPairing(3L, face("zoe"), face("ana"), firstDay));
+        verify(personDirectory, times(1)).resolve(anyCollection());
+    }
+
+    @Test
+    void pageListsTheCallersOwnShownPairing() {
+
+        // given
+        when(pairings.shownIn(ORG, COMMUNITY)).thenReturn(List.of(shown(1L, "lea", ME, NOW)));
+
+        // when
+        var actual = reads.page(SLUG);
+
+        // then
+        assertThat(actual.pairings())
+                .containsExactly(new ShownPairing(1L, face("lea"), face(ME), LocalDate.parse("2026-11-16")));
+    }
+
+    @Test
+    void pageListsPairingsWhateverTheCallersDoors() {
+
+        // given
+        when(pairings.shownIn(ORG, COMMUNITY)).thenReturn(List.of(shown(1L, "lea", "max", NOW)));
+
+        // when
+        var actual = reads.page(SLUG);
+
+        // then
+        assertThat(actual.mine()).isEqualTo(new Availability(false, null, false));
+        assertThat(actual.guidedStart()).isTrue();
+        assertThat(actual.pairings()).extracting(ShownPairing::id).containsExactly(1L);
     }
 }
