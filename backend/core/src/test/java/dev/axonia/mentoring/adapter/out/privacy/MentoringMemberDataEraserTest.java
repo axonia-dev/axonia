@@ -81,6 +81,23 @@ class MentoringMemberDataEraserTest extends FootprintTestSupport {
     }
 
     @Test
+    void erasureForgetsTheErasedSidesAnswerToShowingAndKeepsThePartners() {
+
+        // given
+        var asMentee = rows.pairing(guild, MENTOR, MENTEE);
+        var asMentor = rows.pairing(guild, MENTEE, STRANGER);
+        jdbc.update("UPDATE mentoring_pairing SET visibility = 'ASKING', mentor_said_yes = true, "
+                + "mentee_said_yes = true WHERE organization_id = :org", Map.of("org", ORG));
+
+        // when
+        eraser.erase(erasureOf(MENTEE));
+
+        // then
+        assertThat(answers(asMentee)).containsExactly(true, false);
+        assertThat(answers(asMentor)).containsExactly(false, true);
+    }
+
+    @Test
     void erasureRemovesTheUpcomingMeetingsTheyPlannedAndClearsThePlannerElsewhere() {
 
         // given: erased late on the 17th in UTC, already the 18th in Auckland
@@ -220,6 +237,12 @@ class MentoringMemberDataEraserTest extends FootprintTestSupport {
 
         return jdbc.query("SELECT mentor_user_id, mentee_user_id FROM mentoring_pairing WHERE id = :id",
                 Map.of("id", pairingId), (rs, i) -> Arrays.asList(rs.getString(1), rs.getString(2))).getFirst();
+    }
+
+    private List<Boolean> answers(long pairingId) {
+
+        return jdbc.query("SELECT mentor_said_yes, mentee_said_yes FROM mentoring_pairing WHERE id = :id",
+                Map.of("id", pairingId), (rs, i) -> List.of(rs.getBoolean(1), rs.getBoolean(2))).getFirst();
     }
 
     private List<String> strings(String sql) {

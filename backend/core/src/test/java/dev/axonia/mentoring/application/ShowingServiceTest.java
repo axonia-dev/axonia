@@ -6,11 +6,15 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
+import dev.axonia.mentoring.api.ShowingRequest;
 import dev.axonia.mentoring.application.port.out.CurrentUser;
 import dev.axonia.mentoring.application.port.out.OrganizationContext;
 import dev.axonia.mentoring.application.port.out.PairingRepository;
@@ -21,6 +25,7 @@ import dev.axonia.mentoring.domain.ShowAnswer;
 import dev.axonia.mentoring.domain.Showing;
 import dev.axonia.mentoring.domain.Visibility;
 import dev.axonia.shared.api.error.ConflictException;
+import dev.axonia.shared.api.error.ValidationException;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -74,7 +79,7 @@ class ShowingServiceTest {
         store(pairing(Showing.ASKING).build());
 
         // when
-        service.answer(PAIRING, ShowAnswer.YES);
+        service.answer(PAIRING, new ShowingRequest("YES"));
 
         // then
         verify(pairings).saveShowing(ORG, PAIRING, new Showing(Visibility.ASKING, false, true));
@@ -88,7 +93,7 @@ class ShowingServiceTest {
         store(pairing(Showing.ASKING).build());
 
         // when
-        service.answer(PAIRING, ShowAnswer.YES);
+        service.answer(PAIRING, new ShowingRequest("YES"));
 
         // then
         verify(pairings).saveShowing(ORG, PAIRING, new Showing(Visibility.ASKING, true, false));
@@ -101,7 +106,7 @@ class ShowingServiceTest {
         store(pairing(Showing.ASKING.answer(Role.MENTOR, ShowAnswer.YES)).build());
 
         // when
-        service.answer(PAIRING, ShowAnswer.YES);
+        service.answer(PAIRING, new ShowingRequest("YES"));
 
         // then
         verify(pairings).saveShowing(ORG, PAIRING, Showing.SHOWN);
@@ -114,8 +119,8 @@ class ShowingServiceTest {
         store(pairing(Showing.ASKING).mentorUserId(null).build());
 
         // when / then
-        assertThatThrownBy(() -> service.answer(PAIRING, ShowAnswer.YES)).isInstanceOf(ConflictException.class)
-                .extracting("code").isEqualTo("MENTORING_SHOWING_SETTLED");
+        assertThatThrownBy(() -> service.answer(PAIRING, new ShowingRequest("YES")))
+                .isInstanceOf(ConflictException.class).extracting("code").isEqualTo("MENTORING_SHOWING_SETTLED");
         verify(pairings, never()).saveShowing(anyString(), anyLong(), any());
     }
 
@@ -127,8 +132,8 @@ class ShowingServiceTest {
         store(pairing(Showing.ASKING).menteeUserId(null).build());
 
         // when / then
-        assertThatThrownBy(() -> service.answer(PAIRING, ShowAnswer.NO)).isInstanceOf(ConflictException.class)
-                .extracting("code").isEqualTo("MENTORING_SHOWING_SETTLED");
+        assertThatThrownBy(() -> service.answer(PAIRING, new ShowingRequest("NO")))
+                .isInstanceOf(ConflictException.class).extracting("code").isEqualTo("MENTORING_SHOWING_SETTLED");
         verify(pairings, never()).saveShowing(anyString(), anyLong(), any());
     }
 
@@ -140,8 +145,8 @@ class ShowingServiceTest {
                 .build());
 
         // when / then
-        assertThatThrownBy(() -> service.answer(PAIRING, ShowAnswer.YES)).isInstanceOf(ConflictException.class)
-                .extracting("code").isEqualTo("MENTORING_PAIRING_ENDED");
+        assertThatThrownBy(() -> service.answer(PAIRING, new ShowingRequest("YES")))
+                .isInstanceOf(ConflictException.class).extracting("code").isEqualTo("MENTORING_PAIRING_ENDED");
         verify(pairings, never()).saveShowing(anyString(), anyLong(), any());
     }
 
@@ -152,8 +157,23 @@ class ShowingServiceTest {
         store(pairing(Showing.SHOWN).build());
 
         // when / then
-        assertThatThrownBy(() -> service.answer(PAIRING, ShowAnswer.NO)).isInstanceOf(ConflictException.class)
-                .extracting("code").isEqualTo("MENTORING_SHOWING_SETTLED");
+        assertThatThrownBy(() -> service.answer(PAIRING, new ShowingRequest("NO")))
+                .isInstanceOf(ConflictException.class).extracting("code").isEqualTo("MENTORING_SHOWING_SETTLED");
+        verify(pairings, never()).saveShowing(anyString(), anyLong(), any());
+    }
+
+    @ParameterizedTest
+    @NullSource
+    @ValueSource(strings = {"MAYBE", "yes", ""})
+    void anAnswerOtherThanYesNoOrUnsaidIsInvalid(String answer) {
+
+        // given
+        store(pairing(Showing.ASKING).build());
+
+        // when / then
+        assertThatThrownBy(() -> service.answer(PAIRING, new ShowingRequest(answer)))
+                .isInstanceOf(ValidationException.class).extracting("code").isEqualTo("field_invalid");
+        verify(pairings, never()).findForWrite(anyString(), anyLong());
         verify(pairings, never()).saveShowing(anyString(), anyLong(), any());
     }
 }

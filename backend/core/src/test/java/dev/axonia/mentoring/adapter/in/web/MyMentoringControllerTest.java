@@ -23,6 +23,7 @@ import dev.axonia.mentoring.api.PlannedMeetingView;
 import dev.axonia.mentoring.api.PointerRequest;
 import dev.axonia.mentoring.api.PointerView;
 import dev.axonia.mentoring.api.ProposalView;
+import dev.axonia.mentoring.api.ShowingRequest;
 import dev.axonia.mentoring.api.ShowingView;
 import dev.axonia.mentoring.api.TopicPlacement;
 import dev.axonia.mentoring.api.TopicRequest;
@@ -34,7 +35,6 @@ import dev.axonia.mentoring.application.PairingService;
 import dev.axonia.mentoring.application.ProposalService;
 import dev.axonia.mentoring.application.ShowingService;
 import dev.axonia.mentoring.application.WordsService;
-import dev.axonia.mentoring.domain.ShowAnswer;
 import dev.axonia.shared.api.error.ConflictException;
 import dev.axonia.shared.api.error.NotFoundException;
 import dev.axonia.shared.api.error.ValidationException;
@@ -42,7 +42,6 @@ import dev.axonia.shared.api.error.ValidationException;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @CoreWebMvcTest(controllers = MyMentoringController.class)
@@ -505,21 +504,24 @@ class MyMentoringControllerTest extends ControllerTestSupport {
 
         // then
         actual.assertThat().hasStatus(204);
-        verify(showingService).answer(11L, ShowAnswer.YES);
+        verify(showingService).answer(11L, new ShowingRequest("YES"));
     }
 
-    @Test
-    void anUnknownShowingAnswerIsABadRequest() {
+    @ParameterizedTest
+    @CsvSource(delimiter = '|', nullValues = "NULL", value = {"{} | NULL", "{\"answer\": null} | NULL",
+            "{\"answer\": \"MAYBE\"} | MAYBE"})
+    void aMissingOrUnknownShowingAnswerIsABadRequestWithItsCode(String body, String answer) {
+
+        // given
+        doThrow(new ValidationException("field_invalid", "Invalid")).when(showingService).answer(11L,
+                new ShowingRequest(answer));
 
         // when
         var actual = mvc.put().uri("/axonia/mentoring/pairings/{id}/showing", 11).contentType("application/json")
-                .content("""
-                        {"answer": "MAYBE"}
-                        """).exchange();
+                .content(body).exchange();
 
         // then
-        actual.assertThat().hasStatus(400);
-        verifyNoInteractions(showingService);
+        actual.assertThat().hasStatus(400).bodyJson().extractingPath("$.code").isEqualTo("field_invalid");
     }
 
     @Test
@@ -527,7 +529,7 @@ class MyMentoringControllerTest extends ControllerTestSupport {
 
         // given
         doThrow(new ConflictException("MENTORING_SHOWING_SETTLED", "Settled")).when(showingService).answer(11L,
-                ShowAnswer.NO);
+                new ShowingRequest("NO"));
 
         // when
         var actual = mvc.put().uri("/axonia/mentoring/pairings/{id}/showing", 11).contentType("application/json")

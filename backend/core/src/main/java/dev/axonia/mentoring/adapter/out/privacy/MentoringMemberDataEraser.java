@@ -91,9 +91,9 @@ public class MentoringMemberDataEraser implements MemberDataEraser {
         long cleared = jdbc.update(
                 "UPDATE mentoring_meeting SET planned_by = NULL WHERE organization_id = :org AND planned_by = :user",
                 params);
-        cleared += jdbc.update("UPDATE mentoring_pairing SET mentor_user_id = NULL"
+        cleared += jdbc.update("UPDATE mentoring_pairing SET mentor_user_id = NULL, mentor_said_yes = false"
                 + " WHERE organization_id = :org AND mentor_user_id = :user", params);
-        cleared += jdbc.update("UPDATE mentoring_pairing SET mentee_user_id = NULL"
+        cleared += jdbc.update("UPDATE mentoring_pairing SET mentee_user_id = NULL, mentee_said_yes = false"
                 + " WHERE organization_id = :org AND mentee_user_id = :user", params);
         var suffix = MentoringSubject.aboutSuffix(erasure.userId());
         for (var type : NOTICES) {

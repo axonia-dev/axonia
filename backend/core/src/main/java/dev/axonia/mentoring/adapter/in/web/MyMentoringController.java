@@ -22,6 +22,7 @@ import dev.axonia.mentoring.api.NoteRequest;
 import dev.axonia.mentoring.api.PairingSummary;
 import dev.axonia.mentoring.api.PlannedMeetingView;
 import dev.axonia.mentoring.api.PointerRequest;
+import dev.axonia.mentoring.api.ShowingRequest;
 import dev.axonia.mentoring.api.TopicPlacement;
 import dev.axonia.mentoring.api.TopicRequest;
 import dev.axonia.mentoring.api.WordsRequest;
@@ -187,7 +188,7 @@ class MyMentoringController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void answerShowing(@PathVariable long id, @RequestBody ShowingRequest request) {
 
-        showingService.answer(id, request.answer());
+        showingService.answer(id, request);
     }
 
     @PutMapping("/pairings/{id}/words")

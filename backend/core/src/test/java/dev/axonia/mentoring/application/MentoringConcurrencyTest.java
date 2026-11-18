@@ -36,6 +36,7 @@ import dev.axonia.mentoring.api.MeetingRequest;
 import dev.axonia.mentoring.api.NoteRequest;
 import dev.axonia.mentoring.api.PlannedMeetingView;
 import dev.axonia.mentoring.api.ProposeRequest;
+import dev.axonia.mentoring.api.ShowingRequest;
 import dev.axonia.mentoring.api.TopicRequest;
 import dev.axonia.mentoring.application.port.out.AvailabilityRepository;
 import dev.axonia.mentoring.application.port.out.CommunityAccess;
@@ -182,6 +183,39 @@ class MentoringConcurrencyTest extends CoreJdbcTestSupport {
 
         return pairings.insert(ORG, Pairing.builder().communityId(COMMUNITY).mentorUserId(MENTOR).menteeUserId(MENTEE)
                 .startedAt(NOW.minusSeconds(3600)).showing(Showing.SHOWN).build());
+    }
+
+    private ShowingService showingServiceAs(String userId) {
+
+        var caller = mock(CurrentUser.class);
+        when(caller.userId()).thenReturn(userId);
+        return new ShowingService(new PairingParties(organizationContext, caller, pairings), pairings);
+    }
+
+    @Test
+    void bothYesesAtOnceShowThePairing() throws Exception {
+
+        // given
+        var pairing = pairings.insert(ORG, Pairing.builder().communityId(COMMUNITY).mentorUserId(MENTOR)
+                .menteeUserId(MENTEE).startedAt(NOW.minusSeconds(3600)).showing(Showing.ASKING).build());
+        var asMentor = showingServiceAs(MENTOR);
+        var asMentee = showingServiceAs(MENTEE);
+        var requests = new ArrayList<Supplier<Object>>();
+        requests.add(() -> {
+            asMentor.answer(pairing, new ShowingRequest("YES"));
+            return MENTOR;
+        });
+        requests.add(() -> {
+            asMentee.answer(pairing, new ShowingRequest("YES"));
+            return MENTEE;
+        });
+
+        // when
+        var outcomes = runTogether(requests);
+
+        // then
+        assertThat(outcomes).containsExactly(MENTOR, MENTEE);
+        assertThat(pairings.find(ORG, pairing)).get().extracting(Pairing::showing).isEqualTo(Showing.SHOWN);
     }
 
     @Test
