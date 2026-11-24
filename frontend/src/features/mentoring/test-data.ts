@@ -2,6 +2,7 @@ import type {
   Availability,
   DirectoryPerson,
   Journal,
+  MentorFace,
   MentoringPage,
   MyMentoring,
   Note,
@@ -45,6 +46,18 @@ export function pageOf(overrides: Partial<MentoringPage> = {}): MentoringPage {
     wantsToGrowIn: ["testing"],
     guidedStart: false,
     pairings: [],
+    otherMentors: { faces: [], total: 0 },
+    listing: null,
+    ...overrides,
+  };
+}
+
+export function mentorFaceOf(overrides: Partial<MentorFace> = {}): MentorFace {
+  return {
+    userId: "u-8",
+    displayName: "Aurélia Rochat",
+    avatarUrl: null,
+    status: "MENTORING_NOW",
     ...overrides,
   };
 }

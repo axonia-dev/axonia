@@ -84,3 +84,8 @@ export function isKnownRefusal(error: unknown): boolean {
 export function isNotFound(error: unknown): boolean {
   return error instanceof ApiError && error.status === 404;
 }
+
+/** A known refusal answers the same on a second ask, so only a failure that may pass is retried. */
+export function retryUnlessRefused(failures: number, error: unknown): boolean {
+  return failures < 1 && !isKnownRefusal(error);
+}

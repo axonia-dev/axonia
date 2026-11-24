@@ -207,7 +207,7 @@ describe("ProposeDialog", () => {
     expect(screen.getByRole("button", { name: send })).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Once accepted, the pairing shows on the community’s Mentoring page.",
+        "Once accepted, the pairing shows on the community’s Mentoring page, and its mentor stays listed among the mentors after it ends.",
       ),
     ).toBeInTheDocument();
   });

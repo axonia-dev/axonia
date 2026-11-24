@@ -54,7 +54,7 @@ describe("ProposalLetter", () => {
     // then
     expect(
       screen.getByText(
-        "Once accepted, the pairing shows on the community’s Mentoring page.",
+        "Once accepted, the pairing shows on the community’s Mentoring page, and its mentor stays listed among the mentors after it ends.",
       ),
     ).toBeInTheDocument();
     expect(screen.queryByText(/both people are asked/)).not.toBeInTheDocument();

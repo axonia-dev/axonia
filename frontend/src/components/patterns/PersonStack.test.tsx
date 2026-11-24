@@ -54,4 +54,11 @@ describe("PersonStack", () => {
 
     expect(screen.getByRole("group", { name: "Mentors" })).toBeInTheDocument();
   });
+
+  it("countsTheRemainderFromAGivenTotal", () => {
+    render(<PersonStack people={people(5)} total={12} label="Mentors" />);
+
+    expect(screen.getByText("+7")).toBeInTheDocument();
+    expect(screen.getByLabelText("7 more")).toBeInTheDocument();
+  });
 });

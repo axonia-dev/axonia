@@ -12,10 +12,13 @@ import type {
 } from "@/features/mentoring/domain/mentoring";
 import { mentoringErrorMessage } from "@/features/mentoring/mentoring-errors";
 import { LimitStepper } from "@/features/mentoring/ui/LimitStepper";
+import { ListingAsk } from "@/features/mentoring/ui/ListingAsk";
+import { ListingSwitch } from "@/features/mentoring/ui/ListingSwitch";
 import {
   expertisePath,
   learningPath,
 } from "@/features/mentoring/ui/mentoring-paths";
+import { OtherMentors } from "@/features/mentoring/ui/OtherMentors";
 import { cn } from "@/lib/cn";
 
 /**
@@ -196,6 +199,13 @@ export function AvailabilityDoors({
             to={expertisePath(slug)}
             icon={<Lightbulb />}
           />
+          <OtherMentors slug={slug} other={page.otherMentors} />
+          <ListingSwitch
+            slug={slug}
+            listing={page.listing}
+            isDisabled={archived}
+          />
+          <ListingAsk slug={slug} listing={page.listing} />
         </Door>
         <Door
           kind="mentee"

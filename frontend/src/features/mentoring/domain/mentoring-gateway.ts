@@ -1,6 +1,7 @@
 import type {
   Availability,
   Journal,
+  MentorFace,
   MentoringPage,
   MentoringPresence,
   MentoringRole,
@@ -11,6 +12,7 @@ import type {
   TopicState,
   Words,
 } from "@/features/mentoring/domain/mentoring";
+import type { Page } from "@/lib/page";
 
 export interface ProposalInput {
   toUserId: string;
@@ -60,6 +62,9 @@ export interface MentoringGateway {
     availability: Availability,
   ): Promise<Availability>;
   propose(slug: string, proposal: ProposalInput): Promise<Proposal>;
+  /** Every mentor listed in the community, Mentoring now first, then by name. */
+  mentors(slug: string, page: number): Promise<Page<MentorFace>>;
+  setListing(slug: string, listed: boolean): Promise<void>;
   mine(): Promise<MyMentoring>;
   /** The shell's cheap probe: whether the member has a reason to open My mentoring. */
   presence(): Promise<MentoringPresence>;

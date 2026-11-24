@@ -1,10 +1,9 @@
-import { type ReactNode, useId } from "react";
-
 import { Button } from "@/components/ui/Button";
 import { useMe } from "@/features/identity/api/use-me";
 import { useShowing } from "@/features/mentoring/api/use-mentoring";
 import type { Journal } from "@/features/mentoring/domain/mentoring";
 import type { ShowingAnswer } from "@/features/mentoring/domain/mentoring-gateway";
+import { Ask } from "@/features/mentoring/ui/Ask";
 import { onFailure } from "@/features/mentoring/ui/notify-failure";
 import { personName } from "@/features/mentoring/ui/PartnerFace";
 
@@ -25,44 +24,6 @@ function partnerFirstName(journal: Journal): string {
   return (
     pairing.partnerGivenName ??
     personName(pairing.partnerName, pairing.partnerId)
-  );
-}
-
-interface AskProps {
-  title: string;
-  lines: string[];
-  /** A line under the buttons. */
-  note?: string;
-  children: ReactNode;
-}
-
-function Ask({ title, lines, note, children }: Readonly<AskProps>) {
-  const titleId = useId();
-  return (
-    <section
-      aria-labelledby={titleId}
-      className="border-border-strong bg-surface flex flex-wrap items-center gap-3 rounded-2xl border px-4 py-3"
-    >
-      <div className="flex min-w-48 flex-1 flex-col gap-0.5">
-        <h2
-          id={titleId}
-          className="text-foreground text-sm font-semibold wrap-anywhere"
-        >
-          {title}
-        </h2>
-        {lines.map((line) => (
-          <p key={line} className="text-muted-foreground text-xs wrap-anywhere">
-            {line}
-          </p>
-        ))}
-      </div>
-      <div className="ml-auto flex flex-wrap gap-2">{children}</div>
-      {note !== undefined && (
-        <p className="text-muted-foreground w-full text-right text-xs">
-          {note}
-        </p>
-      )}
-    </section>
   );
 }
 

@@ -21,14 +21,9 @@ import type {
   TopicInput,
   TopicPlacement,
 } from "@/features/mentoring/domain/mentoring-gateway";
-import { isKnownRefusal } from "@/features/mentoring/mentoring-errors";
+import { retryUnlessRefused } from "@/features/mentoring/mentoring-errors";
 
 const gateway = httpMentoringGateway;
-
-/** A known refusal answers the same on a second ask, so only a failure that may pass is retried. */
-function retryUnlessRefused(failures: number, error: unknown): boolean {
-  return failures < 1 && !isKnownRefusal(error);
-}
 
 /** A delegated session is refused every mentoring route, so none of these reads ever asks. */
 export function useMentoringPage(slug: string) {

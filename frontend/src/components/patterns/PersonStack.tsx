@@ -11,6 +11,8 @@ interface StackedPerson {
 interface PersonStackProps {
   people: readonly StackedPerson[];
   max?: number;
+  /** How many people there are in all, when `people` holds only the first few. */
+  total?: number;
   label: string;
 }
 
@@ -20,9 +22,10 @@ const DEFAULT_MAX = 5;
 export function PersonStack({
   people,
   max = DEFAULT_MAX,
+  total = people.length,
   label,
 }: Readonly<PersonStackProps>) {
-  const remainder = people.length - max;
+  const remainder = total - Math.min(max, people.length);
   return (
     <span role="group" aria-label={label} className="flex -space-x-1.5">
       {people.slice(0, max).map((person) => (

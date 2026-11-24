@@ -40,6 +40,30 @@ const shownPairingSchema = z.object({
 });
 export type ShownPairing = z.infer<typeof shownPairingSchema>;
 
+export const mentorFaceSchema = z.object({
+  userId: z.string(),
+  displayName: z.string(),
+  avatarUrl: z.string().nullable(),
+  status: z.enum(["MENTORING_NOW", "MENTORED_HERE"]),
+});
+export type MentorFace = z.infer<typeof mentorFaceSchema>;
+
+export const MENTOR_STATUS_LABEL: Record<MentorFace["status"], string> = {
+  MENTORING_NOW: "Mentoring now",
+  MENTORED_HERE: "Mentored here",
+};
+
+const otherMentorsSchema = z.object({
+  /** The first few, Mentoring now first, then by name. */
+  faces: z.array(mentorFaceSchema),
+  /** Every mentor listed in the community, the faces included. */
+  total: z.number().int(),
+});
+
+/** Whether the member is listed among the mentors; null when no pairing could list them. */
+const listingSchema = z.enum(["LISTED", "OFF", "ASKED"]).nullable();
+export type Listing = z.infer<typeof listingSchema>;
+
 export const mentoringPageSchema = z.object({
   archived: z.boolean(),
   mine: availabilitySchema,
@@ -50,6 +74,8 @@ export const mentoringPageSchema = z.object({
   guidedStart: z.boolean(),
   /** In the server's neutral order, by mentor then mentee name. */
   pairings: z.array(shownPairingSchema),
+  otherMentors: otherMentorsSchema,
+  listing: listingSchema,
 });
 export type MentoringPage = z.infer<typeof mentoringPageSchema>;
 

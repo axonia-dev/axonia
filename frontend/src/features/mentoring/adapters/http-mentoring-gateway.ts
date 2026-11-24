@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   availabilitySchema,
   journalSchema,
+  mentorFaceSchema,
   mentoringPageSchema,
   myMentoringSchema,
   pairingSummarySchema,
@@ -13,8 +14,11 @@ import {
 } from "@/features/mentoring/domain/mentoring";
 import type { MentoringGateway } from "@/features/mentoring/domain/mentoring-gateway";
 import { apiFetch, apiFetchVoid } from "@/lib/api-client";
+import { pageSchema } from "@/lib/page";
 
 const wordsListSchema = z.array(wordsSchema);
+
+const MENTORS_PAGE_SIZE = 20;
 
 const ROOT = "/axonia/mentoring";
 
@@ -54,6 +58,16 @@ export const httpMentoringGateway: MentoringGateway = {
     );
     return proposalSchema.parse(data);
   },
+
+  async mentors(slug, page) {
+    const data = await apiFetch<unknown>(
+      `${guild(slug)}/mentors?page=${page}&size=${MENTORS_PAGE_SIZE}`,
+    );
+    return pageSchema(mentorFaceSchema).parse(data);
+  },
+
+  setListing: (slug, listed) =>
+    apiFetchVoid(`${guild(slug)}/listing`, json("PUT", { listed })),
 
   async mine() {
     return myMentoringSchema.parse(await apiFetch<unknown>(`${ROOT}/me`));
