@@ -70,4 +70,15 @@ describe("ListingAsk", () => {
     expect(screen.getByRole("button", { name: "Show" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Keep private" })).toBeDisabled();
   });
+
+  it("sitsApartFromTheDoorContentAboveLikeItsSiblings", () => {
+    setting();
+
+    render(<ListingAsk slug="platform" listing="ASKED" />);
+
+    expect(
+      screen.getByRole("region", { name: "Show among the mentors?" })
+        .parentElement,
+    ).toHaveClass("mt-4");
+  });
 });

@@ -23,25 +23,27 @@ function AskedOnce({
   const answer = (listed: boolean) =>
     set.mutate(listed, { onError: onFailure });
   return (
-    <Ask
-      title="Show among the mentors?"
-      lines={["Only the mentor shows, never a mentee"]}
-    >
-      <Button
-        variant="outline"
-        size="sm"
-        isDisabled={isDisabled || set.isPending}
-        onPress={() => answer(false)}
+    <div className="mt-4">
+      <Ask
+        title="Show among the mentors?"
+        lines={["Only the mentor shows, never a mentee"]}
       >
-        Keep private
-      </Button>
-      <Button
-        size="sm"
-        isDisabled={isDisabled || set.isPending}
-        onPress={() => answer(true)}
-      >
-        Show
-      </Button>
-    </Ask>
+        <Button
+          variant="outline"
+          size="sm"
+          isDisabled={isDisabled || set.isPending}
+          onPress={() => answer(false)}
+        >
+          Keep private
+        </Button>
+        <Button
+          size="sm"
+          isDisabled={isDisabled || set.isPending}
+          onPress={() => answer(true)}
+        >
+          Show
+        </Button>
+      </Ask>
+    </div>
   );
 }
