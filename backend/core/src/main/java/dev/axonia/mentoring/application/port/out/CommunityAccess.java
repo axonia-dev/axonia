@@ -3,6 +3,7 @@ package dev.axonia.mentoring.application.port.out;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import dev.axonia.mentoring.domain.MentoringCommunity;
 import dev.axonia.mentoring.domain.MentoringGuild;
@@ -26,6 +27,9 @@ public interface CommunityAccess {
     Map<Long, String> slugsOf(Collection<Long> communityIds);
 
     boolean isMember(long communityId, String userId);
+
+    /** Every member of the community, as user ids, in one query; org-explicit. */
+    Set<String> memberIdsOf(String org, long communityId);
 
     /** Org-explicit, for callers that judge a member off any request. */
     boolean isMember(String org, long communityId, String userId);

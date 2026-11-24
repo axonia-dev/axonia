@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import dev.axonia.mentoring.api.Availability;
 import dev.axonia.mentoring.api.DirectoryPerson;
 import dev.axonia.mentoring.api.MentoringPage;
+import dev.axonia.mentoring.api.OtherMentors;
 import dev.axonia.mentoring.api.ShownPairing;
 import dev.axonia.mentoring.api.ShownPairing.DirectoryFace;
 import dev.axonia.mentoring.application.port.out.AvailabilityRepository;
@@ -45,7 +46,8 @@ import lombok.RequiredArgsConstructor;
 
 /**
  * The guild's mentoring page: who offers to mentor and who looks for a mentor, in a neutral order, save the people the
- * caller waits on after a decline, who come last; and who is helping whom, by mentor then mentee name, with no tally.
+ * caller waits on after a decline, who come last; who is helping whom, by mentor then mentee name, with no tally; and
+ * the first of the community's other mentors with how many there are, and the caller's own listing among them.
  */
 @Service
 @RequiredArgsConstructor
@@ -55,6 +57,7 @@ public class MentoringReads {
     private static final String PROPOSAL_RECEIVED = "PROPOSAL_RECEIVED";
     private static final String DECLINED_RECENTLY = "DECLINED_RECENTLY";
     private static final String PAIRED = "PAIRED";
+    private static final int FACES = 5;
 
     private final OrganizationContext organizationContext;
     private final CurrentUser currentUser;
@@ -66,6 +69,7 @@ public class MentoringReads {
     private final MenteeAreas menteeAreas;
     private final PersonDirectory personDirectory;
     private final MemberClocks memberClocks;
+    private final MentorRosterReads mentorRoster;
     private final Clock clock;
 
     @Transactional(readOnly = true)
@@ -104,6 +108,7 @@ public class MentoringReads {
         var context = Context.builder().community(community).me(me).zone(zone).now(clock.instant())
                 .partners(Context.partnersOf(me, pairings.ongoingInvolving(org, community.id(), me)))
                 .proposalsWith(Context.byOtherPerson(me, involved)).build();
+        var roster = mentorRoster.rosterOf(org, community.id(), me);
         var declared = mentorAreas.declaredIn(slug);
         var wanted = menteeAreas.wantedIn(slug);
         return MentoringPage.builder().enabled(true).member(true).archived(community.archived()).mine(mine)
@@ -111,7 +116,9 @@ public class MentoringReads {
                 .mentees(directory(new Listing(menteeIds, wanted), people, context))
                 .canMentorOn(declared.getOrDefault(me, List.of())).wantsToGrowIn(wanted.getOrDefault(me, List.of()))
                 .guidedStart(isFirstVisit(org, community.id(), mine, involved))
-                .pairings(shownPairings(shown, people, zone)).build();
+                .pairings(shownPairings(shown, people, zone))
+                .otherMentors(new OtherMentors(roster.faces().stream().limit(FACES).toList(), roster.faces().size()))
+                .listing(roster.listing()).build();
     }
 
     /** By mentor name, then mentee name, then the people's ids: a neutral order, never a tally. */

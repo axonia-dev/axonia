@@ -130,4 +130,15 @@ class CommunityAccessAdapterTest {
         assertThat(sut.isMember("org-1", 7L, "alice")).isTrue();
         assertThat(sut.isMember(7L, "bob")).isFalse();
     }
+
+    @Test
+    void memberIdsOfAreTheMembershipServicesMembers() {
+
+        // given
+        var sut = new CommunityAccessAdapter(communityService, membershipService, mentoringMemberships);
+        when(membershipService.memberUserIds("org-1", 7L)).thenReturn(List.of("alice", "bob"));
+
+        // when / then
+        assertThat(sut.memberIdsOf("org-1", 7L)).containsExactlyInAnyOrder("alice", "bob");
+    }
 }

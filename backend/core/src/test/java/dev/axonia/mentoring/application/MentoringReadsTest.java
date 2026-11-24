@@ -9,6 +9,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -21,6 +22,7 @@ import org.mockito.quality.Strictness;
 
 import dev.axonia.mentoring.api.Availability;
 import dev.axonia.mentoring.api.DirectoryPerson;
+import dev.axonia.mentoring.api.MentorFace;
 import dev.axonia.mentoring.api.ShownPairing;
 import dev.axonia.mentoring.api.ShownPairing.DirectoryFace;
 import dev.axonia.mentoring.application.port.out.AvailabilityRepository;
@@ -28,11 +30,15 @@ import dev.axonia.mentoring.application.port.out.CommunityAccess;
 import dev.axonia.mentoring.application.port.out.CurrentUser;
 import dev.axonia.mentoring.application.port.out.MemberClocks;
 import dev.axonia.mentoring.application.port.out.MenteeAreas;
+import dev.axonia.mentoring.application.port.out.MentorListingRepository;
 import dev.axonia.mentoring.application.port.out.MentorAreas;
 import dev.axonia.mentoring.application.port.out.OrganizationContext;
 import dev.axonia.mentoring.application.port.out.PairingRepository;
 import dev.axonia.mentoring.application.port.out.PersonDirectory;
 import dev.axonia.mentoring.application.port.out.ProposalRepository;
+import dev.axonia.mentoring.domain.ListingSwitch;
+import dev.axonia.mentoring.domain.MentorHistory;
+import dev.axonia.mentoring.domain.MentorListing;
 import dev.axonia.mentoring.domain.MentoringCommunity;
 import dev.axonia.mentoring.domain.MentoringPerson;
 import dev.axonia.mentoring.domain.Pairing;
@@ -86,6 +92,8 @@ class MentoringReadsTest {
     private PersonDirectory personDirectory;
     @Mock
     private MemberClocks memberClocks;
+    @Mock
+    private MentorListingRepository listings;
 
     private MentoringReads reads;
 
@@ -108,8 +116,15 @@ class MentoringReadsTest {
             return ids.stream()
                     .collect(Collectors.toMap(id -> id, id -> new MentoringPerson(id, name(id), null, "avatar/" + id)));
         });
+        when(personDirectory.presentOf(any(), anyCollection())).thenAnswer(inv -> {
+            Collection<String> ids = inv.getArgument(1);
+            return Set.copyOf(ids);
+        });
+        var roster = new MentorRosterReads(organizationContext, currentUser, communityAccess, pairings, listings,
+                personDirectory);
         reads = new MentoringReads(organizationContext, currentUser, communityAccess, availabilities, pairings,
-                proposals, mentorAreas, menteeAreas, personDirectory, memberClocks, Clock.fixed(NOW, ZoneOffset.UTC));
+                proposals, mentorAreas, menteeAreas, personDirectory, memberClocks, roster,
+                Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
     private static String name(String id) {
@@ -661,5 +676,66 @@ class MentoringReadsTest {
         assertThat(actual.guidedStart()).isTrue();
         assertThat(actual.pairings()).extracting(p -> p.mentor().userId(), p -> p.mentee().userId())
                 .containsExactly(tuple("lea", "max"));
+    }
+
+    @Test
+    void pageCarriesFirstFiveFacesAndTotal() {
+
+        // given
+        var ids = List.of("gus", "fay", "eve", "dan", "cat", "bob", "ana");
+        when(communityAccess.memberIdsOf(ORG, COMMUNITY)).thenReturn(Set.copyOf(ids));
+        when(pairings.mentorHistoriesIn(ORG, COMMUNITY))
+                .thenReturn(ids.stream().map(id -> new MentorHistory(id, false, true, false)).toList());
+
+        // when
+        var actual = reads.page(SLUG);
+
+        // then
+        assertThat(actual.otherMentors().faces()).extracting(MentorFace::userId).containsExactly("ana", "bob", "cat",
+                "dan", "eve");
+        assertThat(actual.otherMentors().total()).isEqualTo(7);
+    }
+
+    @Test
+    void nobodyListedIsAnEmptyRow() {
+
+        // when
+        var actual = reads.page(SLUG);
+
+        // then
+        assertThat(actual.otherMentors().faces()).isEmpty();
+        assertThat(actual.otherMentors().total()).isZero();
+        assertThat(actual.listing()).isNull();
+    }
+
+    @Test
+    void callerListingStates() {
+
+        assertThat(listingWith(new MentorHistory(ME, true, false, false), null)).isEqualTo("LISTED");
+        assertThat(listingWith(new MentorHistory(ME, false, false, true), mine(ListingSwitch.ON, null)))
+                .isEqualTo("LISTED");
+        assertThat(listingWith(new MentorHistory(ME, true, false, false), mine(ListingSwitch.OFF, null)))
+                .isEqualTo("OFF");
+        assertThat(listingWith(new MentorHistory(ME, false, false, true), mine(ListingSwitch.DEFAULT, NOW)))
+                .isEqualTo("ASKED");
+        assertThat(listingWith(new MentorHistory(ME, false, false, true), mine(ListingSwitch.DEFAULT, null))).isNull();
+        assertThat(listingWith(new MentorHistory(ME, false, false, true), null)).isNull();
+        assertThat(listingWith(new MentorHistory(ME, false, false, false), mine(ListingSwitch.DEFAULT, NOW))).isNull();
+        assertThat(listingWith(null, mine(ListingSwitch.ON, NOW))).isNull();
+    }
+
+    private String listingWith(MentorHistory history, MentorListing listing) {
+
+        when(communityAccess.memberIdsOf(ORG, COMMUNITY)).thenReturn(Set.of(ME));
+        when(pairings.mentorHistoriesIn(ORG, COMMUNITY)).thenReturn(history == null ? List.of() : List.of(history));
+        when(listings.in(ORG, COMMUNITY)).thenReturn(listing == null ? Map.of() : Map.of(ME, listing));
+        var page = reads.page(SLUG);
+        assertThat(page.otherMentors().faces()).isEmpty();
+        return page.listing();
+    }
+
+    private static MentorListing mine(ListingSwitch state, Instant askedAt) {
+
+        return new MentorListing(COMMUNITY, ME, state, askedAt, null);
     }
 }

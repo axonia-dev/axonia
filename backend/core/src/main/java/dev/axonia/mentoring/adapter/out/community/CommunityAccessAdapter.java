@@ -3,6 +3,7 @@ package dev.axonia.mentoring.adapter.out.community;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Component;
@@ -67,6 +68,12 @@ class CommunityAccessAdapter implements CommunityAccess {
     public boolean isMember(long communityId, String userId) {
 
         return membershipService.isMember(communityId, userId);
+    }
+
+    @Override
+    public Set<String> memberIdsOf(String org, long communityId) {
+
+        return Set.copyOf(membershipService.memberUserIds(org, communityId));
     }
 
     @Override

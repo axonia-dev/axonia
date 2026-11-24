@@ -2,6 +2,7 @@ package dev.axonia.mentoring.application.port.out;
 
 import java.util.Collection;
 import java.util.Map;
+import java.util.Set;
 
 import dev.axonia.mentoring.domain.MentoringPerson;
 
@@ -18,4 +19,7 @@ public interface PersonDirectory {
 
     /** Org-explicit: whether the person is still an active member of the organization. */
     boolean isPresent(String org, String userId);
+
+    /** Org-explicit: those of the given people still active in the organization, in one query. */
+    Set<String> presentOf(String org, Collection<String> userIds);
 }

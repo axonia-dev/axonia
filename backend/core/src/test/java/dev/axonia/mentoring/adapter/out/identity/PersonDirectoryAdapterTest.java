@@ -67,4 +67,15 @@ class PersonDirectoryAdapterTest {
         assertThat(sut.isPresent("org-1", "alice")).isTrue();
         assertThat(sut.isPresent("org-1", "ghost")).isFalse();
     }
+
+    @Test
+    void presentOfIsTheDirectorysAnswerForMany() {
+
+        // given
+        var sut = new PersonDirectoryAdapter(memberProfiles, userDirectory);
+        when(userDirectory.presentOf("org-1", List.of("alice", "ghost"))).thenReturn(Set.of("alice"));
+
+        // when / then
+        assertThat(sut.presentOf("org-1", List.of("alice", "ghost"))).containsExactly("alice");
+    }
 }

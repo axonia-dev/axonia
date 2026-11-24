@@ -3,6 +3,7 @@ package dev.axonia.mentoring.adapter.out.identity;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -40,5 +41,11 @@ class PersonDirectoryAdapter implements PersonDirectory {
     public boolean isPresent(String org, String userId) {
 
         return userDirectory.presentOf(org, List.of(userId)).contains(userId);
+    }
+
+    @Override
+    public Set<String> presentOf(String org, Collection<String> userIds) {
+
+        return userDirectory.presentOf(org, userIds);
     }
 }

@@ -10,10 +10,13 @@ import lombok.Builder;
  * {@code wantsToGrowIn} are what the caller brings through each door here: the areas they are open to questions on, and
  * those they want to learn. {@code guidedStart} is true while both of the caller's switches are off and they have never
  * had a proposal or a pairing in this guild. {@code pairings} are the guild's ongoing, shown pairings, whatever the
- * caller's own doors.
+ * caller's own doors. {@code otherMentors} are the first of the community's mentors, the caller excluded, with their
+ * total; {@code listing} is the caller's own: LISTED, OFF, ASKED while the one-time ask waits, or null when nothing
+ * would list them.
  */
 @Builder
 public record MentoringPage(boolean enabled, boolean member, boolean archived, Availability mine,
         List<DirectoryPerson> mentors, List<DirectoryPerson> mentees, List<String> canMentorOn,
-        List<String> wantsToGrowIn, boolean guidedStart, List<ShownPairing> pairings) {
+        List<String> wantsToGrowIn, boolean guidedStart, List<ShownPairing> pairings, OtherMentors otherMentors,
+        String listing) {
 }

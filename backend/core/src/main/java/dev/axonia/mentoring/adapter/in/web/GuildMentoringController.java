@@ -2,6 +2,9 @@ package dev.axonia.mentoring.adapter.in.web;
 
 import jakarta.validation.Valid;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -14,10 +17,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 import dev.axonia.mentoring.api.Availability;
 import dev.axonia.mentoring.api.AvailabilityRequest;
+import dev.axonia.mentoring.api.MentorFace;
 import dev.axonia.mentoring.api.MentoringPage;
 import dev.axonia.mentoring.api.ProposalView;
 import dev.axonia.mentoring.api.ProposeRequest;
 import dev.axonia.mentoring.application.AvailabilityService;
+import dev.axonia.mentoring.application.MentorRosterReads;
 import dev.axonia.mentoring.application.MentoringReads;
 import dev.axonia.mentoring.application.ProposalService;
 import lombok.RequiredArgsConstructor;
@@ -30,11 +35,18 @@ class GuildMentoringController {
     private final MentoringReads mentoringReads;
     private final AvailabilityService availabilityService;
     private final ProposalService proposalService;
+    private final MentorRosterReads mentorRosterReads;
 
     @GetMapping
     MentoringPage page(@PathVariable String slug) {
 
         return mentoringReads.page(slug);
+    }
+
+    @GetMapping("/mentors")
+    Page<MentorFace> mentors(@PathVariable String slug, @PageableDefault(size = 20) Pageable pageable) {
+
+        return mentorRosterReads.page(slug, pageable);
     }
 
     @PutMapping("/availability")
