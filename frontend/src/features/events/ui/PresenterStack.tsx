@@ -1,12 +1,12 @@
 import { type ComponentProps } from "react";
 
 import { currentUserId } from "@/auth/current-user";
+import { PersonHoverCard } from "@/components/patterns/PersonHoverCard";
 import { useRemovePresenter } from "@/features/events/api/use-slot-presenters";
 import { useWithdrawSlot } from "@/features/events/api/use-slot-sign-up";
 import type { Slot } from "@/features/events/domain/slot";
 import { AddPresenterPopover } from "@/features/events/ui/AddPresenterPopover";
 import { peopleAction, PeopleStack } from "@/features/events/ui/PeopleStack";
-import { PresenterHoverCard } from "@/features/events/ui/PresenterHoverCard";
 import type { User } from "@/features/identity/domain/user";
 import { useCreditTarget } from "@/features/recognition/ui/credit-targets";
 
@@ -27,13 +27,13 @@ function RegisteredPresenter({
   userId,
   ...card
 }: Readonly<
-  { slotId: number; userId: string } & ComponentProps<typeof PresenterHoverCard>
+  { slotId: number; userId: string } & ComponentProps<typeof PersonHoverCard>
 >) {
   const avatarRef = useCreditTarget(
     { contributionType: "SLOT_PRESENTED", contributionId: slotId },
     userId,
   );
-  return <PresenterHoverCard {...card} avatarRef={avatarRef} />;
+  return <PersonHoverCard {...card} avatarRef={avatarRef} />;
 }
 
 /**

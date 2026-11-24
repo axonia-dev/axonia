@@ -2,7 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { PresenterHoverCard } from "@/features/events/ui/PresenterHoverCard";
+import { PersonHoverCard } from "@/components/patterns/PersonHoverCard";
 import { userHue } from "@/lib/user-hue";
 
 let user: ReturnType<typeof userEvent.setup>;
@@ -11,7 +11,7 @@ beforeEach(() => {
   user = userEvent.setup({ delay: null });
 });
 
-describe("PresenterHoverCard", () => {
+describe("PersonHoverCard", () => {
   const base = {
     id: "u1",
     displayName: "Alex Bauer",
@@ -23,7 +23,7 @@ describe("PresenterHoverCard", () => {
 
   it("shows name and org rows when present, but never the email", () => {
     render(
-      <PresenterHoverCard
+      <PersonHoverCard
         name="Alex Bauer"
         user={{
           ...base,
@@ -42,7 +42,7 @@ describe("PresenterHoverCard", () => {
   });
 
   it("omits org rows when absent and shows initials when no avatarUrl", () => {
-    render(<PresenterHoverCard name="Alex Bauer" user={base} />);
+    render(<PersonHoverCard name="Alex Bauer" user={base} />);
     expect(screen.queryByText("Department")).not.toBeInTheDocument();
     // Initials render in both the trigger and the hover-card header.
     expect(screen.getAllByText("AB")).toHaveLength(2);
@@ -59,14 +59,14 @@ describe("PresenterHoverCard", () => {
    * read as two different people depending on which surface you looked at.
    */
   it("draws a one-word name exactly as the reference avatar does, on one letter", () => {
-    render(<PresenterHoverCard name="Gabriel" user={{ ...base }} />);
+    render(<PersonHoverCard name="Gabriel" user={{ ...base }} />);
 
     expect(screen.getAllByText("G")).toHaveLength(2);
     expect(screen.queryByText("GA")).not.toBeInTheDocument();
   });
 
   it("colours the monogram with the person's own hue, not a fixed accent", () => {
-    render(<PresenterHoverCard name="Gabriel" user={{ ...base }} />);
+    render(<PersonHoverCard name="Gabriel" user={{ ...base }} />);
 
     for (const monogram of screen.getAllByText("G")) {
       expect(monogram.style.getPropertyValue("--k")).toBe(userHue(base.id));
@@ -75,7 +75,7 @@ describe("PresenterHoverCard", () => {
 
   it("renders the photo when avatarUrl is set", () => {
     const { container } = render(
-      <PresenterHoverCard
+      <PersonHoverCard
         name="Alex Bauer"
         user={{ ...base, avatarUrl: "https://img/a.png" }}
       />,
@@ -86,13 +86,13 @@ describe("PresenterHoverCard", () => {
   });
 
   it("hangs the card from the avatar's left edge", () => {
-    render(<PresenterHoverCard name="Alex Bauer" />);
+    render(<PersonHoverCard name="Alex Bauer" />);
     expect(screen.getByRole("tooltip")).toHaveClass("left-0");
   });
 
   it("takes the card out of layout until the avatar is hovered or focused", () => {
     // when
-    render(<PresenterHoverCard name="Alex Bauer" />);
+    render(<PersonHoverCard name="Alex Bauer" />);
 
     // then
     expect(screen.getByRole("tooltip")).toHaveClass(
@@ -104,22 +104,20 @@ describe("PresenterHoverCard", () => {
 
   it("fires onPress when the avatar is clicked, for a caller that opts in", async () => {
     const onPress = vi.fn();
-    render(
-      <PresenterHoverCard name="Alex Bauer" user={base} onPress={onPress} />,
-    );
+    render(<PersonHoverCard name="Alex Bauer" user={base} onPress={onPress} />);
     await user.click(screen.getByRole("button", { name: "Alex Bauer" }));
     expect(onPress).toHaveBeenCalledOnce();
   });
 
   it("stays inert on click when no onPress is given", async () => {
-    render(<PresenterHoverCard name="Alex Bauer" user={base} />);
+    render(<PersonHoverCard name="Alex Bauer" user={base} />);
     await user.click(screen.getByRole("button", { name: "Alex Bauer" }));
     expect(screen.getByText("Alex Bauer")).toBeInTheDocument();
   });
 
   it("separates faces with the sunken surface a slot sits on by default", () => {
     // when
-    render(<PresenterHoverCard name="Gabriel" user={{ ...base }} />);
+    render(<PersonHoverCard name="Gabriel" user={{ ...base }} />);
 
     // then
     expect(screen.getAllByText("G")[0]).toHaveClass("border-surface-sunken");
@@ -128,7 +126,7 @@ describe("PresenterHoverCard", () => {
   it("separates faces with the raised surface of a card that sits on one", () => {
     // when
     render(
-      <PresenterHoverCard name="Gabriel" user={{ ...base }} surface="raised" />,
+      <PersonHoverCard name="Gabriel" user={{ ...base }} surface="raised" />,
     );
 
     // then
@@ -136,7 +134,7 @@ describe("PresenterHoverCard", () => {
   });
 
   it("withholds the identity card entirely while suppressed", () => {
-    render(<PresenterHoverCard name="Alex Bauer" user={base} suppressCard />);
+    render(<PersonHoverCard name="Alex Bauer" user={base} suppressCard />);
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
     // The avatar itself stays: only the card yields.
     expect(
@@ -146,7 +144,7 @@ describe("PresenterHoverCard", () => {
 
   it("marks a deactivated presenter beside their name, muted", () => {
     render(
-      <PresenterHoverCard
+      <PersonHoverCard
         name="Alex Bauer"
         user={{ ...base, memberStatus: "DEACTIVATED" }}
       />,
@@ -157,7 +155,7 @@ describe("PresenterHoverCard", () => {
 
   it("shows an erased presenter under the neutral label, muted and italic", () => {
     render(
-      <PresenterHoverCard
+      <PersonHoverCard
         name="Deleted member"
         user={{
           ...base,

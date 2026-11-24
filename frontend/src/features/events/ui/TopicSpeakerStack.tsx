@@ -1,4 +1,5 @@
 import { currentUserId } from "@/auth/current-user";
+import { PersonHoverCard } from "@/components/patterns/PersonHoverCard";
 import {
   useAddSelfAsSpeaker,
   useAddSpeaker,
@@ -13,7 +14,6 @@ import {
   peopleAction,
   PeopleStack,
 } from "@/features/events/ui/PeopleStack";
-import { PresenterHoverCard } from "@/features/events/ui/PresenterHoverCard";
 import type { User } from "@/features/identity/domain/user";
 
 interface Props {
@@ -68,7 +68,7 @@ const INERT = {
 };
 
 function renderFace(_userId: string, face: FaceProps) {
-  return <PresenterHoverCard {...face} surface="raised" />;
+  return <PersonHoverCard {...face} surface="raised" />;
 }
 
 function ManagedSpeakerStack({

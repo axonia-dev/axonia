@@ -1,6 +1,6 @@
 import { UserRound } from "lucide-react";
 
-import { PresenterHoverCard } from "@/features/events/ui/PresenterHoverCard";
+import { PersonHoverCard } from "@/components/patterns/PersonHoverCard";
 import type { User } from "@/features/identity/domain/user";
 
 interface Props {
@@ -22,5 +22,5 @@ export function AssigneeBadge({ name, user }: Readonly<Props>) {
       </span>
     );
   }
-  return <PresenterHoverCard name={name} user={user} />;
+  return <PersonHoverCard name={name} user={user} />;
 }

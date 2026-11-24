@@ -9,6 +9,8 @@ import { userHue } from "@/lib/user-hue";
 interface Props {
   name: string;
   user?: User | undefined;
+  /** A line under the name in the card, such as where the person stands in a relationship. */
+  detail?: string | undefined;
   /** When provided, the avatar becomes a button that opens a management popover
    * (PresenterStack owns the popover itself); omitted, the avatar stays inert
    * and only ever reveals the hover card. */
@@ -70,7 +72,11 @@ function OrgRows({ user }: Readonly<{ user: User }>) {
   );
 }
 
-function HoverCard({ name, user }: Readonly<Pick<Props, "name" | "user">>) {
+function HoverCard({
+  name,
+  user,
+  detail,
+}: Readonly<Pick<Props, "name" | "user" | "detail">>) {
   return (
     <span
       role="tooltip"
@@ -93,6 +99,9 @@ function HoverCard({ name, user }: Readonly<Pick<Props, "name" | "user">>) {
           status={user?.memberStatus ?? "PRESENT"}
           className="text-foreground text-sm font-bold"
         />
+        {detail && (
+          <span className="text-muted-foreground text-xs">{detail}</span>
+        )}
       </span>
       {user && <OrgRows user={user} />}
     </span>
@@ -101,9 +110,10 @@ function HoverCard({ name, user }: Readonly<Pick<Props, "name" | "user">>) {
 
 /** Avatar that reveals an identity + org card on hover/focus, and optionally
  * opens a management popover on click when `onPress` is given. */
-export function PresenterHoverCard({
+export function PersonHoverCard({
   name,
   user,
+  detail,
   onPress,
   suppressCard = false,
   avatarRef,
@@ -126,7 +136,7 @@ export function PresenterHoverCard({
           {...(avatarRef ? { ref: avatarRef } : {})}
         />
       </button>
-      {!suppressCard && <HoverCard name={name} user={user} />}
+      {!suppressCard && <HoverCard name={name} user={user} detail={detail} />}
     </span>
   );
 }
