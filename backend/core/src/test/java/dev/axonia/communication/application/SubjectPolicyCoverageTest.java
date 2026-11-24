@@ -52,7 +52,8 @@ class SubjectPolicyCoverageTest {
                 MessageType.MENTORING_PROPOSAL, MessageType.MENTORING_DECLINED, MessageType.MENTORING_ENDED,
                 MessageType.MENTORING_WORDS_ASKED, MessageType.MENTORING_WORDS_RECEIVED,
                 MessageType.MENTORING_MEETING_SET, MessageType.MENTORING_MEETING_REMINDER,
-                MessageType.MENTORING_PROPOSAL_REOPENED, contributed);
+                MessageType.MENTORING_PROPOSAL_REOPENED, MessageType.MENTORING_LISTING_ASK,
+                MessageType.MENTORING_LISTED, contributed);
         assertThat(policies.declares(contributed)).isTrue();
         assertThat(policies.declares(MessageType.of("not_sent_here"))).isFalse();
         assertThat(policies.policyFor(MessageType.of("not_sent_here"))).isEmpty();

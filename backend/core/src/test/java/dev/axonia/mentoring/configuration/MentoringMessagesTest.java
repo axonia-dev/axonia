@@ -32,5 +32,9 @@ class MentoringMessagesTest {
                 .isEqualTo(new InAppEntryShape(MessageType.MENTORING_MEETING_REMINDER, "line", "mentoringUrl", true));
         assertThat(messages.mentoringProposalReopenedEntry())
                 .isEqualTo(new InAppEntryShape(MessageType.MENTORING_PROPOSAL_REOPENED, "line", "mentoringUrl", true));
+        assertThat(messages.mentoringListingAskEntry())
+                .isEqualTo(new InAppEntryShape(MessageType.MENTORING_LISTING_ASK, "line", "mentoringUrl", true));
+        assertThat(messages.mentoringListedEntry())
+                .isEqualTo(new InAppEntryShape(MessageType.MENTORING_LISTED, "line", "mentoringUrl", true));
     }
 }

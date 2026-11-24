@@ -38,7 +38,8 @@ public class MentoringMemberDataEraser implements MemberDataEraser {
     private static final List<MessageType> NOTICES = List.of(MessageType.MENTORING_PROPOSAL,
             MessageType.MENTORING_DECLINED, MessageType.MENTORING_ENDED, MessageType.MENTORING_WORDS_ASKED,
             MessageType.MENTORING_WORDS_RECEIVED, MessageType.MENTORING_MEETING_SET,
-            MessageType.MENTORING_MEETING_REMINDER, MessageType.MENTORING_PROPOSAL_REOPENED);
+            MessageType.MENTORING_MEETING_REMINDER, MessageType.MENTORING_PROPOSAL_REOPENED,
+            MessageType.MENTORING_LISTING_ASK, MessageType.MENTORING_LISTED);
 
     private final NamedParameterJdbcTemplate jdbc;
     private final ExpiredSubjects expiredSubjects;

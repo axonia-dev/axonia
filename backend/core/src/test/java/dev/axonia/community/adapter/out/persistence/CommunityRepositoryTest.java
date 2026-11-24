@@ -54,6 +54,25 @@ class CommunityRepositoryTest extends CoreJdbcTestSupport {
     }
 
     @Test
+    void findMentoringCommunityIds_keepsActiveCommunitiesTakingMentoringInTheOrganization() {
+
+        // given
+        var taking = communityRepository
+                .save(CommunityEntityMother.any().kindId(kindId).slug("taking").mentoringEnabled(true).build());
+        communityRepository.save(CommunityEntityMother.any().kindId(kindId).slug("off").build());
+        communityRepository.save(CommunityEntityMother.any().kindId(kindId).slug("archived").mentoringEnabled(true)
+                .status(CommunityStatus.ARCHIVED).build());
+        communityRepository.save(CommunityEntityMother.any().kindId(kindId).organizationId("other").slug("elsewhere")
+                .mentoringEnabled(true).build());
+
+        // when
+        var actual = communityRepository.findMentoringCommunityIds("default");
+
+        // then
+        assertThat(actual).containsExactly(taking.getId());
+    }
+
+    @Test
     void findByOrganizationIdAndSlug() {
 
         // given

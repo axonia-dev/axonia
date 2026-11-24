@@ -53,6 +53,15 @@ public interface MentoringNotices {
     /** Reminds {@code recipientId} of a planned meeting, the day before it. */
     void meetingReminder(MeetingReminder reminder);
 
+    /**
+     * Mailed and in the panel, to the mentor: whether to be shown among the community's mentors, asked once when only
+     * an ended pairing that never showed would list them.
+     */
+    void listingAsk(String organizationId, long communityId, MentoringGuild guild, String mentorId);
+
+    /** In the panel, to the mentor: listed among the community's mentors by default, and where to switch it off. */
+    void listed(long communityId, MentoringGuild guild, String mentorId);
+
     /** {@code firstTopic} is null for a meeting naming no topic. */
     @Builder
     record MeetingNotice(Pairing pairing, PlannedMeeting meeting, MentoringGuild guild, String byName,

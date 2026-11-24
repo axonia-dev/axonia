@@ -21,7 +21,7 @@ class MessageTypeTest {
                 "session_wrap_up", "session_awaiting_close", "organization_roundup", "open_to_questions",
                 "mentoring_proposal", "mentoring_declined", "mentoring_ended", "mentoring_words_asked",
                 "mentoring_words_received", "mentoring_meeting_set", "mentoring_meeting_reminder",
-                "mentoring_proposal_reopened");
+                "mentoring_proposal_reopened", "mentoring_listing_ask", "mentoring_listed");
     }
 
     @Test

@@ -13,10 +13,13 @@ import dev.axonia.communication.api.MessageType;
 import dev.axonia.communication.api.spi.MessageSubjectPolicy;
 import dev.axonia.mentoring.application.port.out.CommunityAccess;
 import dev.axonia.mentoring.application.port.out.MeetingRepository;
+import dev.axonia.mentoring.application.port.out.MentorListingRepository;
 import dev.axonia.mentoring.application.port.out.PairingRepository;
 import dev.axonia.mentoring.application.port.out.PersonDirectory;
 import dev.axonia.mentoring.application.port.out.ProposalRepository;
 import dev.axonia.mentoring.domain.MeetingPlan;
+import dev.axonia.mentoring.domain.MentorListing;
+import dev.axonia.mentoring.domain.MentorRoster;
 import dev.axonia.mentoring.domain.MentoringSubject;
 import dev.axonia.mentoring.domain.MentoringWindows;
 import dev.axonia.mentoring.domain.PlannedMeeting;
@@ -33,7 +36,8 @@ import lombok.RequiredArgsConstructor;
  * reminder from before meetings were planned one by one names the pairing, and is owed nothing. A pairing notice is
  * owed while the pairing exists, to anyone still in the organization: a pairing belongs to its two people, not to the
  * guild. Asking for words is retired, so an ask still waiting in the outbox is owed nothing; panel entries still
- * render.
+ * render. A listing ask is owed while the mentor still has it to answer, and a told notice while the mentor is still
+ * listed; both only to a mentor still in the guild.
  */
 @Component("mentoringSubjectPolicy")
 @RequiredArgsConstructor
@@ -42,6 +46,7 @@ class MentoringSubjectPolicy implements MessageSubjectPolicy {
     private final ProposalRepository proposals;
     private final PairingRepository pairings;
     private final MeetingRepository meetings;
+    private final MentorListingRepository listings;
     private final CommunityAccess communityAccess;
     private final PersonDirectory personDirectory;
     private final Clock clock;
@@ -52,7 +57,8 @@ class MentoringSubjectPolicy implements MessageSubjectPolicy {
         return Set.of(MessageType.MENTORING_PROPOSAL, MessageType.MENTORING_DECLINED, MessageType.MENTORING_ENDED,
                 MessageType.MENTORING_WORDS_ASKED, MessageType.MENTORING_WORDS_RECEIVED,
                 MessageType.MENTORING_MEETING_SET, MessageType.MENTORING_MEETING_REMINDER,
-                MessageType.MENTORING_PROPOSAL_REOPENED);
+                MessageType.MENTORING_PROPOSAL_REOPENED, MessageType.MENTORING_LISTING_ASK,
+                MessageType.MENTORING_LISTED);
     }
 
     @Override
@@ -70,6 +76,9 @@ class MentoringSubjectPolicy implements MessageSubjectPolicy {
         if (subject.kind() == MentoringSubject.Kind.PROPOSAL) {
             return proposals.find(organizationId, subject.id())
                     .filter(proposal -> MentoringWindows.isOpen(proposal, clock.instant())).isPresent();
+        }
+        if (subject.kind() == MentoringSubject.Kind.LISTING) {
+            return isOwedOfTheListing(organizationId, type, subject);
         }
         if (MessageType.MENTORING_MEETING_SET.equals(type)) {
             var today = LocalDate.ofInstant(clock.instant(), ZoneOffset.UTC);
@@ -90,6 +99,21 @@ class MentoringSubjectPolicy implements MessageSubjectPolicy {
                 || String.valueOf(proposal.answeredAt().toEpochMilli()).equals(subject.occasion()));
     }
 
+    /** The ask while the mentor still has it to answer, the told notice while the mentor is still listed. */
+    private boolean isOwedOfTheListing(String organizationId, MessageType type, MentoringSubject subject) {
+
+        var mentorId = subject.aboutUserId();
+        var history = pairings.mentorHistoriesIn(organizationId, subject.id()).stream()
+                .filter(h -> h.mentorId().equals(mentorId)).findFirst();
+        if (history.isEmpty()) {
+            return false;
+        }
+        var state = MentorListing.switchOf(listings.in(organizationId, subject.id()).get(mentorId));
+        return MessageType.MENTORING_LISTING_ASK.equals(type)
+                ? MentorRoster.needsAsk(history.get(), state)
+                : MentorRoster.status(history.get(), state).isPresent();
+    }
+
     /** A meeting notice is owed while its meeting stands as the subject names it and its pairing is ongoing. */
     private boolean isOwedOfAnOngoingPairing(String organizationId, MentoringSubject subject,
             Predicate<PlannedMeeting> standsAsNamed) {
@@ -104,6 +128,10 @@ class MentoringSubjectPolicy implements MessageSubjectPolicy {
     public boolean isStillAMember(String organizationId, String subjectRef, String userId) {
 
         var subject = MentoringSubject.parse(subjectRef);
+        if (subject.kind() == MentoringSubject.Kind.LISTING) {
+            return communityAccess.isMember(organizationId, subject.id(), userId)
+                    && personDirectory.isPresent(organizationId, userId);
+        }
         if (subject.kind() == MentoringSubject.Kind.PROPOSAL) {
             return proposals.find(organizationId, subject.id())
                     .map(proposal -> communityAccess.isMember(organizationId, proposal.communityId(), userId)

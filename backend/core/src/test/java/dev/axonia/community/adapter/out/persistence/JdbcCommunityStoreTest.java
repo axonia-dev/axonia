@@ -179,6 +179,16 @@ class JdbcCommunityStoreTest {
     }
 
     @Test
+    void mentoringCommunityIds_asks_the_repository() {
+
+        // given
+        when(communityRepository.findMentoringCommunityIds("default")).thenReturn(List.of(3L));
+
+        // then
+        assertThat(sut.mentoringCommunityIds("default")).containsExactly(3L);
+    }
+
+    @Test
     void reassignKind_delegates_to_the_repository() {
 
         // when

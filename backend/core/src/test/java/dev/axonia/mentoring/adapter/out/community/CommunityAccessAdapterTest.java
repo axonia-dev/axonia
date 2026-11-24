@@ -77,6 +77,20 @@ class CommunityAccessAdapterTest {
     }
 
     @Test
+    void theMentoringCommunitiesAreTheMembershipServicesAnswer() {
+
+        // given
+        var sut = new CommunityAccessAdapter(communityService, membershipService, mentoringMemberships);
+        when(mentoringMemberships.mentoringCommunityIds("org-1")).thenReturn(List.of(7L, 9L));
+
+        // when
+        var actual = sut.mentoringCommunityIdsIn("org-1");
+
+        // then
+        assertThat(actual).containsExactly(7L, 9L);
+    }
+
+    @Test
     void aMentoringGuildIsTheMembershipServicesOneQueryAnswer() {
 
         // given

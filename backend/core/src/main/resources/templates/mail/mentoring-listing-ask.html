@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title th:text="${sessionTitle} ?: 'Show among the mentors?'">Show among the mentors?</title>
+</head>
+<body style="margin:0; padding:0;">
+<div style="display:none; max-height:0; overflow:hidden; mso-hide:all;">
+<div th:replace="~{_shell.html :: preheader(fallback='Only the mentor shows, never a mentee.')}">Preheader</div>
+</div>
+<div th:replace="~{_shell.html :: page(body=~{::content}, when='', reason='Mentoring through')}">
+<!-- The mentee and the pairing are never in this mail: only the mentor would be listed. -->
+<th:block th:fragment="content" th:with="only=${line} ?: 'Only the mentor shows, never a mentee'">
+<tr th:replace="~{_shell.html :: bodyText(text=${only} + '.')}">Body</tr>
+<tr th:replace="~{_shell.html :: bodyText(text='Show or Keep private, in the Taking mentees door on the Mentoring page.')}">Answer</tr>
+<th:block th:if="not ${#strings.isEmpty(mentoringUrl)}">
+<tr th:replace="~{_shell.html :: primaryButton(url=${mentoringUrl}, label='Open Mentoring')}">Button</tr>
+</th:block>
+</th:block>
+</div>
+<div style="display:none; max-height:0; overflow:hidden; mso-hide:all;">
+<th:block th:fragment="subject" th:text="${sessionTitle} ?: 'Show among the mentors?'">Subject</th:block>
+</div>
+</body>
+</html>

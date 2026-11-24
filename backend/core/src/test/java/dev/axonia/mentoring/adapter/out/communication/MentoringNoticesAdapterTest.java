@@ -348,4 +348,42 @@ class MentoringNoticesAdapterTest {
                 .isInstanceOf(IllegalArgumentException.class);
         verifyNoInteractions(communication);
     }
+
+    @Test
+    void theAskIsMailedToTheMentorAndLinksToTheMentoringPage() {
+
+        // when
+        adapter.listingAsk("acme", 7L, new MentoringGuild("platform", "Platform"), "mia");
+
+        // then
+        var actual = sent();
+        assertThat(actual.type()).isEqualTo(MessageType.MENTORING_LISTING_ASK);
+        assertThat(actual.template()).isEqualTo("mentoring-listing-ask");
+        assertThat(actual.inAppOnly()).isFalse();
+        assertThat(actual.recipientUserIds()).containsExactly("mia");
+        assertThat(actual.aboutUserId()).isEqualTo("mia");
+        assertThat(actual.subjectRef()).isEqualTo("listing:7:mia");
+        assertThat(actual.facts()).containsOnlyKeys("sender", "sessionTitle", "line", "mentoringUrl")
+                .containsEntry("sessionTitle", "Show among the mentors of Platform?")
+                .containsEntry("line", "Only the mentor shows, never a mentee")
+                .containsEntry("mentoringUrl", "https://axonia.example/communities/platform/mentoring?org=acme");
+    }
+
+    @Test
+    void theListedMentorIsToldInThePanelOnly() {
+
+        // when
+        adapter.listed(7L, new MentoringGuild("platform", "Platform"), "mia");
+
+        // then
+        var actual = sent();
+        assertThat(actual.type()).isEqualTo(MessageType.MENTORING_LISTED);
+        assertThat(actual.template()).isEqualTo(MentoringNoticesAdapter.IN_APP_TEMPLATE);
+        assertThat(actual.inAppOnly()).isTrue();
+        assertThat(actual.recipientUserIds()).containsExactly("mia");
+        assertThat(actual.subjectRef()).isEqualTo("listing:7:mia");
+        assertThat(actual.facts()).containsEntry("sessionTitle", "Listed among the mentors of Platform")
+                .containsEntry("line", "Switch off in the Taking mentees door")
+                .containsEntry("mentoringUrl", "https://axonia.example/communities/platform/mentoring");
+    }
 }

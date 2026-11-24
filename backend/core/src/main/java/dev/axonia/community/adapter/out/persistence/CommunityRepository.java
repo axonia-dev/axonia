@@ -37,6 +37,13 @@ public interface CommunityRepository
      */
     List<CommunityEntity> findByOrganizationIdAndStatusOrderByNameAsc(String organizationId, CommunityStatus status);
 
+    @Query("""
+            SELECT id FROM communities
+             WHERE organization_id = :organizationId AND status = 'ACTIVE' AND mentoring_enabled
+             ORDER BY id
+            """)
+    List<Long> findMentoringCommunityIds(@Param("organizationId") String organizationId);
+
     long countByOrganizationIdAndKindId(String organizationId, Long kindId);
 
     @Modifying

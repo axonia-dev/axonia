@@ -17,6 +17,9 @@ public interface CommunityAccess {
     /** Org-explicit, for callers that run off any request. */
     MentoringGuild guildOf(String org, long communityId);
 
+    /** Every community of the organization that is not archived and takes mentoring, by id; org-explicit. */
+    List<Long> mentoringCommunityIdsIn(String org);
+
     /** Whether the person belongs to a community that is taking mentoring proposals, in one query. */
     boolean inAMentoringGuild(String org, String userId);
 

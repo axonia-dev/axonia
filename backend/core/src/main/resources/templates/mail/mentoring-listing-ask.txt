@@ -1,0 +1,11 @@
+[(${sessionTitle} ?: 'Show among the mentors?')]
+
+[(${line} ?: 'Only the mentor shows, never a mentee')].
+
+Show or Keep private, in the Taking mentees door on the Mentoring page.[# th:if="not ${#strings.isEmpty(mentoringUrl)}"]
+
+Open Mentoring: [(${mentoringUrl})][/][# th:if="${sender} != null"]
+
+Mentoring through [(${sender.name})].[/][# th:if="not ${#strings.isEmpty(unsubscribePageUrl)}"]
+
+Unsubscribe: [(${unsubscribePageUrl})][/]

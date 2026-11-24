@@ -1,9 +1,12 @@
 package dev.axonia.community.application;
 
+import java.util.List;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import dev.axonia.community.api.MentoringMemberships;
+import dev.axonia.community.application.port.out.CommunityStore;
 import dev.axonia.community.application.port.out.MembershipLedger;
 import lombok.RequiredArgsConstructor;
 
@@ -12,11 +15,19 @@ import lombok.RequiredArgsConstructor;
 public class MentoringMembershipService implements MentoringMemberships {
 
     private final MembershipLedger membershipLedger;
+    private final CommunityStore communityStore;
 
     @Override
     @Transactional(readOnly = true)
     public boolean inAMentoringCommunity(String organizationId, String userId) {
 
         return membershipLedger.inAMentoringCommunity(organizationId, userId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Long> mentoringCommunityIds(String organizationId) {
+
+        return communityStore.mentoringCommunityIds(organizationId);
     }
 }

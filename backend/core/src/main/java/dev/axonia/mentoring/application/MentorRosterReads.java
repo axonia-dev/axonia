@@ -52,6 +52,7 @@ public class MentorRosterReads {
     private final MentorListingRepository listings;
     private final PersonDirectory personDirectory;
 
+    /** Derives the whole community roster and slices it in memory: a community's mentors fit in one read. */
     @Transactional(readOnly = true)
     public Page<MentorFace> page(String slug, Pageable pageable) {
 
@@ -81,7 +82,7 @@ public class MentorRosterReads {
         var members = communityAccess.memberIdsOf(org, communityId);
         var statuses = new HashMap<String, Status>();
         histories.stream().filter(h -> !h.mentorId().equals(me) && members.contains(h.mentorId()))
-                .forEach(h -> MentorRoster.status(h, switchOf(switches.get(h.mentorId())))
+                .forEach(h -> MentorRoster.status(h, MentorListing.switchOf(switches.get(h.mentorId())))
                         .ifPresent(status -> statuses.put(h.mentorId(), status)));
         var mine = histories.stream().filter(h -> h.mentorId().equals(me)).findFirst()
                 .map(h -> callerListing(h, switches.get(me))).orElse(null);
@@ -102,7 +103,7 @@ public class MentorRosterReads {
 
     private static String callerListing(MentorHistory history, MentorListing listing) {
 
-        var state = switchOf(listing);
+        var state = MentorListing.switchOf(listing);
         if (MentorRoster.status(history, state).isPresent()) {
             return LISTED;
         }
@@ -111,11 +112,6 @@ public class MentorRosterReads {
         }
         var asked = listing != null && listing.askedAt() != null;
         return MentorRoster.needsAsk(history, state) && asked ? ASKED : null;
-    }
-
-    private static ListingSwitch switchOf(MentorListing listing) {
-
-        return listing == null ? ListingSwitch.DEFAULT : listing.state();
     }
 
     /** The listed mentors, the caller excluded, and the caller's own listing. */

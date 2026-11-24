@@ -60,6 +60,12 @@ public record MessageType(@JsonValue String code) {
     /** In-app only: {@code mentoring} tells a member the person who declined their proposal reopened it. */
     public static final MessageType MENTORING_PROPOSAL_REOPENED = new MessageType("mentoring_proposal_reopened");
 
+    /** Mailed: {@code mentoring} asks once whether a mentor an ended, never shown pairing would list is shown. */
+    public static final MessageType MENTORING_LISTING_ASK = new MessageType("mentoring_listing_ask");
+
+    /** In-app only: {@code mentoring} tells a mentor once that they are listed among the community's mentors. */
+    public static final MessageType MENTORING_LISTED = new MessageType("mentoring_listed");
+
     private static final Map<String, MessageType> OPEN = open().stream()
             .collect(Collectors.toUnmodifiableMap(MessageType::code, Function.identity()));
 
@@ -76,7 +82,7 @@ public record MessageType(@JsonValue String code) {
         return List.of(SESSION_UPCOMING, SESSION_WRAP_UP, SESSION_AWAITING_CLOSE, ORGANIZATION_ROUNDUP,
                 OPEN_TO_QUESTIONS, MENTORING_PROPOSAL, MENTORING_DECLINED, MENTORING_ENDED, MENTORING_WORDS_ASKED,
                 MENTORING_WORDS_RECEIVED, MENTORING_MEETING_SET, MENTORING_MEETING_REMINDER,
-                MENTORING_PROPOSAL_REOPENED);
+                MENTORING_PROPOSAL_REOPENED, MENTORING_LISTING_ASK, MENTORING_LISTED);
     }
 
     /** The type a code names: an open code's constant itself, so an open type read back keeps its identity. */

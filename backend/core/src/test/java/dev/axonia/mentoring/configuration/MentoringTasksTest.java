@@ -7,6 +7,7 @@ import org.springframework.boot.test.context.assertj.AssertableApplicationContex
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 import dev.axonia.mentoring.adapter.in.schedule.MeetingReminderSweep;
+import dev.axonia.mentoring.adapter.in.schedule.MentorListingSweep;
 import dev.axonia.shared.api.schedule.ClusteredTask;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -17,6 +18,7 @@ class MentoringTasksTest {
 
     private final ApplicationContextRunner runner = new ApplicationContextRunner()
             .withBean(MeetingReminderSweep.class, () -> mock(MeetingReminderSweep.class))
+            .withBean(MentorListingSweep.class, () -> mock(MentorListingSweep.class))
             .withUserConfiguration(MentoringTasks.class);
 
     @Test
@@ -46,6 +48,39 @@ class MentoringTasksTest {
             assertThat(task.name()).isEqualTo("mentoring-meeting-reminder");
             verify(context.getBean(MeetingReminderSweep.class)).tick();
         });
+    }
+
+    @Test
+    void theListingSweepDefaultsToHourlyAfterOneMinute() {
+
+        runner.run(context -> assertThat(listingSchedule(context))
+                .isEqualTo(new ClusteredTask.Every(Duration.ofHours(1), Duration.ofMinutes(1))));
+    }
+
+    @Test
+    void theListingSweepReadsItsOwnKeys() {
+
+        runner.withPropertyValues("axonia.mentoring.listing.interval=30m", "axonia.mentoring.listing.initial-delay=5m")
+                .run(context -> assertThat(listingSchedule(context))
+                        .isEqualTo(new ClusteredTask.Every(Duration.ofMinutes(30), Duration.ofMinutes(5))));
+    }
+
+    @Test
+    void theListingTaskIsNamedAfterItsSweepAndRunsItsTick() {
+
+        runner.run(context -> {
+            var task = context.getBean("mentoringListingTask", ClusteredTask.class);
+
+            task.run().run();
+
+            assertThat(task.name()).isEqualTo("mentoring-listing");
+            verify(context.getBean(MentorListingSweep.class)).tick();
+        });
+    }
+
+    private static ClusteredTask.Schedule listingSchedule(AssertableApplicationContext context) {
+
+        return context.getBean("mentoringListingTask", ClusteredTask.class).schedule();
     }
 
     private static ClusteredTask.Schedule schedule(AssertableApplicationContext context) {

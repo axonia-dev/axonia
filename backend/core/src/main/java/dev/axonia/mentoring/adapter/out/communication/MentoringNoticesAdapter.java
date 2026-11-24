@@ -32,7 +32,8 @@ import lombok.RequiredArgsConstructor;
  * page. No notice carries a proposal's message or a mentee's words: only the two people read those, where they wrote
  * them. A decline, a reopening and a meeting's planning carry their moment in the subject, so a proposal declined,
  * reopened and declined again is told each time, and a decline or a planning still waiting is withdrawn alone; a
- * planning's subject names whether it was a plan or a move as well.
+ * planning's subject names whether it was a plan or a move as well. A mentor's listing ask and told notice open the
+ * community's Mentoring page, where the Taking mentees door holds the switch.
  */
 @Component("mentoringNoticesAdapter")
 @RequiredArgsConstructor
@@ -41,6 +42,10 @@ public class MentoringNoticesAdapter implements MentoringNotices {
     static final String PROPOSAL_TEMPLATE = "mentoring-proposal";
 
     static final String REMINDER_TEMPLATE = "mentoring-meeting-reminder";
+
+    static final String LISTING_ASK_TEMPLATE = "mentoring-listing-ask";
+
+    private static final String ONLY_THE_MENTOR = "Only the mentor shows, never a mentee";
 
     static final String PARTNER_FACT = "partner";
 
@@ -202,6 +207,24 @@ public class MentoringNoticesAdapter implements MentoringNotices {
         return meeting.on() + "." + meeting.plannedAt().toEpochMilli();
     }
 
+    @Override
+    public void listingAsk(String organizationId, long communityId, MentoringGuild guild, String mentorId) {
+
+        var facts = facts(guild, "Show among the mentors of " + guild.name() + "?", ONLY_THE_MENTOR,
+                OrganizationLinks.withOrganization(mentoringPageUrl(guild), organizationId));
+        communication.enqueue(OutboundMessage.builder().type(MessageType.MENTORING_LISTING_ASK)
+                .subjectRef(MentoringSubject.listing(communityId, mentorId).ref()).recipientUserIds(List.of(mentorId))
+                .template(LISTING_ASK_TEMPLATE).aboutUserId(mentorId).facts(Map.copyOf(facts)).build());
+    }
+
+    @Override
+    public void listed(long communityId, MentoringGuild guild, String mentorId) {
+
+        inApp(MessageType.MENTORING_LISTED, MentoringSubject.listing(communityId, mentorId), mentorId,
+                facts(guild, "Listed among the mentors of " + guild.name(), "Switch off in the Taking mentees door",
+                        mentoringPageUrl(guild)));
+    }
+
     private void inApp(MessageType type, MentoringSubject subject, String recipientId, Map<String, Object> facts) {
 
         if (recipientId == null) {
@@ -215,6 +238,11 @@ public class MentoringNoticesAdapter implements MentoringNotices {
     private String myMentoringUrl(MentoringGuild guild) {
 
         return publicUrls.publicBaseUrl() + "/communities/" + guild.slug() + "/me/mentoring";
+    }
+
+    private String mentoringPageUrl(MentoringGuild guild) {
+
+        return publicUrls.publicBaseUrl() + "/communities/" + guild.slug() + "/mentoring";
     }
 
     private String journalUrl(MentoringGuild guild, Pairing pairing) {

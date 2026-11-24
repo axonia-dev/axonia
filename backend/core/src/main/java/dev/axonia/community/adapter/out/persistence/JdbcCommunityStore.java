@@ -109,6 +109,13 @@ public class JdbcCommunityStore implements CommunityStore {
 
     @Override
     @Transactional(readOnly = true)
+    public List<Long> mentoringCommunityIds(String organizationId) {
+
+        return communityRepository.findMentoringCommunityIds(organizationId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public long countOfKind(String organizationId, Long kindId) {
 
         return communityRepository.countByOrganizationIdAndKindId(organizationId, kindId);

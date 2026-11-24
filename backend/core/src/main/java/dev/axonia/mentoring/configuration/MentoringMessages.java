@@ -70,4 +70,18 @@ public class MentoringMessages {
         return new InAppEntryShape(MessageType.MENTORING_WORDS_RECEIVED, MentoringNoticesAdapter.LINE_FACT,
                 MentoringNoticesAdapter.LINK_FACT, true);
     }
+
+    @Bean
+    InAppEntryShape mentoringListingAskEntry() {
+
+        return new InAppEntryShape(MessageType.MENTORING_LISTING_ASK, MentoringNoticesAdapter.LINE_FACT,
+                MentoringNoticesAdapter.LINK_FACT, true);
+    }
+
+    @Bean
+    InAppEntryShape mentoringListedEntry() {
+
+        return new InAppEntryShape(MessageType.MENTORING_LISTED, MentoringNoticesAdapter.LINE_FACT,
+                MentoringNoticesAdapter.LINK_FACT, true);
+    }
 }

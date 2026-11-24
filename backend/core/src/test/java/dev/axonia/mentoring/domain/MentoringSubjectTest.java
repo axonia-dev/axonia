@@ -22,6 +22,20 @@ class MentoringSubjectTest {
     }
 
     @Test
+    void aListingRefRoundTrips() {
+
+        // given
+        var subject = MentoringSubject.listing(7L, "mia");
+
+        // when
+        var actual = MentoringSubject.parse(subject.ref());
+
+        // then
+        assertThat(subject.ref()).isEqualTo("listing:7:mia");
+        assertThat(actual).isEqualTo(new MentoringSubject(MentoringSubject.Kind.LISTING, 7L, null, "mia"));
+    }
+
+    @Test
     void aPairingRefRoundTrips() {
 
         // given

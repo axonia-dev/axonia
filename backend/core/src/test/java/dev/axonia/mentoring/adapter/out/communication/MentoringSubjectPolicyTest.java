@@ -6,6 +6,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -16,9 +17,13 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import dev.axonia.communication.api.MessageType;
 import dev.axonia.mentoring.application.port.out.CommunityAccess;
 import dev.axonia.mentoring.application.port.out.MeetingRepository;
+import dev.axonia.mentoring.application.port.out.MentorListingRepository;
 import dev.axonia.mentoring.application.port.out.PairingRepository;
 import dev.axonia.mentoring.application.port.out.PersonDirectory;
 import dev.axonia.mentoring.application.port.out.ProposalRepository;
+import dev.axonia.mentoring.domain.ListingSwitch;
+import dev.axonia.mentoring.domain.MentorHistory;
+import dev.axonia.mentoring.domain.MentorListing;
 import dev.axonia.mentoring.domain.MentoringSubject;
 import dev.axonia.mentoring.domain.Pairing;
 import dev.axonia.mentoring.domain.PlannedMeeting;
@@ -46,13 +51,15 @@ class MentoringSubjectPolicyTest {
     private CommunityAccess communityAccess;
     @Mock
     private PersonDirectory personDirectory;
+    @Mock
+    private MentorListingRepository listings;
 
     private MentoringSubjectPolicy policy;
 
     @BeforeEach
     void setUp() {
 
-        policy = new MentoringSubjectPolicy(proposals, pairings, meetings, communityAccess, personDirectory,
+        policy = new MentoringSubjectPolicy(proposals, pairings, meetings, listings, communityAccess, personDirectory,
                 Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
@@ -75,7 +82,8 @@ class MentoringSubjectPolicyTest {
                 MessageType.of("mentoring_declined"), MessageType.of("mentoring_ended"),
                 MessageType.of("mentoring_words_asked"), MessageType.of("mentoring_words_received"),
                 MessageType.of("mentoring_meeting_set"), MessageType.of("mentoring_meeting_reminder"),
-                MessageType.of("mentoring_proposal_reopened"));
+                MessageType.of("mentoring_proposal_reopened"), MessageType.of("mentoring_listing_ask"),
+                MessageType.of("mentoring_listed"));
     }
 
     private static Pairing.PairingBuilder ongoing() {
@@ -333,5 +341,72 @@ class MentoringSubjectPolicyTest {
         // when / then
         assertThat(policy.isStillAMember(ORG, ref, "noah")).isTrue();
         assertThat(policy.isStillAMember(ORG, ref, "gone")).isFalse();
+    }
+
+    private void mentorOf(MentorHistory history, ListingSwitch state) {
+
+        when(pairings.mentorHistoriesIn(ORG, 7L)).thenReturn(List.of(history));
+        when(listings.in(ORG, 7L)).thenReturn(state == ListingSwitch.DEFAULT
+                ? Map.of()
+                : Map.of(history.mentorId(), new MentorListing(7L, history.mentorId(), state, NOW, null)));
+    }
+
+    @Test
+    void theAskIsWithdrawnOnceTheSwitchIsSet() {
+
+        // given
+        var ref = MentoringSubject.listing(7L, "mia").ref();
+        var unshownAlone = new MentorHistory("mia", false, false, true);
+
+        // when / then
+        mentorOf(unshownAlone, ListingSwitch.DEFAULT);
+        assertThat(policy.isEnabledFor(ORG, MessageType.MENTORING_LISTING_ASK, ref)).isTrue();
+        mentorOf(unshownAlone, ListingSwitch.ON);
+        assertThat(policy.isEnabledFor(ORG, MessageType.MENTORING_LISTING_ASK, ref)).isFalse();
+        mentorOf(unshownAlone, ListingSwitch.OFF);
+        assertThat(policy.isEnabledFor(ORG, MessageType.MENTORING_LISTING_ASK, ref)).isFalse();
+    }
+
+    @Test
+    void theToldNoticeIsWithdrawnOnceOff() {
+
+        // given
+        var ref = MentoringSubject.listing(7L, "mia").ref();
+        var shown = new MentorHistory("mia", false, true, false);
+
+        // when / then
+        mentorOf(shown, ListingSwitch.DEFAULT);
+        assertThat(policy.isEnabledFor(ORG, MessageType.MENTORING_LISTED, ref)).isTrue();
+        mentorOf(shown, ListingSwitch.OFF);
+        assertThat(policy.isEnabledFor(ORG, MessageType.MENTORING_LISTED, ref)).isFalse();
+    }
+
+    @Test
+    void aListingNoticeOfAMentorWithNoHistoryLeftIsOwedNothing() {
+
+        // given
+        when(pairings.mentorHistoriesIn(ORG, 7L)).thenReturn(List.of(new MentorHistory("noah", true, false, false)));
+        var ref = MentoringSubject.listing(7L, "mia").ref();
+
+        // when / then
+        assertThat(policy.isEnabledFor(ORG, MessageType.MENTORING_LISTING_ASK, ref)).isFalse();
+        assertThat(policy.isEnabledFor(ORG, MessageType.MENTORING_LISTED, ref)).isFalse();
+    }
+
+    @Test
+    void aListingNoticesMentorMustStillBeInTheGuild() {
+
+        // given
+        when(communityAccess.isMember(ORG, 7L, "mia")).thenReturn(true);
+        when(communityAccess.isMember(ORG, 7L, "left")).thenReturn(false);
+        when(communityAccess.isMember(ORG, 7L, "off")).thenReturn(true);
+        when(personDirectory.isPresent(ORG, "mia")).thenReturn(true);
+        when(personDirectory.isPresent(ORG, "off")).thenReturn(false);
+        var ref = MentoringSubject.listing(7L, "mia").ref();
+
+        // when / then
+        assertThat(policy.isStillAMember(ORG, ref, "mia")).isTrue();
+        assertThat(policy.isStillAMember(ORG, ref, "left")).isFalse();
+        assertThat(policy.isStillAMember(ORG, ref, "off")).isFalse();
     }
 }

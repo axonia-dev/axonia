@@ -216,6 +216,8 @@ class MentoringMemberDataEraserTest extends FootprintTestSupport {
         rows.expiredNotice("mentoring_meeting_set", "pairing:7@1794844318000:" + MENTEE);
         rows.expiredNotice("mentoring_meeting_reminder", "pairing:7@2026-11-19:" + MENTEE);
         rows.expiredNotice("mentoring_proposal_reopened", "proposal:7@1794844318000:" + MENTEE);
+        rows.expiredNotice("mentoring_listing_ask", "listing:7:" + MENTEE);
+        rows.expiredNotice("mentoring_listed", "listing:7:" + MENTEE);
         rows.expiredNotice("mentoring_ended", "pairing:7:" + MENTOR);
         rows.expiredNotice("mentoring_ended", "pairing:7:x" + MENTEE);
         rows.expiredNotice("open_to_questions", "7:kafka:" + MENTEE);
@@ -224,7 +226,7 @@ class MentoringMemberDataEraserTest extends FootprintTestSupport {
         var actual = eraser.erase(erasureOf(MENTEE));
 
         // then
-        assertThat(actual).isEqualTo(new ErasureCounts(8, 0, 0, 0));
+        assertThat(actual).isEqualTo(new ErasureCounts(10, 0, 0, 0));
         assertThat(strings("SELECT message_type || ' ' || subject_ref FROM communication_expired_message "
                 + "WHERE organization_id = :org")).containsExactlyInAnyOrder("mentoring_ended pairing:7:" + MENTOR,
                         "mentoring_ended pairing:7:x" + MENTEE, "open_to_questions 7:kafka:" + MENTEE);

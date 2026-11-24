@@ -52,6 +52,12 @@ class CommunityAccessAdapter implements CommunityAccess {
     }
 
     @Override
+    public List<Long> mentoringCommunityIdsIn(String org) {
+
+        return mentoringMemberships.mentoringCommunityIds(org);
+    }
+
+    @Override
     public List<Long> communityIdsOf(String org, String userId) {
 
         return membershipService.communityIdsOf(org, userId);

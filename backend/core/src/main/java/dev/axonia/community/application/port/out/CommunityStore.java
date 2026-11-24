@@ -26,6 +26,9 @@ public interface CommunityStore {
 
     Page<CommunityRecord> search(CommunitySearch search, Pageable pageable);
 
+    /** The organization's communities that are not archived and take mentoring, by id. */
+    List<Long> mentoringCommunityIds(String organizationId);
+
     long countOfKind(String organizationId, Long kindId);
 
     void reassignKind(String organizationId, Long source, Long target);
