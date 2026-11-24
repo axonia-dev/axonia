@@ -68,7 +68,7 @@ export const MESSAGE_TYPES: ReadonlyArray<MessageTypeCopy> = [
   },
   {
     type: "mentoring_listing_ask",
-    label: "Shown among the mentors",
+    label: "Question about the mentors list",
     description:
       "A mail, once, asking whether a past mentor is shown among the community's mentors.",
   },

@@ -97,11 +97,11 @@ describe("NotificationPreferencesPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("lists the question about being shown among the mentors", () => {
+  it("lists the one time question about the mentors list", () => {
     renderPreferences([{ type: "mentoring_listing_ask", enabled: false }]);
 
     expect(
-      screen.getByRole("switch", { name: /shown among the mentors/i }),
+      screen.getByRole("switch", { name: /question about the mentors list/i }),
     ).not.toBeChecked();
     expect(
       screen.getByText(

@@ -136,6 +136,18 @@ class GuildMentoringControllerTest extends ControllerTestSupport {
     }
 
     @Test
+    void aListingMissingItsAnswerIsRefusedRatherThanReadAsOff() {
+
+        // when
+        var actual = mvc.put().uri("/axonia/communities/{slug}/mentoring/listing", "platform")
+                .contentType(MediaType.APPLICATION_JSON).content("{}").exchange();
+
+        // then
+        actual.assertThat().hasStatus(400);
+        verifyNoInteractions(mentorListingService);
+    }
+
+    @Test
     void anAvailabilityMissingASwitchIsRefusedRatherThanReadAsOff() {
 
         // when
