@@ -1,7 +1,6 @@
 import { Bookmark } from "lucide-react";
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useEffect } from "react";
 
 import { FilterToggleChip } from "@/components/patterns/FilterToggleChip";
 import { Pagination } from "@/components/patterns/Pagination";
@@ -12,6 +11,13 @@ import { useLibraryPage } from "@/features/knowledge/api/use-artifacts";
 import type { Artifact } from "@/features/knowledge/domain/artifact";
 import type { ArtifactSearchParams } from "@/features/knowledge/domain/knowledge-gateway";
 import { ArtifactList } from "@/features/knowledge/ui/ArtifactList";
+import {
+  DEFAULT_SORT,
+  type LibraryFilters,
+  type Sort,
+  useLibraryFilters,
+  useSearchText,
+} from "@/features/knowledge/ui/library-filters";
 import { LibraryHeader } from "@/features/knowledge/ui/LibraryHeader";
 import { SessionContextStrip } from "@/features/knowledge/ui/SessionContextStrip";
 import {
@@ -20,30 +26,13 @@ import {
   SessionFilter,
 } from "@/features/knowledge/ui/SessionFilter";
 import { ALL_TYPES, TypeChips } from "@/features/knowledge/ui/TypeChips";
-import { useDebouncedValue } from "@/lib/use-debounced-value";
 
 const PAGE_SIZE = 20;
-/** How long typing pauses before the search is asked, so a word is one request rather than one per letter. */
-const SEARCH_DEBOUNCE_MS = 300;
 
-type Sort = "newest" | "mostAppreciated";
-const DEFAULT_SORT: Sort = "newest";
 const SORT_OPTIONS: ReadonlyArray<{ id: Sort; label: string }> = [
   { id: "newest", label: "Newest" },
   { id: "mostAppreciated", label: "Most loved" },
 ];
-
-interface FilterState {
-  q: string;
-  typeFilter: number;
-  tag: string | null;
-  session: number;
-  sort: Sort;
-  saved: boolean;
-  page: number;
-}
-
-const SAVED_PARAM = "saved";
 
 const SAVED_LIST = {
   empty: {
@@ -55,7 +44,7 @@ const SAVED_LIST = {
   ),
 };
 
-function buildSearchParams(filters: FilterState): ArtifactSearchParams {
+function buildSearchParams(filters: LibraryFilters): ArtifactSearchParams {
   const { q, typeFilter, tag, session, sort, saved, page } = filters;
   return {
     page,
@@ -73,17 +62,6 @@ function narrowsResults(params: ArtifactSearchParams): boolean {
   return [params.q, params.type, params.tag, params.session].some(
     (filter) => filter !== undefined,
   );
-}
-
-function sortFromParams(params: URLSearchParams): Sort {
-  return params.get("sort") === "mostAppreciated"
-    ? "mostAppreciated"
-    : DEFAULT_SORT;
-}
-
-function focusedIdFromParams(params: URLSearchParams): number | undefined {
-  const n = Number(params.get("focus"));
-  return n || undefined;
 }
 
 function ActiveTag({
@@ -116,21 +94,9 @@ function definedRenderers(renderers: ArtifactRenderers): ArtifactRenderers {
   );
 }
 
-/** Back to the first page whenever the saved filter flips, however the URL changed. Adjusted during
- *  render rather than in an effect, the "You Might Not Need an Effect" pattern. */
-function usePageFor(saved: boolean) {
-  const [page, setPage] = useState(0);
-  const [pagedFor, setPagedFor] = useState(saved);
-  if (pagedFor !== saved) {
-    setPagedFor(saved);
-    setPage(0);
-  }
-  return [page, setPage] as const;
-}
-
 /** An unsave can empty the last page; fall back to the last page that still has rows. A placeholder
  *  is the previous answer, so its page count says nothing about the page being asked for. */
-function keepPageInRange(
+function useKeepPageInRange(
   page: number,
   answer: {
     data: { totalPages: number } | undefined;
@@ -139,77 +105,29 @@ function keepPageInRange(
   setPage: (page: number) => void,
 ) {
   const { data, isPlaceholderData } = answer;
-  if (data && !isPlaceholderData && page > 0 && page >= data.totalPages) {
-    setPage(Math.max(0, data.totalPages - 1));
-  }
+  const lastPage =
+    data && !isPlaceholderData ? Math.max(0, data.totalPages - 1) : undefined;
+  useEffect(() => {
+    if (lastPage !== undefined && page > lastPage) {
+      setPage(lastPage);
+    }
+  }, [page, lastPage, setPage]);
 }
 
 export function LibraryView({
   slug,
   ...renderers
 }: Readonly<{ slug: string } & ArtifactRenderers>) {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [q, setQ] = useState(() => searchParams.get("q") ?? "");
-  const [typeFilter, setTypeFilter] = useState<number>(ALL_TYPES);
-  const [tag, setTag] = useState<string | null>(() => searchParams.get("tag"));
-  const [session, setSession] = useState<number>(ANY_SESSION);
-  const [sort, setSort] = useState<Sort>(() => sortFromParams(searchParams));
-  const focusedId = focusedIdFromParams(searchParams);
-  const saved = searchParams.get(SAVED_PARAM) === "1";
-  const [page, setPage] = usePageFor(saved);
-  const searchedQ = useDebouncedValue(q, SEARCH_DEBOUNCE_MS);
+  const library = useLibraryFilters();
+  const { filters, focusedId } = library;
+  const { typeFilter, tag, session, sort, saved, page } = filters;
+  const [q, setQ] = useSearchText(filters.q, library.setQuery);
 
-  useEffect(() => {
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        if (searchedQ.trim() !== "") {
-          next.set("q", searchedQ.trim());
-        } else {
-          next.delete("q");
-        }
-        return next;
-      },
-      { replace: true },
-    );
-  }, [searchedQ, setSearchParams]);
-
-  function resetTo<T>(set: (value: T) => void) {
-    return (value: T) => {
-      set(value);
-      setPage(0);
-    };
-  }
-
-  function toggleSaved() {
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        if (saved) {
-          next.delete(SAVED_PARAM);
-        } else {
-          next.set(SAVED_PARAM, "1");
-        }
-        return next;
-      },
-      { replace: true },
-    );
-    setPage(0);
-  }
-
-  const params = buildSearchParams({
-    q: searchedQ,
-    typeFilter,
-    tag,
-    session,
-    sort,
-    saved,
-    page,
-  });
+  const params = buildSearchParams(filters);
   const artifacts = useLibraryPage(slug, params);
   const data = artifacts.data;
   const totalPages = data?.totalPages ?? 0;
-  keepPageInRange(page, artifacts, setPage);
+  useKeepPageInRange(page, artifacts, library.setPage);
 
   return (
     <section className="flex flex-col gap-6">
@@ -220,26 +138,26 @@ export function LibraryView({
           <SearchField
             label="Search the library"
             value={q}
-            onChange={resetTo(setQ)}
+            onChange={setQ}
             placeholder="Search talks, RFCs, notes…"
             className="flex-1"
           />
           <SessionFilter
             slug={slug}
             value={session}
-            onChange={resetTo(setSession)}
+            onChange={library.setSession}
           />
           <Select
             label="Sort"
             hideLabel
             value={sort}
             options={SORT_OPTIONS}
-            onChange={resetTo(setSort)}
+            onChange={library.setSort}
           />
           <div>
             <FilterToggleChip
               active={saved}
-              onToggle={toggleSaved}
+              onToggle={library.toggleSaved}
               icon={<Bookmark size={14} aria-hidden />}
             >
               Saved
@@ -247,10 +165,12 @@ export function LibraryView({
           </div>
         </div>
 
-        <TypeChips selected={typeFilter} onSelect={resetTo(setTypeFilter)} />
+        <TypeChips selected={typeFilter} onSelect={library.setType} />
       </div>
 
-      {tag !== null && <ActiveTag tag={tag} onClear={() => setTag(null)} />}
+      {tag !== null && (
+        <ActiveTag tag={tag} onClear={() => library.setTag(null)} />
+      )}
 
       {session > NO_SESSION && (
         <SessionContextStrip slug={slug} sessionId={session} />
@@ -263,7 +183,7 @@ export function LibraryView({
         isRefreshing={artifacts.isPlaceholderData}
         isError={artifacts.isError}
         isFiltered={narrowsResults(params)}
-        onTagClick={resetTo(setTag)}
+        onTagClick={library.setTag}
         focusedId={focusedId}
         {...definedRenderers(renderers)}
         {...(saved ? SAVED_LIST : {})}
@@ -273,7 +193,7 @@ export function LibraryView({
         <Pagination
           page={page}
           totalPages={totalPages}
-          onPageChange={setPage}
+          onPageChange={library.setPage}
         />
       )}
     </section>
