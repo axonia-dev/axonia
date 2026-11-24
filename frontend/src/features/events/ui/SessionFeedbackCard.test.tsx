@@ -20,6 +20,9 @@ vi.mock("@/features/events/adapters/http-events-gateway", () => ({
 
 const gateway = vi.mocked(httpEventsGateway);
 
+/** A save first waits out the card's real debounce, which a loaded run can stretch past the default second. */
+const PAST_THE_SAVE_DELAY = { timeout: 3000 };
+
 const OPEN: SessionFeedback = {
   window: "OPEN",
   closesAt: "2026-11-13T12:00:00Z",
@@ -123,7 +126,9 @@ describe("SessionFeedbackCard", () => {
 
     // then
     expect(screen.getByText("Saving…")).toBeInTheDocument();
-    expect(await screen.findByText("Saved · anonymous")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Saved · anonymous", {}, PAST_THE_SAVE_DELAY),
+    ).toBeInTheDocument();
     expect(gateway.giveSessionFeedback).toHaveBeenCalledExactlyOnceWith(42, {
       enjoyed: 9,
       learned: 7,
@@ -139,7 +144,7 @@ describe("SessionFeedbackCard", () => {
     // when
     await answerBoth(9, 7);
     await user.click(radiosOf("Enjoyed it")[4]!);
-    await screen.findByText("Saved · anonymous");
+    await screen.findByText("Saved · anonymous", {}, PAST_THE_SAVE_DELAY);
 
     // then
     expect(gateway.giveSessionFeedback).toHaveBeenCalledExactlyOnceWith(42, {
@@ -158,7 +163,7 @@ describe("SessionFeedbackCard", () => {
     await answerBoth(9, 7);
     await vi.waitFor(() => {
       expect(gateway.giveSessionFeedback).toHaveBeenCalledTimes(1);
-    });
+    }, PAST_THE_SAVE_DELAY);
 
     // when
     await user.click(radiosOf("Learned something")[2]!);
@@ -172,8 +177,10 @@ describe("SessionFeedbackCard", () => {
         enjoyed: 9,
         learned: 3,
       });
-    });
-    expect(await screen.findByText("Saved · anonymous")).toBeInTheDocument();
+    }, PAST_THE_SAVE_DELAY);
+    expect(
+      await screen.findByText("Saved · anonymous", {}, PAST_THE_SAVE_DELAY),
+    ).toBeInTheDocument();
   });
 
   it("saves a pending answer when the card goes away", async () => {
@@ -191,7 +198,7 @@ describe("SessionFeedbackCard", () => {
         enjoyed: 4,
         learned: 6,
       });
-    });
+    }, PAST_THE_SAVE_DELAY);
   });
 
   it("says so when the answer does not go through", async () => {
@@ -204,7 +211,11 @@ describe("SessionFeedbackCard", () => {
 
     // then
     expect(
-      await screen.findByText("Not saved · a tap tries again"),
+      await screen.findByText(
+        "Not saved · a tap tries again",
+        {},
+        PAST_THE_SAVE_DELAY,
+      ),
     ).toBeInTheDocument();
     expect(notifyError).toHaveBeenCalledWith("Feedback not saved");
   });
@@ -231,7 +242,7 @@ describe("SessionFeedbackCard", () => {
         enjoyed: 9,
         learned: 10,
       });
-    });
+    }, PAST_THE_SAVE_DELAY);
   });
 
   it("reads back a saved answer as one line", async () => {
