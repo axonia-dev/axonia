@@ -20,7 +20,7 @@ test.use({
 test("the Mentoring page fits a phone, long areas, the limit and long pairings included", async ({
   page: browser,
 }) => {
-  // given - a mentor taking mentees with a limit, people on both sides, and pairings with long names
+  // given - a listed mentor taking mentees with a limit, other mentors, people on both sides, and pairings with long names
   await stubReads(browser, {
     ...mentoringShell,
     [`/axonia/communities/${SLUG}/mentoring`]: {
@@ -51,6 +51,24 @@ test("the Mentoring page fits a phone, long areas, the limit and long pairings i
           startedOn: "2026-10-06",
         },
       ],
+      otherMentors: {
+        faces: [
+          {
+            userId: "u-2",
+            displayName: "Bartholomew Montgomery-Whitfield",
+            avatarUrl: null,
+            status: "MENTORING_NOW",
+          },
+          {
+            userId: "u-5",
+            displayName: "Ana",
+            avatarUrl: null,
+            status: "MENTORED_HERE",
+          },
+        ],
+        total: 7,
+      },
+      listing: "LISTED",
     },
   });
 
@@ -66,6 +84,15 @@ test("the Mentoring page fits a phone, long areas, the limit and long pairings i
   await expect(
     browser.getByRole("button", { name: "Offer mentoring to Ada" }),
   ).toBeVisible();
+  await expect(
+    browser.getByRole("group", { name: "Other mentors here" }),
+  ).toBeVisible();
+  expect(await overflowing(browser)).toEqual([]);
+
+  // when - the pairings, on their own tab
+  await browser.getByRole("tab", { name: /^Who’s helping whom/ }).click();
+
+  // then
   await expect(
     browser.getByText("Maximiliana Konstantinopoulou-Abernathy"),
   ).toBeVisible();
