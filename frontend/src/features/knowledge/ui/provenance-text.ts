@@ -1,16 +1,5 @@
-import type { Session } from "@/features/events/domain/session";
-
-function formatDate(iso: string): string {
-  // occurrenceDate is a bare calendar date that parses as UTC midnight; render
-  // it (and scheduledAt) in UTC so the day never rolls back a frame west of UTC,
-  // matching how the agenda renders its dates.
-  return new Date(iso).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC",
-  });
-}
+import type { Provenance } from "@/features/knowledge/domain/artifact";
+import { formatHeldOn } from "@/features/knowledge/ui/held-on";
 
 /**
  * The separator of a label this app no longer writes. Capture used to append the
@@ -42,19 +31,18 @@ function topicOf(label: string | null): string {
 
 /**
  * "series · topic (date)" for an artifact's provenance: topic from the captured
- * snapshot, series title and date resolved live from the events surface. Falls
- * back to just the topic when the session is beyond the resolved window or gone.
+ * snapshot, series title and date read live by the server. Falls back to just
+ * the topic once the session is gone.
  */
-export function provenanceText(
-  label: string | null,
-  session: Session | undefined,
-  seriesTitle: string | undefined,
-): string {
+export function provenanceText({
+  label,
+  seriesTitle,
+  heldOn,
+}: Pick<Provenance, "label" | "seriesTitle" | "heldOn">): string {
   const topic = topicOf(label);
-  if (!session) {
+  if (heldOn === null) {
     return topic;
   }
-  const date = formatDate(session.occurrenceDate ?? session.scheduledAt);
-  const head = seriesTitle !== undefined ? `${seriesTitle} · ${topic}` : topic;
-  return `${head} (${date})`;
+  const head = seriesTitle === null ? topic : `${seriesTitle} · ${topic}`;
+  return `${head} (${formatHeldOn(heldOn)})`;
 }

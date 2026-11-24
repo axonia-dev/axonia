@@ -3,8 +3,6 @@ import { useEffect, useRef } from "react";
 
 import { EmptyState } from "@/components/patterns/EmptyState";
 import { SaveAction } from "@/features/bookmarks/ui/SaveAction";
-import { useSeriesList } from "@/features/events/api/use-series";
-import { useSessions } from "@/features/events/api/use-sessions";
 import { useUsers } from "@/features/identity/api/use-users";
 import { useArtifactTypes } from "@/features/knowledge/api/use-artifact-types";
 import type { Artifact } from "@/features/knowledge/domain/artifact";
@@ -85,21 +83,12 @@ export function ArtifactList({
   empty = NOTHING_CAPTURED,
   focusedId,
 }: Readonly<Props>) {
-  // Resolve contributors and session provenance once for the whole page, rather
-  // than fetching per card. Hooks run before the early returns below.
+  // Resolve contributors once for the whole page, rather than fetching per card.
+  // Hooks run before the early returns below.
   const userIds = [
     ...new Set(artifacts.map((artifact) => artifact.contributorUserId)),
   ].sort((a, b) => a.localeCompare(b));
   const userById = new Map(Object.entries(useUsers(userIds).data ?? {}));
-  const sessionById = new Map(
-    (useSessions(slug).data ?? []).map((session) => [session.id, session]),
-  );
-  const seriesById = new Map(
-    (useSeriesList(slug).data?.content ?? []).map((entry) => [
-      entry.id,
-      entry.title,
-    ]),
-  );
   const typeById = new Map(
     (useArtifactTypes().data ?? []).map((type) => [type.id, type]),
   );
@@ -123,18 +112,6 @@ export function ArtifactList({
     };
   }
 
-  function provenanceFor(artifact: Artifact): string | undefined {
-    if (!artifact.provenance) {
-      return undefined;
-    }
-    const session = sessionById.get(artifact.provenance.sessionId);
-    const seriesTitle =
-      session && session.seriesId !== null
-        ? seriesById.get(session.seriesId)
-        : undefined;
-    return provenanceText(artifact.provenance.label, session, seriesTitle);
-  }
-
   if (isLoading) {
     return <p className="text-muted-foreground text-sm">Loading…</p>;
   }
@@ -152,7 +129,9 @@ export function ArtifactList({
     <ul className="flex flex-col gap-3">
       {artifacts.map((artifact) => {
         const contributor = contributorFor(artifact);
-        const provenance = provenanceFor(artifact);
+        const provenance = artifact.provenance
+          ? provenanceText(artifact.provenance)
+          : undefined;
         const type = typeById.get(artifact.typeId);
         return (
           <li

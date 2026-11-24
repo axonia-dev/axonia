@@ -7,33 +7,9 @@ import { SessionFilter } from "@/features/knowledge/ui/SessionFilter";
 vi.mock("@/features/knowledge/api/use-library-insights", () => ({
   useArtifactSessions: vi.fn(),
 }));
-vi.mock("@/features/events/api/use-sessions", () => ({
-  useSessions: vi.fn(),
-}));
-
-import { useSessions } from "@/features/events/api/use-sessions";
 import { useArtifactSessions } from "@/features/knowledge/api/use-library-insights";
 
 const mockArtifactSessions = vi.mocked(useArtifactSessions);
-const mockSessions = vi.mocked(useSessions);
-
-const seriesSession = {
-  id: 9,
-  seriesId: 2,
-  displayTitle: "Backend Dojo",
-  occurrenceDate: "2026-06-06",
-  scheduledAt: "2026-06-06T10:00:00Z",
-  sections: [],
-};
-
-const oneOffSession = {
-  id: 5,
-  seriesId: null,
-  displayTitle: "Lightning talks",
-  occurrenceDate: "2026-06-10",
-  scheduledAt: "2026-06-10T10:00:00Z",
-  sections: [{ slots: [{ title: "Lightning talks", presenterUserIds: [] }] }],
-};
 
 let user: ReturnType<typeof userEvent.setup>;
 
@@ -42,13 +18,15 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockArtifactSessions.mockReturnValue({
     data: [
-      { sessionId: 9, count: 4 },
-      { sessionId: 5, count: 2 },
-      { sessionId: 99, count: 1 },
+      {
+        sessionId: 5,
+        count: 2,
+        name: "Lightning talks",
+        heldOn: "2026-06-10",
+      },
+      { sessionId: 9, count: 4, name: "Backend Dojo", heldOn: "2026-06-06" },
+      { sessionId: 99, count: 1, name: null, heldOn: null },
     ],
-  } as never);
-  mockSessions.mockReturnValue({
-    data: [seriesSession, oneOffSession],
   } as never);
 });
 
@@ -73,7 +51,7 @@ describe("SessionFilter", () => {
     ).toBeInTheDocument();
   });
 
-  it("labels a session with the name the server gives it", async () => {
+  it("labels a session with the name and day the server gives it", async () => {
     // given
     render(<SessionFilter slug="eng" value={-1} onChange={vi.fn()} />);
 
@@ -82,20 +60,7 @@ describe("SessionFilter", () => {
 
     // then
     expect(
-      screen.getByRole("option", { name: /Backend Dojo ·/ }),
-    ).toBeInTheDocument();
-  });
-
-  it("labels a one-off by its name too", async () => {
-    // given
-    render(<SessionFilter slug="eng" value={-1} onChange={vi.fn()} />);
-
-    // when
-    await openOptions();
-
-    // then
-    expect(
-      screen.getByRole("option", { name: /Lightning talks ·/ }),
+      screen.getByRole("option", { name: "Backend Dojo · Jun 6, 2026" }),
     ).toBeInTheDocument();
   });
 
@@ -112,7 +77,7 @@ describe("SessionFilter", () => {
     ).toBeInTheDocument();
   });
 
-  it("lists the newest session first and a session it cannot date last", async () => {
+  it("lists the sessions in the order the server gives them", async () => {
     // given
     render(<SessionFilter slug="eng" value={-1} onChange={vi.fn()} />);
 

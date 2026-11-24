@@ -7,40 +7,17 @@ test.use({ viewport: { width: 1726, height: 964 } });
 const SESSION_COUNT = 44;
 
 /** Created in an order unrelated to when they are held, as a community back-filling older
- *  sessions does: the ids climb while the dates jump around. */
+ *  sessions does: the ids climb while the dates jump around. The server lists them newest
+ *  held first, labelled, so the page renders them as given. */
 const sessions = Array.from({ length: SESSION_COUNT }, (_, index) => {
-  const id = index + 1;
+  const sessionId = index + 1;
   const month = ((index * 7) % 12) + 1;
   const year = 2024 + (index % 3);
-  const date = `${year}-${String(month).padStart(2, "0")}-${String((index % 27) + 1).padStart(2, "0")}`;
-  return {
-    id,
-    seriesId: null,
-    communityId: 1,
-    status: "HELD",
-    title: null,
-    displayTitle: `Session ${id}`,
-    automaticTitle: "Session",
-    occurrenceDate: date,
-    scheduledAt: `${date}T10:00:00Z`,
-    hasTime: true,
-    durationMinutes: 60,
-    facilitatorUserId: null,
-    attendeeCount: 0,
-    notes: "",
-    recordingUrl: "",
-    seriesTimeZone: null,
-    sections: [],
-    createdAt: "2026-01-01T10:00:00Z",
-    updatedAt: "2026-01-01T10:00:00Z",
-  };
-});
-
-const newestFirst = [...sessions]
-  .sort(
-    (a, b) => b.occurrenceDate.localeCompare(a.occurrenceDate) || b.id - a.id,
-  )
-  .map((session) => session.displayTitle);
+  const heldOn = `${year}-${String(month).padStart(2, "0")}-${String((index % 27) + 1).padStart(2, "0")}`;
+  return { sessionId, count: 1, name: `Session ${sessionId}`, heldOn };
+}).sort(
+  (a, b) => b.heldOn.localeCompare(a.heldOn) || b.sessionId - a.sessionId,
+);
 
 test("the library's session filter scrolls a long list, newest session first", async ({
   page: browser,
@@ -49,10 +26,7 @@ test("the library's session filter scrolls a long list, newest session first", a
   await stubReads(browser, {
     ...shellOfCommunity,
     [`/axonia/communities/${SLUG}/artifacts`]: paged([]),
-    [`/axonia/communities/${SLUG}/artifacts/sessions`]: sessions.map(
-      (session) => ({ sessionId: session.id, count: 1 }),
-    ),
-    [`/axonia/communities/${SLUG}/sessions/past`]: paged(sessions),
+    [`/axonia/communities/${SLUG}/artifacts/sessions`]: sessions,
   });
   await browser.goto(`/communities/${SLUG}/library`);
 
@@ -61,10 +35,10 @@ test("the library's session filter scrolls a long list, newest session first", a
   const listbox = browser.getByRole("listbox");
   await expect(listbox.getByRole("option")).toHaveCount(SESSION_COUNT + 2);
 
-  // then - the sessions are listed newest first
+  // then - the sessions are listed newest first, as the server orders them
   const labels = await listbox.getByRole("option").allTextContents();
   expect(labels.slice(2).map((label) => label.split(" · ")[0])).toEqual(
-    newestFirst,
+    sessions.map((session) => session.name),
   );
 
   // and the list ends inside the viewport, scrolling within itself to its oldest session.

@@ -608,18 +608,20 @@ class ArtifactServiceTest {
     }
 
     @Test
-    void sessions_delegatesToRepository() {
+    void sessions_areTheRepositorysSessionsLabelled() {
 
         // given
         when(communityAccess.communityIdForSlug("eng")).thenReturn(1L);
         var sessions = List.of(ArtifactSession.builder().sessionId(100L).count(3L).build());
         when(artifactStore.sessionsWithArtifacts("default", 1L)).thenReturn(sessions);
+        var labelled = List.of(sessions.getFirst().toBuilder().name("Kafka night").build());
+        when(artifactMapper.toSessions(sessions)).thenReturn(labelled);
 
         // when
         var result = sut.sessions("eng");
 
         // then
-        assertThat(result).isEqualTo(sessions);
+        assertThat(result).isEqualTo(labelled);
     }
 
     @Test

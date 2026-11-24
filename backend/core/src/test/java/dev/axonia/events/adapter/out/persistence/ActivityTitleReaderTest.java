@@ -1,5 +1,6 @@
 package dev.axonia.events.adapter.out.persistence;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -10,6 +11,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 import dev.axonia.CoreJdbcTestSupport;
 import dev.axonia.events.api.NamedSession;
+import dev.axonia.events.api.SessionHeading;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
@@ -105,11 +107,47 @@ class ActivityTitleReaderTest extends CoreJdbcTestSupport {
     }
 
     @Test
+    void sessionHeadings_nameTheSeriesAndTheDayEachSessionIsHeldOn() {
+
+        // given
+        var communityId = seedCommunity();
+        var seriesId = seedSeries(communityId, "Platform evenings");
+        var occurrence = seedSession("default", communityId, seriesId, "Kafka night");
+        var lateInZurich = seedOneOff(communityId, "2026-03-01T23:30:00Z", "Europe/Zurich");
+        var beforeTheZoneColumn = seedOneOff(communityId, "2026-03-01T23:30:00Z", null);
+
+        // when
+        var actual = sut.sessionHeadings(List.of(occurrence, lateInZurich, beforeTheZoneColumn));
+
+        // then
+        assertThat(actual).containsOnly(
+                entry(occurrence, new SessionHeading("Kafka night", "Platform evenings", LocalDate.of(2026, 1, 1))),
+                entry(lateInZurich, new SessionHeading("Session", null, LocalDate.of(2026, 3, 2))),
+                entry(beforeTheZoneColumn, new SessionHeading("Session", null, LocalDate.of(2026, 3, 1))));
+    }
+
+    @Test
+    void sessionHeadings_areScopedToTheCallersOrganization() {
+
+        // given
+        var communityId = seedCommunity();
+        var mine = seedSession("default", communityId, null, "Ours");
+        var theirs = seedSession("other-org", communityId, null, "Theirs");
+
+        // when
+        var actual = sut.sessionHeadings(List.of(mine, theirs));
+
+        // then
+        assertThat(actual).containsOnlyKeys(mine);
+    }
+
+    @Test
     void anIdThatNoLongerResolvesIsAbsentRatherThanAThrow() {
 
         assertThat(sut.slotTitles(List.of(GONE))).isEmpty();
         assertThat(sut.topicTitles(List.of(GONE))).isEmpty();
         assertThat(sut.sessionNames(List.of(GONE))).isEmpty();
+        assertThat(sut.sessionHeadings(List.of(GONE))).isEmpty();
     }
 
     @Test
@@ -118,6 +156,7 @@ class ActivityTitleReaderTest extends CoreJdbcTestSupport {
         assertThat(sut.slotTitles(List.of())).isEmpty();
         assertThat(sut.topicTitles(List.of())).isEmpty();
         assertThat(sut.sessionNames(List.of())).isEmpty();
+        assertThat(sut.sessionHeadings(List.of())).isEmpty();
     }
 
     private Long seedCommunity() {
@@ -153,6 +192,16 @@ class ActivityTitleReaderTest extends CoreJdbcTestSupport {
                         + "VALUES (:org, :seriesId, :communityId, 'SCHEDULED', now(), DATE '2026-01-01' + :occurrence, '', '', true, :title, now(), now(), 0) RETURNING id",
                 new MapSqlParameterSource("seriesId", seriesId).addValue("communityId", communityId)
                         .addValue("org", organizationId).addValue("title", title).addValue("occurrence", occurrences++),
+                Long.class);
+    }
+
+    private Long seedOneOff(Long communityId, String scheduledAt, String timeZone) {
+
+        return jdbc.queryForObject(
+                "INSERT INTO community_session (organization_id, community_id, status, scheduled_at, notes, recording_url, has_time, time_zone, created_at, updated_at, version) "
+                        + "VALUES ('default', :communityId, 'SCHEDULED', CAST(:scheduledAt AS timestamptz), '', '', true, :timeZone, now(), now(), 0) RETURNING id",
+                new MapSqlParameterSource("communityId", communityId).addValue("scheduledAt", scheduledAt)
+                        .addValue("timeZone", timeZone),
                 Long.class);
     }
 

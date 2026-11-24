@@ -31,13 +31,6 @@ const contributor = {
   avatarIsOwn: false,
 };
 
-/** The provenance line as the library renders it: the series, the topic it was captured from,
- *  and the date. The card joins those three itself when it can resolve the session, so handing
- *  the whole line over as the snapshot label is the short way to put a realistic one on screen -
- *  what the layout has to survive is the length, not where the words came from. */
-const PROVENANCE =
-  "Monthly Backend Guild · I'd like to know more about Spring Boot (28 Aug 2026)";
-
 const artifact = {
   id: 31,
   communityId: 1,
@@ -49,7 +42,13 @@ const artifact = {
   tags: ["spring"],
   contributorUserId: E2E_USER_ID,
   loveCount: 0,
-  provenance: { sessionId: 4, segmentId: 8, label: PROVENANCE },
+  provenance: {
+    sessionId: 4,
+    segmentId: 8,
+    label: "I'd like to know more about Spring Boot",
+    seriesTitle: "Monthly Backend Guild",
+    heldOn: "2026-08-28",
+  },
   status: "ACTIVE",
   createdAt: "2026-08-28T10:00:00Z",
   updatedAt: "2026-08-28T10:00:00Z",
@@ -89,8 +88,6 @@ test("the library fits a phone, however long an artifact's provenance", async ({
       capturedThisMonth: 0,
     },
     [`/axonia/communities/${SLUG}/artifacts/sessions`]: [],
-    [`/axonia/communities/${SLUG}/sessions/past`]: paged([]),
-    [`/axonia/communities/${SLUG}/series`]: paged([]),
     "/axonia/artifact-types": [
       {
         id: 1,
@@ -109,7 +106,11 @@ test("the library fits a phone, however long an artifact's provenance", async ({
   // then - the card is on screen, and nothing on the page reaches past its right edge.
   // The visibility check comes first on purpose: an empty page cannot overflow, so without
   // it this test would pass by measuring nothing.
-  await expect(browser.getByText(PROVENANCE)).toBeVisible();
+  await expect(
+    browser.getByText(
+      /^Monthly Backend Guild · I'd like to know more about Spring Boot \(.+2026\)$/,
+    ),
+  ).toBeVisible();
   expect(await overflowing(browser)).toEqual([]);
 });
 

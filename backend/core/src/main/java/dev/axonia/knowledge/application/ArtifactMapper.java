@@ -1,5 +1,7 @@
 package dev.axonia.knowledge.application;
 
+import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -13,6 +15,9 @@ import dev.axonia.knowledge.api.Artifact;
 import dev.axonia.knowledge.api.ArtifactStatus;
 import dev.axonia.knowledge.api.Provenance;
 import dev.axonia.knowledge.application.port.out.ArtifactTypeStore;
+import dev.axonia.knowledge.application.port.out.SessionLabels;
+import dev.axonia.knowledge.domain.ArtifactSession;
+import dev.axonia.knowledge.domain.SessionLabel;
 import dev.axonia.knowledge.domain.StoredArtifact;
 import dev.axonia.knowledge.domain.StoredArtifactType;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +27,7 @@ import lombok.RequiredArgsConstructor;
 public class ArtifactMapper {
 
     private final ArtifactTypeStore artifactTypeStore;
+    private final SessionLabels sessionLabels;
 
     /**
      * Annotated even though {@link #toArtifacts} already is: this is a self-invocation, which Spring's proxy cannot
@@ -43,15 +49,42 @@ public class ArtifactMapper {
     public List<Artifact> toArtifacts(List<StoredArtifact> entities) {
 
         var typeLabelsById = typeLabelsById(entities);
-        return entities.stream().map(e -> toArtifact(e, typeLabelsById)).toList();
+        var sessionLabelsById = sessionLabels.of(entities.stream().map(StoredArtifact::provenanceSessionId)
+                .filter(Objects::nonNull).collect(Collectors.toSet()));
+        return entities.stream().map(e -> toArtifact(e, typeLabelsById, sessionLabelsById)).toList();
     }
 
-    private Artifact toArtifact(StoredArtifact e, Map<Long, String> typeLabelsById) {
+    /**
+     * Every session the library can filter by, labelled in one lookup and newest first; a session that no longer
+     * resolves keeps its count, goes unnamed and sinks to the end.
+     */
+    @Transactional(readOnly = true)
+    public List<ArtifactSession> toSessions(List<ArtifactSession> sessions) {
+
+        var labelsById = sessionLabels.of(sessions.stream().map(ArtifactSession::sessionId).toList());
+        return sessions.stream().map(session -> labelled(session, labelsById.get(session.sessionId())))
+                .sorted(NEWEST_HELD_FIRST).toList();
+    }
+
+    private static final Comparator<ArtifactSession> NEWEST_HELD_FIRST = Comparator
+            .comparing(ArtifactSession::heldOn, Comparator.nullsFirst(Comparator.<LocalDate>naturalOrder()))
+            .thenComparing(ArtifactSession::sessionId).reversed();
+
+    private static ArtifactSession labelled(ArtifactSession session, SessionLabel label) {
+
+        if (label == null) {
+            return session;
+        }
+        return session.toBuilder().name(label.name()).heldOn(label.heldOn()).build();
+    }
+
+    private Artifact toArtifact(StoredArtifact e, Map<Long, String> typeLabelsById,
+            Map<Long, SessionLabel> sessionLabelsById) {
 
         var tags = Objects.requireNonNullElse(e.tags(), Set.<String>of()).stream().sorted().toList();
         return Artifact.builder().id(e.id()).communityId(e.communityId()).typeId(e.typeId())
                 .type(typeLabelsById.get(e.typeId())).title(e.title()).description(e.description()).url(e.url())
-                .tags(tags).contributorUserId(e.contributorUserId()).provenance(provenance(e))
+                .tags(tags).contributorUserId(e.contributorUserId()).provenance(provenance(e, sessionLabelsById))
                 .status(ArtifactStatus.valueOf(e.status())).loveCount(Objects.requireNonNullElse(e.loveCount(), 0))
                 .createdAt(e.createdAt()).updatedAt(e.updatedAt()).build();
     }
@@ -80,12 +113,17 @@ public class ArtifactMapper {
                 .collect(Collectors.toMap(StoredArtifactType::id, StoredArtifactType::label));
     }
 
-    private Provenance provenance(StoredArtifact e) {
+    private static Provenance provenance(StoredArtifact e, Map<Long, SessionLabel> sessionLabelsById) {
 
         if (e.provenanceSessionId() == null) {
             return null;
         }
-        return Provenance.builder().sessionId(e.provenanceSessionId()).segmentId(e.provenanceSegmentId())
-                .label(e.provenanceLabel()).build();
+        var provenance = Provenance.builder().sessionId(e.provenanceSessionId()).segmentId(e.provenanceSegmentId())
+                .label(e.provenanceLabel());
+        var session = sessionLabelsById.get(e.provenanceSessionId());
+        if (session != null) {
+            provenance.seriesTitle(session.seriesTitle()).heldOn(session.heldOn());
+        }
+        return provenance.build();
     }
 }

@@ -2,11 +2,16 @@ import { z } from "zod";
 
 const artifactStatusSchema = z.enum(["ACTIVE", "ARCHIVED"]);
 
+/** `label` is frozen at capture; `seriesTitle` and `heldOn` are read live, and are null once the session is gone. */
 const provenanceSchema = z.object({
   sessionId: z.number(),
   segmentId: z.number().nullable(),
   label: z.string().nullable(),
+  seriesTitle: z.string().nullable(),
+  heldOn: z.string().nullable(),
 });
+
+export type Provenance = z.infer<typeof provenanceSchema>;
 
 export const artifactSchema = z.object({
   id: z.number(),

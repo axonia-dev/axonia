@@ -124,7 +124,7 @@ public class ArtifactService implements Artifacts {
 
         var organizationId = organizationContext.organizationId();
         var communityId = communityAccess.communityIdForSlug(slug);
-        return artifactStore.sessionsWithArtifacts(organizationId, communityId);
+        return artifactMapper.toSessions(artifactStore.sessionsWithArtifacts(organizationId, communityId));
     }
 
     @Transactional(readOnly = true)

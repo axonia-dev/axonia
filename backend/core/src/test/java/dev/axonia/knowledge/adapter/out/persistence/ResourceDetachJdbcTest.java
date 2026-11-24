@@ -1,5 +1,6 @@
 package dev.axonia.knowledge.adapter.out.persistence;
 
+import java.util.Map;
 import java.util.Set;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -58,7 +59,7 @@ class ResourceDetachJdbcTest extends CoreJdbcTestSupport {
         var guard = new SessionProvenanceGuard(sessionAccess);
         sut = new ResourceService(new JdbcAttachmentStore(attachmentRepository), sessionResources,
                 new JdbcArtifactStore(artifactRepository),
-                new ArtifactMapper(new JdbcArtifactTypeStore(artifactTypeRepository)),
+                new ArtifactMapper(new JdbcArtifactTypeStore(artifactTypeRepository), ids -> Map.of()),
                 new ArtifactAuthorizer(communityAccess), communityAccess, currentUser, organizationContext, guard,
                 new ResourceAttachAuthorizer(communityAccess, guard));
         when(organizationContext.organizationId()).thenReturn("default");

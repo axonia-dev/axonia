@@ -17,4 +17,7 @@ public interface ActivityTitles {
      * its community.
      */
     Map<Long, NamedSession> sessionNames(Collection<Long> ids);
+
+    /** Each session's name, series title and the day it is held on, for a surface that heads a list with them. */
+    Map<Long, SessionHeading> sessionHeadings(Collection<Long> ids);
 }

@@ -28,7 +28,9 @@ beforeEach(() => vi.clearAllMocks());
 describe("useArtifactSessions", () => {
   it("lists the sessions that have artifacts", async () => {
     // given
-    gateway.listSessions.mockResolvedValue([{ sessionId: 9, count: 4 }]);
+    gateway.listSessions.mockResolvedValue([
+      { sessionId: 9, count: 4, name: "Backend Dojo", heldOn: "2026-06-06" },
+    ]);
 
     // when
     const { result } = renderHook(() => useArtifactSessions("backend-guild"), {
@@ -37,7 +39,9 @@ describe("useArtifactSessions", () => {
 
     // then
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data).toEqual([{ sessionId: 9, count: 4 }]);
+    expect(result.current.data).toEqual([
+      { sessionId: 9, count: 4, name: "Backend Dojo", heldOn: "2026-06-06" },
+    ]);
     expect(gateway.listSessions.mock.calls[0]).toEqual(["backend-guild"]);
   });
 });

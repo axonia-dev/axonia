@@ -113,13 +113,17 @@ describe("httpKnowledgeGateway", () => {
 
   it("listSessions parses the sessions-with-artifacts list", async () => {
     // given
-    fetchSpy.mockResolvedValue(jsonResponse([{ sessionId: 9, count: 4 }]));
+    const sessions = [
+      { sessionId: 9, count: 4, name: "Backend Dojo", heldOn: "2026-06-06" },
+      { sessionId: 3, count: 1, name: null, heldOn: null },
+    ];
+    fetchSpy.mockResolvedValue(jsonResponse(sessions));
 
     // when
     const actual = await httpKnowledgeGateway.listSessions("backend-guild");
 
     // then
-    expect(actual).toEqual([{ sessionId: 9, count: 4 }]);
+    expect(actual).toEqual(sessions);
     const [url] = fetchSpy.mock.calls[0] ?? [];
     expect(urlOf(url)).toContain(
       "/axonia/communities/backend-guild/artifacts/sessions",

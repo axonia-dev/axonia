@@ -1,11 +1,11 @@
 import { Calendar } from "lucide-react";
 
 import { Select } from "@/components/ui/Select";
-import { useSessions } from "@/features/events/api/use-sessions";
-import type { Session } from "@/features/events/domain/session";
 import { useArtifactSessions } from "@/features/knowledge/api/use-library-insights";
+import type { ArtifactSession } from "@/features/knowledge/domain/artifact-session";
+import { formatHeldOn } from "@/features/knowledge/ui/held-on";
 
-/** Sentinel for "Any session" — no session filtering. */
+/** Sentinel for "Any session": no session filtering. */
 export const ANY_SESSION = -1;
 /** Sentinel for standalone artifacts (matches the backend's `session=0`). */
 export const NO_SESSION = 0;
@@ -16,62 +16,28 @@ interface Props {
   onChange: (value: number) => void;
 }
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
-function heldAt(session: Session): string {
-  return session.occurrenceDate ?? session.scheduledAt;
-}
-
-function newestFirst(
-  sessionById: Map<number, Session>,
-): (a: number, b: number) => number {
-  const timeOf = (sessionId: number) => {
-    const session = sessionById.get(sessionId);
-    return session ? Date.parse(heldAt(session)) : Number.NEGATIVE_INFINITY;
-  };
-  return (a, b) => timeOf(b) - timeOf(a) || b - a;
-}
-
-function labelFor(
-  sessionId: number,
-  sessionById: Map<number, Session>,
-): string {
-  const session = sessionById.get(sessionId);
-  if (!session) {
+function labelFor({ sessionId, name, heldOn }: ArtifactSession): string {
+  if (name === null || heldOn === null) {
     return `Session #${sessionId}`;
   }
-  return `${session.displayTitle} · ${formatDate(heldAt(session))}`;
+  return `${name} · ${formatHeldOn(heldOn)}`;
 }
 
 /**
- * A select over the sessions that actually have artifacts, labelled by
- * intersecting with the community's events sessions ("name · date"). Pure surface
- * composition — no knowledge↔events backend coupling.
+ * A select over the sessions that actually have artifacts, labelled and ordered
+ * (newest held first) by the server, so it never needs the community's whole
+ * session history.
  */
 export function SessionFilter({ slug, value, onChange }: Readonly<Props>) {
   const artifactSessions = useArtifactSessions(slug);
-  const sessions = useSessions(slug);
-
-  const sessionById = new Map(
-    (sessions.data ?? []).map((session) => [session.id, session]),
-  );
 
   const options = [
     { id: ANY_SESSION, label: "Any session" },
     { id: NO_SESSION, label: "No session" },
-    ...(artifactSessions.data ?? [])
-      .map((entry) => entry.sessionId)
-      .sort(newestFirst(sessionById))
-      .map((sessionId) => ({
-        id: sessionId,
-        label: labelFor(sessionId, sessionById),
-      })),
+    ...(artifactSessions.data ?? []).map((session) => ({
+      id: session.sessionId,
+      label: labelFor(session),
+    })),
   ];
 
   return (

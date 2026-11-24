@@ -4,7 +4,6 @@ import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useSessions } from "@/features/events/api/use-sessions";
 import { useUsers } from "@/features/identity/api/use-users";
 import { useArtifactTypes } from "@/features/knowledge/api/use-artifact-types";
 import type { Artifact } from "@/features/knowledge/domain/artifact";
@@ -15,14 +14,17 @@ vi.mock("@/features/knowledge/ui/ArtifactCard", () => ({
     artifact,
     manageActions,
     footnote,
+    provenanceText,
   }: {
     artifact: { id: number; title: string };
     manageActions?: React.ReactNode;
     footnote?: React.ReactNode;
+    provenanceText?: string;
   }) => (
     <div data-testid="artifact-card">
       {artifact.id}
       <span>{artifact.title}</span>
+      {provenanceText && <p>{provenanceText}</p>}
       {manageActions && <div data-testid="manage-actions">{manageActions}</div>}
       {footnote && <div data-testid="footnote">{footnote}</div>}
     </div>
@@ -30,12 +32,6 @@ vi.mock("@/features/knowledge/ui/ArtifactCard", () => ({
 }));
 vi.mock("@/features/identity/api/use-users", () => ({
   useUsers: vi.fn(() => ({ data: {} })),
-}));
-vi.mock("@/features/events/api/use-sessions", () => ({
-  useSessions: vi.fn(() => ({ data: [] })),
-}));
-vi.mock("@/features/events/api/use-series", () => ({
-  useSeriesList: vi.fn(() => ({ data: { content: [] } })),
 }));
 vi.mock("@/features/knowledge/api/use-artifact-types", () => ({
   useArtifactTypes: vi.fn(() => ({ data: [] })),
@@ -61,7 +57,6 @@ const focusArtifact = {
 
 beforeEach(() => {
   vi.mocked(useUsers).mockReturnValue({ data: {} } as never);
-  vi.mocked(useSessions).mockReturnValue({ data: [] } as never);
   vi.mocked(useArtifactTypes).mockReturnValue({ data: [] } as never);
   scrollIntoViewSpy = vi.fn();
   Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
@@ -164,6 +159,36 @@ describe("ArtifactList", () => {
 
     // then
     expect(screen.getAllByTestId("artifact-card")).toHaveLength(1);
+  });
+
+  it("heads a captured artifact with the session the server labels, without looking sessions up", () => {
+    // given
+    const captured = {
+      ...focusArtifact,
+      provenance: {
+        sessionId: 7,
+        segmentId: null,
+        label: "Outbox pattern",
+        seriesTitle: "Patterns in Practice",
+        heldOn: "2026-06-09",
+      },
+    } as unknown as Artifact;
+
+    // when
+    render(
+      <ArtifactList
+        slug="eng"
+        artifacts={[captured]}
+        isLoading={false}
+        isError={false}
+      />,
+      { wrapper },
+    );
+
+    // then
+    expect(
+      screen.getByText("Patterns in Practice · Outbox pattern (Jun 9, 2026)"),
+    ).toBeInTheDocument();
   });
 
   it("shows an error alert when loading failed", () => {

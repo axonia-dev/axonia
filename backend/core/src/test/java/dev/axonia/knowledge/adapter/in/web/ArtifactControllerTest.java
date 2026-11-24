@@ -1,5 +1,6 @@
 package dev.axonia.knowledge.adapter.in.web;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -106,7 +107,8 @@ class ArtifactControllerTest extends ControllerTestSupport {
     void sessions() throws JacksonException {
 
         // given
-        var sessions = List.of(ArtifactSession.builder().sessionId(100L).count(3L).build());
+        var sessions = List.of(ArtifactSession.builder().sessionId(100L).count(3L).name("Kafka night")
+                .heldOn(LocalDate.of(2026, 3, 2)).build());
         when(artifactService.sessions("frontend-guild")).thenReturn(sessions);
 
         // when
@@ -114,6 +116,7 @@ class ArtifactControllerTest extends ControllerTestSupport {
 
         // then
         actual.assertThat().hasStatus2xxSuccessful().bodyJson().isEqualTo(jsonMapper.writeValueAsString(sessions));
+        actual.assertThat().bodyJson().extractingPath("$[0].heldOn").isEqualTo("2026-03-02");
     }
 
     @Test
