@@ -8,31 +8,38 @@ import { onFailure } from "@/features/mentoring/ui/notify-failure";
 export function ListingAsk({
   slug,
   listing,
-}: Readonly<{ slug: string; listing: Listing }>) {
-  return listing === "ASKED" ? <AskedOnce slug={slug} /> : null;
+  isDisabled = false,
+}: Readonly<{ slug: string; listing: Listing; isDisabled?: boolean }>) {
+  return listing === "ASKED" ? (
+    <AskedOnce slug={slug} isDisabled={isDisabled} />
+  ) : null;
 }
 
-function AskedOnce({ slug }: Readonly<{ slug: string }>) {
+function AskedOnce({
+  slug,
+  isDisabled,
+}: Readonly<{ slug: string; isDisabled: boolean }>) {
   const set = useSetListing(slug);
   const answer = (listed: boolean) =>
     set.mutate(listed, { onError: onFailure });
   return (
     <Ask
-      title="List among the mentors?"
-      lines={[
-        "Members of the community would see this mentor, and whether mentoring is under way or ended.",
-        "A past pairing stays private either way.",
-      ]}
+      title="Show among the mentors?"
+      lines={["Only the mentor shows, never a mentee"]}
     >
       <Button
         variant="outline"
         size="sm"
-        isDisabled={set.isPending}
+        isDisabled={isDisabled || set.isPending}
         onPress={() => answer(false)}
       >
         Keep private
       </Button>
-      <Button size="sm" isDisabled={set.isPending} onPress={() => answer(true)}>
+      <Button
+        size="sm"
+        isDisabled={isDisabled || set.isPending}
+        onPress={() => answer(true)}
+      >
         Show
       </Button>
     </Ask>

@@ -40,6 +40,7 @@ export function OtherMentors({
         <PersonStack
           label="Other mentors here"
           total={other.total}
+          surface="raised"
           people={other.faces.map((face) => ({
             id: face.userId,
             name: face.displayName,

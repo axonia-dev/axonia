@@ -9,7 +9,9 @@ import {
   useMentors,
   useSetListing,
 } from "@/features/mentoring/api/use-mentor-listing";
+import type { MentoringPage } from "@/features/mentoring/domain/mentoring";
 import { mentorFaceOf, pageOf } from "@/features/mentoring/test-data";
+import { ApiError } from "@/lib/api-client";
 
 vi.mock("@/features/mentoring/adapters/http-mentoring-gateway", () => ({
   httpMentoringGateway: { mentors: vi.fn(), setListing: vi.fn() },
@@ -66,5 +68,65 @@ describe("other mentors", () => {
           ?.isInvalidated,
       ).toBe(true);
     });
+  });
+
+  function cachedListing() {
+    return client.getQueryData<MentoringPage>(mentoringKeys.page("platform"))
+      ?.listing;
+  }
+
+  it("flipsTheListingBeforeTheServerAnswers", async () => {
+    gateway.setListing.mockReturnValue(new Promise(() => {}));
+    client.setQueryData(
+      mentoringKeys.page("platform"),
+      pageOf({ listing: "LISTED" }),
+    );
+    const { result } = renderHook(() => useSetListing("platform"), {
+      wrapper,
+    });
+
+    act(() => result.current.mutate(false));
+    await waitFor(() => expect(cachedListing()).toBe("OFF"));
+
+    act(() => result.current.mutate(true));
+    await waitFor(() => expect(cachedListing()).toBe("LISTED"));
+  });
+
+  it("goesBackWhenTheListingIsRefused", async () => {
+    gateway.setListing.mockRejectedValue(new ApiError(409, "No", "x"));
+    client.setQueryData(
+      mentoringKeys.page("platform"),
+      pageOf({ listing: "LISTED" }),
+    );
+    const { result } = renderHook(() => useSetListing("platform"), {
+      wrapper,
+    });
+
+    act(() => result.current.mutate(false));
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(cachedListing()).toBe("LISTED");
+  });
+
+  it("keepsThePreviousPageWhileTheNextLoads", async () => {
+    const first = {
+      content: [mentorFaceOf()],
+      totalElements: 30,
+      totalPages: 2,
+      number: 0,
+      size: 20,
+    };
+    gateway.mentors.mockResolvedValueOnce(first);
+    gateway.mentors.mockReturnValueOnce(new Promise(() => {}));
+    const { result, rerender } = renderHook(
+      ({ page }) => useMentors("platform", page),
+      { wrapper, initialProps: { page: 0 } },
+    );
+    await waitFor(() => expect(result.current.data).toEqual(first));
+
+    rerender({ page: 1 });
+
+    expect(result.current.data).toEqual(first);
+    expect(result.current.isPlaceholderData).toBe(true);
   });
 });

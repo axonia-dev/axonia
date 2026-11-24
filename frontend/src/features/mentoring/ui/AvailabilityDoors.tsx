@@ -205,7 +205,11 @@ export function AvailabilityDoors({
             listing={page.listing}
             isDisabled={archived}
           />
-          <ListingAsk slug={slug} listing={page.listing} />
+          <ListingAsk
+            slug={slug}
+            listing={page.listing}
+            isDisabled={archived}
+          />
         </Door>
         <Door
           kind="mentee"

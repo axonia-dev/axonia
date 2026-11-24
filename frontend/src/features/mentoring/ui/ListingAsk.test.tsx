@@ -48,4 +48,26 @@ describe("ListingAsk", () => {
       expect(container).toBeEmptyDOMElement();
     },
   );
+
+  it("asksTheSameQuestionAsTheMail", () => {
+    setting();
+
+    render(<ListingAsk slug="platform" listing="ASKED" />);
+
+    expect(
+      screen.getByRole("heading", { name: "Show among the mentors?" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Only the mentor shows, never a mentee"),
+    ).toBeInTheDocument();
+  });
+
+  it("disablesBothAnswersWhenArchived", () => {
+    setting();
+
+    render(<ListingAsk slug="platform" listing="ASKED" isDisabled />);
+
+    expect(screen.getByRole("button", { name: "Show" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Keep private" })).toBeDisabled();
+  });
 });

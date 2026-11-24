@@ -24,13 +24,13 @@ interface Props {
   surface?: Surface;
 }
 
-type Surface = "sunken" | "raised";
+export type Surface = "sunken" | "raised";
 
 /** The border is what separates one face from the next in an overlapping presenter stack; every
  *  other trait of the avatar - monogram, hue, photo fallback, ring - belongs to `MemberAvatar`. */
 const avatarClass = "size-7 border-2 text-xs";
 
-function surfaceBorder(surface: Surface): string {
+export function surfaceBorder(surface: Surface): string {
   return surface === "raised" ? "border-surface" : "border-surface-sunken";
 }
 

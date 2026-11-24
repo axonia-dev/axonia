@@ -61,4 +61,18 @@ describe("PersonStack", () => {
     expect(screen.getByText("+7")).toBeInTheDocument();
     expect(screen.getByLabelText("7 more")).toBeInTheDocument();
   });
+
+  it("separatesFacesAndTheChipWithTheSurfaceItSitsOn", () => {
+    render(<PersonStack people={people(6)} surface="raised" label="Mentors" />);
+
+    expect(screen.getByText("+1")).toHaveClass("border-surface", "bg-surface");
+    expect(screen.getByText("+1")).not.toHaveClass("border-surface-sunken");
+    expect(screen.getAllByText("AR")[0]).toHaveClass("border-surface");
+  });
+
+  it("defaultsToTheSunkenSurface", () => {
+    render(<PersonStack people={people(6)} label="Mentors" />);
+
+    expect(screen.getByText("+1")).toHaveClass("border-surface-sunken");
+  });
 });

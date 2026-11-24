@@ -1,5 +1,10 @@
-import { PersonHoverCard } from "@/components/patterns/PersonHoverCard";
+import {
+  PersonHoverCard,
+  type Surface,
+  surfaceBorder,
+} from "@/components/patterns/PersonHoverCard";
 import type { User } from "@/features/identity/domain/user";
+import { cn } from "@/lib/cn";
 
 interface StackedPerson {
   id: string;
@@ -13,6 +18,8 @@ interface PersonStackProps {
   max?: number;
   /** How many people there are in all, when `people` holds only the first few. */
   total?: number;
+  /** The background the stack sits on, which the separating border must match. */
+  surface?: Surface;
   label: string;
 }
 
@@ -23,6 +30,7 @@ export function PersonStack({
   people,
   max = DEFAULT_MAX,
   total = people.length,
+  surface = "sunken",
   label,
 }: Readonly<PersonStackProps>) {
   const remainder = total - Math.min(max, people.length);
@@ -34,13 +42,18 @@ export function PersonStack({
           name={person.name}
           user={person.user}
           detail={person.detail}
+          surface={surface}
         />
       ))}
       {remainder > 0 && (
         <span
           aria-label={`${remainder} more`}
           role="img"
-          className="border-surface-sunken bg-surface-sunken text-muted-foreground inline-flex size-7 items-center justify-center rounded-full border-2 text-xs font-bold"
+          className={cn(
+            "text-muted-foreground inline-flex size-7 items-center justify-center rounded-full border-2 text-xs font-bold",
+            surfaceBorder(surface),
+            surface === "raised" ? "bg-surface" : "bg-surface-sunken",
+          )}
         >
           +{remainder}
         </span>

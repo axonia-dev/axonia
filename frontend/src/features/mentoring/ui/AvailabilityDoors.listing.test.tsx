@@ -97,4 +97,11 @@ describe("AvailabilityDoors listing", () => {
       ).toBeInTheDocument();
     },
   );
+
+  it("askIsDisabledInAnArchivedCommunity", () => {
+    doors({ listing: "ASKED", archived: true });
+
+    expect(screen.getByRole("button", { name: "Show" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Keep private" })).toBeDisabled();
+  });
 });
