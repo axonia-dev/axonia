@@ -8,7 +8,7 @@ import { Pagination } from "@/components/patterns/Pagination";
 import { SearchField } from "@/components/ui/SearchField";
 import { Select } from "@/components/ui/Select";
 import { SavedHelpfulPrompt } from "@/features/bookmarks/ui/SavedHelpfulPrompt";
-import { useArtifacts } from "@/features/knowledge/api/use-artifacts";
+import { useLibraryPage } from "@/features/knowledge/api/use-artifacts";
 import type { Artifact } from "@/features/knowledge/domain/artifact";
 import type { ArtifactSearchParams } from "@/features/knowledge/domain/knowledge-gateway";
 import { ArtifactList } from "@/features/knowledge/ui/ArtifactList";
@@ -20,8 +20,11 @@ import {
   SessionFilter,
 } from "@/features/knowledge/ui/SessionFilter";
 import { ALL_TYPES, TypeChips } from "@/features/knowledge/ui/TypeChips";
+import { useDebouncedValue } from "@/lib/use-debounced-value";
 
 const PAGE_SIZE = 20;
+/** How long typing pauses before the search is asked, so a word is one request rather than one per letter. */
+const SEARCH_DEBOUNCE_MS = 300;
 
 type Sort = "newest" | "mostAppreciated";
 const DEFAULT_SORT: Sort = "newest";
@@ -125,13 +128,18 @@ function usePageFor(saved: boolean) {
   return [page, setPage] as const;
 }
 
-/** An unsave can empty the last page; fall back to the last page that still has rows. */
+/** An unsave can empty the last page; fall back to the last page that still has rows. A placeholder
+ *  is the previous answer, so its page count says nothing about the page being asked for. */
 function keepPageInRange(
   page: number,
-  data: { totalPages: number } | undefined,
+  answer: {
+    data: { totalPages: number } | undefined;
+    isPlaceholderData: boolean;
+  },
   setPage: (page: number) => void,
 ) {
-  if (data && page > 0 && page >= data.totalPages) {
+  const { data, isPlaceholderData } = answer;
+  if (data && !isPlaceholderData && page > 0 && page >= data.totalPages) {
     setPage(Math.max(0, data.totalPages - 1));
   }
 }
@@ -149,24 +157,22 @@ export function LibraryView({
   const focusedId = focusedIdFromParams(searchParams);
   const saved = searchParams.get(SAVED_PARAM) === "1";
   const [page, setPage] = usePageFor(saved);
+  const searchedQ = useDebouncedValue(q, SEARCH_DEBOUNCE_MS);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
-          if (q.trim() !== "") {
-            next.set("q", q.trim());
-          } else {
-            next.delete("q");
-          }
-          return next;
-        },
-        { replace: true },
-      );
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [q, setSearchParams]);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (searchedQ.trim() !== "") {
+          next.set("q", searchedQ.trim());
+        } else {
+          next.delete("q");
+        }
+        return next;
+      },
+      { replace: true },
+    );
+  }, [searchedQ, setSearchParams]);
 
   function resetTo<T>(set: (value: T) => void) {
     return (value: T) => {
@@ -192,7 +198,7 @@ export function LibraryView({
   }
 
   const params = buildSearchParams({
-    q,
+    q: searchedQ,
     typeFilter,
     tag,
     session,
@@ -200,10 +206,10 @@ export function LibraryView({
     saved,
     page,
   });
-  const artifacts = useArtifacts(slug, params);
+  const artifacts = useLibraryPage(slug, params);
   const data = artifacts.data;
   const totalPages = data?.totalPages ?? 0;
-  keepPageInRange(page, data, setPage);
+  keepPageInRange(page, artifacts, setPage);
 
   return (
     <section className="flex flex-col gap-6">
@@ -254,6 +260,7 @@ export function LibraryView({
         slug={slug}
         artifacts={data?.content ?? []}
         isLoading={artifacts.isLoading}
+        isRefreshing={artifacts.isPlaceholderData}
         isError={artifacts.isError}
         isFiltered={narrowsResults(params)}
         onTagClick={resetTo(setTag)}

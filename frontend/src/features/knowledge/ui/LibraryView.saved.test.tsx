@@ -8,7 +8,7 @@ import type { Artifact } from "@/features/knowledge/domain/artifact";
 import { LibraryView } from "@/features/knowledge/ui/LibraryView";
 
 vi.mock("@/features/knowledge/api/use-artifacts", () => ({
-  useArtifacts: vi.fn(),
+  useLibraryPage: vi.fn(),
 }));
 vi.mock("@/features/knowledge/ui/LibraryHeader", () => ({
   LibraryHeader: () => null,
@@ -42,9 +42,9 @@ vi.mock("@/features/knowledge/ui/ArtifactList", () => ({
   ),
 }));
 
-import { useArtifacts } from "@/features/knowledge/api/use-artifacts";
+import { useLibraryPage } from "@/features/knowledge/api/use-artifacts";
 
-const mockArtifacts = vi.mocked(useArtifacts);
+const mockArtifacts = vi.mocked(useLibraryPage);
 
 function LocationProbe() {
   return <span data-testid="search">{useLocation().search}</span>;

@@ -191,6 +191,23 @@ describe("ArtifactList", () => {
     ).toBeInTheDocument();
   });
 
+  it("marks the list busy while the rows shown are the previous answer", () => {
+    // when
+    render(
+      <ArtifactList
+        slug="eng"
+        artifacts={[artifact]}
+        isLoading={false}
+        isRefreshing
+        isError={false}
+      />,
+      { wrapper },
+    );
+
+    // then
+    expect(screen.getByRole("list")).toHaveAttribute("aria-busy", "true");
+  });
+
   it("shows an error alert when loading failed", () => {
     // when
     render(

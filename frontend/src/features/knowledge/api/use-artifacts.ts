@@ -1,4 +1,5 @@
 import {
+  keepPreviousData,
   type QueryClient,
   useMutation,
   useQuery,
@@ -22,6 +23,19 @@ export function useArtifacts(slug: string, params: ArtifactSearchParams) {
   return useQuery({
     queryKey: artifactKeys.search(slug, params),
     queryFn: () => gateway.search(slug, params),
+  });
+}
+
+/**
+ * A page of the library as a member browses it: while the next page or filter
+ * loads, the rows already on screen stay there, so the list never blanks to a
+ * loading line between two answers.
+ */
+export function useLibraryPage(slug: string, params: ArtifactSearchParams) {
+  return useQuery({
+    queryKey: artifactKeys.search(slug, params),
+    queryFn: () => gateway.search(slug, params),
+    placeholderData: keepPreviousData,
   });
 }
 

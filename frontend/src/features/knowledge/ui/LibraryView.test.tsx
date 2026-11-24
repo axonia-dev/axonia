@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -14,7 +14,7 @@ function renderView(slug = "backend-guild") {
 }
 
 vi.mock("@/features/knowledge/api/use-artifacts", () => ({
-  useArtifacts: vi.fn(),
+  useLibraryPage: vi.fn(),
 }));
 vi.mock("@/features/knowledge/ui/LibraryHeader", () => ({
   LibraryHeader: () => <div data-testid="library-header" />,
@@ -50,13 +50,19 @@ vi.mock("@/features/knowledge/ui/ArtifactList", () => ({
   ArtifactList: ({
     artifacts,
     isFiltered,
+    isRefreshing,
     onTagClick,
   }: {
     artifacts: { id: number }[];
     isFiltered?: boolean;
+    isRefreshing?: boolean;
     onTagClick?: (tag: string) => void;
   }) => (
-    <div data-testid="artifact-list" data-filtered={String(isFiltered)}>
+    <div
+      data-testid="artifact-list"
+      data-filtered={String(isFiltered)}
+      data-refreshing={String(isRefreshing)}
+    >
       <span>{artifacts.length}</span>
       <button type="button" onClick={() => onTagClick?.("hexagonal")}>
         click-tag
@@ -65,9 +71,9 @@ vi.mock("@/features/knowledge/ui/ArtifactList", () => ({
   ),
 }));
 
-import { useArtifacts } from "@/features/knowledge/api/use-artifacts";
+import { useLibraryPage } from "@/features/knowledge/api/use-artifacts";
 
-const mockArtifacts = vi.mocked(useArtifacts);
+const mockArtifacts = vi.mocked(useLibraryPage);
 
 let user: ReturnType<typeof userEvent.setup>;
 
@@ -111,9 +117,57 @@ describe("LibraryView", () => {
     );
 
     // then
-    expect(mockArtifacts).toHaveBeenLastCalledWith(
-      "backend-guild",
-      expect.objectContaining({ q: "hexagon" }),
+    await waitFor(() =>
+      expect(mockArtifacts).toHaveBeenLastCalledWith(
+        "backend-guild",
+        expect.objectContaining({ q: "hexagon" }),
+      ),
+    );
+  });
+
+  it("asks once typing pauses, never for the letters typed on the way", async () => {
+    // given
+    renderView();
+
+    // when
+    await user.type(
+      screen.getByRole("searchbox", { name: /search the library/i }),
+      "hexagon",
+    );
+    await waitFor(() =>
+      expect(mockArtifacts).toHaveBeenLastCalledWith(
+        "backend-guild",
+        expect.objectContaining({ q: "hexagon" }),
+      ),
+    );
+
+    // then
+    const asked = mockArtifacts.mock.calls.map(([, params]) => params.q);
+    expect(asked.filter((q) => q !== undefined && q !== "hexagon")).toEqual([]);
+  });
+
+  it("dims the rows on screen while the next answer loads", () => {
+    // given
+    mockArtifacts.mockReturnValue({
+      data: {
+        content: [{ id: 1 }],
+        totalElements: 1,
+        totalPages: 1,
+        number: 0,
+        size: 20,
+      },
+      isLoading: false,
+      isPlaceholderData: true,
+      isError: false,
+    } as never);
+
+    // when
+    renderView();
+
+    // then
+    expect(screen.getByTestId("artifact-list")).toHaveAttribute(
+      "data-refreshing",
+      "true",
     );
   });
 
@@ -132,9 +186,11 @@ describe("LibraryView", () => {
     );
 
     // then
-    expect(screen.getByTestId("artifact-list")).toHaveAttribute(
-      "data-filtered",
-      "true",
+    await waitFor(() =>
+      expect(screen.getByTestId("artifact-list")).toHaveAttribute(
+        "data-filtered",
+        "true",
+      ),
     );
   });
 

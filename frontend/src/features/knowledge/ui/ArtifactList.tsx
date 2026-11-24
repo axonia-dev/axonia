@@ -55,6 +55,8 @@ interface Props {
   slug: string;
   artifacts: Artifact[];
   isLoading: boolean;
+  /** The rows shown are the previous answer while the next one loads. */
+  isRefreshing?: boolean;
   isError: boolean;
   /** A search or filter is narrowing the list, so an empty one means no match, not an empty library. */
   isFiltered?: boolean;
@@ -73,6 +75,7 @@ export function ArtifactList({
   slug,
   artifacts,
   isLoading,
+  isRefreshing = false,
   isError,
   isFiltered,
   onTagClick,
@@ -126,7 +129,13 @@ export function ArtifactList({
     return <EmptyLibrary isFiltered={isFiltered} empty={empty} />;
   }
   return (
-    <ul className="flex flex-col gap-3">
+    <ul
+      aria-busy={isRefreshing}
+      className={cn(
+        "flex flex-col gap-3 transition-opacity",
+        isRefreshing && "opacity-60",
+      )}
+    >
       {artifacts.map((artifact) => {
         const contributor = contributorFor(artifact);
         const provenance = artifact.provenance
