@@ -97,6 +97,19 @@ describe("NotificationPreferencesPage", () => {
     ).toBeInTheDocument();
   });
 
+  it("lists the question about being shown among the mentors", () => {
+    renderPreferences([{ type: "mentoring_listing_ask", enabled: false }]);
+
+    expect(
+      screen.getByRole("switch", { name: /shown among the mentors/i }),
+    ).not.toBeChecked();
+    expect(
+      screen.getByText(
+        "A mail, once, asking whether a past mentor is shown among the community's mentors.",
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("defaults a missing type to enabled, mirroring the backend's own default", () => {
     renderPreferences([{ type: "session_upcoming", enabled: true }]);
 

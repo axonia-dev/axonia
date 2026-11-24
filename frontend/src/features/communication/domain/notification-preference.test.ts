@@ -15,6 +15,7 @@ describe("MESSAGE_TYPES", () => {
       "organization_roundup",
       "mentoring_proposal",
       "mentoring_meeting_reminder",
+      "mentoring_listing_ask",
     ]);
   });
 });
