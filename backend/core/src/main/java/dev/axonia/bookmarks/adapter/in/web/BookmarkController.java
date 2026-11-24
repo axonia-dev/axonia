@@ -10,11 +10,13 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import dev.axonia.bookmarks.application.BookmarkService;
 import dev.axonia.bookmarks.application.SavedItemView;
+import dev.axonia.bookmarks.domain.ItemSaveState;
 import dev.axonia.bookmarks.domain.SaveState;
 import dev.axonia.bookmarks.domain.SaveableRef;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +27,12 @@ import lombok.RequiredArgsConstructor;
 public class BookmarkController {
 
     private final BookmarkService bookmarkService;
+
+    /** One request for a whole page of cards, rather than one per card: {@code ?ids=1,2,3}. */
+    @GetMapping("/artifacts/save-states")
+    List<ItemSaveState> artifactStates(@RequestParam List<Long> ids) {
+        return bookmarkService.artifactSaveStates(ids);
+    }
 
     @GetMapping("/artifacts/{id}/save")
     SaveState artifactState(@PathVariable Long id) {

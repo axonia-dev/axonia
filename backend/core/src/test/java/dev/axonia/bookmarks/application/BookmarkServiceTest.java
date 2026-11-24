@@ -3,8 +3,10 @@ package dev.axonia.bookmarks.application;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.LongStream;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,12 +24,14 @@ import dev.axonia.bookmarks.application.port.out.SessionAccess;
 import dev.axonia.bookmarks.domain.Bookmark;
 import dev.axonia.bookmarks.domain.BookmarkMother;
 import dev.axonia.bookmarks.domain.CommunitySummary;
+import dev.axonia.bookmarks.domain.ItemSaveState;
 import dev.axonia.bookmarks.domain.SaveState;
 import dev.axonia.bookmarks.domain.SaveableRef;
 import dev.axonia.bookmarks.domain.SaveableType;
 import dev.axonia.bookmarks.domain.SavedSession;
 import dev.axonia.knowledge.api.Artifact;
 import dev.axonia.shared.api.error.ForbiddenException;
+import dev.axonia.shared.api.error.ValidationException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -61,9 +65,9 @@ class BookmarkServiceTest {
     void setUp() {
         sut = new BookmarkService(bookmarkStore, artifactAccess, sessionAccess, communityAccess, currentUser,
                 organizationContext, clock);
-        when(currentUser.userId()).thenReturn("bob");
-        // Not every test reaches the persistence path that reads this — lenient avoids a false
-        // UnnecessaryStubbingException on e.g. the not-a-member test, which throws before then.
+        // Not every test reaches the reads these answer: lenient avoids a false UnnecessaryStubbingException on a
+        // test that throws before them, such as the not-a-member or the oversized-batch one.
+        lenient().when(currentUser.userId()).thenReturn("bob");
         lenient().when(organizationContext.organizationId()).thenReturn("default");
     }
 
@@ -200,5 +204,25 @@ class BookmarkServiceTest {
     private static Artifact artifact(long communityId, String contributor) {
         return Artifact.builder().id(100L).communityId(communityId).typeId(3L).type("rfc").title("An RFC")
                 .contributorUserId(contributor).loveCount(0).build();
+    }
+
+    @Test
+    void artifact_save_states_read_only_the_callers_own_saves_once_per_distinct_id() {
+        when(bookmarkStore.findAll("default", "bob", SaveableType.ARTIFACT, new LinkedHashSet<>(List.of(5L, 6L))))
+                .thenReturn(List.of(
+                        Bookmark.builder().saveableType(SaveableType.ARTIFACT).saveableId(6L).helped(false).build()));
+
+        var actual = sut.artifactSaveStates(List.of(5L, 6L, 5L));
+
+        assertThat(actual).containsExactly(ItemSaveState.builder().id(5L).viewerHasSaved(false).build(),
+                ItemSaveState.builder().id(6L).viewerHasSaved(true).viewerHelped(false).build());
+    }
+
+    @Test
+    void artifact_save_states_refuse_more_ids_than_one_page_could_need() {
+        var tooMany = LongStream.rangeClosed(1, BookmarkService.MAX_BATCH + 1).boxed().toList();
+
+        assertThatThrownBy(() -> sut.artifactSaveStates(tooMany)).isInstanceOf(ValidationException.class);
+        verify(bookmarkStore, never()).findAll(any(), any(), any(), any());
     }
 }

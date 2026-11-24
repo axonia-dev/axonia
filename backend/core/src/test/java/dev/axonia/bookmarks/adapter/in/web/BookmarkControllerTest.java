@@ -11,6 +11,7 @@ import dev.axonia.ControllerTestSupport;
 import dev.axonia.CoreWebMvcTest;
 import dev.axonia.bookmarks.application.BookmarkService;
 import dev.axonia.bookmarks.application.SavedSessionView;
+import dev.axonia.bookmarks.domain.ItemSaveState;
 import dev.axonia.bookmarks.domain.SaveState;
 import dev.axonia.bookmarks.domain.SaveableRef;
 import dev.axonia.bookmarks.domain.SavedSession;
@@ -148,5 +149,23 @@ class BookmarkControllerTest extends ControllerTestSupport {
 
         // then
         actual.assertThat().hasStatusOk().bodyJson().extractingPath("$[0].kind").isEqualTo("session");
+    }
+
+    @Test
+    void artifactStates() {
+
+        // given
+        when(bookmarkService.artifactSaveStates(List.of(1L, 2L)))
+                .thenReturn(List.of(ItemSaveState.builder().id(1L).viewerHasSaved(true).viewerHelped(true).build(),
+                        ItemSaveState.builder().id(2L).viewerHasSaved(false).build()));
+
+        // when
+        var actual = mvc.get().uri("/axonia/artifacts/save-states?ids=1,2");
+
+        // then
+        actual.assertThat().hasStatus2xxSuccessful().bodyJson().isStrictlyEqualTo("""
+                [{"id": 1, "viewerHasSaved": true, "viewerHelped": true},
+                 {"id": 2, "viewerHasSaved": false, "viewerHelped": null}]
+                """);
     }
 }

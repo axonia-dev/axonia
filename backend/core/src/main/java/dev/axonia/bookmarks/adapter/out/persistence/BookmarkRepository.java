@@ -1,5 +1,6 @@
 package dev.axonia.bookmarks.adapter.out.persistence;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -11,6 +12,9 @@ interface BookmarkRepository extends CrudRepository<BookmarkEntity, Long> {
 
     Optional<BookmarkEntity> findByOrganizationIdAndMemberUserIdAndSaveableTypeAndSaveableId(String organizationId,
             String memberUserId, SaveableType saveableType, Long saveableId);
+
+    List<BookmarkEntity> findByOrganizationIdAndMemberUserIdAndSaveableTypeAndSaveableIdIn(String organizationId,
+            String memberUserId, SaveableType saveableType, Collection<Long> saveableIds);
 
     List<BookmarkEntity> findByOrganizationIdAndMemberUserIdOrderByCreatedAtDesc(String organizationId,
             String memberUserId);

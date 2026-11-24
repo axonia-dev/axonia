@@ -21,6 +21,7 @@ import dev.axonia.bookmarks.domain.SaveableType;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @MockitoSettings
@@ -135,5 +136,30 @@ class JdbcBookmarkStoreTest {
         assertThat(sql.getValue()).startsWith("DELETE FROM bookmark");
         assertThat(params.getValue().getValues()).containsEntry("org", "default")
                 .containsEntry("saveableType", "SESSION").containsEntry("saveableId", 100L);
+    }
+
+    @Test
+    void findAll_reads_the_members_saves_among_the_ids_in_one_query() {
+
+        // given
+        when(bookmarkRepository.findByOrganizationIdAndMemberUserIdAndSaveableTypeAndSaveableIdIn("default", "bob",
+                SaveableType.ARTIFACT, List.of(100L, 101L))).thenReturn(List.of(JdbcBookmarkStore.toEntity(STORED)));
+
+        // when
+        var actual = sut.findAll("default", "bob", SaveableType.ARTIFACT, List.of(100L, 101L));
+
+        // then
+        assertThat(actual).containsExactly(STORED);
+    }
+
+    @Test
+    void findAll_of_no_ids_answers_without_a_query() {
+
+        // when
+        var actual = sut.findAll("default", "bob", SaveableType.ARTIFACT, List.of());
+
+        // then
+        assertThat(actual).isEmpty();
+        verifyNoInteractions(bookmarkRepository);
     }
 }

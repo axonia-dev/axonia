@@ -2,6 +2,7 @@ package dev.axonia.bookmarks.adapter.out.persistence;
 
 import java.sql.Timestamp;
 import java.time.Clock;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -13,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import dev.axonia.bookmarks.application.port.out.BookmarkStore;
 import dev.axonia.bookmarks.domain.Bookmark;
 import dev.axonia.bookmarks.domain.SaveableRef;
+import dev.axonia.bookmarks.domain.SaveableType;
 import lombok.RequiredArgsConstructor;
 
 @Component
@@ -47,6 +49,17 @@ public class JdbcBookmarkStore implements BookmarkStore {
     public List<Bookmark> listNewestFirst(String organizationId, String memberUserId) {
         return bookmarkRepository.findByOrganizationIdAndMemberUserIdOrderByCreatedAtDesc(organizationId, memberUserId)
                 .stream().map(JdbcBookmarkStore::toBookmark).toList();
+    }
+
+    /** An empty batch answers without a query: {@code IN ()} is a syntax error in Postgres. */
+    @Override
+    @Transactional(readOnly = true)
+    public List<Bookmark> findAll(String organizationId, String memberUserId, SaveableType type, Collection<Long> ids) {
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        return bookmarkRepository.findByOrganizationIdAndMemberUserIdAndSaveableTypeAndSaveableIdIn(organizationId,
+                memberUserId, type, ids).stream().map(JdbcBookmarkStore::toBookmark).toList();
     }
 
     /**

@@ -3,10 +3,14 @@ package dev.axonia.bookmarks.application;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,16 +23,21 @@ import dev.axonia.bookmarks.application.port.out.OrganizationContext;
 import dev.axonia.bookmarks.application.port.out.SessionAccess;
 import dev.axonia.bookmarks.domain.Bookmark;
 import dev.axonia.bookmarks.domain.CommunitySummary;
+import dev.axonia.bookmarks.domain.ItemSaveState;
 import dev.axonia.bookmarks.domain.SaveState;
 import dev.axonia.bookmarks.domain.SaveableRef;
+import dev.axonia.bookmarks.domain.SaveableType;
 import dev.axonia.bookmarks.domain.SavedSession;
 import dev.axonia.knowledge.api.Artifact;
 import dev.axonia.shared.api.error.ForbiddenException;
+import dev.axonia.shared.api.error.ValidationException;
 import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
 public class BookmarkService {
+
+    static final int MAX_BATCH = 100;
 
     private final BookmarkStore bookmarkStore;
     private final ArtifactAccess artifactAccess;
@@ -69,6 +78,30 @@ public class BookmarkService {
     public SaveState saveState(SaveableRef ref) {
         return mine(ref).map(e -> SaveState.builder().viewerHasSaved(true).viewerHelped(e.helped()).build())
                 .orElseGet(() -> SaveState.builder().viewerHasSaved(false).viewerHelped(null).build());
+    }
+
+    /**
+     * The caller's save state of every artifact asked about, one per distinct id in the order asked, read in one query.
+     * It only ever reads the caller's own saves, so an id the caller cannot see answers "not saved" and reveals
+     * nothing. Capped, so a page of cards is one request but the request cannot be made to scan without bound.
+     */
+    @Transactional(readOnly = true)
+    public List<ItemSaveState> artifactSaveStates(Collection<Long> ids) {
+        var distinct = new LinkedHashSet<>(ids);
+        if (distinct.size() > MAX_BATCH) {
+            throw new ValidationException("TOO_MANY_IDS", "Ask for at most " + MAX_BATCH + " artifacts at a time");
+        }
+        var saved = bookmarkStore
+                .findAll(organizationContext.organizationId(), currentUser.userId(), SaveableType.ARTIFACT, distinct)
+                .stream().collect(Collectors.toMap(Bookmark::saveableId, Function.identity()));
+        return distinct.stream().map(id -> itemState(id, saved.get(id))).toList();
+    }
+
+    private static ItemSaveState itemState(long id, Bookmark bookmark) {
+        if (bookmark == null) {
+            return ItemSaveState.builder().id(id).viewerHasSaved(false).build();
+        }
+        return ItemSaveState.builder().id(id).viewerHasSaved(true).viewerHelped(bookmark.helped()).build();
     }
 
     @Transactional(readOnly = true)

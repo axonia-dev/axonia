@@ -92,26 +92,52 @@ describe("httpSaveGateway", () => {
     );
   });
 
-  it("GETs the state", async () => {
+  it("reads the save states of the artifacts asked about in the same tick in one request", async () => {
     // given
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(
-        JSON.stringify({ viewerHasSaved: false, viewerHelped: null }),
-        {
-          status: 200,
-          headers: { "content-type": "application/json" },
-        },
+        JSON.stringify([
+          { id: 100, viewerHasSaved: true, viewerHelped: true },
+          { id: 101, viewerHasSaved: false, viewerHelped: null },
+        ]),
+        { status: 200, headers: { "content-type": "application/json" } },
       ),
     );
 
     // when
-    const actual = await httpSaveGateway.getState({
-      kind: "artifact",
-      id: 100,
-    });
+    const [first, second] = await Promise.all([
+      httpSaveGateway.getState({ kind: "artifact", id: 100 }),
+      httpSaveGateway.getState({ kind: "artifact", id: 101 }),
+    ]);
+
+    // then
+    expect(first).toEqual({ viewerHasSaved: true, viewerHelped: true });
+    expect(second).toEqual({ viewerHasSaved: false, viewerHelped: null });
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(hrefFrom(fetchSpy.mock.calls[0]?.[0])).toContain(
+      "/axonia/artifacts/save-states?ids=100,101",
+    );
+  });
+
+  it("GETs a session's state on its own route", async () => {
+    // given
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify({ viewerHasSaved: false, viewerHelped: null }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+      );
+
+    // when
+    const actual = await httpSaveGateway.getState({ kind: "session", id: 5 });
 
     // then
     expect(actual.viewerHasSaved).toBe(false);
+    expect(hrefFrom(fetchSpy.mock.calls[0]?.[0])).toContain(
+      "/axonia/sessions/5/save",
+    );
   });
 
   it("parses the my-saved list", async () => {

@@ -1,5 +1,6 @@
 package dev.axonia.bookmarks.application;
 
+import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.AfterEach;
@@ -19,9 +20,11 @@ import dev.axonia.bookmarks.application.port.out.CommunityAccess;
 import dev.axonia.bookmarks.application.port.out.CurrentUser;
 import dev.axonia.bookmarks.application.port.out.OrganizationContext;
 import dev.axonia.bookmarks.application.port.out.SessionAccess;
+import dev.axonia.bookmarks.domain.ItemSaveState;
 import dev.axonia.bookmarks.domain.SaveState;
 import dev.axonia.bookmarks.domain.SaveableRef;
 import dev.axonia.bookmarks.domain.SavedSession;
+import dev.axonia.knowledge.api.Artifact;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
@@ -90,5 +93,28 @@ class BookmarkServiceJdbcTest extends CoreJdbcTestSupport {
         assertThat(actual).isEqualTo(SaveState.builder().viewerHasSaved(true).viewerHelped(null).build());
         assertThat(jdbc.queryForObject("SELECT count(*) FROM bookmark WHERE member_user_id = :member",
                 Map.of("member", MEMBER), Integer.class)).isEqualTo(1);
+    }
+
+    @Test
+    void artifactSaveStatesAnswerEveryIdAskedOnceInOrderFromOneRead() {
+
+        // given
+        var helpedOne = SaveableRef.artifact(870_010L);
+        var plainOne = SaveableRef.artifact(870_011L);
+        when(artifactAccess.get(helpedOne.id())).thenReturn(
+                Artifact.builder().id(helpedOne.id()).communityId(COMMUNITY).contributorUserId("someone").build());
+        when(artifactAccess.get(plainOne.id())).thenReturn(
+                Artifact.builder().id(plainOne.id()).communityId(COMMUNITY).contributorUserId("someone").build());
+        sut.save(helpedOne);
+        sut.save(plainOne);
+        sut.markHelpful(helpedOne.id(), true);
+
+        // when
+        var actual = sut.artifactSaveStates(List.of(plainOne.id(), 870_012L, helpedOne.id(), plainOne.id()));
+
+        // then
+        assertThat(actual).containsExactly(ItemSaveState.builder().id(plainOne.id()).viewerHasSaved(true).build(),
+                ItemSaveState.builder().id(870_012L).viewerHasSaved(false).build(),
+                ItemSaveState.builder().id(helpedOne.id()).viewerHasSaved(true).viewerHelped(true).build());
     }
 }
