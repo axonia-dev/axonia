@@ -1,5 +1,6 @@
 package dev.axonia.knowledge.adapter.out.persistence;
 
+import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
@@ -16,6 +17,7 @@ import dev.axonia.knowledge.application.port.out.ArtifactStore;
 import dev.axonia.knowledge.domain.ArtifactSession;
 import dev.axonia.knowledge.domain.LibraryStats;
 import dev.axonia.knowledge.domain.StoredArtifact;
+import dev.axonia.knowledge.domain.TagCount;
 import lombok.RequiredArgsConstructor;
 
 @Component
@@ -65,6 +67,13 @@ public class JdbcArtifactStore implements ArtifactStore {
     public LibraryStats stats(String organizationId, Long communityId) {
 
         return artifactRepository.stats(organizationId, communityId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<TagCount> trendingTags(String organizationId, Long communityId, Instant since, int limit) {
+
+        return artifactRepository.trendingTags(organizationId, communityId, since, limit);
     }
 
     static StoredArtifact toArtifact(ArtifactEntity entity) {

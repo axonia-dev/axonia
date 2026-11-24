@@ -10,6 +10,8 @@ export const artifactKeys = {
   sessions: (slug: string) =>
     [...artifactKeys.community(slug), "sessions"] as const,
   stats: (slug: string) => [...artifactKeys.community(slug), "stats"] as const,
+  trendingTags: (slug: string) =>
+    [...artifactKeys.community(slug), "trending-tags"] as const,
 };
 
 export const artifactTypeKeys = {

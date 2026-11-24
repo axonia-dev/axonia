@@ -3,20 +3,20 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TrendingTags } from "@/features/community/ui/TrendingTags";
-import { useArtifacts } from "@/features/knowledge/api/use-artifacts";
+import { useTrendingTags } from "@/features/knowledge/api/use-library-insights";
+import type { TagCount } from "@/features/knowledge/domain/tag-count";
 
-vi.mock("@/features/knowledge/api/use-artifacts");
+vi.mock("@/features/knowledge/api/use-library-insights");
 
-function mockArtifacts(content: Array<{ tags: string[] }>, isPending = false) {
-  vi.mocked(useArtifacts).mockReturnValue({
-    data: { content },
-    isPending,
-    isError: false,
-  } as never);
+function mockTags(data: TagCount[] | undefined) {
+  vi.mocked(useTrendingTags).mockReturnValue({ data } as never);
 }
 
 beforeEach(() => {
-  mockArtifacts([{ tags: ["incident", "rfc"] }, { tags: ["incident"] }]);
+  mockTags([
+    { tag: "incident", count: 2 },
+    { tag: "rfc", count: 1 },
+  ]);
 });
 
 function renderTags() {
@@ -37,8 +37,21 @@ describe("TrendingTags", () => {
     );
   });
 
+  it("shows the tags in the server's order, each with its count", () => {
+    renderTags();
+    expect(screen.getAllByRole("link").map((link) => link.textContent)).toEqual(
+      ["#incident2", "#rfc1"],
+    );
+  });
+
   it("renders nothing when there are no tags", () => {
-    mockArtifacts([{ tags: [] }]);
+    mockTags([]);
+    const { container } = renderTags();
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("renders nothing while the tags load", () => {
+    mockTags(undefined);
     const { container } = renderTags();
     expect(container).toBeEmptyDOMElement();
   });

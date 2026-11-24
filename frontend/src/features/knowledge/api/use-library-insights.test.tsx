@@ -6,10 +6,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   useArtifactSessions,
   useLibraryStats,
+  useTrendingTags,
 } from "@/features/knowledge/api/use-library-insights";
 
 vi.mock("@/features/knowledge/adapters/http-knowledge-gateway", () => ({
-  httpKnowledgeGateway: { listSessions: vi.fn(), stats: vi.fn() },
+  httpKnowledgeGateway: {
+    listSessions: vi.fn(),
+    stats: vi.fn(),
+    trendingTags: vi.fn(),
+  },
 }));
 
 import { httpKnowledgeGateway } from "@/features/knowledge/adapters/http-knowledge-gateway";
@@ -64,5 +69,22 @@ describe("useLibraryStats", () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data?.total).toBe(12);
     expect(gateway.stats.mock.calls[0]).toEqual(["backend-guild"]);
+  });
+});
+
+describe("useTrendingTags", () => {
+  it("returns the community's trending tags", async () => {
+    // given
+    gateway.trendingTags.mockResolvedValue([{ tag: "kafka", count: 3 }]);
+
+    // when
+    const { result } = renderHook(() => useTrendingTags("backend-guild"), {
+      wrapper,
+    });
+
+    // then
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toEqual([{ tag: "kafka", count: 3 }]);
+    expect(gateway.trendingTags.mock.calls[0]).toEqual(["backend-guild"]);
   });
 });

@@ -3,6 +3,7 @@ package dev.axonia.knowledge.adapter.out.persistence;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -19,6 +20,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import dev.axonia.knowledge.api.ArtifactFilter;
 import dev.axonia.knowledge.domain.ArtifactSession;
 import dev.axonia.knowledge.domain.LibraryStats;
+import dev.axonia.knowledge.domain.TagCount;
 import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
@@ -262,5 +264,29 @@ class ArtifactSearchRepositoryImpl implements ArtifactSearchRepository {
         return jdbc.queryForObject(STATS_SQL, params,
                 (rs, n) -> LibraryStats.builder().total(rs.getLong("total")).sessionCount(rs.getLong("session_count"))
                         .capturedThisMonth(rs.getLong("captured_this_month")).build());
+    }
+
+    /**
+     * Correlates {@code artifact_tag} through the scoped {@code a} alias, as the tag filter above does: the tag table
+     * has no organization column of its own.
+     */
+    private static final String TRENDING_TAGS_SQL = """
+            SELECT t.tag, count(*) AS cnt
+              FROM artifact_tag t
+              JOIN artifact a ON a.id = t.artifact_id
+             WHERE a.organization_id = :organizationId AND a.community_id = :communityId AND a.status = 'ACTIVE'
+               AND a.created_at >= :since
+             GROUP BY t.tag
+             ORDER BY cnt DESC, t.tag
+             LIMIT :limit
+            """;
+
+    @Override
+    public List<TagCount> trendingTags(String organizationId, Long communityId, Instant since, int limit) {
+
+        var params = new MapSqlParameterSource().addValue("organizationId", organizationId)
+                .addValue("communityId", communityId).addValue("since", Timestamp.from(since)).addValue("limit", limit);
+        return jdbc.query(TRENDING_TAGS_SQL, params,
+                (rs, n) -> TagCount.builder().tag(rs.getString("tag")).count(rs.getLong("cnt")).build());
     }
 }

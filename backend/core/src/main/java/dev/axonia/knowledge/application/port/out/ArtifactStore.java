@@ -1,5 +1,6 @@
 package dev.axonia.knowledge.application.port.out;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -10,6 +11,7 @@ import dev.axonia.knowledge.api.ArtifactFilter;
 import dev.axonia.knowledge.domain.ArtifactSession;
 import dev.axonia.knowledge.domain.LibraryStats;
 import dev.axonia.knowledge.domain.StoredArtifact;
+import dev.axonia.knowledge.domain.TagCount;
 
 public interface ArtifactStore {
 
@@ -25,4 +27,7 @@ public interface ArtifactStore {
     List<ArtifactSession> sessionsWithArtifacts(String organizationId, Long communityId);
 
     LibraryStats stats(String organizationId, Long communityId);
+
+    /** The {@code limit} tags most carried by active artifacts captured at or after {@code since}, most first. */
+    List<TagCount> trendingTags(String organizationId, Long communityId, Instant since, int limit);
 }

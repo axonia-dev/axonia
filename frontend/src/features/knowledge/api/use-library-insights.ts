@@ -20,3 +20,11 @@ export function useLibraryStats(slug: string) {
     queryFn: () => gateway.stats(slug),
   });
 }
+
+/** The tags the community's recent artifacts carry most, ranked by the server. */
+export function useTrendingTags(slug: string) {
+  return useQuery({
+    queryKey: artifactKeys.trendingTags(slug),
+    queryFn: () => gateway.trendingTags(slug),
+  });
+}

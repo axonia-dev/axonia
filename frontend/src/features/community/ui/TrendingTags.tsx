@@ -1,18 +1,17 @@
 import { Link } from "react-router-dom";
 
 import { SectionCard } from "@/components/ui/SectionCard";
-import { trendingTags } from "@/features/community/domain/trending-tags";
-import { useArtifacts } from "@/features/knowledge/api/use-artifacts";
+import { useTrendingTags } from "@/features/knowledge/api/use-library-insights";
 
 /**
- * What the community is sharing about lately — tags ranked by frequency across
- * the recent Library window. Content signal, never a member ranking.
+ * What the community is sharing about lately: the tags most carried by the
+ * artifacts captured in the last 90 days, ranked by the server over the whole
+ * library. Content signal, never a member ranking.
  */
 export function TrendingTags({ slug }: Readonly<{ slug: string }>) {
-  const artifacts = useArtifacts(slug, { page: 0, size: 20 });
-  const tags = trendingTags(artifacts.data?.content ?? []);
+  const tags = useTrendingTags(slug).data ?? [];
 
-  if (artifacts.isPending || tags.length === 0) {
+  if (tags.length === 0) {
     return null;
   }
 

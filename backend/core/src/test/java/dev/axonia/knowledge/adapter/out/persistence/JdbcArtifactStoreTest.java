@@ -17,6 +17,7 @@ import dev.axonia.knowledge.api.ArtifactFilter;
 import dev.axonia.knowledge.domain.ArtifactSession;
 import dev.axonia.knowledge.domain.LibraryStats;
 import dev.axonia.knowledge.domain.StoredArtifact;
+import dev.axonia.knowledge.domain.TagCount;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -176,5 +177,17 @@ class JdbcArtifactStoreTest {
         // when / then
         assertThat(sut().sessionsWithArtifacts("default", 1L)).isEqualTo(sessions);
         assertThat(sut().stats("default", 1L)).isEqualTo(stats);
+    }
+
+    @Test
+    void trendingTags_delegatesToTheRepository() {
+
+        // given
+        var since = Instant.parse("2026-08-26T10:00:00Z");
+        var tags = List.of(TagCount.builder().tag("kafka").count(3).build());
+        when(artifactRepository.trendingTags("default", 1L, since, 6)).thenReturn(tags);
+
+        // when / then
+        assertThat(sut().trendingTags("default", 1L, since, 6)).isEqualTo(tags);
     }
 }

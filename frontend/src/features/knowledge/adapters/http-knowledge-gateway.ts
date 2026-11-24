@@ -19,6 +19,7 @@ import {
   attachmentSchema,
   sessionResourceSchema,
 } from "@/features/knowledge/domain/session-resource";
+import { tagCountSchema } from "@/features/knowledge/domain/tag-count";
 import { apiFetch, apiFetchVoid } from "@/lib/api-client";
 import { pageSchema } from "@/lib/page";
 import { buildQuery as query } from "@/lib/query";
@@ -87,6 +88,13 @@ export const httpKnowledgeGateway: KnowledgeGateway = {
       `/axonia/communities/${slug}/artifacts/stats`,
     );
     return libraryStatsSchema.parse(data);
+  },
+
+  async trendingTags(slug: string) {
+    const data = await apiFetch<unknown>(
+      `/axonia/communities/${slug}/artifacts/trending-tags`,
+    );
+    return z.array(tagCountSchema).parse(data);
   },
 
   async sessionResources(slug: string, sessionId: number) {

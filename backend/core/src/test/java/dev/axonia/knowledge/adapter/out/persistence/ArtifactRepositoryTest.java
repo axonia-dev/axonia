@@ -13,8 +13,10 @@ import org.springframework.data.domain.PageRequest;
 import dev.axonia.CoreJdbcTestSupport;
 import dev.axonia.knowledge.api.ArtifactFilter;
 import dev.axonia.knowledge.domain.ArtifactSession;
+import dev.axonia.knowledge.domain.TagCount;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 class ArtifactRepositoryTest extends CoreJdbcTestSupport {
 
@@ -504,6 +506,31 @@ class ArtifactRepositoryTest extends CoreJdbcTestSupport {
 
         // then
         assertThat(artifactRepository.sessionsWithArtifacts("default", 1L)).isEmpty();
+    }
+
+    @Test
+    void trendingTags_rankTheTagsOfRecentActiveArtifactsInTheCommunity() {
+
+        // given
+        saveArtifact("Kafka one", "", 1L, "alice", "kafka", "streams");
+        saveArtifact("Kafka two", "", 1L, "alice", "kafka", "ops");
+        saveArtifact("Kafka three", "", 1L, "bob", "kafka", "streams");
+        saveArtifact("Ops", "", 1L, "bob", "ops");
+        var old = saveArtifact("Old", "", 1L, "bob", "legacy", "legacy-too");
+        jdbc.update("UPDATE artifact SET created_at = :at WHERE id = :id",
+                new org.springframework.jdbc.core.namedparam.MapSqlParameterSource("id", old.getId()).addValue("at",
+                        Timestamp.from(Instant.parse("2020-01-01T00:00:00Z"))));
+        artifactRepository.save(ArtifactEntityMother.any().title("Archived").status("ARCHIVED").searchDocument("x")
+                .tags(Set.of(ArtifactTagRef.builder().tag("archived").build())).build());
+        artifactRepository.save(ArtifactEntityMother.any().title("Elsewhere").communityId(2L).searchDocument("x")
+                .tags(Set.of(ArtifactTagRef.builder().tag("elsewhere").build())).build());
+
+        // when
+        var tags = artifactRepository.trendingTags("default", 1L, Instant.parse("2025-01-01T00:00:00Z"), 2);
+
+        // then
+        assertThat(tags).extracting(TagCount::tag, TagCount::count).containsExactly(tuple("kafka", 3L),
+                tuple("ops", 2L));
     }
 
     @Test

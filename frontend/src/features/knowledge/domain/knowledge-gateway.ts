@@ -8,6 +8,7 @@ import type {
   DetachResourceInput,
   SessionResource,
 } from "@/features/knowledge/domain/session-resource";
+import type { TagCount } from "@/features/knowledge/domain/tag-count";
 import type { Page } from "@/lib/page";
 
 export interface ArtifactSearchParams {
@@ -76,6 +77,7 @@ export interface KnowledgeGateway {
   deleteType(id: number, reassignToId?: number): Promise<void>;
   listSessions(slug: string): Promise<ArtifactSession[]>;
   stats(slug: string): Promise<LibraryStats>;
+  trendingTags(slug: string): Promise<TagCount[]>;
   sessionResources(slug: string, sessionId: number): Promise<SessionResource[]>;
   attachResource(
     slug: string,

@@ -151,6 +151,21 @@ describe("httpKnowledgeGateway", () => {
     );
   });
 
+  it("trendingTags parses the ranked tags", async () => {
+    // given
+    fetchSpy.mockResolvedValue(jsonResponse([{ tag: "kafka", count: 3 }]));
+
+    // when
+    const actual = await httpKnowledgeGateway.trendingTags("backend-guild");
+
+    // then
+    expect(actual).toEqual([{ tag: "kafka", count: 3 }]);
+    const [url] = fetchSpy.mock.calls[0] ?? [];
+    expect(urlOf(url)).toContain(
+      "/axonia/communities/backend-guild/artifacts/trending-tags",
+    );
+  });
+
   it("capture POSTs the input and parses the created artifact", async () => {
     // given
     fetchSpy.mockResolvedValue(jsonResponse(artifact, 201));
