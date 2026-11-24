@@ -80,7 +80,7 @@ describe("MemberNamesPage", () => {
   it("inserts a placeholder at the caret", async () => {
     const user = userEvent.setup();
     await pageWith(["ab"]);
-    const field = (await screen.findByDisplayValue("ab")) as HTMLInputElement;
+    const field = await screen.findByDisplayValue<HTMLInputElement>("ab");
     await user.click(field);
     field.setSelectionRange(1, 1);
 
