@@ -99,4 +99,54 @@ describe("MentorsDialog", () => {
       "Could not load mentors.",
     );
   });
+
+  it("stepsBackWhenAPageEmptiedWhileOpen", async () => {
+    vi.mocked(useMentors).mockImplementation(
+      (_slug, page) =>
+        ({
+          isLoading: false,
+          isError: false,
+          data:
+            page === 0
+              ? {
+                  content: [mentorFaceOf()],
+                  totalPages: 2,
+                  totalElements: 11,
+                  number: 0,
+                  size: 10,
+                }
+              : {
+                  content: [],
+                  totalPages: 1,
+                  totalElements: 10,
+                  number: 1,
+                  size: 10,
+                },
+        }) as never,
+    );
+    open();
+
+    await userEvent.click(screen.getByRole("button", { name: "Next" }));
+
+    expect(useMentors).toHaveBeenLastCalledWith("platform", 0);
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
+  });
+
+  it("saysSoWhenNobodyIsListed", () => {
+    vi.mocked(useMentors).mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        content: [],
+        totalPages: 0,
+        totalElements: 0,
+        number: 0,
+        size: 10,
+      },
+    } as never);
+
+    open();
+
+    expect(screen.getByText("Nobody is listed.")).toBeInTheDocument();
+  });
 });
