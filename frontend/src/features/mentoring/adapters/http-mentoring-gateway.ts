@@ -18,7 +18,7 @@ import { pageSchema } from "@/lib/page";
 
 const wordsListSchema = z.array(wordsSchema);
 
-const MENTORS_PAGE_SIZE = 20;
+const MENTORS_PAGE_SIZE = 10;
 
 const ROOT = "/axonia/mentoring";
 

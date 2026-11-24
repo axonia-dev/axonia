@@ -18,7 +18,7 @@ describe("other mentors", () => {
     const result = await httpMentoringGateway.mentors("platform", 1);
 
     expect(urlOf(fetchSpy.mock.calls[0]?.[0])).toBe(
-      "/axonia/communities/platform/mentoring/mentors?page=1&size=20",
+      "/axonia/communities/platform/mentoring/mentors?page=1&size=10",
     );
     expect(result).toEqual({
       content: [mentorFaceOf()],
