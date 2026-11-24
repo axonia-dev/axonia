@@ -15,6 +15,8 @@ import { cn } from "@/lib/cn";
 interface TabItem {
   id: string;
   label: string;
+  /** Drawn after the label when positive, as how many things the tab's panel holds. */
+  count?: number;
 }
 
 interface TabsProps {
@@ -33,6 +35,7 @@ interface TabsProps {
 // {@link SegmentedControl} styles its own selected toggle.
 const tabClass = cn(
   segmentedItemClass,
+  "inline-flex items-center gap-1.5",
   "data-[selected]:bg-surface data-[selected]:text-foreground data-[selected]:shadow-sm",
 );
 
@@ -73,6 +76,14 @@ export function Tabs({
           {items.map((item) => (
             <Tab key={item.id} id={item.id} className={tabClass}>
               {item.label}
+              {item.count !== undefined && item.count > 0 && (
+                <>
+                  {" "}
+                  <span className="text-muted-foreground font-medium tabular-nums">
+                    {item.count}
+                  </span>
+                </>
+              )}
             </Tab>
           ))}
         </TabList>

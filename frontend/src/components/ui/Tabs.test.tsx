@@ -71,4 +71,33 @@ describe("Tabs", () => {
 
     expect(screen.getByText("Aside")).toBeVisible();
   });
+
+  it("shows a positive count after the label", () => {
+    renderCounted(2);
+
+    expect(screen.getByRole("tab", { name: "Pairs 2" })).toBeVisible();
+  });
+
+  it("shows no count of zero", () => {
+    renderCounted(0);
+
+    expect(screen.getByRole("tab", { name: "Pairs" })).toBeVisible();
+    expect(screen.queryByText("0")).not.toBeInTheDocument();
+  });
 });
+
+function renderCounted(count: number) {
+  render(
+    <Tabs
+      label="Counted sections"
+      items={[
+        { id: "find", label: "Find" },
+        { id: "pairs", label: "Pairs", count },
+      ]}
+      selected="find"
+      onSelect={() => undefined}
+    >
+      <p>Panel</p>
+    </Tabs>,
+  );
+}
