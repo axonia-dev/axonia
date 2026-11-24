@@ -96,6 +96,11 @@ class WriteTools {
     private static final String OMIT_TO_CREDIT_YOURSELF = "Omit it and the work is credited to you, which is the "
             + "live path. Supply it ONLY to credit somebody else: ";
 
+    private static final String TOPIC_DESCRIPTION = "Optional short pitch in plain text, a sentence or two, at most "
+            + ProposeTopicRequest.DESCRIPTION_MAX_LENGTH
+            + " characters. It is shown as is, never rendered as Markdown: no headings, "
+            + "bullets, bold or code. Leave context and detail out; the title says what the topic is.";
+
     private static final String PROPOSER_RULE = OMIT_TO_CREDIT_YOURSELF + "the check fires whenever it is present, "
             + "even when it names you, and only an organizer may use it. " + REFERENCE_RULE;
 
@@ -118,7 +123,7 @@ class WriteTools {
     record ProposeTopicParams(@McpToolParam(description = "Community slug", required = true) String slug,
             @McpToolParam(description = "REQUEST or OFFER", required = true) String kind,
             @McpToolParam(description = "Title", required = true) String title,
-            @McpToolParam(description = "Optional description", required = false) String description,
+            @McpToolParam(description = TOPIC_DESCRIPTION, required = false) String description,
             @McpToolParam(description = "Optional tags. Reuse names from tag.list.", required = false) List<String> tags,
             @McpToolParam(description = "Optional display name, email or user id of the person whose proposal this is. "
                     + PROPOSER_RULE, required = false) String proposer) {
@@ -287,7 +292,8 @@ class WriteTools {
     }
 
     @McpTool(name = "topic.propose", description = "Propose a topic to a community. Kind is REQUEST (I want this) or "
-            + "OFFER (I can present this). Leave proposer out to propose as yourself; set it only when the proposal is "
+            + "OFFER (I can present this). Keep it short: a title and at most a plain-text sentence or two. "
+            + "Leave proposer out to propose as yourself; set it only when the proposal is "
             + "somebody else's, which is an organizer-only act and refuses the write if the name cannot be placed on "
             + "exactly one person. "
             + TagReports.REUSE_TAGS, annotations = @McpAnnotations(readOnlyHint = false, destructiveHint = false, idempotentHint = false))

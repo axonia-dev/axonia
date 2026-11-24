@@ -404,6 +404,33 @@ class TopicServiceTest {
     }
 
     @Test
+    void propose_refusesADescriptionOverTheCap() {
+
+        // given
+        var tooLong = "x".repeat(ProposeTopicRequest.DESCRIPTION_MAX_LENGTH + 1);
+
+        // when / then
+        assertThatThrownBy(
+                () -> sut.propose("backend-guild", new ProposeTopicRequest(TopicKind.OFFER, "x", tooLong, null, null)))
+                .extracting("code").isEqualTo("TOPIC_DESCRIPTION_TOO_LONG");
+        verify(topicStore, never()).save(any());
+    }
+
+    @Test
+    void update_refusesADescriptionOverTheCap() {
+
+        // given
+        when(topicStore.findByOrganizationIdAndId("default", 1L))
+                .thenReturn(Optional.of(TopicRecordMother.any().id(1L).build()));
+        var tooLong = "x".repeat(ProposeTopicRequest.DESCRIPTION_MAX_LENGTH + 1);
+
+        // when / then
+        assertThatThrownBy(() -> sut.update(1L, new UpdateTopicRequest("X", tooLong, null))).extracting("code")
+                .isEqualTo("TOPIC_DESCRIPTION_TOO_LONG");
+        verify(topicStore, never()).save(any());
+    }
+
+    @Test
     void update_delegatesForbiddenFromAuthorizer() {
 
         // given

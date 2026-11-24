@@ -13,4 +13,7 @@ import jakarta.validation.constraints.NotNull;
  */
 public record ProposeTopicRequest(@NotNull TopicKind kind, @NotBlank String title, String description,
         List<String> tags, String proposer) {
+
+    /** A description is a short plain-text pitch, never rendered as Markdown. */
+    public static final int DESCRIPTION_MAX_LENGTH = 500;
 }

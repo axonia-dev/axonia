@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+/** Mirrors the backend cap: a short plain-text pitch, never rendered as Markdown. */
+export const TOPIC_DESCRIPTION_MAX_LENGTH = 500;
+
 const topicKindSchema = z.enum(["REQUEST", "OFFER"]);
 export type TopicKind = z.infer<typeof topicKindSchema>;
 

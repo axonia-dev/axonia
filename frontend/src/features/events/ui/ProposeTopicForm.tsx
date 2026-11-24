@@ -11,7 +11,10 @@ import {
   useEditTopic,
   useProposeTopic,
 } from "@/features/events/api/use-topics";
-import type { TopicKind } from "@/features/events/domain/topic";
+import {
+  TOPIC_DESCRIPTION_MAX_LENGTH,
+  type TopicKind,
+} from "@/features/events/domain/topic";
 import type { TopicEditInput } from "@/features/events/domain/topic-gateway";
 
 interface Props {
@@ -92,6 +95,8 @@ function TopicForm({
         label="Description"
         value={input.description}
         onChange={fields.setDescription}
+        maxLength={TOPIC_DESCRIPTION_MAX_LENGTH}
+        description={`Plain text, up to ${String(TOPIC_DESCRIPTION_MAX_LENGTH)} characters.`}
         rows={3}
       />
       <TagInput
@@ -104,7 +109,11 @@ function TopicForm({
       <DialogFooter>
         <Button
           type="submit"
-          isDisabled={input.title.trim() === "" || isPending}
+          isDisabled={
+            input.title.trim() === "" ||
+            input.description.length > TOPIC_DESCRIPTION_MAX_LENGTH ||
+            isPending
+          }
         >
           {submitLabel}
         </Button>

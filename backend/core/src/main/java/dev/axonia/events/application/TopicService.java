@@ -26,9 +26,9 @@ import dev.axonia.events.application.port.out.CurrentUser;
 import dev.axonia.events.application.port.out.OrganizationContext;
 import dev.axonia.events.application.port.out.TopicStore;
 import dev.axonia.events.application.port.out.TopicVoteStore;
-import dev.axonia.events.domain.Descriptions;
 import dev.axonia.events.domain.Tags;
 import dev.axonia.events.domain.TopicCounts;
+import dev.axonia.events.domain.TopicDescription;
 import dev.axonia.events.domain.TopicRecord;
 import dev.axonia.events.domain.TopicTag;
 import dev.axonia.events.domain.TopicVoteRecord;
@@ -66,7 +66,7 @@ public class TopicService implements Topics {
         var speakers = request.kind() == TopicKind.OFFER ? List.of(proposerUserId) : List.<String>of();
         var saved = topicStore.save(
                 TopicRecord.builder().organizationId(organizationId).communityId(communityId).title(request.title())
-                        .description(Descriptions.orEmpty(request.description())).proposerUserId(proposerUserId)
+                        .description(TopicDescription.of(request.description())).proposerUserId(proposerUserId)
                         .status(TopicStatus.PROPOSED).tags(tagRefs(cleanedTags)).build().withSpeakers(speakers));
         topicEvidence.publish(saved, speakers);
 
@@ -113,7 +113,7 @@ public class TopicService implements Topics {
         topicAuthorizer.requireTopicManagementPermission(entity.getCommunityId(), currentUser.userId());
         var cleanedTags = Tags.clean(request.tags());
         var saved = topicStore.save(entity.toBuilder().title(request.title())
-                .description(Descriptions.orEmpty(request.description())).tags(tagRefs(cleanedTags)).build());
+                .description(TopicDescription.of(request.description())).tags(tagRefs(cleanedTags)).build());
         topicEvidence.publish(saved, topicReadModel.speakersOf(organizationId, List.of(saved)).get(id));
         return topicReadModel.single(saved, null);
     }

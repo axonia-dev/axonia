@@ -6,7 +6,10 @@ import {
   useEditTopic,
   useProposeTopic,
 } from "@/features/events/api/use-topics";
-import type { Topic } from "@/features/events/domain/topic";
+import {
+  type Topic,
+  TOPIC_DESCRIPTION_MAX_LENGTH,
+} from "@/features/events/domain/topic";
 import { EditTopicDialog } from "@/features/events/ui/EditTopicDialog";
 
 vi.mock("@/features/events/api/use-topics", () => ({
@@ -137,5 +140,26 @@ describe("EditTopicDialog", () => {
         tags: [],
       },
     });
+  });
+
+  it("holds Save while a description written before the cap is over it", () => {
+    // when
+    render(
+      <EditTopicDialog
+        slug="backend-guild"
+        topic={{
+          ...topic,
+          description: "x".repeat(TOPIC_DESCRIPTION_MAX_LENGTH + 1),
+        }}
+        isOpen={true}
+        onOpenChange={vi.fn()}
+      />,
+    );
+
+    // then
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+    expect(
+      screen.getByText("Plain text, up to 500 characters."),
+    ).toBeInTheDocument();
   });
 });
