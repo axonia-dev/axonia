@@ -16,6 +16,7 @@ import dev.axonia.CoreWebMvcTest;
 import dev.axonia.mentoring.api.Availability;
 import dev.axonia.mentoring.api.AvailabilityRequest;
 import dev.axonia.mentoring.api.DirectoryPerson;
+import dev.axonia.mentoring.api.ListingRequest;
 import dev.axonia.mentoring.api.MentorFace;
 import dev.axonia.mentoring.api.MentoringPage;
 import dev.axonia.mentoring.api.OtherMentors;
@@ -24,6 +25,7 @@ import dev.axonia.mentoring.api.ProposeRequest;
 import dev.axonia.mentoring.api.ShownPairing;
 import dev.axonia.mentoring.api.ShownPairing.DirectoryFace;
 import dev.axonia.mentoring.application.AvailabilityService;
+import dev.axonia.mentoring.application.MentorListingService;
 import dev.axonia.mentoring.application.MentorRosterReads;
 import dev.axonia.mentoring.application.MentoringReads;
 import dev.axonia.mentoring.application.ProposalService;
@@ -46,6 +48,8 @@ class GuildMentoringControllerTest extends ControllerTestSupport {
     private ProposalService proposalService;
     @MockitoBean
     private MentorRosterReads mentorRosterReads;
+    @MockitoBean
+    private MentorListingService mentorListingService;
 
     @Test
     void thePageHasTheShapeTheFrontendParses() {
@@ -117,6 +121,18 @@ class GuildMentoringControllerTest extends ControllerTestSupport {
         actual.assertThat().hasStatusOk().bodyJson().isStrictlyEqualTo("""
                 {"takingMentees": true, "menteeLimit": null, "lookingForMentor": true}
                 """);
+    }
+
+    @Test
+    void putListingIs204() {
+
+        // when
+        var actual = mvc.put().uri("/axonia/communities/{slug}/mentoring/listing", "platform")
+                .contentType(MediaType.APPLICATION_JSON).content("{\"listed\": false}").exchange();
+
+        // then
+        actual.assertThat().hasStatus(204);
+        verify(mentorListingService).set("platform", new ListingRequest(false));
     }
 
     @Test

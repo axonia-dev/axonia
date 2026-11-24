@@ -17,11 +17,13 @@ import org.springframework.web.bind.annotation.RestController;
 
 import dev.axonia.mentoring.api.Availability;
 import dev.axonia.mentoring.api.AvailabilityRequest;
+import dev.axonia.mentoring.api.ListingRequest;
 import dev.axonia.mentoring.api.MentorFace;
 import dev.axonia.mentoring.api.MentoringPage;
 import dev.axonia.mentoring.api.ProposalView;
 import dev.axonia.mentoring.api.ProposeRequest;
 import dev.axonia.mentoring.application.AvailabilityService;
+import dev.axonia.mentoring.application.MentorListingService;
 import dev.axonia.mentoring.application.MentorRosterReads;
 import dev.axonia.mentoring.application.MentoringReads;
 import dev.axonia.mentoring.application.ProposalService;
@@ -36,6 +38,7 @@ class GuildMentoringController {
     private final AvailabilityService availabilityService;
     private final ProposalService proposalService;
     private final MentorRosterReads mentorRosterReads;
+    private final MentorListingService mentorListingService;
 
     @GetMapping
     MentoringPage page(@PathVariable String slug) {
@@ -53,6 +56,13 @@ class GuildMentoringController {
     Availability setAvailability(@PathVariable String slug, @Valid @RequestBody AvailabilityRequest request) {
 
         return availabilityService.set(slug, request);
+    }
+
+    @PutMapping("/listing")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void setListing(@PathVariable String slug, @RequestBody ListingRequest request) {
+
+        mentorListingService.set(slug, request);
     }
 
     @PostMapping("/proposals")
