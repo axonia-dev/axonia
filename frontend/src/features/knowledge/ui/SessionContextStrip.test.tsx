@@ -7,8 +7,12 @@ import { SessionContextStrip } from "@/features/knowledge/ui/SessionContextStrip
 vi.mock("@/features/events/api/use-session", () => ({
   useSession: vi.fn(),
 }));
+vi.mock("@/features/identity/api/use-users", () => ({
+  useUsers: vi.fn(),
+}));
 
 import { useSession } from "@/features/events/api/use-session";
+import { useUsers } from "@/features/identity/api/use-users";
 
 const mockSession = vi.mocked(useSession);
 
@@ -33,6 +37,12 @@ function renderStrip() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(useUsers).mockReturnValue({
+    data: {
+      alice: { id: "alice", displayName: "Alice Anderson" },
+      bob: { id: "bob", displayName: "Bob Brown" },
+    },
+  } as never);
 });
 
 describe("SessionContextStrip", () => {
@@ -47,11 +57,26 @@ describe("SessionContextStrip", () => {
     expect(
       screen.getByRole("heading", { name: "Backend Dojo" }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/alice, bob/)).toBeInTheDocument();
+    expect(
+      screen.getByText("Sat, Jun 6, 2026 · Alice Anderson, Bob Brown"),
+    ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /open session/i })).toHaveAttribute(
       "href",
       "/communities/eng/sessions/9",
     );
+  });
+
+  it("never shows a presenter by their id while their name is unknown", () => {
+    // given
+    mockSession.mockReturnValue({ data: session } as never);
+    vi.mocked(useUsers).mockReturnValue({ data: undefined } as never);
+
+    // when
+    renderStrip();
+
+    // then
+    expect(screen.getByText("Sat, Jun 6, 2026")).toBeInTheDocument();
+    expect(screen.queryByText(/alice/)).toBeNull();
   });
 
   it("renders nothing until the session resolves", () => {
