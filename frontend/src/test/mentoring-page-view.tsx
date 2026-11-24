@@ -61,9 +61,11 @@ export function quietHooks() {
   vi.mocked(usePropose).mockReturnValue(mutation() as never);
 }
 
-export function pageRoutes() {
+export const MENTORING_PATH = "/communities/platform/mentoring";
+
+export function pageRoutes(path = MENTORING_PATH) {
   return (
-    <MemoryRouter initialEntries={["/communities/platform/mentoring"]}>
+    <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route
           path="/communities/:slug/mentoring"
@@ -74,6 +76,6 @@ export function pageRoutes() {
   );
 }
 
-export function renderPage() {
-  return render(pageRoutes());
+export function renderPage(path?: string) {
+  return render(pageRoutes(path));
 }

@@ -8,6 +8,7 @@ import type {
   DirectoryPerson,
   MentoringRole,
 } from "@/features/mentoring/domain/mentoring";
+import { dashedNoteClass } from "@/features/mentoring/ui/dashed-note";
 import { PartnerFace, personName } from "@/features/mentoring/ui/PartnerFace";
 import { proposalWording } from "@/features/mentoring/ui/proposal-wording";
 import { ProposeDialog } from "@/features/mentoring/ui/ProposeDialog";
@@ -190,7 +191,7 @@ function PersonCard({
 
 function Closed({ closed }: Readonly<{ closed: ClosedList }>) {
   return (
-    <div className="border-border-strong text-muted-foreground rounded-2xl border-[1.5px] border-dashed p-5 text-center text-sm">
+    <div className={dashedNoteClass}>
       <p>{closed.reason}</p>
       <p className="text-xs">{closed.count}</p>
     </div>

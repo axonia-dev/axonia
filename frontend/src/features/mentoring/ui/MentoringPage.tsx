@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 
 import { useIsDelegated } from "@/auth/delegated-session";
+import { Tabs } from "@/components/ui/Tabs";
 import { useMe } from "@/features/identity/api/use-me";
 import { useMentoringPage } from "@/features/mentoring/api/use-mentoring";
 import type { MentoringPage as MentoringPageData } from "@/features/mentoring/domain/mentoring";
@@ -24,7 +25,9 @@ function members(count: number, one: string, many: string): string {
   return count === 1 ? `1 member ${one}.` : `${count} members ${many}.`;
 }
 
-function Directory({
+const PAIRS = "pairs";
+
+function Find({
   slug,
   page,
 }: Readonly<{ slug: string; page: MentoringPageData }>) {
@@ -37,7 +40,7 @@ function Directory({
   const guided =
     page.guidedStart && !mine.takingMentees && !mine.lookingForMentor;
   return (
-    <>
+    <div className="flex flex-col gap-4">
       {guided ? (
         <GuidedStart slug={slug} page={page} onSwitchedOn={setLandOn} />
       ) : (
@@ -92,9 +95,48 @@ function Directory({
           }
           proposerRole="MENTOR"
         />
-        <WhoIsHelpingWhom pairings={page.pairings} />
       </div>
-    </>
+    </div>
+  );
+}
+
+function Directory({
+  slug,
+  page,
+}: Readonly<{ slug: string; page: MentoringPageData }>) {
+  const [params, setParams] = useSearchParams();
+  const view = params.get("view") === PAIRS ? PAIRS : "find";
+  function open(id: string) {
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (id === PAIRS) next.set("view", PAIRS);
+        else next.delete("view");
+        return next;
+      },
+      { replace: true },
+    );
+  }
+  return (
+    <Tabs
+      label="Mentoring"
+      items={[
+        { id: "find", label: "Find" },
+        {
+          id: PAIRS,
+          label: "Who’s helping whom",
+          count: page.pairings.length,
+        },
+      ]}
+      selected={view}
+      onSelect={open}
+    >
+      {view === PAIRS ? (
+        <WhoIsHelpingWhom pairings={page.pairings} />
+      ) : (
+        <Find slug={slug} page={page} />
+      )}
+    </Tabs>
   );
 }
 
@@ -122,7 +164,7 @@ function Body({ slug }: Readonly<{ slug: string }>) {
   return <Directory slug={slug} page={page.data} />;
 }
 
-/** The member's two doors, or a first visit's guided start, then who is taking mentees, who is looking for a mentor, and who is helping whom. */
+/** Find: the member's two doors or a first visit's guided start, then mentors and mentees. Who's helping whom: the ongoing pairs. */
 export function MentoringPage() {
   const { slug = "" } = useParams();
   const delegated = useIsDelegated();

@@ -4,6 +4,7 @@ import type {
   MentoringRole,
   ShownPairing,
 } from "@/features/mentoring/domain/mentoring";
+import { dashedNoteClass } from "@/features/mentoring/ui/dashed-note";
 import { PartnerFace, personName } from "@/features/mentoring/ui/PartnerFace";
 import { cn } from "@/lib/cn";
 import { monthName } from "@/lib/declared-on";
@@ -69,21 +70,18 @@ export function WhoIsHelpingWhom({
   pairings,
 }: Readonly<{ pairings: ShownPairing[] }>) {
   const now = useNow();
-  if (pairings.length === 0) return null;
+  if (pairings.length === 0) {
+    return <p className={dashedNoteClass}>No ongoing pairing.</p>;
+  }
   return (
-    <section className="flex min-w-0 flex-col gap-3">
-      <h2 className="font-display text-foreground text-lg font-semibold">
-        Who’s helping whom
-      </h2>
-      <ul className="flex flex-col gap-2">
-        {pairings.map((pairing) => (
-          <Row
-            key={`${pairing.mentor.userId}:${pairing.mentee.userId}`}
-            pairing={pairing}
-            now={now}
-          />
-        ))}
-      </ul>
-    </section>
+    <ul className="flex flex-col gap-2">
+      {pairings.map((pairing) => (
+        <Row
+          key={`${pairing.mentor.userId}:${pairing.mentee.userId}`}
+          pairing={pairing}
+          now={now}
+        />
+      ))}
+    </ul>
   );
 }

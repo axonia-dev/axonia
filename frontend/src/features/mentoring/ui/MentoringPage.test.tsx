@@ -3,7 +3,6 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useSetAvailability } from "@/features/mentoring/api/use-mentoring";
-import { shownPairingOf } from "@/features/mentoring/test-data";
 import { ApiError } from "@/lib/api-client";
 import {
   delegated,
@@ -132,26 +131,6 @@ describe("MentoringPage", () => {
     ).toHaveFocus();
   });
 
-  it.each([
-    ["the doors", false],
-    ["the guided start", true],
-  ])("shows who is helping whom after the mentees, under %s", (_, guided) => {
-    // given
-    page({ guidedStart: guided, pairings: [shownPairingOf()] });
-
-    // when
-    renderPage();
-
-    // then
-    const mentees = screen.getByRole("heading", { name: "Mentees" });
-    const section = screen.getByRole("heading", { name: "Who’s helping whom" });
-    expect(
-      mentees.compareDocumentPosition(section) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-    expect(screen.getByText("Ana Keller")).toBeInTheDocument();
-  });
-
   it("tells a non-member, refused with 403, that mentoring is for members", () => {
     // given
     refused(new ApiError(403, "Forbidden"));
@@ -206,6 +185,9 @@ describe("MentoringPage", () => {
       screen.getByRole("switch", { name: "Taking mentees" }),
     ).toBeDisabled();
     expect(screen.getByText("This community is archived.")).toBeInTheDocument();
+    expect(
+      screen.getByRole("tab", { name: /Who’s helping whom/ }),
+    ).toBeVisible();
   });
 
   it("a delegated session sees one calm line and no directory", () => {
@@ -224,5 +206,6 @@ describe("MentoringPage", () => {
     expect(
       screen.queryByRole("switch", { name: "Taking mentees" }),
     ).not.toBeInTheDocument();
+    expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
   });
 });

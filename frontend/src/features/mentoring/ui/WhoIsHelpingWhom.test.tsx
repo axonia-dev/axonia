@@ -17,9 +17,6 @@ describe("WhoIsHelpingWhom", () => {
     render(<WhoIsHelpingWhom pairings={[shownPairingOf()]} />);
 
     // then
-    expect(
-      screen.getByRole("heading", { name: "Who’s helping whom" }),
-    ).toBeInTheDocument();
     const [row] = screen.getAllByRole("listitem");
     expect(row).toHaveTextContent(
       /Mentor.*Ana Keller.*since Oct.*Mentee.*Dan Ilić/,
@@ -70,11 +67,12 @@ describe("WhoIsHelpingWhom", () => {
     expect(rows[1]).toHaveTextContent("Carl Brun");
   });
 
-  it("renders nothing while no pairing shows", () => {
+  it("says no ongoing pairing while none shows", () => {
     // when
-    const { container } = render(<WhoIsHelpingWhom pairings={[]} />);
+    render(<WhoIsHelpingWhom pairings={[]} />);
 
     // then
-    expect(container).toBeEmptyDOMElement();
+    expect(screen.getByText("No ongoing pairing.")).toBeInTheDocument();
+    expect(screen.queryByRole("list")).not.toBeInTheDocument();
   });
 });
