@@ -161,6 +161,8 @@ public final class OpenSeed {
         jdbc.update("INSERT INTO mentoring_availability (organization_id, community_id, user_id, taking_mentees, "
                 + "mentee_limit, looking_for_mentor, updated_at) VALUES (:org, :communityId, :user, true, 2, false, "
                 + "now())", params);
+        jdbc.update("INSERT INTO mentoring_mentor_listing (organization_id, community_id, user_id, state, asked_at, "
+                + "told_at, updated_at) VALUES (:org, :communityId, :user, 'ON', now(), now(), now())", params);
         jdbc.update("INSERT INTO mentoring_proposal (organization_id, community_id, mentor_user_id, mentee_user_id, "
                 + "proposed_by, topics, message, status, created_at, pairs_shown) VALUES (:org, :communityId, :user, "
                 + ":user, 'MENTEE', ARRAY['Kafka']::varchar[], 'Layer 3 message', 'OPEN', now(), true)", params);

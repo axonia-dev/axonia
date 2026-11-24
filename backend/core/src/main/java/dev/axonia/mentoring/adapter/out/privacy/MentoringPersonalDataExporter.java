@@ -22,12 +22,13 @@ import dev.axonia.shared.api.personaldata.PersonalDataExporter;
 import lombok.RequiredArgsConstructor;
 
 /**
- * A member's mentoring, as they took part in it: their availability, the proposals they sent or received, their
- * pairings with their role but never the partner, the topics of those pairings, the notes they wrote, with their
- * meeting day and the labels of the topics they name, and not the partner's, the meetings they planned, with their day,
- * the labels of their topics and when they were planned, the pointers on those topics and notes, and the words they
- * wrote as a mentee or that were written to them as a mentor. A whole-Organization export carries every row, each child
- * row with its pairing's two people. A person scope has nothing here: every row belongs to an Organization.
+ * A member's mentoring, as they took part in it: their availability, their listing among the mentors, the proposals
+ * they sent or received, their pairings with their role but never the partner, the topics of those pairings, the notes
+ * they wrote, with their meeting day and the labels of the topics they name, and not the partner's, the meetings they
+ * planned, with their day, the labels of their topics and when they were planned, the pointers on those topics and
+ * notes, and the words they wrote as a mentee or that were written to them as a mentor. A whole-Organization export
+ * carries every row, each child row with its pairing's two people. A person scope has nothing here: every row belongs
+ * to an Organization.
  */
 @Component
 @RequiredArgsConstructor
@@ -86,6 +87,7 @@ public class MentoringPersonalDataExporter implements PersonalDataExporter {
 
         var payload = new LinkedHashMap<String, Object>();
         payload.put(MentoringPersonalDataFootprint.AVAILABILITY, availability(scope));
+        payload.put(MentoringPersonalDataFootprint.LISTING, listings(scope));
         payload.put(MentoringPersonalDataFootprint.PROPOSAL, proposals(scope));
         payload.put(MentoringPersonalDataFootprint.PAIRING, pairings(scope));
         payload.put(MentoringPersonalDataFootprint.TOPIC, topics(scope));
@@ -101,6 +103,13 @@ public class MentoringPersonalDataExporter implements PersonalDataExporter {
         var select = columns(MentoringPersonalDataFootprint.AVAILABILITY, scope, "user_id", "a") + COMMUNITY;
         var from = "mentoring_availability a" + OF_COMMUNITY.formatted("a") + " WHERE a.organization_id = :org";
         return rows(scope, select, from, " AND a.user_id = :user");
+    }
+
+    private List<Map<String, Object>> listings(ExportScope.InOrganization scope) {
+
+        var select = columns(MentoringPersonalDataFootprint.LISTING, scope, "user_id", "l") + COMMUNITY;
+        var from = "mentoring_mentor_listing l" + OF_COMMUNITY.formatted("l") + " WHERE l.organization_id = :org";
+        return rows(scope, select, from, " AND l.user_id = :user");
     }
 
     private List<Map<String, Object>> proposals(ExportScope.InOrganization scope) {

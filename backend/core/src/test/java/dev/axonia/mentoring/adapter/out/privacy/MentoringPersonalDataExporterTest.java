@@ -39,6 +39,8 @@ class MentoringPersonalDataExporterTest extends FootprintTestSupport {
         var guild = rows.community("Platform Guild");
         rows.availability(guild, TARGET);
         rows.availability(guild, NEIGHBOUR);
+        rows.listing(guild, TARGET, "OFF");
+        rows.listing(guild, NEIGHBOUR, "ON");
         rows.proposal(guild, NEIGHBOUR, TARGET, "Sent by the target");
         rows.proposal(guild, TARGET, THIRD, "Sent to the target");
         rows.proposal(guild, NEIGHBOUR, THIRD, "Between two others");
@@ -76,6 +78,10 @@ class MentoringPersonalDataExporterTest extends FootprintTestSupport {
         assertThat(rowsOf(fragment, "mentoring_availability")).singleElement()
                 .satisfies(row -> assertThat(row).containsEntry("user_id", TARGET)
                         .containsEntry("community", "Platform Guild").containsEntry("mentee_limit", 3));
+        assertThat(rowsOf(fragment, "mentoring_mentor_listing")).singleElement()
+                .satisfies(row -> assertThat(row).containsEntry("user_id", TARGET).containsEntry("state", "OFF")
+                        .containsEntry("community", "Platform Guild")
+                        .containsKeys("asked_at", "told_at", "updated_at"));
         assertThat(rowsOf(fragment, "mentoring_proposal"))
                 .extracting(row -> row.get("message"), row -> row.get("role"), row -> row.get("direction"))
                 .containsExactlyInAnyOrder(tuple("Sent by the target", "MENTEE", "SENT"),
@@ -107,6 +113,8 @@ class MentoringPersonalDataExporterTest extends FootprintTestSupport {
 
         // then
         assertThat(rowsOf(fragment, "mentoring_availability")).hasSize(2);
+        assertThat(rowsOf(fragment, "mentoring_mentor_listing")).extracting(row -> row.get("user_id"))
+                .containsExactlyInAnyOrder(TARGET, NEIGHBOUR);
         assertThat(rowsOf(fragment, "mentoring_proposal")).hasSize(3);
         assertThat(rowsOf(fragment, "mentoring_pairing"))
                 .extracting(row -> row.get("mentor_user_id"), row -> row.get("mentee_user_id"))

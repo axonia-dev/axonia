@@ -14,7 +14,7 @@ class MentoringDataPurgerTest extends PurgerTestSupport {
 
     private static final List<String> TABLES = List.of("mentoring_availability", "mentoring_proposal",
             "mentoring_pairing", "mentoring_topic", "mentoring_note", "mentoring_note_topic", "mentoring_meeting",
-            "mentoring_meeting_topic", "mentoring_pointer", "mentoring_words");
+            "mentoring_meeting_topic", "mentoring_pointer", "mentoring_words", "mentoring_mentor_listing");
 
     @Autowired
     private NamedParameterJdbcTemplate jdbc;
@@ -41,6 +41,7 @@ class MentoringDataPurgerTest extends PurgerTestSupport {
 
         var rows = new MentoringRows(jdbc, org);
         rows.availability(1L, "noah");
+        rows.listing(1L, "mia", "ON");
         rows.proposal(1L, "mia", "noah", "Hello");
         var pairing = rows.pairing(1L, "mia", "noah");
         var topic = rows.topic(pairing, "Kafka");

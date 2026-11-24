@@ -40,6 +40,19 @@ final class MentoringRows {
                 + "now())", Map.of("org", org, "communityId", communityId, "user", userId));
     }
 
+    void listing(long communityId, String userId, String state) {
+
+        var params = new HashMap<String, Object>();
+        params.put("org", org);
+        params.put("communityId", communityId);
+        params.put("user", userId);
+        params.put("state", state);
+        jdbc.update(
+                "INSERT INTO mentoring_mentor_listing (organization_id, community_id, user_id, state, asked_at, "
+                        + "told_at, updated_at) VALUES (:org, :communityId, :user, :state, now(), now(), now())",
+                params);
+    }
+
     /** A proposal its mentee sent, so the mentor received it. */
     void proposal(long communityId, String mentorId, String menteeId, String message) {
 

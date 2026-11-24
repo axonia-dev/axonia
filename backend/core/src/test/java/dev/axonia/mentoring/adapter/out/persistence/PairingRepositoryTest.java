@@ -9,6 +9,7 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 
 import dev.axonia.mentoring.domain.EndReason;
+import dev.axonia.mentoring.domain.MentorHistory;
 import dev.axonia.mentoring.domain.Pairing;
 import dev.axonia.mentoring.domain.Role;
 import dev.axonia.mentoring.domain.ShowAnswer;
@@ -334,5 +335,35 @@ class PairingRepositoryTest extends MentoringRepositoryTestSupport {
 
         // then
         assertThat(actual).isEmpty();
+    }
+
+    @Test
+    void mentorHistoriesIn() {
+
+        // given
+        var community = seedCommunity("platform");
+        var elsewhere = seedCommunity("data");
+        repo.insert(ORG, pairing(community, "mia", "max").build());
+        repo.insert(ORG, ended(pairing(community, "mia", "lea").showing(Showing.ASKING)));
+        repo.insert(ORG, ended(pairing(community, "tom", "max")));
+        repo.insert(ORG, ended(pairing(community, "ana", "zoe").showing(Showing.ASKING)));
+        repo.insert(ORG, ended(pairing(community, "pia", "max").showing(Showing.PRIVATE)));
+        repo.insert(ORG, pairing(community, "ned", "max").showing(Showing.ASKING).build());
+        repo.insert(ORG, ended(pairing(community, "ned", null)));
+        repo.insert(ORG, ended(pairing(community, null, "zoe")));
+        repo.insert(ORG, pairing(elsewhere, "pia", "max").build());
+
+        // when
+        var actual = repo.mentorHistoriesIn(ORG, community);
+
+        // then
+        assertThat(actual).containsExactlyInAnyOrder(new MentorHistory("mia", true, false, true),
+                new MentorHistory("tom", false, true, false), new MentorHistory("ana", false, false, true));
+        assertThat(repo.mentorHistoriesIn("other-org", community)).isEmpty();
+    }
+
+    private static Pairing ended(Pairing.PairingBuilder pairing) {
+
+        return pairing.endedAt(ENDED).endReason(EndReason.MENTOR).build();
     }
 }

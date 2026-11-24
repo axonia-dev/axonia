@@ -18,13 +18,13 @@ import dev.axonia.shared.api.personaldata.MemberErasure;
 import lombok.RequiredArgsConstructor;
 
 /**
- * What an erased member leaves of their mentoring. Their availability, every proposal they sent or received, the notes
- * they wrote and every pointer naming them go. The words of each of their pairings go too, whichever side they were on:
- * written by them as a mentee, or written to them as a mentor. A pairing keeps the other person's side, its topics and
- * the other person's notes, with the erased side cleared. Before their notes go, the upcoming meetings they planned go,
- * today read in UTC as of the erasure, and so does every meeting only their notes held, which would otherwise come back
- * as owed or upcoming; every other meeting they planned stays with who planned it cleared. A pairing left with nobody
- * on either side goes whole.
+ * What an erased member leaves of their mentoring. Their availability, their listing among the mentors, every proposal
+ * they sent or received, the notes they wrote and every pointer naming them go. The words of each of their pairings go
+ * too, whichever side they were on: written by them as a mentee, or written to them as a mentor. A pairing keeps the
+ * other person's side, its topics and the other person's notes, with the erased side cleared. Before their notes go,
+ * the upcoming meetings they planned go, today read in UTC as of the erasure, and so does every meeting only their
+ * notes held, which would otherwise come back as owed or upcoming; every other meeting they planned stays with who
+ * planned it cleared. A pairing left with nobody on either side goes whole.
  *
  * <p>
  * Leaving each community on the way to erasure ends their ongoing pairings first, and the notice that ending would send
@@ -67,6 +67,8 @@ public class MentoringMemberDataEraser implements MemberDataEraser {
                                       AND n.meeting_on = m.meeting_on AND n.author_user_id <> :user)
                 """, params);
         deleted += jdbc.update("DELETE FROM mentoring_availability WHERE organization_id = :org AND user_id = :user",
+                params);
+        deleted += jdbc.update("DELETE FROM mentoring_mentor_listing WHERE organization_id = :org AND user_id = :user",
                 params);
         deleted += jdbc.update("DELETE FROM mentoring_proposal WHERE organization_id = :org"
                 + " AND (mentor_user_id = :user OR mentee_user_id = :user)", params);

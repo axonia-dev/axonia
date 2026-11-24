@@ -189,6 +189,24 @@ class MentoringMemberDataEraserTest extends FootprintTestSupport {
     }
 
     @Test
+    void erasureDeletesTheirListingAmongTheMentorsAndKeepsOthers() {
+
+        // given
+        var other = rows.community("Other Guild");
+        rows.listing(guild, MENTEE, "OFF");
+        rows.listing(other, MENTEE, null);
+        rows.listing(guild, STRANGER, "ON");
+
+        // when
+        var actual = eraser.erase(erasureOf(MENTEE));
+
+        // then
+        assertThat(actual).isEqualTo(new ErasureCounts(2, 0, 0, 0));
+        assertThat(strings("SELECT user_id FROM mentoring_mentor_listing WHERE organization_id = :org"))
+                .containsExactly(STRANGER);
+    }
+
+    @Test
     void erasureForgetsMentoringNoticesAboutThePerson() {
 
         // given

@@ -892,6 +892,16 @@ class RlsIsolationTest {
     }
 
     @Test
+    @IsolationProbe("mentoring_mentor_listing")
+    void mentoringMentorListingIsOrganizationIsolated() throws Exception {
+        assertRowIsolated("mentoring_mentor_listing", "user_id = 'rls-mentor'",
+                "INSERT INTO mentoring_mentor_listing (organization_id, community_id, user_id, state, updated_at)"
+                        + " VALUES ('default', 1, 'rls-mentor', 'ON', now())",
+                "INSERT INTO mentoring_mentor_listing (organization_id, community_id, user_id, state, updated_at)"
+                        + " VALUES ('default', 1, 'rls-sneaky', 'ON', now())");
+    }
+
+    @Test
     @IsolationProbe("mentoring_proposal")
     void mentoringProposalIsOrganizationIsolated() throws Exception {
         assertRowIsolated("mentoring_proposal", "mentor_user_id = 'rls-mentor'",

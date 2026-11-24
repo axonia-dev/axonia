@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import dev.axonia.mentoring.domain.EndReason;
+import dev.axonia.mentoring.domain.MentorHistory;
 import dev.axonia.mentoring.domain.Pairing;
 import dev.axonia.mentoring.domain.Showing;
 
@@ -38,6 +39,12 @@ public interface PairingRepository {
 
     /** The community's ongoing, shown pairings with both sides present, in no particular order. */
     List<Pairing> shownIn(String org, long communityId);
+
+    /**
+     * One row per mentor of the community whose pairings, with both sides present and none private, could list them;
+     * ongoing pairings still asking say nothing and are left out.
+     */
+    List<MentorHistory> mentorHistoriesIn(String org, long communityId);
 
     void saveShowing(String org, long pairingId, Showing showing);
 

@@ -13,11 +13,11 @@ import dev.axonia.shared.api.personaldata.PersonalDataFootprint;
 import dev.axonia.shared.api.personaldata.TableFootprint;
 
 /**
- * What mentoring holds about a member. Availability and proposals exist only to describe the people on them, so they go
- * whole. A pairing belongs to both of its people, so erasing one clears their side and the other keeps the pairing, its
- * topics and their own notes; the notes the erased person wrote and every pointer naming them go, the upcoming meetings
- * they planned go, and who planned any other meeting is cleared. Topics carry no person of their own and are exported
- * through their pairing.
+ * What mentoring holds about a member. Availability, a mentor's listing among the mentors and proposals exist only to
+ * describe the people on them, so they go whole. A pairing belongs to both of its people, so erasing one clears their
+ * side and the other keeps the pairing, its topics and their own notes; the notes the erased person wrote and every
+ * pointer naming them go, the upcoming meetings they planned go, and who planned any other meeting is cleared. Topics
+ * carry no person of their own and are exported through their pairing.
  *
  * <p>
  * The community sees that an ongoing, shown pairing exists, who mentors whom and since when; everything inside it, its
@@ -39,6 +39,7 @@ import dev.axonia.shared.api.personaldata.TableFootprint;
 public class MentoringPersonalDataFootprint implements PersonalDataFootprint {
 
     static final String AVAILABILITY = "mentoring_availability";
+    static final String LISTING = "mentoring_mentor_listing";
     static final String PROPOSAL = "mentoring_proposal";
     static final String PAIRING = "mentoring_pairing";
     static final String TOPIC = "mentoring_topic";
@@ -61,8 +62,8 @@ public class MentoringPersonalDataFootprint implements PersonalDataFootprint {
     @Override
     public List<TableFootprint> tables() {
 
-        return List.of(availability(), proposal(), pairing(), topic(), note(), noteTopic(), meeting(), meetingTopic(),
-                pointer(), words());
+        return List.of(availability(), listing(), proposal(), pairing(), topic(), note(), noteTopic(), meeting(),
+                meetingTopic(), pointer(), words());
     }
 
     private static TableFootprint availability() {
@@ -72,6 +73,15 @@ public class MentoringPersonalDataFootprint implements PersonalDataFootprint {
                 .notPersonal(Set.of("organization_id", "community_id", "taking_mentees", "mentee_limit",
                         "looking_for_mentor", "updated_at"))
                 .exportedContext(Set.of("taking_mentees", "mentee_limit", "looking_for_mentor", "updated_at"))
+                .exportedLabels(Set.of(COMMUNITY_LABEL)).build();
+    }
+
+    private static TableFootprint listing() {
+
+        return TableFootprint.builder().table(LISTING).category(DataCategory.MENTORING)
+                .personal(List.of(subject("user_id", Disposition.DELETE_ROW)))
+                .notPersonal(Set.of("organization_id", "community_id", "state", "asked_at", "told_at", "updated_at"))
+                .exportedContext(Set.of("state", "asked_at", "told_at", "updated_at"))
                 .exportedLabels(Set.of(COMMUNITY_LABEL)).build();
     }
 

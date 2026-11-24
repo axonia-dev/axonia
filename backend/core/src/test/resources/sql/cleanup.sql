@@ -75,6 +75,7 @@ TRUNCATE TABLE
     mentoring_availability,
     mentoring_meeting,
     mentoring_meeting_topic,
+    mentoring_mentor_listing,
     mentoring_note,
     mentoring_note_topic,
     mentoring_pairing,

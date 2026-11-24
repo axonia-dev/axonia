@@ -213,12 +213,12 @@ public final class ErasureSweepFixtures {
     }
 
     /**
-     * mentoring: the target's availability and an open proposal to the owner; an ongoing pairing as the owner's mentee,
-     * with a note from each side (the target's naming the topic), an upcoming and a passed meeting the target planned,
-     * a topic, a pointer naming the target and the target's words; and a pairing the target mentored whose mentee was
-     * erased before, which goes whole. Leaving the community on the way to erasure ends the ongoing pairing and tells
-     * the owner in a notice naming the target, which must not survive either; nor may the record of an expired notice
-     * about them.
+     * mentoring: the target's availability, their listing among the mentors and an open proposal to the owner; an
+     * ongoing pairing as the owner's mentee, with a note from each side (the target's naming the topic), an upcoming
+     * and a passed meeting the target planned, a topic, a pointer naming the target and the target's words; and a
+     * pairing the target mentored whose mentee was erased before, which goes whole. Leaving the community on the way to
+     * erasure ends the ongoing pairing and tells the owner in a notice naming the target, which must not survive
+     * either; nor may the record of an expired notice about them.
      */
     private void seedMentoring(String organizationId, long communityId, String userId) {
 
@@ -228,6 +228,8 @@ public final class ErasureSweepFixtures {
                 "INSERT INTO mentoring_availability (organization_id, community_id, user_id, taking_mentees, "
                         + "looking_for_mentor, updated_at) VALUES (:org, :communityId, :user, false, true, now())",
                 params);
+        jdbc.update("INSERT INTO mentoring_mentor_listing (organization_id, community_id, user_id, state, updated_at) "
+                + "VALUES (:org, :communityId, :user, 'OFF', now())", params);
         jdbc.update("INSERT INTO mentoring_proposal (organization_id, community_id, mentor_user_id, mentee_user_id, "
                 + "proposed_by, topics, message, status, created_at, pairs_shown) VALUES (:org, :communityId, :owner, "
                 + ":user, 'MENTEE', ARRAY['Retries']::varchar[], 'Could we talk about retries?', 'OPEN', now(), "

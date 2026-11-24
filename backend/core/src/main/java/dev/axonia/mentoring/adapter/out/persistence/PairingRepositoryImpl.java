@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import dev.axonia.mentoring.application.port.out.PairingRepository;
 import dev.axonia.mentoring.domain.EndReason;
+import dev.axonia.mentoring.domain.MentorHistory;
 import dev.axonia.mentoring.domain.Pairing;
 import dev.axonia.mentoring.domain.Showing;
 import dev.axonia.mentoring.domain.Visibility;
@@ -55,6 +56,19 @@ public class PairingRepositoryImpl implements PairingRepository {
     private static final String SHOWN_IN_SQL = SELECT + """
              WHERE p.organization_id = :org AND p.community_id = :communityId AND p.ended_at IS NULL
                AND p.visibility = 'SHOWN' AND p.mentor_user_id IS NOT NULL AND p.mentee_user_id IS NOT NULL
+            """;
+
+    private static final String MENTOR_HISTORIES_IN_SQL = """
+            SELECT mentor_user_id,
+                   bool_or(ended_at IS NULL AND visibility = 'SHOWN') AS ongoing_shown,
+                   bool_or(ended_at IS NOT NULL AND visibility = 'SHOWN') AS ended_shown,
+                   bool_or(ended_at IS NOT NULL AND visibility = 'ASKING') AS ended_unshown
+              FROM mentoring_pairing
+             WHERE organization_id = :org AND community_id = :communityId
+               AND mentor_user_id IS NOT NULL AND mentee_user_id IS NOT NULL
+               AND visibility <> 'PRIVATE'
+               AND (ended_at IS NOT NULL OR visibility = 'SHOWN')
+             GROUP BY mentor_user_id
             """;
 
     private static final String SAVE_SHOWING_SQL = """
@@ -127,6 +141,16 @@ public class PairingRepositoryImpl implements PairingRepository {
 
         return jdbc.query(SHOWN_IN_SQL, new MapSqlParameterSource("org", org).addValue("communityId", communityId),
                 MAPPER);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<MentorHistory> mentorHistoriesIn(String org, long communityId) {
+
+        return jdbc.query(MENTOR_HISTORIES_IN_SQL,
+                new MapSqlParameterSource("org", org).addValue("communityId", communityId),
+                (rs, i) -> new MentorHistory(rs.getString("mentor_user_id"), rs.getBoolean("ongoing_shown"),
+                        rs.getBoolean("ended_shown"), rs.getBoolean("ended_unshown")));
     }
 
     @Override
