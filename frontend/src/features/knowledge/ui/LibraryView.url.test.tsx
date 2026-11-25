@@ -80,6 +80,23 @@ function urlSearch() {
   return new URLSearchParams(screen.getByTestId("search").textContent);
 }
 
+function recordShownValues(input: HTMLInputElement): string[] {
+  const shown: string[] = [];
+  const native = Object.getOwnPropertyDescriptor(
+    HTMLInputElement.prototype,
+    "value",
+  )!;
+  Object.defineProperty(input, "value", {
+    configurable: true,
+    get: () => native.get!.call(input) as string,
+    set: (value: string) => {
+      shown.push(value);
+      native.set!.call(input, value);
+    },
+  });
+  return shown;
+}
+
 let user: ReturnType<typeof userEvent.setup>;
 
 beforeEach(() => {
@@ -167,6 +184,23 @@ describe("LibraryView URL state", () => {
     await waitFor(() => expect(urlSearch().get("q")).toBe("kafka"));
     expect(urlSearch().has("page")).toBe(false);
     expect(lastParams()).toMatchObject({ q: "kafka", page: 0 });
+  });
+
+  it("keeps the typed text on screen while the URL catches up with it", async () => {
+    // given
+    renderView();
+    const box = screen.getByRole<HTMLInputElement>("searchbox", {
+      name: /search the library/i,
+    });
+    await user.type(box, "kafka");
+    const shown = recordShownValues(box);
+
+    // when
+    await waitFor(() => expect(urlSearch().get("q")).toBe("kafka"));
+
+    // then
+    expect(shown).toEqual([]);
+    expect(box).toHaveValue("kafka");
   });
 
   it("follows the URL when a link moves the query on its own", async () => {

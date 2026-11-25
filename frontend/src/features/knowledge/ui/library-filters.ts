@@ -108,7 +108,9 @@ export function useLibraryFilters() {
 /**
  * The search box's own text, written to the URL once typing pauses. When the URL's query moves
  * on its own (a link, the back button) the box follows it; a query this box wrote itself is
- * already what it shows.
+ * already what it shows. Only a move of the URL is followed: the router applies a write in a
+ * transition, so a render between this box's write and the URL catching up must not read the
+ * stale URL as a move.
  */
 export function useSearchText(
   urlQ: string,
@@ -116,9 +118,13 @@ export function useSearchText(
 ): readonly [string, (value: string) => void] {
   const [text, setText] = useState(urlQ);
   const [written, setWritten] = useState(urlQ);
-  if (urlQ !== written) {
-    setWritten(urlQ);
-    setText(urlQ);
+  const [seenUrlQ, setSeenUrlQ] = useState(urlQ);
+  if (urlQ !== seenUrlQ) {
+    setSeenUrlQ(urlQ);
+    if (urlQ !== written) {
+      setWritten(urlQ);
+      setText(urlQ);
+    }
   }
 
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
