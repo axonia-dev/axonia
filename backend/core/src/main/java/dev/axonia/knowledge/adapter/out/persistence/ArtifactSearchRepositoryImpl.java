@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -41,9 +42,7 @@ class ArtifactSearchRepositoryImpl implements ArtifactSearchRepository {
         var query = withoutStandaloneDashes(filter.q());
         var ranked = !query.isBlank();
         if (ranked) {
-            where.append(" AND (numnode(websearch_to_tsquery('english', :q)) = 0"
-                    + " OR a.search_vector @@ websearch_to_tsquery('english', :q))");
-            params.addValue("q", query);
+            appendTextFilter(query, where, params);
         }
         if (filter.typeId() != null) {
             where.append(" AND a.type_id = :typeId");
@@ -84,6 +83,32 @@ class ArtifactSearchRepositoryImpl implements ArtifactSearchRepository {
     }
 
     /**
+     * A match is a stemmed match of the query, or the start of every word it names. The prefix match leaves an excluded
+     * word to the stemmed reading, which knows "-retries" also rules out "retrying".
+     */
+    private static void appendTextFilter(String query, StringBuilder where, MapSqlParameterSource params) {
+
+        var prefixMatch = new StringBuilder("a.search_vector_unstemmed @@ ").append(PREFIX_QUERY);
+        var exclusions = exclusionsOf(query);
+        if (!exclusions.isEmpty()) {
+            prefixMatch.append(" AND NOT a.search_vector @@ websearch_to_tsquery('english', :exclusions)");
+            params.addValue("exclusions", exclusions);
+        }
+        where.append(" AND (numnode(websearch_to_tsquery('english', :q)) = 0"
+                + " OR a.search_vector @@ websearch_to_tsquery('english', :q) OR (").append(prefixMatch).append("))");
+        params.addValue("q", query);
+    }
+
+    /** Every excluded word or quoted phrase, as one query that matches any of them. */
+    private static String exclusionsOf(String query) {
+
+        return EXCLUSION.matcher(query).results().map(m -> m.group(1)).collect(Collectors.joining(" or "));
+    }
+
+    private static final Pattern EXCLUSION = Pattern.compile("(?<!\\S)-(\"[^\"]*\"|\\S+)",
+            Pattern.UNICODE_CHARACTER_CLASS);
+
+    /**
      * {@code websearch_to_tsquery} reads a dash that stands alone as NOT on the next word, so a pasted title such as
      * "Runbook v2 - 4-step rollout" would exclude the very artifact it names. Only a dash glued to a word
      * ({@code -retries}) is an exclusion a member meant. A query left with no searchable word ("the", "?") filters
@@ -93,6 +118,15 @@ class ArtifactSearchRepositoryImpl implements ArtifactSearchRepository {
 
         return q == null ? "" : STANDALONE_DASHES.matcher(q).replaceAll(" ").strip();
     }
+
+    /**
+     * The query read as the start of every word it names, so "inciden" finds "incident" while it is still being typed.
+     * It is matched against the unstemmed words: English stemming stores "incident" as "incid", which no longer starts
+     * with "inciden". Postgres' own parse keeps quotes, OR and exclusions meaning what they do in the stemmed match;
+     * only each quoted lexeme of its canonical text gains the prefix mark.
+     */
+    private static final String PREFIX_QUERY = "regexp_replace(websearch_to_tsquery('simple', :q)::text,"
+            + " '''((?:[^'']|'''')+)''', '''\\1'':*', 'g')::tsquery";
 
     private static final Pattern STANDALONE_DASHES = Pattern.compile("(?<!\\S)-+(?!\\S)",
             Pattern.UNICODE_CHARACTER_CLASS);
@@ -176,7 +210,8 @@ class ArtifactSearchRepositoryImpl implements ArtifactSearchRepository {
             return " ORDER BY a.love_count DESC, a.created_at DESC";
         }
         if (ranked) {
-            return " ORDER BY ts_rank(a.search_vector, websearch_to_tsquery('english', :q)) DESC, a.created_at DESC";
+            return " ORDER BY ts_rank(a.search_vector, websearch_to_tsquery('english', :q))"
+                    + " + ts_rank(a.search_vector_unstemmed, " + PREFIX_QUERY + ") DESC, a.created_at DESC";
         }
         return " ORDER BY a.created_at DESC";
     }

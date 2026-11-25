@@ -19,14 +19,14 @@ import dev.axonia.shared.api.personaldata.TableFootprint;
  * categories, never a person.
  *
  * <p>
- * {@code artifact.search_vector} and {@code artifact.search_document} both stay out of the export:
- * {@code search_vector} is a {@code tsvector} derived from {@code search_document}, and {@code search_document} is
- * itself only the pre-computed text behind that index, a verbatim duplicate of {@code title} and {@code description}
- * kept so Postgres has something to index. The export already carries the title and description in readable form, so
- * neither column tells the reader anything new. {@code artifact.provenance_segment_id} leaves for a different reason:
- * nothing readable exists on the other end of it, since there is no segment table with a name to join to, so it is
- * dropped rather than exported as a bare surrogate key. {@code artifact_attachment.segment_id} is the same case for the
- * same reason.
+ * {@code artifact.search_vector}, {@code artifact.search_vector_unstemmed} and {@code artifact.search_document} all
+ * stay out of the export: both vectors are {@code tsvector}s derived from {@code search_document}, and
+ * {@code search_document} is itself only the pre-computed text behind both, a verbatim duplicate of {@code title} and
+ * {@code description} kept so Postgres has something to index. The export already carries the title and description in
+ * readable form, so neither column tells the reader anything new. {@code artifact.provenance_segment_id} leaves for a
+ * different reason: nothing readable exists on the other end of it, since there is no segment table with a name to join
+ * to, so it is dropped rather than exported as a bare surrogate key. {@code artifact_attachment.segment_id} is the same
+ * case for the same reason.
  */
 @Component
 public class KnowledgePersonalDataFootprint implements PersonalDataFootprint {
@@ -44,7 +44,8 @@ public class KnowledgePersonalDataFootprint implements PersonalDataFootprint {
                         .of(new ColumnFootprint("contributor_user_id", Classification.SUBJECT, Disposition.ANONYMISE)))
                 .notPersonal(Set.of("id", "organization_id", "community_id", "type_id", "title", "description", "url",
                         "provenance_session_id", "provenance_segment_id", "provenance_label", "status",
-                        "search_document", "search_vector", "created_at", "updated_at", "version", "love_count"))
+                        "search_document", "search_vector", "search_vector_unstemmed", "created_at", "updated_at",
+                        "version", "love_count"))
                 .exportedContext(Set.of("title", "description", "url", "provenance_label", "status", "love_count",
                         "created_at", "updated_at"))
                 .exportedLabels(Set.of("community", "type", "provenance_session")).build();

@@ -163,6 +163,111 @@ class ArtifactRepositoryTest extends CoreJdbcTestSupport {
         assertThat(page.getContent()).hasSize(1);
     }
 
+    @Test
+    void fullTextSearch_findsAWordFromItsStartEvenWhereStemmingShortensIt() {
+
+        // given
+        saveArtifact("Incident review", "postmortem notes", 1L, "alice");
+        saveArtifact("Lunch and learn", "team social notes", 1L, "bob");
+
+        // when
+        var page = artifactRepository.search("default", 1L, ArtifactFilter.builder().q("inciden").build(),
+                PageRequest.of(0, 10));
+
+        // then
+        assertThat(page.getContent()).extracting(ArtifactEntity::getTitle).containsExactly("Incident review");
+    }
+
+    @Test
+    void fullTextSearch_findsTheStartOfEveryWordItNames() {
+
+        // given
+        saveArtifact("Kafka incident review", "postmortem notes", 1L, "alice");
+        saveArtifact("Kafka consumer groups", "partition notes", 1L, "bob");
+
+        // when
+        var page = artifactRepository.search("default", 1L, ArtifactFilter.builder().q("kaf inci").build(),
+                PageRequest.of(0, 10));
+
+        // then
+        assertThat(page.getContent()).extracting(ArtifactEntity::getTitle).containsExactly("Kafka incident review");
+    }
+
+    @Test
+    void fullTextSearch_stillMatchesAnotherFormOfTheWord() {
+
+        // given
+        saveArtifact("Incident review", "postmortem notes", 1L, "alice");
+
+        // when
+        var page = artifactRepository.search("default", 1L, ArtifactFilter.builder().q("incidents").build(),
+                PageRequest.of(0, 10));
+
+        // then
+        assertThat(page.getContent()).extracting(ArtifactEntity::getTitle).containsExactly("Incident review");
+    }
+
+    @Test
+    void fullTextSearch_anExcludedWordAlsoExcludesItsOtherFormsFromAPrefixMatch() {
+
+        // given
+        saveArtifact("Resilience patterns", "retrying with backoff", 1L, "alice");
+        saveArtifact("Resilience budgets", "error budgets", 1L, "bob");
+
+        // when
+        var page = artifactRepository.search("default", 1L, ArtifactFilter.builder().q("resilien -retries").build(),
+                PageRequest.of(0, 10));
+
+        // then
+        assertThat(page.getContent()).extracting(ArtifactEntity::getTitle).containsExactly("Resilience budgets");
+    }
+
+    @Test
+    void fullTextSearch_anExcludedPhraseAlsoExcludesAPrefixMatch() {
+
+        // given
+        saveArtifact("Kafka dead letter queues", "poison messages", 1L, "alice");
+        saveArtifact("Kafka consumer groups", "partition notes", 1L, "bob");
+
+        // when
+        var page = artifactRepository.search("default", 1L, ArtifactFilter.builder().q("kaf -\"dead letters\"").build(),
+                PageRequest.of(0, 10));
+
+        // then
+        assertThat(page.getContent()).extracting(ArtifactEntity::getTitle).containsExactly("Kafka consumer groups");
+    }
+
+    @Test
+    void fullTextSearch_findsAWordWithAnApostropheFromItsStart() {
+
+        // given
+        saveArtifact("O'Brien on incident command", "talk notes", 1L, "alice");
+
+        // when
+        var page = artifactRepository.search("default", 1L, ArtifactFilter.builder().q("o'bri").build(),
+                PageRequest.of(0, 10));
+
+        // then
+        assertThat(page.getContent()).extracting(ArtifactEntity::getTitle)
+                .containsExactly("O'Brien on incident command");
+    }
+
+    @Test
+    void search_rankedOrderPutsAWholeWordAheadOfAWordItOnlyStarts() {
+
+        // given
+        saveArtifact("Kafka basics", "topics and partitions", 1L, "bob");
+        saveArtifact("Kafkaesque onboarding", "a maze of forms", 1L, "alice");
+
+        // when
+        var page = artifactRepository.search("default", 1L, ArtifactFilter.builder().q("kafka").build(),
+                PageRequest.of(0, 10));
+
+        // then
+        assertThat(page.getContent()).extracting(ArtifactEntity::getTitle).containsExactly("Kafka basics",
+                "Kafkaesque onboarding");
+    }
+
     /**
      * The hydration rejoins {@code artifact_tag} rows onto their artifact by a {@code Map} keyed on {@code
      * artifact_id}, built separately from the roots query - nothing before this test proved the join lands on the right
